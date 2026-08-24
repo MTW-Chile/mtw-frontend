@@ -18,16 +18,11 @@ RUN npm run build
 # Stage 2: Serve with NGINX
 FROM nginx:alpine
 ENV PORT=80
-ENV BACKEND_API_URL="https://mtw-relay-api-production.up.railway.app/api/"
-ENV RELAY_SERVICE_TOKEN=""
-ENV NGINX_ENVSUBST_FILTER="PORT BACKEND_API_URL RELAY_SERVICE_TOKEN"
 
 COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/templates/default.conf.template
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 80
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["nginx", "-g", "daemon off;"]

@@ -1,17 +1,59 @@
 #!/bin/sh
 set -e
 
-# Soporte transparente tanto para VITE_SERVICE_TOKEN como RELAY_SERVICE_TOKEN
-if [ -z "$RELAY_SERVICE_TOKEN" ] && [ -n "$VITE_SERVICE_TOKEN" ]; then
-    export RELAY_SERVICE_TOKEN="$VITE_SERVICE_TOKEN"
-fi
+PORT="${PORT:-80}"
+BACKEND_API_URL="${BACKEND_API_URL:-${VITE_API_URL:-https://mtw-relay-api-production.up.railway.app/api/}}"
+RELAY_SERVICE_TOKEN="${RELAY_SERVICE_TOKEN:-${VITE_SERVICE_TOKEN:-}}"
 
-if [ -z "$BACKEND_API_URL" ] && [ -n "$VITE_API_URL" ]; then
-    export BACKEND_API_URL="$VITE_API_URL"
-fi
+# Asegurar que BACKEND_API_URL termine con barra si es necesario
+case "$BACKEND_API_URL" in
+    */) ;;
+    *) BACKEND_API_URL="${BACKEND_API_URL}/" ;;
+esac
 
-if [ -z "$BACKEND_API_URL" ]; then
-    export BACKEND_API_URL="https://mtw-relay-api-production.up.railway.app/api/"
-fi
+# Generar archivo de configuración definitivo de NGINX
+cat <<EOF > /etc/nginx/conf.d/default.conf
+server {
+    listen ${PORT};
+    listen [::]:${PORT};
+    server_name _;
 
-exec /docker-entrypoint.sh "$@"
+    root /usr/share/nginx/html;
+    index index.html;
+
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_proxied expired no-cache no-store private auth;
+    gzip_types text/plain text/css text/xml text/javascript application/javascript application/x-javascript application/xml image/svg+xml;
+    gzip_disable "MSIE [1-6]\.";
+
+    location /api/ {
+        proxy_pass ${BACKEND_API_URL};
+        proxy_http_version 1.1;
+        proxy_set_header Host mtw-relay-api-production.up.railway.app;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+
+        proxy_set_header x-service-token "${RELAY_SERVICE_TOKEN}";
+        proxy_set_header x-relay-token "${RELAY_SERVICE_TOKEN}";
+        proxy_set_header Authorization "Bearer ${RELAY_SERVICE_TOKEN}";
+
+        proxy_ssl_server_name on;
+    }
+
+    location ~* \.(?:ico|css|js|gif|jpe?g|png|woff2?|eot|ttf|svg|webp)\$ {
+        expires 6M;
+        access_log off;
+        add_header Cache-Control "public, max-age=15552000, immutable";
+    }
+
+    location / {
+        try_files \$uri \$uri/ /index.html;
+    }
+}
+EOF
+
+echo "NGINX configuration generated successfully for port ${PORT}"
+exec nginx -g "daemon off;"
