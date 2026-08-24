@@ -44,7 +44,7 @@ export const CotizacionesPage: React.FC<{
   });
 
   return (
-    <div className="p-8 space-y-8 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-8 space-y-6 sm:space-y-8 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-3">
@@ -147,7 +147,54 @@ export const CotizacionesPage: React.FC<{
             No se encontraron obras con el término "{searchTerm}".
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Vista tarjetas: mobile */}
+          <div className="md:hidden divide-y divide-white/5">
+            {filtered.map((p) => {
+              const activeVersion = p.versiones[0];
+              const isPedido = activeVersion?.estadoHetmo === 30 || activeVersion?.estadoGlosa?.toLowerCase().includes('pedido');
+
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => setSelectedProyectoId(p.id)}
+                  className="w-full text-left p-4 flex flex-col gap-2 hover:bg-slate-800/40 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-slate-100 text-sm truncate">{p.obra}</div>
+                      <div className="text-[11px] text-slate-500 font-mono">
+                        {p.codigoInterno || `PRJ-${p.numeroPresupuesto}`}
+                      </div>
+                    </div>
+                    <span
+                      className={`shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wide ${
+                        isPedido
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                          : 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
+                      }`}
+                    >
+                      {activeVersion?.estadoGlosa || 'Terminado'}
+                    </span>
+                  </div>
+
+                  <div className="text-xs text-slate-300">
+                    {p.clienteNombreRaw}
+                    {p.clienteRutRaw && <span className="ml-2 text-[10px] text-slate-500 font-mono">{p.clienteRutRaw}</span>}
+                  </div>
+
+                  <div className="flex items-center gap-4 text-[11px] text-slate-400 font-mono">
+                    <span>v{activeVersion?.versionNumero || 1}</span>
+                    <span>{formatNumber(activeVersion?.totalM2Ventanas, 2)} m²</span>
+                    <span>{activeVersion?.totalVentanas || 0} ventanas</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Vista tabla: desktop */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-300">
               <thead className="bg-slate-900/90 text-[11px] uppercase tracking-wider text-slate-400 border-b border-white/10">
                 <tr>
@@ -228,6 +275,7 @@ export const CotizacionesPage: React.FC<{
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 
