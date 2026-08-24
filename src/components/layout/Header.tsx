@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, RefreshCw } from 'lucide-react';
+import { Search, RefreshCw, Menu } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getSyncLogs, triggerManualSync } from '../../api/client';
 import { formatDate } from '../../lib/utils';
@@ -7,7 +7,8 @@ import { formatDate } from '../../lib/utils';
 export const Header: React.FC<{
   searchTerm: string;
   onSearchChange: (val: string) => void;
-}> = ({ searchTerm, onSearchChange }) => {
+  onMenuClick: () => void;
+}> = ({ searchTerm, onSearchChange, onMenuClick }) => {
   const queryClient = useQueryClient();
   const [syncSuccessMsg, setSyncSuccessMsg] = useState<string | null>(null);
 
@@ -31,9 +32,17 @@ export const Header: React.FC<{
   });
 
   return (
-    <header className="sticky top-0 z-30 h-16 border-b border-white/[0.08] bg-[#0B0F17]/80 backdrop-blur-xl px-6 flex items-center justify-between">
-      <div className="flex items-center gap-3 w-full max-w-md">
-        <div className="relative w-full">
+    <header className="sticky top-0 z-30 h-16 border-b border-white/[0.08] bg-[#0B0F17]/80 backdrop-blur-xl px-4 sm:px-6 flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <button
+          onClick={onMenuClick}
+          className="md:hidden shrink-0 w-9 h-9 rounded-lg bg-slate-900/60 border border-white/10 text-slate-300 hover:text-white flex items-center justify-center transition-colors"
+          aria-label="Abrir menu"
+        >
+          <Menu className="w-4 h-4" />
+        </button>
+
+        <div className="relative w-full max-w-md min-w-0">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
@@ -45,7 +54,7 @@ export const Header: React.FC<{
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         <div className="hidden md:flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-slate-900/60 border border-white/5 text-xs text-slate-300">
           <span className="relative flex h-2 w-2">
             <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${logsError ? 'bg-red-400' : 'bg-emerald-400'}`}></span>
@@ -60,15 +69,15 @@ export const Header: React.FC<{
         <button
           onClick={() => syncMutation.mutate()}
           disabled={syncMutation.isPending}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 text-xs font-semibold tracking-wide transition-all disabled:opacity-50"
+          className="flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 text-xs font-semibold tracking-wide transition-all disabled:opacity-50"
           title="Sincronizar con HETMO"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-          <span>{syncMutation.isPending ? 'Sincronizando...' : 'Actualizar'}</span>
+          <span className="hidden sm:inline">{syncMutation.isPending ? 'Sincronizando...' : 'Actualizar'}</span>
         </button>
 
         {syncSuccessMsg && (
-          <div className="absolute right-6 top-16 bg-emerald-950/90 text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs shadow-lg animate-fade-in z-50">
+          <div className="fixed sm:absolute right-4 sm:right-6 top-16 left-4 sm:left-auto bg-emerald-950/90 text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs shadow-lg animate-fade-in z-50">
             {syncSuccessMsg}
           </div>
         )}

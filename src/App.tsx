@@ -16,13 +16,23 @@ const queryClient = new QueryClient({
 export function App() {
   const [activeTab, setActiveTab] = useState('cotizaciones');
   const [searchTerm, setSearchTerm] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <QueryClientProvider client={queryClient}>
       <div className="flex min-h-screen bg-[#080C14] text-slate-100">
-        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+        <Sidebar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
         <div className="flex-1 flex flex-col min-w-0">
-          <Header searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+          <Header
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            onMenuClick={() => setSidebarOpen(true)}
+          />
           <main className="flex-1 overflow-y-auto">
             {activeTab === 'cotizaciones' && (
               <CotizacionesPage searchTerm={searchTerm} />
