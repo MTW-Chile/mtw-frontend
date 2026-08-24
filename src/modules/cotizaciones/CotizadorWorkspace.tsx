@@ -18,10 +18,8 @@ import {
   Calculator,
   Info,
   FileText,
-  Search,
-  Plus
 } from 'lucide-react';
-import { getProyectoById, updateVersionConfig, triggerManualSync, updateProyectoCliente } from '../../api/client';
+import { getProyectoById, updateVersionConfig, triggerManualSync } from '../../api/client';
 import { formatNumber } from '../../lib/utils';
 import type { Ventana, ProyectoVersion } from '../../types';
 
