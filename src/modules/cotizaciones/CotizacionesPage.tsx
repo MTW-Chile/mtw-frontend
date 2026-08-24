@@ -134,12 +134,12 @@ export const CotizacionesPage: React.FC<{
             <span className="text-xs">Cargando obras desde PostgreSQL...</span>
           </div>
         ) : isError ? (
-          <div className="p-12 text-center space-y-3">
+          <div className="p-12 text-center space-y-2">
             <div className="text-red-400 font-semibold text-sm">
-              Error al conectar con la API de Relay o credenciales inválidas.
+              Error al conectar con la base de datos de HETMO.
             </div>
             <p className="text-xs text-slate-400 max-w-md mx-auto">
-              Verifica si el backend está activo o si se requiere configurar el <span className="text-cyan-400 font-medium">Service Token</span> usando el botón en la barra superior.
+              No se pudo obtener la información desde el backend Relay. Comprueba que el servicio Relay esté en línea en Railway.
             </p>
           </div>
         ) : filtered.length === 0 ? (
