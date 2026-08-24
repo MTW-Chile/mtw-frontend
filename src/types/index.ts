@@ -10,6 +10,24 @@ export interface Cliente {
   creadoEn: string;
 }
 
+export interface Proveedor {
+  id: string;
+  nombre: string;
+  codigoHetmo: number | null;
+  creadoEn: string;
+}
+
+export interface Material {
+  id: string;
+  skuInterno: string;
+  descripcion: string;
+  familia: string;
+  unidadMedida: string;
+  proveedorId: string | null;
+  proveedor?: Proveedor | null;
+  creadoEn: string;
+}
+
 export interface VentanaGeometria {
   id: string;
   ordenGeometria: number;
@@ -27,22 +45,57 @@ export interface VentanaGeometria {
 
 export interface MaterialVentana {
   id: string;
+  ventanaId: string;
+  materialId: string;
   cantidad: number;
   longitudMm: number | null;
   piezas: number | null;
   acabado: string | null;
   precioOrigen: number | null;
   monedaOrigen: string | null;
-  material?: {
-    id: string;
-    skuInterno: string;
-    descripcion: string;
-    familia: string;
-  };
+  origen: 'HETMO' | 'PERSONALIZADO';
+  excluido: boolean;
+  material?: Material;
+}
+
+export interface VentanaFase {
+  id: string;
+  faseId: string;
+  ventanaId: string;
+  unidades: number;
+  notas: string | null;
+  ventana?: Ventana;
+}
+
+export interface Fase {
+  id: string;
+  versionId: string;
+  numeroFase: number;
+  nombre: string;
+  descripcion: string | null;
+  estado: 'BORRADOR' | 'PLANIFICADA' | 'EN_PRODUCCION' | 'COMPLETADA';
+  fechaInicio: string | null;
+  fechaEntrega: string | null;
+  ventanasFase?: VentanaFase[];
+  creadoEn: string;
+  actualizadoEn: string;
+}
+
+export interface ProyectoMaterialAjuste {
+  id: string;
+  versionId: string;
+  materialId: string;
+  precioPersonalizado: number | null;
+  monedaPersonalizada: string | null;
+  familiaPersonalizada: string | null;
+  excluido: boolean;
+  origen: string;
+  material?: Material;
 }
 
 export interface Ventana {
   id: string;
+  versionId: string;
   lineaHetmo: number;
   orden: number;
   modelo: string;
@@ -60,6 +113,7 @@ export interface Ventana {
   comentarioFabricacion: string | null;
   geometrias?: VentanaGeometria[];
   materiales?: MaterialVentana[];
+  ventanasFase?: VentanaFase[];
 }
 
 export interface ProyectoVersion {
@@ -76,11 +130,27 @@ export interface ProyectoVersion {
   monedaDescripcion: string | null;
   monedaSimbolo: string | null;
   tipoCambio: number | null;
+  
+  // Divisas personalizadas por obra
+  tipoCambioDolar: number | null;
+  tipoCambioUF: number | null;
+  tipoCambioEuro: number | null;
+  
+  // Aprobación y Modificaciones
+  tieneModificaciones: boolean;
+  estadoAprobacion: 'BORRADOR' | 'EN_COTIZACION' | 'APROBADO_GERENCIA' | 'CONGELADO';
+  esCongelado: boolean;
+  fechaAprobacion: string | null;
+  aprobadoPor: string | null;
+  
   totalVentanas: number;
   totalM2Ventanas: number | null;
   totalMateriales: number;
   importadoEn: string;
+  
   ventanas?: Ventana[];
+  fases?: Fase[];
+  materialAjustes?: ProyectoMaterialAjuste[];
 }
 
 export interface Proyecto {
