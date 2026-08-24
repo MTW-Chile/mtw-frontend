@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
@@ -18,21 +18,6 @@ const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState('cotizaciones');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // Modo Claro por defecto con persistencia en localStorage
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem('mtw_theme');
-    return saved ? saved === 'dark' : false;
-  });
-
-  useEffect(() => {
-    localStorage.setItem('mtw_theme', isDarkMode ? 'dark' : 'light');
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDarkMode]);
 
   const { data } = useQuery({
     queryKey: ['proyectosCount'],
@@ -40,14 +25,13 @@ const AppContent: React.FC = () => {
   });
 
   return (
-    <div className={`min-h-screen flex transition-colors duration-200 ${isDarkMode ? 'bg-[#080C14] text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+    <div className="min-h-screen flex bg-slate-50 text-slate-900 font-sans">
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         totalProyectos={data?.total}
-        isDarkMode={isDarkMode}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -55,17 +39,15 @@ const AppContent: React.FC = () => {
           onOpenSidebar={() => setIsSidebarOpen(true)}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
-          isDarkMode={isDarkMode}
-          onToggleTheme={() => setIsDarkMode(!isDarkMode)}
         />
 
         <main className="flex-1 overflow-y-auto">
           {activeTab === 'cotizaciones' && (
-            <CotizacionesPage searchTerm={searchTerm} isDarkMode={isDarkMode} />
+            <CotizacionesPage searchTerm={searchTerm} />
           )}
 
           {activeTab !== 'cotizaciones' && (
-            <div className={`p-12 text-center text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            <div className="p-12 text-center text-slate-500 text-sm">
               Módulo en construcción para próximas etapas.
             </div>
           )}

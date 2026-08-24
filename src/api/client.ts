@@ -78,3 +78,15 @@ export async function saveMaterialAjuste(versionId: string, payload: {
   const { data } = await apiClient.post(`/versiones/${versionId}/material-ajustes`, payload);
   return data;
 }
+
+export async function getClientes(q?: string): Promise<{ data: Cliente[] }> {
+  const { data } = await api.get<{ data: Cliente[] }>('/clientes', {
+    params: q ? { q } : undefined,
+  });
+  return data;
+}
+
+export async function createCliente(payload: Partial<Cliente>): Promise<{ data: Cliente }> {
+  const { data } = await api.post<{ data: Cliente }>('/clientes', payload);
+  return data;
+}
