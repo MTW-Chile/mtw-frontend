@@ -1,13 +1,14 @@
 export interface Cliente {
   id: string;
-  rut: string | null;
+  rut?: string | null;
   nombre: string;
-  direccion: string | null;
-  localidad: string | null;
-  telefono: string | null;
-  email: string | null;
-  contacto: string | null;
-  creadoEn: string;
+  razonSocial?: string | null;
+  giro?: string | null;
+  direccion?: string | null;
+  localidad?: string | null;
+  telefono?: string | null;
+  email?: string | null;
+  contacto?: string | null;
 }
 
 export interface Proveedor {
