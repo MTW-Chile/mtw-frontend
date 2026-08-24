@@ -21,7 +21,6 @@ import {
   Plus,
   Unlink,
   Check,
-  Building
 } from 'lucide-react';
 import { getProyectoById, updateVersionConfig, triggerManualSync, updateProyectoCliente, getClientes, createCliente } from '../../api/client';
 import { formatNumber } from '../../lib/utils';
@@ -47,7 +46,6 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
   // UI State para Gestión de Clientes (Paso 1)
   const [clientMode, setClientMode] = useState<'view' | 'select' | 'create'>('view');
   const [searchClientTerm, setSearchClientTerm] = useState('');
-  const [selectedMasterClientId, setSelectedMasterClientId] = useState<string | null>(null);
 
   // Form State para Crear Nuevo Cliente en el Maestro
   const [nuevoNombre, setNuevoNombre] = useState('');
@@ -83,8 +81,7 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
     }
     if (proyecto) {
       if (proyecto.cliente) {
-        setSelectedMasterClientId(proyecto.cliente.id);
-        setClientMode('view');
+                setClientMode('view');
       } else {
         // Precargar formulario de creación con los datos crudos de HETMO como sugerencia
         setNuevoNombre(proyecto.clienteNombreRaw || '');

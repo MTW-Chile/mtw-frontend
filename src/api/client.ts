@@ -1,5 +1,5 @@
 ﻿import axios from 'axios';
-import type { ProyectosResponse, Proyecto, SyncLog } from '../types';
+import type { ProyectosResponse, Proyecto, SyncLog, Cliente } from '../types';
 
 const serviceToken = import.meta.env.VITE_SERVICE_TOKEN;
 
@@ -80,13 +80,13 @@ export async function saveMaterialAjuste(versionId: string, payload: {
 }
 
 export async function getClientes(q?: string): Promise<{ data: Cliente[] }> {
-  const { data } = await api.get<{ data: Cliente[] }>('/clientes', {
+  const { data } = await client.get<{ data: Cliente[] }>('/clientes', {
     params: q ? { q } : undefined,
   });
   return data;
 }
 
 export async function createCliente(payload: Partial<Cliente>): Promise<{ data: Cliente }> {
-  const { data } = await api.post<{ data: Cliente }>('/clientes', payload);
+  const { data } = await client.post<{ data: Cliente }>('/clientes', payload);
   return data;
 }
