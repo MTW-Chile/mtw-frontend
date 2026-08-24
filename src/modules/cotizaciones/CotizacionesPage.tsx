@@ -1,32 +1,35 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { 
-  Building2, 
-  Ruler, 
-  Eye,
-  Calculator,
   RotateCcw,
-  Layers
+  Calculator,
+  Eye,
+  Clock
 } from 'lucide-react';
-import { getProyectos, triggerManualSync } from '../../api/client';
+import { getProyectos, getSyncLogs, triggerManualSync } from '../../api/client';
 import { formatNumber } from '../../lib/utils';
 import { CotizacionDetalleModal } from './CotizacionDetalleModal';
-import { CotizadorModal } from './CotizadorModal';
+import { CotizadorWorkspace } from './CotizadorWorkspace';
 
 export const CotizacionesPage: React.FC<{
   searchTerm: string;
 }> = ({ searchTerm }) => {
-  const selectedEstado: number | null = null;
   const [selectedProyectoId, setSelectedProyectoId] = useState<string | null>(null);
   const [cotizarProyectoId, setCotizarProyectoId] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['proyectos', selectedEstado],
-    queryFn: () => getProyectos({ limit: 100, estado: selectedEstado || undefined }),
+    queryKey: ['proyectos'],
+    queryFn: () => getProyectos({ limit: 100 }),
+  });
+
+  const { data: syncLogs, refetch: refetchLogs } = useQuery({
+    queryKey: ['syncLogsRecent'],
+    queryFn: () => getSyncLogs(1),
   });
 
   const proyectos = data?.data || [];
+  const lastSync = syncLogs?.[0];
 
   const handleManualSync = async () => {
     try {
@@ -34,6 +37,7 @@ export const CotizacionesPage: React.FC<{
       await triggerManualSync(false);
       setTimeout(() => {
         refetch();
+        refetchLogs();
         setIsSyncing(false);
       }, 3000);
     } catch {
@@ -51,15 +55,24 @@ export const CotizacionesPage: React.FC<{
     return matchObra || matchCliente || matchCodigo || matchRut;
   });
 
-  // MÃ©tricas generales rÃ¡pidas
-  const totalM2Global = filtered.reduce((acc, p) => acc + (p.versiones[0]?.totalM2Ventanas || 0), 0);
-  const totalVentanasGlobal = filtered.reduce((acc, p) => acc + (p.versiones[0]?.totalVentanas || 0), 0);
+  // Si se presiona "Cotizar", pasamos a la experiencia de pantalla completa del Cotizador
+  if (cotizarProyectoId) {
+    return (
+      <CotizadorWorkspace
+        proyectoId={cotizarProyectoId}
+        onBack={() => {
+          setCotizarProyectoId(null);
+          refetch();
+        }}
+      />
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-6 max-w-7xl mx-auto animate-fade-in">
       
       {/* ========================================== */}
-      {/* CABECERA & MÃ‰TRICAS */}
+      {/* CABECERA & ESTADO DE IMPORTACIÃ“N */}
       {/* ========================================== */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -70,54 +83,32 @@ export const CotizacionesPage: React.FC<{
             </span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            GestiÃ³n de presupuestos HETMO, fases de fabricaciÃ³n y cotizaciones personalizadas.
+            Proyectos sincronizados desde HETMO listos para presupuestar y fabricar.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Tarjeta de estado de la Ãºltima sincronizaciÃ³n */}
+          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900/80 border border-white/10 text-xs text-slate-400">
+            <Clock className="w-3.5 h-3.5 text-cyan-400" />
+            <span>
+              Ãšltima importaciÃ³n:{' '}
+              <strong className="text-slate-200 font-mono">
+                {lastSync?.finalizadoEn
+                  ? new Date(lastSync.finalizadoEn).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
+                  : 'Reciente'}
+              </strong>
+            </span>
+          </div>
+
           <button
             onClick={handleManualSync}
             disabled={isSyncing}
-            className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/10 hover:border-cyan-500/30 text-xs font-semibold transition-all flex items-center gap-2 shadow-sm disabled:opacity-50"
+            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 hover:border-cyan-500/30 text-xs font-semibold transition-all flex items-center gap-2 shadow-sm disabled:opacity-50"
           >
             <RotateCcw className={`w-3.5 h-3.5 text-cyan-400 ${isSyncing ? 'animate-spin' : ''}`} />
             <span>{isSyncing ? 'Sincronizando...' : 'Sincronizar HETMO'}</span>
           </button>
-        </div>
-      </div>
-
-      {/* Tarjetas resumen superior */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <div className="p-4 rounded-2xl bg-slate-900/50 border border-white/[0.08] flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
-            <Building2 className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Obras Activas</div>
-            <div className="text-lg font-bold text-slate-100 font-mono">{filtered.length}</div>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-slate-900/50 border border-white/[0.08] flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
-            <Layers className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Total Ventanas</div>
-            <div className="text-lg font-bold text-slate-100 font-mono">{totalVentanasGlobal}</div>
-          </div>
-        </div>
-
-        <div className="col-span-2 sm:col-span-1 p-4 rounded-2xl bg-slate-900/50 border border-white/[0.08] flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
-            <Ruler className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Superficie Total</div>
-            <div className="text-lg font-bold text-slate-100 font-mono">
-              {formatNumber(totalM2Global, 1)} <span className="text-xs font-normal text-slate-400">mÂ²</span>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -225,7 +216,7 @@ export const CotizacionesPage: React.FC<{
                           <button
                             onClick={() => setSelectedProyectoId(p.id)}
                             className="w-8 h-8 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white border border-white/5 flex items-center justify-center transition-colors"
-                            title="Ver Ficha TÃ©cnica"
+                            title="Ver Ficha TÃ©cnica rÃ¡pida"
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
@@ -240,16 +231,10 @@ export const CotizacionesPage: React.FC<{
         )}
       </div>
 
-      {/* Modal Ficha TÃ©cnica */}
+      {/* Modal Ficha TÃ©cnica rÃ¡pida */}
       <CotizacionDetalleModal
         proyectoId={selectedProyectoId}
         onClose={() => setSelectedProyectoId(null)}
-      />
-
-      {/* Workspace de CotizaciÃ³n (Paso 1, 2, 3, 4) */}
-      <CotizadorModal
-        proyectoId={cotizarProyectoId}
-        onClose={() => setCotizarProyectoId(null)}
       />
     </div>
   );
