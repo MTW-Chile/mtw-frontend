@@ -18,9 +18,15 @@ const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState('cotizaciones');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  
+  // Modo Claro por defecto con persistencia en localStorage
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('mtw_theme');
+    return saved ? saved === 'dark' : false;
+  });
 
   useEffect(() => {
+    localStorage.setItem('mtw_theme', isDarkMode ? 'dark' : 'light');
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
@@ -59,7 +65,7 @@ const AppContent: React.FC = () => {
           )}
 
           {activeTab !== 'cotizaciones' && (
-            <div className="p-12 text-center text-slate-400 text-sm">
+            <div className={`p-12 text-center text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
               Módulo en construcción para próximas etapas.
             </div>
           )}
