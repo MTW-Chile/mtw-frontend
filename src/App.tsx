@@ -1,11 +1,20 @@
 import React, { useState, useEffect } from 'react';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { CotizacionesPage } from './modules/cotizaciones/CotizacionesPage';
-import { useQuery } from '@tanstack/react-query';
 import { getProyectos } from './api/client';
 
-export const App: React.FC = () => {
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState('cotizaciones');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -25,13 +34,14 @@ export const App: React.FC = () => {
   });
 
   return (
-    <div className={`min-h-screen flex ${isDarkMode ? 'bg-[#080C14] text-slate-100' : 'bg-slate-100 text-slate-900'}`}>
+    <div className={`min-h-screen flex transition-colors duration-200 ${isDarkMode ? 'bg-[#080C14] text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         totalProyectos={data?.total}
+        isDarkMode={isDarkMode}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -45,7 +55,7 @@ export const App: React.FC = () => {
 
         <main className="flex-1 overflow-y-auto">
           {activeTab === 'cotizaciones' && (
-            <CotizacionesPage searchTerm={searchTerm} />
+            <CotizacionesPage searchTerm={searchTerm} isDarkMode={isDarkMode} />
           )}
 
           {activeTab !== 'cotizaciones' && (
@@ -56,6 +66,14 @@ export const App: React.FC = () => {
         </main>
       </div>
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AppContent />
+    </QueryClientProvider>
   );
 };
 
