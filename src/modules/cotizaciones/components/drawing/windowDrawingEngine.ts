@@ -259,10 +259,22 @@ export function buildCompositeStructure(ventana: Ventana): CompositeWindow {
   const totalHeightMm = Math.max(100, ventana.altoMm || 1000);
   const raw: VentanaGeometria[] = ventana.geometrias || [];
 
-  // 1. Filtrar los paños físicos (tipoElemento === 10000)
-  const panelGeos = raw
+  // 1. Agrupar los paños físicos (tipoElemento === 10000) por hueco o posición
+  const huecosMap = new Map<string, VentanaGeometria>();
+  let fallbackId = 1;
+
+  raw
     .filter(g => Number(g.tipoElemento) === 10000 && (Number(g.anchoMm) || 0) > 0)
-    .sort((a, b) => (a.ordenGeometria ?? 0) - (b.ordenGeometria ?? 0));
+    .sort((a, b) => (a.ordenGeometria ?? 0) - (b.ordenGeometria ?? 0))
+    .forEach(g => {
+       const id = Number(g.perteneceHueco) || Number(g.posicion) || fallbackId++;
+       const key = String(id);
+       if (!huecosMap.has(key)) {
+         huecosMap.set(key, g);
+       }
+    });
+
+  const panelGeos = Array.from(huecosMap.values());
 
   // 2. Filtrar filas de apertura (tipoElemento === 3)
   const openingGeos = raw.filter(g => Number(g.tipoElemento) === 3);
@@ -277,11 +289,20 @@ export function buildCompositeStructure(ventana: Ventana): CompositeWindow {
       const h = Number(p.altoMm) || totalHeightMm;
 
       // Buscar si este paño tiene una fila tipo 3 vinculada
-      const matchingOpening = openingGeos.find(o => 
-        (o.perteneceHueco != null && p.perteneceHueco != null && o.perteneceHueco === p.perteneceHueco) ||
-        (o.posicion != null && p.posicion != null && o.posicion === p.posicion) ||
-        (o.anchoMm != null && Math.abs(Number(o.anchoMm) - w) < 5)
-      );
+      const matchingOpening = openingGeos.find(o => {
+        const oHueco = Number(o.perteneceHueco) || 0;
+        const pHueco = Number(p.perteneceHueco) || 0;
+        if (oHueco > 0 && pHueco > 0 && oHueco === pHueco) return true;
+
+        const oPos = Number(o.posicion) || 0;
+        const pPos = Number(p.posicion) || 0;
+        if (oPos > 0 && pPos > 0 && oPos === pPos) return true;
+
+        // Fallback: match by width ONLY if we don't have valid identifiers for both
+        if (oHueco === 0 && oPos === 0 && o.anchoMm != null && Math.abs(Number(o.anchoMm) - w) < 5) return true;
+
+        return false;
+      });
 
       let aptCode = matchingOpening ? Number(matchingOpening.tipoApertura) : 0;
       let aptCount = 1;
