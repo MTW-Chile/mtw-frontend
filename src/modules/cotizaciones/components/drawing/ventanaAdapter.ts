@@ -11,14 +11,23 @@ export function toLegacyLine(ventana: Ventana): any {
     linea_hetmo: ventana.lineaHetmo,
     dibujo_tipo_apertura: ventana.dibujoTipoApertura,
     tipo_apertura: ventana.dibujoTipoApertura,
+    apertura: ventana.dibujoTipoApertura,
     acabado: ventana.acabadoCodigo,
     geometria: (ventana.geometrias || []).map((g: VentanaGeometria) => ({
       ...g,
+      // Mapeos críticos para el motor HETMO original
+      numero_ventana: g.perteneceHueco || g.posicion || 1,
+      orden: g.ordenGeometria,
+      orden_geometria: g.ordenGeometria,
       tipo_elemento: g.tipoElemento,
+      elemento: g.tipoElemento,
       tipo_geometria: g.tipoGeometria,
+      ancho: g.anchoMm,
+      alto: g.altoMm,
       ancho_mm: g.anchoMm,
       alto_mm: g.altoMm,
       tipo_apertura: g.tipoApertura,
+      apertura: g.tipoApertura, // apertura local del paño
       posicion: g.posicion,
       pertenece_hueco: g.perteneceHueco,
       forma_codigo: g.formaCodigo,
