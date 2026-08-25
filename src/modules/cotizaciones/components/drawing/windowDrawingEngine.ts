@@ -251,97 +251,62 @@ export interface CompositeWindow {
 
 /**
  * Interpreta la estructura geométrica de la ventana:
- * Agrupa por panel (perteneceHueco / posicion) tal como lo hace el catálogo HETMO SQL.
+ * 1. Identifica los paños físicos declarados en HETMO (tipoElemento === 10000).
+ * 2. Cruza con las aperturas declaradas (tipoElemento === 3 o tipoApertura de línea).
  */
 export function buildCompositeStructure(ventana: Ventana): CompositeWindow {
   const totalWidthMm = Math.max(100, ventana.anchoMm || 1000);
   const totalHeightMm = Math.max(100, ventana.altoMm || 1000);
   const raw: VentanaGeometria[] = ventana.geometrias || [];
 
-  // Agrupar filas de geometría por paño/hueco
-  const groups = new Map<number, {
-    number: number;
-    order: number;
-    width: number;
-    height: number;
-    apertura: number;
-    aperturaCount: number;
-    raw: VentanaGeometria[];
-  }>();
+  // 1. Filtrar los paños físicos (tipoElemento === 10000)
+  const panelGeos = raw
+    .filter(g => Number(g.tipoElemento) === 10000 && (Number(g.anchoMm) || 0) > 0)
+    .sort((a, b) => (a.ordenGeometria ?? 0) - (b.ordenGeometria ?? 0));
 
-  raw.forEach((item, index) => {
-    // Si viene perteneceHueco o posicion lo usamos; si no, agrupamos por orden si es tipo 10000
-    const tipo = Number(item.tipoElemento);
-    let panelNumber = Number(item.perteneceHueco) || Number(item.posicion);
-    if (!panelNumber && tipo === 10000) {
-      panelNumber = index + 1;
-    }
-    if (!panelNumber) return;
+  // 2. Filtrar filas de apertura (tipoElemento === 3)
+  const openingGeos = raw.filter(g => Number(g.tipoElemento) === 3);
 
-    if (!groups.has(panelNumber)) {
-      groups.set(panelNumber, {
-        number: panelNumber,
-        order: item.ordenGeometria ?? index,
-        width: 0,
-        height: 0,
-        apertura: 0,
-        aperturaCount: 0,
-        raw: [],
-      });
-    }
-
-    const panel = groups.get(panelNumber)!;
-    panel.raw.push(item);
-    panel.order = Math.min(panel.order, item.ordenGeometria ?? index);
-
-    const itemW = Number(item.anchoMm) || 0;
-    const itemH = Number(item.altoMm) || 0;
-
-    if (tipo === 10000 || (itemW > 0 && itemH > 0 && panel.width === 0)) {
-      panel.width = itemW || panel.width;
-      panel.height = itemH || panel.height;
-    }
-
-    // Fila tipo 3 declara la apertura específica de ESTE paño
-    if (tipo === 3) {
-      panel.apertura = Number(item.tipoApertura) || 0;
-      panel.aperturaCount += 1;
-    }
-  });
-
-  const panelsWithDims = [...groups.values()]
-    .filter(p => p.width > 0 && p.height > 0)
-    .sort((a, b) => a.number - b.number || a.order - b.order);
-
-  // Si se detectaron 2 o más módulos con medidas reales
-  if (panelsWithDims.length >= 2) {
+  // Si se detectan 2 o más paños físicos
+  if (panelGeos.length >= 2) {
     const declaredLeaves = Number(ventana.numeroCuadrosHojas) || 1;
-    
-    // Si sólo un paño tiene apertura y la línea declara 2 hojas para puerta (ej. apertura 21)
-    const openingPanels = panelsWithDims.filter(p => p.aperturaCount > 0 && p.apertura > 0);
-    if (openingPanels.length === 1 && declaredLeaves === 2) {
-      openingPanels[0].aperturaCount = 2;
-    }
+    const headerApertureCode = Number(ventana.dibujoTipoApertura) || 0;
 
-    const panels: CompositePanel[] = panelsWithDims.map((p, idx) => {
+    const panels: CompositePanel[] = panelGeos.map((p, idx) => {
+      const w = Number(p.anchoMm) || (totalWidthMm / panelGeos.length);
+      const h = Number(p.altoMm) || totalHeightMm;
+
+      // Buscar si este paño tiene una fila tipo 3 vinculada
+      const matchingOpening = openingGeos.find(o => 
+        (o.perteneceHueco != null && p.perteneceHueco != null && o.perteneceHueco === p.perteneceHueco) ||
+        (o.posicion != null && p.posicion != null && o.posicion === p.posicion) ||
+        (o.anchoMm != null && Math.abs(Number(o.anchoMm) - w) < 5)
+      );
+
+      let aptCode = matchingOpening ? Number(matchingOpening.tipoApertura) : 0;
+      let aptCount = 1;
+
+      // Si no hubo fila tipo 3 pero la cabecera declara apertura y este es el paño central o único diferenciado
+      if (aptCode === 0 && headerApertureCode > 0 && openingGeos.length === 0) {
+        if (panelGeos.length % 2 === 1 && idx === Math.floor(panelGeos.length / 2)) {
+          aptCode = headerApertureCode;
+        }
+      }
+
       let spec: ApertureSpec;
-      let aptCount = p.aperturaCount;
-
-      if (p.apertura > 0) {
-        spec = resolveApertureCode(p.apertura, ventana.descripcionCorta || ventana.modelo);
-        if (spec.leafCount === 2 || aptCount >= 2) {
+      if (aptCode > 0) {
+        spec = resolveApertureCode(aptCode, ventana.descripcionCorta || ventana.modelo);
+        if (spec.leafCount === 2 || declaredLeaves === 2) {
           aptCount = 2;
         }
       } else {
-        // Paño Fijo
         spec = { code: 0, family: 'fixed', label: 'Ventana Fija', leafCount: 1 };
-        aptCount = 1;
       }
 
       return {
         panelIndex: idx,
-        widthMm: p.width,
-        heightMm: p.height,
+        widthMm: w,
+        heightMm: h,
         apertura: spec,
         aperturaCount: aptCount,
         isOperable: spec.family !== 'fixed',
@@ -359,7 +324,7 @@ export function buildCompositeStructure(ventana: Ventana): CompositeWindow {
     };
   }
 
-  // 2. Ventana Simple (Monolítica)
+  // 3. Ventana Simple (Monolítica)
   const singleSpec = resolveApertureCode(
     ventana.dibujoTipoApertura,
     `${ventana.modelo} ${ventana.descripcionCorta || ''}`
