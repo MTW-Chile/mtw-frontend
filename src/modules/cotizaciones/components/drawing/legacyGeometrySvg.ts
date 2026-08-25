@@ -62,7 +62,6 @@ import * as core from './legacyGeometryCore';
     const color = profileColors(finish), sx = x + inset, sy = y + inset, sw = Math.max(2, width - inset * 2), sh = Math.max(2, height - inset * 2);
     const weight = clamp(Math.min(width, height) * .03, 1.8, 2.8);
     const beadInset = Math.max(1.4, weight * .8);
-    const lift = clamp(weight * .38, .72, 1.05);
     const innerX = sx + beadInset, innerY = sy + beadInset;
     const innerW = Math.max(1, sw - beadInset * 2), innerH = Math.max(1, sh - beadInset * 2);
     // La hoja es una pieza montada DELANTE del marco. Conserva exactamente el
@@ -70,8 +69,7 @@ import * as core from './legacyGeometryCore';
     // forman un escalón 2D. Así se distingue sin inventar una franja blanca ni
     // cambiar anchos, carriles o solapes.
     return `<g class="window-sash" data-profile-layer="raised">`
-      + `<rect class="window-sash-shadow" x="${sx + lift}" y="${sy + lift}" width="${sw}" height="${sh}" rx=".75" style="fill:none;stroke:${color.dark};stroke-width:${Math.max(1, weight * .55)};opacity:.52"/>`
-      + `<rect class="window-sash-profile" x="${sx}" y="${sy}" width="${sw}" height="${sh}" rx=".65" style="fill:none;stroke:${color.base};stroke-width:${weight}"/>`
+      + `<rect class="window-sash-profile" x="${sx}" y="${sy}" width="${sw}" height="${sh}" rx=".65" style="fill:none;stroke:${color.base};stroke-width:${weight};filter:drop-shadow(1px 1.5px 1.5px rgba(0,0,0,0.4))"/>`
       + `<path class="window-sash-highlight" d="M ${sx + .45} ${sy + sh - .45} V ${sy + .45} H ${sx + sw - .45}" style="${lineStyle(color.light, .9, 'opacity:.82')}"/>`
       + `<path class="window-sash-shade" d="M ${sx + .45} ${sy + sh - .45} H ${sx + sw - .45} V ${sy + .45}" style="${lineStyle(color.dark, .9, 'opacity:.72')}"/>`
       + `<rect class="window-glazing-bead" x="${innerX}" y="${innerY}" width="${innerW}" height="${innerH}" rx=".2" style="fill:none;stroke:${color.dark};stroke-width:.42;opacity:.72"/>`
@@ -474,7 +472,7 @@ import * as core from './legacyGeometryCore';
       return core.railForLeaf(leaf, definition, index);
     });
     const overlap = isSlider && allLeaves.length > 1 ? clamp(drawingW * .03, 3, 5) : 0;
-    const boundaryOverlaps = allLeaves.slice(0, -1).map((leaf, index) => leafRails[index].number > 0 && leafRails[index + 1].number > 0 && leafRails[index].number !== leafRails[index + 1].number ? overlap : 0);
+    const boundaryOverlaps = allLeaves.slice(0, -1).map((leaf, index) => leafRails[index].number !== leafRails[index + 1].number ? overlap : 0);
     const leafDrawingWidth = drawingW + boundaryOverlaps.reduce((sum, value) => sum + value, 0);
     let cursor = x;
     const leafLayers = [], hardwareLayers = [], glassCodeLayers = [], segmentDimensions = [], color = '#2452d6';
@@ -510,9 +508,9 @@ import * as core from './legacyGeometryCore';
       const leafLabel = hiddenLeaf ? '' : glassCodeMarkup(codeClass, leafGlassCode, cursor + 3, labelY);
       if (leafLabel) glassCodeLayers.push(leafLabel);
       if (allLeaves.length > 1) segmentDimensions.push(segmentDimensionMarkup(cursor, leafWidth, y + drawingH, leaf.width));
-      const leafSash = glassOnly || hiddenLeaf ? '' : definition.family === 'fixed'
-        ? fixedGlazingMarkup(cursor, y, leafWidth, drawingH, finish)
-        : sashMarkup(cursor, y, leafWidth, drawingH, finish, inset);
+      const leafSash = glassOnly || hiddenLeaf ? '' : (!isSlider && definition.family === 'fixed')
+          ? fixedGlazingMarkup(cursor, y, leafWidth, drawingH, finish)
+          : sashMarkup(cursor, y, leafWidth, drawingH, finish, inset);
       let leafMark = '';
       const leafAxisY = definition.family === 'projecting' ? y + drawingH - 3 : openingAxisY(line, leaf, y, drawingH, height);
       if (hiddenLeaf) leafMark = '';
