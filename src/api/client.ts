@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { ProyectosResponse, Proyecto, SyncLog, Cliente } from '../types';
+import type { ProyectosResponse, Proyecto, ProyectoVersion, Fase, ProyectoMaterialAjuste, SyncLog, Cliente } from '../types';
 
 // withCredentials: true es lo que hace que el navegador mande la cookie de
 // sesion de Cloudflare Access en cada llamada (relay.mtw.cl/api/* esta
@@ -42,25 +42,27 @@ export async function getProyectos(params?: {
   limit?: number;
   estado?: number;
 }): Promise<ProyectosResponse> {
-  const response = await apiClient.get<any>('/proyectos', { params });
+  const response = await apiClient.get<ProyectosResponse>('/proyectos', { params });
   return response.data;
 }
 
 export async function getProyectoById(id: string): Promise<Proyecto> {
-  const response = await apiClient.get<any>(`/proyectos/${id}`);
-  // Soporta tanto { data: proyecto } como proyecto directo
-  return response.data?.data || response.data;
+  // GET /api/proyectos/:id devuelve el proyecto directo, sin envoltorio.
+  const response = await apiClient.get<Proyecto>(`/proyectos/${id}`);
+  return response.data;
 }
 
 export async function getSyncLogs(limit = 10): Promise<SyncLog[]> {
-  const response = await apiClient.get<any>('/sync/logs', {
+  const response = await apiClient.get<SyncLog[]>('/sync/logs', {
     params: { limit },
   });
-  return response.data?.data || response.data;
+  return response.data;
 }
 
-export async function triggerManualSync(forceUpdate = false): Promise<{ status: string; message: string }> {
-  const response = await apiClient.post<any>('/sync/run', {
+export async function triggerManualSync(
+  forceUpdate = false
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  const response = await apiClient.post<{ success: boolean; message?: string; error?: string }>('/sync/run', {
     forceUpdate,
   });
   return response.data;
@@ -74,16 +76,24 @@ export async function updateVersionConfig(
     tipoCambioEuro?: number | null;
     estadoAprobacion?: string;
   }
-): Promise<{ data: any }> {
-  const response = await apiClient.patch<any>(`/versiones/${id}/config`, payload);
+): Promise<{ success: boolean; version: ProyectoVersion }> {
+  const response = await apiClient.patch<{ success: boolean; version: ProyectoVersion }>(
+    `/versiones/${id}/config`,
+    payload
+  );
   return response.data;
 }
 
 export async function updateProyectoCliente(
   id: string,
   clienteId: string | null
-): Promise<{ data: Proyecto }> {
-  const response = await apiClient.patch<any>(`/proyectos/${id}/cliente`, { clienteId });
+): Promise<{ success: boolean; proyecto: Omit<Proyecto, 'versiones'> }> {
+  // El relay actualiza con include: { cliente: true } solamente - la respuesta
+  // no trae "versiones" (a diferencia de GET /proyectos/:id).
+  const response = await apiClient.patch<{ success: boolean; proyecto: Omit<Proyecto, 'versiones'> }>(
+    `/proyectos/${id}/cliente`,
+    { clienteId }
+  );
   return response.data;
 }
 
@@ -95,8 +105,11 @@ export async function createFase(
     descripcion?: string;
     ventanas: { ventanaId: string; unidades: number; notas?: string }[];
   }
-): Promise<{ data: any }> {
-  const response = await apiClient.post<any>(`/versiones/${versionId}/fases`, payload);
+): Promise<{ success: boolean; fase: Fase }> {
+  const response = await apiClient.post<{ success: boolean; fase: Fase }>(
+    `/versiones/${versionId}/fases`,
+    payload
+  );
   return response.data;
 }
 
@@ -109,22 +122,22 @@ export async function saveMaterialAjuste(
     familiaPersonalizada?: string | null;
     excluido?: boolean;
   }
-): Promise<{ data: any }> {
-  const response = await apiClient.post<any>(`/versiones/${versionId}/material-ajustes`, payload);
+): Promise<{ success: boolean; ajuste: ProyectoMaterialAjuste }> {
+  const response = await apiClient.post<{ success: boolean; ajuste: ProyectoMaterialAjuste }>(
+    `/versiones/${versionId}/material-ajustes`,
+    payload
+  );
   return response.data;
 }
 
 export async function getClientes(q?: string): Promise<{ data: Cliente[] }> {
-  const response = await apiClient.get<any>('/clientes', {
+  const response = await apiClient.get<{ data: Cliente[] }>('/clientes', {
     params: q ? { q } : undefined,
   });
-  if (Array.isArray(response.data)) {
-    return { data: response.data };
-  }
-  return response.data?.data ? response.data : { data: [] };
+  return response.data;
 }
 
 export async function createCliente(payload: Partial<Cliente>): Promise<{ data: Cliente }> {
-  const response = await apiClient.post<any>('/clientes', payload);
+  const response = await apiClient.post<{ data: Cliente }>('/clientes', payload);
   return response.data;
 }
