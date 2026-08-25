@@ -1,6 +1,7 @@
-import type { Ventana, VentanaGeometria } from '../../../../types';
+import type { Ventana, MaterialVentana } from '../../../../types';
 
 export interface ProfileFinish {
+  code: string;
   name: string;
   base: string;
   light: string;
@@ -9,46 +10,70 @@ export interface ProfileFinish {
   glass: string;
   glassStroke: string;
   symbolColor: string;
+  glassCrossColor: string;
 }
 
 /**
- * Genera la paleta de colores y sombreados 3D según el acabado.
- * Regla general procedural: calcula aristas de luz (superior/izquierda) y sombra (inferior/derecha).
+ * Resuelve el color y acabado de la perfilería de forma general para cualquier proyecto.
+ * Inspecciona: código de acabado HETMO, descripción de la ventana y materiales de perfilería.
  */
-export function getProfileFinish(acabado?: string | null): ProfileFinish {
-  const code = (acabado || '').toLowerCase().trim();
+export function resolveProfileFinish(ventana: Ventana): ProfileFinish {
+  const codeRaw = String(ventana.acabadoCodigo || '').toLowerCase().trim();
+  const desc = `${ventana.modelo} ${ventana.descripcionCorta || ''}`.toLowerCase();
+  
+  // Buscar también pistas en los materiales de la ventana si existen (ej. "MARCO 70 ROBLE")
+  const matText = (ventana.materiales || [])
+    .map((m: MaterialVentana) => `${m.material?.descripcion || ''} ${m.acabado || ''}`)
+    .join(' ')
+    .toLowerCase();
 
-  // Roble Dorado / Madera Cálida
-  if (code.includes('roble') || code.includes('golden') || code.includes('wood') || code.includes('pino')) {
+  const fullText = `${codeRaw} ${desc} ${matText}`;
+
+  // 1. Roble Dorado / Madera Cálida / Golden Oak (HETMO 2052, etc.)
+  if (
+    codeRaw === '2052' ||
+    /roble|golden\s*oak|wood|pino|madera\s*clara/.test(fullText)
+  ) {
     return {
+      code: '2052',
       name: 'Roble Dorado',
-      base: '#B47230',
-      light: '#D38E4C',
-      dark: '#6E3A0E',
-      stroke: '#582E0B',
+      base: '#A4682A',
+      light: '#C88746',
+      dark: '#633912',
+      stroke: '#482508',
       glass: '#E0F2FE',
       glassStroke: '#BAE6FD',
       symbolColor: '#1D4ED8',
+      glassCrossColor: '#0284C7',
     };
   }
 
-  // Nogal / Madera Oscura
-  if (code.includes('nogal') || code.includes('walnut') || code.includes('wengue')) {
+  // 2. Nogal / Madera Oscura / Walnut (HETMO 2178, etc.)
+  if (
+    codeRaw === '2178' ||
+    /nogal|walnut|wengue|teak|madera\s*oscura/.test(fullText)
+  ) {
     return {
+      code: '2178',
       name: 'Nogal',
-      base: '#53341E',
-      light: '#724A2D',
-      dark: '#301C0D',
-      stroke: '#241408',
+      base: '#4A2F1B',
+      light: '#6B462C',
+      dark: '#2A180C',
+      stroke: '#1A0C06',
       glass: '#E0F2FE',
       glassStroke: '#BAE6FD',
       symbolColor: '#38BDF8',
+      glassCrossColor: '#38BDF8',
     };
   }
 
-  // Gris Antracita / Grafito (RAL 7016)
-  if (code.includes('antracita') || code.includes('grafito') || code.includes('gris') || code.includes('7016')) {
+  // 3. Gris Antracita / Grafito (HETMO 7016, etc.)
+  if (
+    codeRaw === '7016' ||
+    /antracita|grafito|gris|gray|7016/.test(fullText)
+  ) {
     return {
+      code: '7016',
       name: 'Gris Antracita',
       base: '#374151',
       light: '#4B5563',
@@ -57,12 +82,17 @@ export function getProfileFinish(acabado?: string | null): ProfileFinish {
       glass: '#E0F2FE',
       glassStroke: '#BAE6FD',
       symbolColor: '#38BDF8',
+      glassCrossColor: '#38BDF8',
     };
   }
 
-  // Negro (RAL 9005)
-  if (code.includes('negro') || code.includes('black') || code.includes('9005')) {
+  // 4. Negro Mate / Black (HETMO 9005, Kitami, Mattex, etc.)
+  if (
+    codeRaw === '9005' ||
+    /negro|black|kitami|mattex|9005/.test(fullText)
+  ) {
     return {
+      code: '9005',
       name: 'Negro',
       base: '#1E293B',
       light: '#334155',
@@ -71,25 +101,29 @@ export function getProfileFinish(acabado?: string | null): ProfileFinish {
       glass: '#E0F2FE',
       glassStroke: '#BAE6FD',
       symbolColor: '#60A5FA',
+      glassCrossColor: '#60A5FA',
     };
   }
 
-  // Bronce / Titanio
-  if (code.includes('bronce') || code.includes('titanio') || code.includes('anodizado')) {
+  // 5. Bronce / Titanio / Marrón
+  if (/bronce|titanio|marron|brown|anodizado/.test(fullText)) {
     return {
+      code: 'BRONCE',
       name: 'Bronce',
-      base: '#645D56',
-      light: '#7E766E',
-      dark: '#47413B',
-      stroke: '#332E29',
+      base: '#5A534C',
+      light: '#726A62',
+      dark: '#3C3630',
+      stroke: '#28231E',
       glass: '#E0F2FE',
       glassStroke: '#BAE6FD',
       symbolColor: '#2563EB',
+      glassCrossColor: '#2563EB',
     };
   }
 
-  // Estándar: Blanco PVC MTW
+  // 6. Blanco Estándar MTW PVC (HETMO 6997, 9016, etc.)
   return {
+    code: '6997',
     name: 'Blanco',
     base: '#F8FAFC',
     light: '#FFFFFF',
@@ -98,6 +132,7 @@ export function getProfileFinish(acabado?: string | null): ProfileFinish {
     glass: '#F0F9FF',
     glassStroke: '#BAE6FD',
     symbolColor: '#0284C7',
+    glassCrossColor: '#0284C7',
   };
 }
 
@@ -109,7 +144,8 @@ export type ApertureFamily =
   | 'sliding' 
   | 'parallel' 
   | 'lift-slide' 
-  | 'double-door';
+  | 'double-door'
+  | 'door';
 
 export interface ApertureSpec {
   code: number;
@@ -121,30 +157,40 @@ export interface ApertureSpec {
 }
 
 /**
- * Catálogo General de Aperturas HETMO SQL
- * Clasificación canónica que cubre los códigos reales de fábrica.
+ * Catálogo Canónico HETMO SQL de Aperturas
  */
 export const GENERAL_APERTURE_CATALOG: Record<number, ApertureSpec> = {
-  0: { code: 0, family: 'fixed', label: 'Paño Fijo', leafCount: 1 },
-  1: { code: 1, family: 'fixed', label: 'Fijo', leafCount: 1 },
+  0: { code: 0, family: 'fixed', label: 'Ventana Fija', leafCount: 1 },
+  1: { code: 1, family: 'fixed', label: 'Paño Fijo', leafCount: 1 },
+  2: { code: 2, family: 'fixed', label: 'Paño Fijo', leafCount: 1 },
+  3: { code: 3, family: 'hinged', label: 'Practicable Derecha – 1 Hoja', leafCount: 1, hand: 'right' },
+  4: { code: 4, family: 'hinged', label: 'Practicable Izquierda – 1 Hoja', leafCount: 1, hand: 'left' },
+  6: { code: 6, family: 'hinged', label: 'Practicable Derecha – 2 Hojas', leafCount: 2, hand: 'right' },
   7: { code: 7, family: 'projecting', label: 'Proyectante', leafCount: 1 },
   8: { code: 8, family: 'projecting', label: 'Proyectante', leafCount: 1 },
-  13: { code: 13, family: 'tilt-turn', label: 'Oscilobatiente Derecha', leafCount: 1, hand: 'right' },
-  14: { code: 14, family: 'tilt-turn', label: 'Oscilobatiente Izquierda', leafCount: 1, hand: 'left' },
-  17: { code: 17, family: 'hinged', label: 'Practicable Derecha', leafCount: 1, hand: 'right' },
-  18: { code: 18, family: 'hinged', label: 'Practicable Izquierda', leafCount: 1, hand: 'left' },
-  21: { code: 21, family: 'tilt-turn', label: 'Oscilobatiente', leafCount: 1, hand: 'right' },
-  23: { code: 23, family: 'projecting', label: 'Proyectante 1 Hoja', leafCount: 1 },
+  10: { code: 10, family: 'tilt-turn', label: 'Oscilobatiente Derecha – 1 Hoja', leafCount: 1, hand: 'right' },
+  11: { code: 11, family: 'tilt-turn', label: 'Oscilobatiente Izquierda – 1 Hoja', leafCount: 1, hand: 'left' },
+  13: { code: 13, family: 'tilt-turn', label: 'Oscilobatiente Derecha – 2 Hojas', leafCount: 2, hand: 'right' },
+  14: { code: 14, family: 'tilt-turn', label: 'Oscilobatiente Izquierda – 2 Hojas', leafCount: 2, hand: 'left' },
+  17: { code: 17, family: 'door', label: 'Puerta Practicable Derecha – 1 Hoja', leafCount: 1, hand: 'right' },
+  18: { code: 18, family: 'door', label: 'Puerta Practicable Izquierda – 1 Hoja', leafCount: 1, hand: 'left' },
+  20: { code: 20, family: 'door', label: 'Puerta Practicable Derecha – 2 Hojas', leafCount: 2, hand: 'right' },
+  21: { code: 21, family: 'door', label: 'Puerta Practicable Izquierda – 2 Hojas', leafCount: 2, hand: 'left' },
+  22: { code: 22, family: 'projecting', label: 'Abatible', leafCount: 1 },
+  23: { code: 23, family: 'projecting', label: 'Proyectante – 1 Hoja', leafCount: 1 },
+  25: { code: 25, family: 'projecting', label: 'Pivotante Horizontal', leafCount: 1 },
+  26: { code: 26, family: 'hinged', label: 'Pivotante Vertical Derecha', leafCount: 1, hand: 'right' },
+  27: { code: 27, family: 'hinged', label: 'Pivotante Vertical Izquierda', leafCount: 1, hand: 'left' },
   29: { code: 29, family: 'sliding', label: 'Corredera Fijo + Móvil Der', leafCount: 2, hand: 'right', layout: ['fijo', 'right'] },
   30: { code: 30, family: 'sliding', label: 'Corredera Móvil Izq + Fijo', leafCount: 2, hand: 'left', layout: ['left', 'fijo'] },
-  31: { code: 31, family: 'double-door', label: 'Doble Batiente / Puerta', leafCount: 2 },
+  31: { code: 31, family: 'double-door', label: 'Puerta Doble Batiente', leafCount: 2 },
   32: { code: 32, family: 'sliding', label: 'Corredera 2 Hojas', leafCount: 2, layout: ['right', 'left'] },
   33: { code: 33, family: 'sliding', label: 'Corredera 2 Hojas', leafCount: 2, layout: ['left', 'right'] },
-  35: { code: 35, family: 'sliding', label: 'Corredera 3 Hojas (Móvil-Fijo-Móvil)', leafCount: 3, layout: ['right', 'fijo', 'left'] },
+  35: { code: 35, family: 'sliding', label: 'Corredera 3 Hojas (Int-Fijo-Int)', leafCount: 3, layout: ['right', 'fijo', 'left'] },
   36: { code: 36, family: 'sliding', label: 'Corredera 3 Hojas (3 Carriles)', leafCount: 3, layout: ['left', 'left', 'left'] },
-  38: { code: 38, family: 'sliding', label: 'Corredera 4 Hojas (Fijo-Móvil-Móvil-Fijo)', leafCount: 4, layout: ['fijo', 'left', 'right', 'fijo'] },
-  41: { code: 41, family: 'sliding', label: 'Corredera 4 Hojas (Fijo-Móvil-Móvil-Fijo)', leafCount: 4, layout: ['fijo', 'left', 'right', 'fijo'] },
-  44: { code: 44, family: 'sliding', label: 'Corredera 4 Hojas F-M-M-F', leafCount: 4, layout: ['fijo', 'left', 'right', 'fijo'] },
+  38: { code: 38, family: 'sliding', label: 'Corredera 4 Hojas (F-M-M-F)', leafCount: 4, layout: ['fijo', 'left', 'right', 'fijo'] },
+  41: { code: 41, family: 'sliding', label: 'Corredera 4 Hojas (F-M-M-F)', leafCount: 4, layout: ['fijo', 'left', 'right', 'fijo'] },
+  44: { code: 44, family: 'sliding', label: 'Corredera 4 Hojas (F-M-M-F)', leafCount: 4, layout: ['fijo', 'left', 'right', 'fijo'] },
   46: { code: 46, family: 'sliding', label: 'Corredera 6 Hojas', leafCount: 6, layout: ['right', 'right', 'right', 'left', 'left', 'left'] },
   47: { code: 47, family: 'sliding', label: 'Corredera 6 Hojas', leafCount: 6, layout: ['right', 'right', 'right', 'left', 'left', 'left'] },
   54: { code: 54, family: 'parallel', label: 'Paralela 1 Hoja', leafCount: 1 },
@@ -157,123 +203,169 @@ export const GENERAL_APERTURE_CATALOG: Record<number, ApertureSpec> = {
   68: { code: 68, family: 'lift-slide', label: 'Elevadora Doble Móvil', leafCount: 2, layout: ['right', 'left'] },
 };
 
-/**
- * Resuelve la especificación de apertura para una ventana dada.
- * Si el código SQL exacto está en el catálogo, lo utiliza; si no, usa heurísticas limpias.
- */
-export function resolveAperture(ventana: Ventana): ApertureSpec {
-  const code = Number(ventana.dibujoTipoApertura) || 0;
+export function resolveApertureCode(code: number | null | undefined, fallbackDesc = ''): ApertureSpec {
+  const c = Number(code) || 0;
+  if (GENERAL_APERTURE_CATALOG[c]) return GENERAL_APERTURE_CATALOG[c];
 
-  if (GENERAL_APERTURE_CATALOG[code]) {
-    return GENERAL_APERTURE_CATALOG[code];
-  }
-
-  const desc = `${ventana.modelo} ${ventana.descripcionCorta || ''}`.toLowerCase();
-  const hojas = Math.max(1, ventana.numeroCuadrosHojas || 1);
-
-  if (desc.includes('fijo') || desc.includes('paño fijo')) {
-    return { code: 0, family: 'fixed', label: 'Fijo', leafCount: 1 };
-  }
-
-  if (desc.includes('proyect')) {
-    return { code: 7, family: 'projecting', label: 'Proyectante', leafCount: 1 };
-  }
-
+  const desc = fallbackDesc.toLowerCase();
+  if (desc.includes('fijo') || desc.includes('paño fijo')) return { code: 0, family: 'fixed', label: 'Ventana Fija', leafCount: 1 };
+  if (desc.includes('proyect')) return { code: 7, family: 'projecting', label: 'Proyectante', leafCount: 1 };
   if (desc.includes('oscilobatiente') || desc.includes('o/b') || desc.includes('ob')) {
     const isIzq = desc.includes('izq');
-    return { code: isIzq ? 14 : 13, family: 'tilt-turn', label: `Oscilobatiente ${isIzq ? 'Izq' : 'Der'}`, leafCount: 1, hand: isIzq ? 'left' : 'right' };
+    return { code: isIzq ? 11 : 10, family: 'tilt-turn', label: `Oscilobatiente ${isIzq ? 'Izq' : 'Der'}`, leafCount: 1, hand: isIzq ? 'left' : 'right' };
   }
-
-  if (desc.includes('doble') || desc.includes('puerta') || hojas === 2 && desc.includes('batiente')) {
-    return { code: 31, family: 'double-door', label: 'Doble Batiente', leafCount: 2 };
+  if (desc.includes('doble') || desc.includes('puerta 2') || desc.includes('puerta practicable')) {
+    return { code: 21, family: 'door', label: 'Puerta Practicable 2 Hojas', leafCount: 2, hand: 'left' };
   }
-
+  if (desc.includes('puerta')) {
+    const isIzq = desc.includes('izq');
+    return { code: isIzq ? 18 : 17, family: 'door', label: `Puerta Practicable ${isIzq ? 'Izq' : 'Der'}`, leafCount: 1, hand: isIzq ? 'left' : 'right' };
+  }
   if (desc.includes('batiente') || desc.includes('practicable')) {
     const isIzq = desc.includes('izq');
-    return { code: isIzq ? 18 : 17, family: 'hinged', label: `Practicable ${isIzq ? 'Izq' : 'Der'}`, leafCount: 1, hand: isIzq ? 'left' : 'right' };
+    return { code: isIzq ? 4 : 3, family: 'hinged', label: `Practicable ${isIzq ? 'Izq' : 'Der'}`, leafCount: 1, hand: isIzq ? 'left' : 'right' };
   }
-
   if (desc.includes('corred') || desc.includes('desliz') || desc.includes('slider')) {
-    if (hojas === 4) return { code: 38, family: 'sliding', label: 'Corredera 4 Hojas', leafCount: 4, layout: ['fijo', 'left', 'right', 'fijo'] };
-    if (hojas === 3) return { code: 36, family: 'sliding', label: 'Corredera 3 Hojas', leafCount: 3, layout: ['left', 'left', 'left'] };
     return { code: 32, family: 'sliding', label: 'Corredera 2 Hojas', leafCount: 2, layout: ['right', 'left'] };
   }
 
-  if (hojas === 4) return { code: 38, family: 'sliding', label: 'Corredera 4 Hojas', leafCount: 4, layout: ['fijo', 'left', 'right', 'fijo'] };
-  if (hojas === 3) return { code: 36, family: 'sliding', label: 'Corredera 3 Hojas', leafCount: 3, layout: ['left', 'left', 'left'] };
-  if (hojas === 2) return { code: 32, family: 'sliding', label: 'Corredera 2 Hojas', leafCount: 2, layout: ['right', 'left'] };
-
-  return { code: 0, family: 'fixed', label: 'Fijo', leafCount: 1 };
+  return { code: 0, family: 'fixed', label: 'Ventana Fija', leafCount: 1 };
 }
 
-export interface ComputedLeaf {
-  index: number;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  role: 'fijo' | 'left' | 'right' | 'both' | 'hinged-left' | 'hinged-right' | 'tilt-left' | 'tilt-right' | 'projecting';
+export interface CompositePanel {
+  panelIndex: number;
+  widthMm: number;
+  heightMm: number;
+  apertura: ApertureSpec;
+  aperturaCount: number;
   isOperable: boolean;
 }
 
+export interface CompositeWindow {
+  isComposite: boolean;
+  totalWidthMm: number;
+  totalHeightMm: number;
+  panels: CompositePanel[];
+  apertureLabel: string;
+}
+
 /**
- * Calcula la distribución geométrica de hojas, respetando cotas de geometrias si existen.
+ * Interpreta la estructura geométrica de la ventana:
+ * Detecta ventanas compuestas con unión (múltiples paños 10000 o geometrías con anchos individuales).
  */
-export function computeWindowLeaves(
-  spec: ApertureSpec,
-  geometrias: VentanaGeometria[] | undefined,
-  innerX: number,
-  innerY: number,
-  innerW: number,
-  innerH: number,
-  totalWidthMm: number
-): ComputedLeaf[] {
-  const leafCount = spec.leafCount || 1;
+export function buildCompositeStructure(ventana: Ventana): CompositeWindow {
+  const totalWidthMm = Math.max(100, ventana.anchoMm || 1000);
+  const totalHeightMm = Math.max(100, ventana.altoMm || 1000);
+  const geometrias = (ventana.geometrias || []).filter(g => g !== null);
 
-  // Si existen geometrias con anchos individuales declarados por HETMO
-  const geoLeaves = (geometrias || []).filter(g => (g.anchoMm || 0) > 0);
-  const useGeoProportions = geoLeaves.length === leafCount && totalWidthMm > 0;
+  // 1. Filtrar filas de paño/módulo (tipoElemento === 10000 o que tengan anchoMm y altoMm > 0)
+  const panelGeos = geometrias.filter(g => {
+    const tipo = Number(g.tipoElemento);
+    const w = Number(g.anchoMm) || 0;
+    const h = Number(g.altoMm) || 0;
+    return tipo === 10000 || (w > 0 && h > 0 && w < totalWidthMm);
+  });
 
-  const leaves: ComputedLeaf[] = [];
-  let currentX = innerX;
+  // Si hay 2 o más módulos con medidas reales
+  if (panelGeos.length >= 2) {
+    const panels: CompositePanel[] = panelGeos.map((g, idx) => {
+      const w = Number(g.anchoMm) || (totalWidthMm / panelGeos.length);
+      const h = Number(g.altoMm) || totalHeightMm;
+      
+      // Buscar la apertura asignada a este paño (tipoElemento === 3 o apertura en el mismo registro)
+      let aptCode = Number(g.tipoApertura) || 0;
+      let aptCount = 1;
 
-  for (let i = 0; i < leafCount; i++) {
-    let leafWidth = innerW / leafCount;
+      // Buscar si hay filas tipo 3 vinculadas al mismo perteneceHueco / orden
+      const openingRows = geometrias.filter(o => 
+        Number(o.tipoElemento) === 3 && 
+        (o.perteneceHueco === g.perteneceHueco || o.ordenGeometria === g.ordenGeometria || o.posicion === g.posicion)
+      );
 
-    if (useGeoProportions) {
-      const geoWidthMm = geoLeaves[i].anchoMm || 1;
-      leafWidth = (geoWidthMm / totalWidthMm) * innerW;
-    }
+      if (openingRows.length > 0) {
+        aptCode = Number(openingRows[0].tipoApertura) || aptCode;
+        aptCount = openingRows.length;
+      }
 
-    let role: ComputedLeaf['role'] = 'fijo';
+      // Si el paño central o único tiene apertura declarada en la cabecera
+      if (aptCode === 0 && (panelGeos.length % 2 === 1 && idx === Math.floor(panelGeos.length / 2))) {
+        // El paño central puede heredar la apertura de la ventana si la cabecera es operable
+        const headCode = Number(ventana.dibujoTipoApertura) || 0;
+        if (headCode > 0) {
+          aptCode = headCode;
+          aptCount = Number(ventana.numeroCuadrosHojas) || 1;
+        }
+      }
 
-    if (spec.family === 'fixed') {
-      role = 'fijo';
-    } else if (spec.family === 'hinged') {
-      role = spec.hand === 'left' ? 'hinged-left' : 'hinged-right';
-    } else if (spec.family === 'tilt-turn') {
-      role = spec.hand === 'left' ? 'tilt-left' : 'tilt-right';
-    } else if (spec.family === 'projecting') {
-      role = 'projecting';
-    } else if (spec.family === 'double-door') {
-      role = i === 0 ? 'hinged-left' : 'hinged-right';
-    } else if (spec.family === 'sliding' || spec.family === 'lift-slide') {
-      const layoutRole = spec.layout?.[i] || (i % 2 === 0 ? 'right' : 'left');
-      role = layoutRole;
-    }
+      const spec = resolveApertureCode(aptCode, ventana.descripcionCorta || ventana.modelo);
 
-    leaves.push({
-      index: i,
-      x: currentX,
-      y: innerY,
-      width: leafWidth,
-      height: innerH,
-      role,
-      isOperable: role !== 'fijo',
+      // Si HETMO declara 2 hojas en ese paño (ej. puerta practicable de 2 hojas)
+      if (spec.leafCount === 2 || (aptCount >= 2 && ['hinged', 'door', 'tilt-turn'].includes(spec.family))) {
+        aptCount = 2;
+      }
+
+      return {
+        panelIndex: idx,
+        widthMm: w,
+        heightMm: h,
+        apertura: spec,
+        aperturaCount: aptCount,
+        isOperable: spec.family !== 'fixed',
+      };
     });
 
-    currentX += leafWidth;
+    const labels = [...new Set(panels.map(p => p.apertura.label))];
+
+    return {
+      isComposite: true,
+      totalWidthMm,
+      totalHeightMm,
+      panels,
+      apertureLabel: labels.join(' + '),
+    };
   }
 
-  return leaves;
+  // 2. Ventana Simple (Monolítica)
+  const singleSpec = resolveApertureCode(
+    ventana.dibujoTipoApertura,
+    `${ventana.modelo} ${ventana.descripcionCorta || ''}`
+  );
+
+  return {
+    isComposite: false,
+    totalWidthMm,
+    totalHeightMm,
+    panels: [
+      {
+        panelIndex: 0,
+        widthMm: totalWidthMm,
+        heightMm: totalHeightMm,
+        apertura: singleSpec,
+        aperturaCount: singleSpec.leafCount || 1,
+        isOperable: singleSpec.family !== 'fixed',
+      }
+    ],
+    apertureLabel: singleSpec.label,
+  };
+}
+
+/**
+ * Obtiene el código o descripción del vidrio principal de la ventana para rotulación técnica.
+ */
+export function getGlassLabel(ventana: Ventana): string {
+  const glassMat = (ventana.materiales || []).find(m => {
+    const fam = (m.material?.familia || '').toLowerCase();
+    const desc = (m.material?.descripcion || '').toLowerCase();
+    return fam.includes('vidrio') || desc.includes('vidrio') || desc.includes('dvh') || desc.includes('inc');
+  });
+
+  if (glassMat?.material?.descripcion) {
+    const desc = glassMat.material.descripcion;
+    // Simplificar a formato corto ej: "5/12/5 INC" o código SKU
+    const match = desc.match(/\d+[/-]\d+[/-]\d+.*$/i) || desc.match(/\d+[/-]\d+.*$/i);
+    if (match) return match[0];
+    return glassMat.material.skuInterno || 'DVH';
+  }
+
+  return '';
 }
