@@ -55,11 +55,11 @@ export const WindowRendererSvg: React.FC<WindowRendererSvgProps> = ({
 
   // Cálculo de la posición X de cada panel proporcional a sus milímetros reales (memoizado)
   const panelTiles = useMemo(() => {
-    let accumulatedX = innerX;
+    let offset = 0;
     return composite.panels.map((panel: CompositePanel) => {
       const pw = (panel.widthMm / totalW) * innerW;
-      const px = accumulatedX;
-      accumulatedX += pw;
+      const px = innerX + offset;
+      offset += pw;
       return {
         panel,
         px,
