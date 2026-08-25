@@ -4,6 +4,7 @@ import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { CotizacionesPage } from './modules/cotizaciones/CotizacionesPage';
 import { getProyectos } from './api/client';
+import { useCloudflareAccessSession } from './lib/useCloudflareAccessSession';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -57,10 +58,26 @@ const AppContent: React.FC = () => {
   );
 };
 
+const SessionGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const sessionState = useCloudflareAccessSession();
+
+  if (sessionState !== 'ready') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-500 text-sm">
+        {sessionState === 'redirecting' ? 'Redirigiendo a login...' : 'Verificando sesión...'}
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+};
+
 export const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <AppContent />
+      <SessionGate>
+        <AppContent />
+      </SessionGate>
     </QueryClientProvider>
   );
 };
