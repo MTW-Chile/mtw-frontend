@@ -20,8 +20,6 @@ export const WindowTraverses: React.FC<WindowTraversesProps> = ({
   lines,
   x,
   y,
-  width,
-  height,
   color,
   className = 'window-traverses',
 }) => {

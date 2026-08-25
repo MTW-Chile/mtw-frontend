@@ -20,8 +20,6 @@ export const WindowMuntins: React.FC<WindowMuntinsProps> = ({
   lines,
   x,
   y,
-  width,
-  height,
   color,
   className = 'window-muntins',
 }) => {
