@@ -69,7 +69,7 @@ import * as core from './legacyGeometryCore';
     // forman un escalón 2D. Así se distingue sin inventar una franja blanca ni
     // cambiar anchos, carriles o solapes.
     return `<g class="window-sash" data-profile-layer="raised">`
-      + `<rect class="window-sash-profile" x="${sx}" y="${sy}" width="${sw}" height="${sh}" rx=".65" style="fill:none;stroke:${color.base};stroke-width:${weight};filter:drop-shadow(1px 1.5px 1.5px rgba(0,0,0,0.4))"/>`
+      + `<rect class="window-sash-profile" x="${sx}" y="${sy}" width="${sw}" height="${sh}" rx=".65" style="fill:none;stroke:${color.base};stroke-width:${weight}"/>`
       + `<path class="window-sash-highlight" d="M ${sx + .45} ${sy + sh - .45} V ${sy + .45} H ${sx + sw - .45}" style="${lineStyle(color.light, .9, 'opacity:.82')}"/>`
       + `<path class="window-sash-shade" d="M ${sx + .45} ${sy + sh - .45} H ${sx + sw - .45} V ${sy + .45}" style="${lineStyle(color.dark, .9, 'opacity:.72')}"/>`
       + `<rect class="window-glazing-bead" x="${innerX}" y="${innerY}" width="${innerW}" height="${innerH}" rx=".2" style="fill:none;stroke:${color.dark};stroke-width:.42;opacity:.72"/>`

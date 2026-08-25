@@ -65,8 +65,16 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
       </header>
 
       {/* Contenedor del Dibujo Técnico SVG */}
-      <div className="p-3 bg-slate-50/50 flex items-center justify-center border-b border-slate-100">
-        <WindowRendererSvg ventana={ventana} className="w-full h-44" />
+      <div className="bg-[#f8fafc] w-full p-4 flex flex-col items-center justify-center border-b border-slate-100 min-h-[180px] group-hover:bg-[#f1f5f9] transition-colors relative">
+        <WindowRendererSvg ventana={ventana} />
+        
+        {/* DEBUG TEMPORAL PARA V2 */}
+        <details className="absolute top-2 right-2 text-[8px] max-w-[200px] bg-white/80 p-1 opacity-20 hover:opacity-100 z-50">
+          <summary className="cursor-pointer text-slate-500 font-bold">Debug Geo</summary>
+          <pre className="overflow-auto max-h-32 text-left text-slate-700">
+            {JSON.stringify(ventana.geometrias, null, 2)}
+          </pre>
+        </details>
       </div>
 
       {/* Cuerpo y Especificaciones */}
