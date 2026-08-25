@@ -109,7 +109,7 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
                 className="w-2.5 h-2.5 rounded-full border border-slate-300 shadow-inner" 
                 style={{ backgroundColor: finish.frame }}
               />
-              {ventana.acabadoCodigo || 'Estándar'}
+              {(ventana as any).acabadoDescripcion || ventana.acabadoCodigo || 'Estándar'}
             </span>
           </div>
         </div>
