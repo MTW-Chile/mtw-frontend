@@ -9,6 +9,8 @@ export interface Cliente {
   telefono?: string | null;
   email?: string | null;
   contacto?: string | null;
+  // Presente solo en GET /api/clientes (include: { _count: { select: { proyectos: true } } }).
+  _count?: { proyectos: number };
 }
 
 export interface Proveedor {
