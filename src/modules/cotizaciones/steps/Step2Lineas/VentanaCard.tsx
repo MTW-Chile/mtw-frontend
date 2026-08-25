@@ -10,10 +10,8 @@ import {
 import { formatNumber } from '../../../../lib/utils';
 import type { Ventana } from '../../../../types';
 import { WindowRendererSvg } from '../../components/drawing/WindowRendererSvg';
-import { 
-  resolveProfileFinish, 
-  buildCompositeStructure 
-} from '../../components/drawing/windowDrawingEngine';
+import { finishFor } from '../../components/drawing/legacyGeometrySvg';
+import * as core from '../../components/drawing/legacyGeometryCore';
 
 interface VentanaCardProps {
   ventana: Ventana;
@@ -29,8 +27,9 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
   const superficie = ventana.m2Ventana ?? ((ventana.anchoMm * ventana.altoMm) / 1_000_000);
   const totalLinea = (ventana.importeUnitario || 0) * (ventana.unidades || 1);
 
-  const finish = useMemo(() => resolveProfileFinish(ventana), [ventana]);
-  const composite = useMemo(() => buildCompositeStructure(ventana), [ventana]);
+  // Extraemos el acabado y nombre de la apertura según el motor de HETMO
+  const finish = useMemo(() => finishFor(ventana), [ventana]);
+  const apertureLabel = useMemo(() => core.apertureLabel(ventana), [ventana]);
 
   return (
     <article className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all flex flex-col overflow-hidden group">
@@ -40,8 +39,8 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
           <div className="flex items-center gap-2">
             <span 
               className="w-2.5 h-2.5 rounded-full shrink-0" 
-              style={{ backgroundColor: finish.base }}
-              title={`Acabado: ${finish.name}`}
+              style={{ backgroundColor: finish.frame }}
+              title={`Acabado de Marco`}
             />
             <h4 className="text-sm font-black text-slate-900 group-hover:text-[#E34A26] transition-colors">
               {ventana.modelo}
@@ -95,7 +94,7 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
             <div className="flex-1 min-w-0">
               <span className="text-slate-400 block text-[10px] uppercase tracking-wider font-semibold">Apertura</span>
               <span className="font-bold text-slate-900 leading-snug block">
-                {composite.apertureLabel}
+                {apertureLabel}
               </span>
             </div>
           </div>
@@ -107,9 +106,9 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold border border-slate-200 bg-slate-50 text-slate-800">
               <span 
                 className="w-2.5 h-2.5 rounded-full border border-slate-300 shadow-inner" 
-                style={{ backgroundColor: finish.base }}
+                style={{ backgroundColor: finish.frame }}
               />
-              {finish.name}
+              {ventana.acabadoCodigo || 'Estándar'}
             </span>
           </div>
         </div>
@@ -175,3 +174,4 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
     </article>
   );
 };
+
