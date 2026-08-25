@@ -955,15 +955,7 @@
     return exactLeavesFor(panel && panel.raw, layoutLength);
   }
 
-  return {
-    apertureCatalog, apertureDefinition, openingSymbolSegments,
-    sliderLayouts, sliderWeights, hingedExteriorCodes, hingedInteriorCodes,
-    number, firstPositive,
-    sourceComponents, compositePanels, leavesFor, exactPanelLeaves, slidingPieces, mobileLeavesFromHardware, railForLeaf, sliderGuideCount,
-    sliderHardware, hingeCountFromHardware, handleHeightFor, hardwareColor,
-    apertureLabel, profileSeries,
-    renderGlassRows, isWithoutGlass, specialOutline,
-    muntinLines, panelTraverseLines, panelGlassSplits
-  };
+
+
 
 
