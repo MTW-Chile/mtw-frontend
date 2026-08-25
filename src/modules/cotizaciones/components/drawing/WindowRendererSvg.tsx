@@ -1,5 +1,6 @@
 import React, { useMemo, useEffect, useRef } from 'react';
 import type { Ventana } from '../../../../types';
+import { toLegacyLine } from './ventanaAdapter';
 import { build } from './legacyGeometrySvg';
 
 interface WindowRendererSvgProps {
@@ -17,7 +18,8 @@ export const WindowRendererSvg: React.FC<WindowRendererSvgProps> = ({
   // Generamos el SVG markup exacto del motor legado
   const svgMarkup = useMemo(() => {
     try {
-      return build(ventana, 'line');
+      const legacyLine = toLegacyLine(ventana);
+      return build(legacyLine, 'line');
     } catch (e) {
       console.error('Error dibujando ventana', ventana, e);
       return '<svg viewBox="0 0 240 178" preserveAspectRatio="xMidYMid meet"><text x="120" y="89" text-anchor="middle" font-size="8" fill="red">Error al dibujar geometría</text></svg>';
@@ -46,3 +48,4 @@ export const WindowRendererSvg: React.FC<WindowRendererSvgProps> = ({
     />
   );
 };
+

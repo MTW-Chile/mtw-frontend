@@ -10,6 +10,7 @@ import {
 import { formatNumber } from '../../../../lib/utils';
 import type { Ventana } from '../../../../types';
 import { WindowRendererSvg } from '../../components/drawing/WindowRendererSvg';
+import { toLegacyLine } from '../../components/drawing/ventanaAdapter';
 import { finishFor } from '../../components/drawing/legacyGeometrySvg';
 import * as core from '../../components/drawing/legacyGeometryCore';
 
@@ -28,8 +29,8 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
   const totalLinea = (ventana.importeUnitario || 0) * (ventana.unidades || 1);
 
   // Extraemos el acabado y nombre de la apertura según el motor de HETMO
-  const finish = useMemo(() => finishFor(ventana), [ventana]);
-  const apertureLabel = useMemo(() => core.apertureLabel(ventana), [ventana]);
+  const finish = useMemo(() => finishFor(toLegacyLine(ventana)), [ventana]);
+  const apertureLabel = useMemo(() => core.apertureLabel(toLegacyLine(ventana)), [ventana]);
 
   return (
     <article className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all flex flex-col overflow-hidden group">
@@ -174,4 +175,5 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
     </article>
   );
 };
+
 
