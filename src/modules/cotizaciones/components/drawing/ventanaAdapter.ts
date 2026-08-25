@@ -1,49 +1,115 @@
-import type { Ventana, VentanaGeometria } from '../../../../types';
+import type { Ventana, VentanaGeometria, MaterialVentana } from '../../../../types';
+import type { WindowLine, LineMaterial } from './types';
 
-const num = (v: any): number | null => {
-  if (v === null || v === undefined) return null;
-  const n = Number(v);
-  return isNaN(n) || n <= 0 ? null : n;
+/**
+ * Convierte un número a positivo o null si es inválido.
+ */
+const toPositive = (value: unknown): number | null => {
+  if (value === null || value === undefined) return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : null;
 };
 
-export function toLegacyLine(ventana: Ventana): any {
+/**
+ * Convierte un material del tipo Ventana (API) al formato interno LineMaterial.
+ */
+const toLineMaterial = (m: MaterialVentana): LineMaterial => ({
+  descripcionArticulo: m.material?.descripcion,
+  descripcion: m.material?.descripcion,
+  cantidad: m.cantidad,
+  uds: m.piezas ?? undefined,
+});
+
+/**
+ * Convierte una geometría del tipo VentanaGeometria (API) al formato crudo
+ * que espera el núcleo de geometría (legacyGeometryCore).
+ */
+const toRawGeometry = (g: VentanaGeometria): Record<string, unknown> => ({
+  numero_ventana: g.perteneceHueco ?? g.posicion ?? 1,
+  orden: g.ordenGeometria,
+  orden_geometria: g.ordenGeometria,
+  tipo_elemento: toPositive(g.tipoElemento),
+  elemento: toPositive(g.tipoElemento),
+  tipo_geometria: toPositive(g.tipoGeometria),
+  ancho: toPositive(g.anchoMm),
+  alto: toPositive(g.altoMm),
+  ancho_mm: toPositive(g.anchoMm),
+  alto_mm: toPositive(g.altoMm),
+  tipo_apertura: toPositive(g.tipoApertura),
+  apertura: toPositive(g.tipoApertura),
+  posicion: g.posicion,
+  pertenece_hueco: g.perteneceHueco,
+  forma_codigo: toPositive(g.formaCodigo),
+  modificador_x: toPositive(g.modificadorX),
+  modificador_y: toPositive(g.modificadorY),
+});
+
+/**
+ * Convierte una Ventana (tipo API) al formato interno WindowLine
+ * que usan el núcleo de geometría y el renderizador SVG.
+ *
+ * Reemplaza el anterior `toLegacyLine` que retornaba `any`.
+ */
+export function toWindowLine(ventana: Ventana): WindowLine | null {
   if (!ventana) return null;
-  
+
+  const ancho = toPositive(ventana.anchoMm) ?? 1;
+  const alto = toPositive(ventana.altoMm) ?? 1;
+
   return {
-    ancho: num(ventana.anchoMm) || num((ventana as any).ancho),
-    alto: num(ventana.altoMm) || num((ventana as any).alto),
-    ancho_mm: num(ventana.anchoMm) || num((ventana as any).ancho),
-    alto_mm: num(ventana.altoMm) || num((ventana as any).alto),
-    dibujo_ancho: num((ventana as any).dibujoAncho) || num(ventana.anchoMm) || num((ventana as any).ancho),
-    dibujo_alto: num((ventana as any).dibujoAlto) || num(ventana.altoMm) || num((ventana as any).alto),
-    uds: num(ventana.unidades) || num((ventana as any).uds),
-    linea_hetmo: num(ventana.lineaHetmo) || num((ventana as any).linea_hetmo),
-    dibujo_tipo_apertura: ventana.dibujoTipoApertura || (ventana as any).dibujo_tipo_apertura || (ventana as any).tipo_apertura,
-    tipo_apertura: ventana.dibujoTipoApertura || (ventana as any).tipo_apertura,
-    apertura: ventana.dibujoTipoApertura || (ventana as any).tipo_apertura || (ventana as any).apertura,
-    acabado: ventana.acabadoCodigo || (ventana as any).acabado,
-    acabado_descripcion: (ventana as any).acabadoDescripcion || (ventana as any).acabado_descripcion,
-    acabado_patron: (ventana as any).acabadoPatron || (ventana as any).acabado_patron,
-    geometria: ventana.geometrias?.length ? ventana.geometrias.map((g: VentanaGeometria) => ({
-      ...g,
-      numero_ventana: g.perteneceHueco || g.posicion || 1,
-      orden: g.ordenGeometria,
-      orden_geometria: g.ordenGeometria,
-      tipo_elemento: num(g.tipoElemento),
-      elemento: num(g.tipoElemento),
-      tipo_geometria: num(g.tipoGeometria),
-      ancho: num(g.anchoMm) || num((g as any).ancho),
-      alto: num(g.altoMm) || num((g as any).alto),
-      ancho_mm: num(g.anchoMm) || num((g as any).ancho),
-      alto_mm: num(g.altoMm) || num((g as any).alto),
-      tipo_apertura: num(g.tipoApertura),
-      apertura: num(g.tipoApertura),
-      posicion: g.posicion,
-      pertenece_hueco: g.perteneceHueco,
-      forma_codigo: num(g.formaCodigo),
-      modificador_x: num(g.modificadorX),
-      modificador_y: num(g.modificadorY),
-    })) : ((ventana as any).geometria || []),
-    materiales: ventana.materiales?.length ? ventana.materiales : ((ventana as any).materiales || [])
+    lineaHetmo: toPositive(ventana.lineaHetmo) ?? undefined,
+    modelo: ventana.modelo,
+    ancho,
+    alto,
+    tipoApertura: ventana.dibujoTipoApertura ?? undefined,
+    acabadoCodigo: ventana.acabadoCodigo ?? undefined,
+    uds: toPositive(ventana.unidades) ?? undefined,
+    cantidadVidriosPorUnidad: toPositive(ventana.numeroCuadrosHojas) ?? undefined,
+    dibujoTipoApertura: ventana.dibujoTipoApertura ?? undefined,
+    dibujoSinMarco: false,
+    numeroCuadrosHojas: toPositive(ventana.numeroCuadrosHojas) ?? undefined,
+    geometria: Array.isArray(ventana.geometrias) && ventana.geometrias.length > 0
+      ? ventana.geometrias.map(toRawGeometry)
+      : undefined,
+    materiales: Array.isArray(ventana.materiales) && ventana.materiales.length > 0
+      ? ventana.materiales.map(toLineMaterial)
+      : undefined,
+  };
+}
+
+/**
+ * Adaptador legacy: convierte Ventana al formato `any` que espera
+ * el código existente (legacyGeometryCore + legacyGeometrySvg).
+ *
+ * Mantenido para compatibilidad mientras se migra al nuevo sistema.
+ * @deprecated Usar `toWindowLine` en código nuevo.
+ */
+export function toLegacyLine(ventana: Ventana): Record<string, unknown> | null {
+  if (!ventana) return null;
+
+  const ancho = toPositive(ventana.anchoMm) ?? 1;
+  const alto = toPositive(ventana.altoMm) ?? 1;
+
+  return {
+    ancho,
+    alto,
+    ancho_mm: ancho,
+    alto_mm: alto,
+    dibujo_ancho: ancho,
+    dibujo_alto: alto,
+    uds: toPositive(ventana.unidades),
+    linea_hetmo: toPositive(ventana.lineaHetmo),
+    dibujo_tipo_apertura: ventana.dibujoTipoApertura,
+    tipo_apertura: ventana.dibujoTipoApertura,
+    apertura: ventana.dibujoTipoApertura,
+    acabado: ventana.acabadoCodigo,
+    acabado_descripcion: null,
+    acabado_patron: null,
+    geometria: Array.isArray(ventana.geometrias) && ventana.geometrias.length > 0
+      ? ventana.geometrias.map(toRawGeometry)
+      : [],
+    materiales: Array.isArray(ventana.materiales) && ventana.materiales.length > 0
+      ? ventana.materiales.map(toLineMaterial)
+      : [],
   };
 }
