@@ -27,7 +27,11 @@ export function useCloudflareAccessSession(): SessionState {
       return;
     }
 
-    const checkUrl = `${relayOrigin}/access-check`;
+    // Bajo /api a proposito: es la unica ruta que Cloudflare Access puede
+    // cubrir (una sola Application solo admite un path), asi que el probe
+    // de sesion tiene que vivir ahi para que Access lo intercepte igual
+    // que a cualquier llamada real de la API.
+    const checkUrl = `${relayOrigin}/api/session-check`;
 
     fetch(checkUrl, { credentials: 'include' })
       .then((res) => {
