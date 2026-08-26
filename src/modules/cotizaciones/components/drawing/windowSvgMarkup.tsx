@@ -7,7 +7,7 @@
  * @module windowSvgMarkup
  */
 
-import * as core from './legacyGeometryCore';
+import * as core from './geometryCore';
 import {
   VISUAL,
   profileColors,

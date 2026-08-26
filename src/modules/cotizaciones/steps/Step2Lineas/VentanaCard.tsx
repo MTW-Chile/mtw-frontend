@@ -10,9 +10,9 @@ import {
 import { formatNumber } from '../../../../lib/utils';
 import type { Ventana } from '../../../../types';
 import { WindowRendererSvg } from '../../components/drawing/WindowRendererSvg';
-import { toWindowLine, toCoreLine } from '../../components/drawing/ventanaAdapter';
+import { toWindowLine } from '../../components/drawing/ventanaAdapter';
 import { createFinish } from '../../components/drawing/colorSystem';
-import * as core from '../../components/drawing/legacyGeometryCore';
+import * as core from '../../components/drawing/geometryCore';
 
 interface VentanaCardProps {
   ventana: Ventana;
@@ -36,7 +36,7 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
   );
   const apertureLabel = useMemo(() => {
     if (!windowLine) return ventana.modelo || '—';
-    return core.apertureLabel(toCoreLine(windowLine));
+    return core.apertureLabel(windowLine);
   }, [windowLine, ventana.modelo]);
 
   return (
