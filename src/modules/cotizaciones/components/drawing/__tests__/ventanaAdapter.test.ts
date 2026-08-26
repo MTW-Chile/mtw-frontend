@@ -141,6 +141,62 @@ describe('assignPanelNumbers — inferencia de numero_ventana cuando perteneceHu
     expect(composite!.panels.map(p => p.number)).toEqual([1, 2]);
   });
 
+  // D3 caso 2: un único valor de perteneceHueco no alcanza para confiar en él
+  // directamente (podría ser un dato suelto de una sola fila); se sigue
+  // infiriendo por items tipo 10000 en vez de aceptar un solo paño.
+  it('un solo perteneceHueco declarado no corta la inferencia por items tipo 10000', () => {
+    const v = ventana({
+      anchoMm: 1200,
+      altoMm: 1800,
+      geometrias: [
+        geometria({ ordenGeometria: 1, tipoElemento: 10000, anchoMm: 1200, altoMm: 600 }),
+        geometria({ ordenGeometria: 2, tipoElemento: 3, tipoApertura: 23, anchoMm: 1200, altoMm: 600, perteneceHueco: 1 }),
+        geometria({ ordenGeometria: 3, tipoElemento: 10000, anchoMm: 1200, altoMm: 1200 }),
+        geometria({ ordenGeometria: 4, tipoElemento: 3, tipoApertura: 0, anchoMm: 1200, altoMm: 1200 }),
+      ],
+    });
+    const coreLine = toCoreLine(toWindowLine(v)!);
+    const composite = core.compositePanels(coreLine) as { panels: { number: number }[] } | null;
+    expect(composite).not.toBeNull();
+    expect(composite!.panels.map(p => p.number)).toEqual([1, 2]);
+  });
+
+  // D3 caso 3: perteneceHueco === 0 no identifica un paño real en HETMO
+  // (significa "sin asignar"), así que no debe contarse como valor distinto.
+  it('perteneceHueco === 0 se trata como ausente, no como paño 0', () => {
+    const v = ventana({
+      anchoMm: 1200,
+      altoMm: 1800,
+      geometrias: [
+        geometria({ ordenGeometria: 1, tipoElemento: 10000, anchoMm: 1200, altoMm: 600 }),
+        geometria({ ordenGeometria: 2, tipoElemento: 3, tipoApertura: 23, anchoMm: 1200, altoMm: 600, perteneceHueco: 0 }),
+        geometria({ ordenGeometria: 3, tipoElemento: 10000, anchoMm: 1200, altoMm: 1200 }),
+        geometria({ ordenGeometria: 4, tipoElemento: 3, tipoApertura: 0, anchoMm: 1200, altoMm: 1200, perteneceHueco: 0 }),
+      ],
+    });
+    const coreLine = toCoreLine(toWindowLine(v)!);
+    const composite = core.compositePanels(coreLine) as { panels: { number: number }[] } | null;
+    expect(composite).not.toBeNull();
+    expect(composite!.panels.map(p => p.number)).toEqual([1, 2]);
+  });
+
+  it('confía en perteneceHueco cuando hay al menos 2 valores distintos declarados', () => {
+    const v = ventana({
+      anchoMm: 1200,
+      altoMm: 1800,
+      geometrias: [
+        geometria({ ordenGeometria: 1, tipoElemento: 10000, anchoMm: 1200, altoMm: 600, perteneceHueco: 1 }),
+        geometria({ ordenGeometria: 2, tipoElemento: 3, tipoApertura: 23, anchoMm: 1200, altoMm: 600, perteneceHueco: 1 }),
+        geometria({ ordenGeometria: 3, tipoElemento: 10000, anchoMm: 1200, altoMm: 1200, perteneceHueco: 2 }),
+        geometria({ ordenGeometria: 4, tipoElemento: 3, tipoApertura: 0, anchoMm: 1200, altoMm: 1200, perteneceHueco: 2 }),
+      ],
+    });
+    const coreLine = toCoreLine(toWindowLine(v)!);
+    const composite = core.compositePanels(coreLine) as { panels: { number: number }[] } | null;
+    expect(composite).not.toBeNull();
+    expect(composite!.panels.map(p => p.number)).toEqual([1, 2]);
+  });
+
   // D3 caso 1: tipoElemento sin normalizar (string en vez de number) no debe
   // impedir la inferencia por items tipo 10000.
   it('detecta paños aunque tipoElemento llegue como string', () => {

@@ -62,7 +62,8 @@ export function finishFor(line: WindowLine): FinishColors {
   return createFinish(
     line.acabadoCodigo,
     line.acabadoDescripcion,
-    line.acabadoPatron
+    line.acabadoPatron,
+    line.materiales?.map(m => m.acabado).filter((a): a is string => Boolean(a))
   );
 }
 
@@ -364,7 +365,7 @@ export function handleMark(
   if (!spec || spec.role === 'none') return '';
   const metal = metalColors(String(core.hardwareColor(
     line.materiales,
-    createFinish(line.acabadoCodigo, line.acabadoDescripcion, line.acabadoPatron).frame,
+    finishFor(line).frame,
     'handle'
   )));
   const heightInfo = core.handleHeightFor(line, leaf, physicalHeight);
@@ -418,7 +419,7 @@ export function hingeMarkup(
   if (!count || (side !== 'left' && side !== 'right')) return '';
   const metal = metalColors(String(core.hardwareColor(
     line.materiales,
-    createFinish(line.acabadoCodigo, line.acabadoDescripcion, line.acabadoPatron).frame,
+    finishFor(line).frame,
     'hinge'
   )));
   const hx = side === 'left' ? x + 2.2 : x + width - 2.2;

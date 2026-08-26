@@ -198,6 +198,7 @@ export interface LineMaterial {
   descripcion?: string;
   cantidad?: number;
   uds?: number;
+  acabado?: string;
 }
 
 // ─── Línea de ventana (formato interno normalizado) ──────────────────────────

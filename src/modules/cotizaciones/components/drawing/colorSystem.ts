@@ -36,7 +36,7 @@ export const VISUAL: VisualPalette = Object.freeze({
  *
  * Basado en el catálogo de acabados HETMO.
  */
-const FINISH_MAP: Record<string, string> = {
+export const FINISH_MAP: Record<string, string> = {
   // Blancos
   'BL': '#f5f4ef',     // Blanco
   'BLA': '#f5f4ef',    // Blanco
@@ -49,9 +49,6 @@ const FINISH_MAP: Record<string, string> = {
   'BLANCO': '#f5f4ef', // Blanco (completo)
   'BLANCA': '#f5f4ef', // Blanca (variante)
   'WHITE': '#f5f4ef',  // White (inglés)
-  '1': '#f5f4ef',      // ID 1 = Blanco (fallback numérico)
-  '01': '#f5f4ef',     // ID 01 = Blanco
-  '001': '#f5f4ef',    // ID 001 = Blanco
 
   // Grises
   'GR': '#838688',     // Gris
@@ -72,7 +69,6 @@ const FINISH_MAP: Record<string, string> = {
   'GRL': '#b0b2b4',    // Gris Luminoso
   'GRV': '#929496',    // Gris Viento
   'GRZ': '#66686a',    // Gris Zinc
-  '2': '#838688',      // ID 2 = Gris (fallback numérico)
 
   // Negros
   'NE': '#212225',     // Negro
@@ -85,7 +81,6 @@ const FINISH_MAP: Record<string, string> = {
   'NED': '#2c2d30',    // Negro Oscuro
   'NEL': '#303134',    // Negro Lavado
   'NEMT': '#1a1b1d',   // Negro Mate (variante)
-  '3': '#212225',      // ID 3 = Negro (fallback numérico)
 
   // Marrones / Nogal
   'NO': '#6e4528',     // Nogal
@@ -96,9 +91,11 @@ const FINISH_MAP: Record<string, string> = {
   'NOH': '#7a5030',    // Nogal Honey
   'NOL': '#8a5a38',    // Nogal Light
   'NOD': '#4e301e',    // Nogal Dark
-  'NOV': '#7250a0',    // Nogal Vintage (tinte)
   'NOCL': '#8a5a38',   // Nogal Claro (variante)
-  '4': '#6e4528',      // ID 4 = Nogal (fallback numérico)
+  // NOV ("Nogal Vintage") se retira: el valor anterior (#7250a0, morado) no
+  // calza con ningún nogal real y no hay forma de verificarlo contra el
+  // catálogo HETMO. Sin entrada aquí, cae al patrón "nogal" de
+  // DESCRIPTION_PATTERNS, que sí resuelve un marrón correcto.
 
   // Marrones
   'MA': '#6d402c',     // Marrón
@@ -109,7 +106,6 @@ const FINISH_MAP: Record<string, string> = {
   'MAT': '#6d402c',    // Marrón Tierra
   'MAB': '#4a2a1c',    // Marrón Barro
   'MACL': '#7d4e36',   // Marrón Claro (variante)
-  '5': '#6d402c',      // ID 5 = Marrón (fallback numérico)
 
   // Bronce
   'BR': '#8b6b4a',     // Bronce
@@ -120,7 +116,6 @@ const FINISH_MAP: Record<string, string> = {
   'BRV': '#8b6b4a',    // Bronce Viejo
   'BRL': '#9a7a58',    // Bronce Liso
   'BRB': '#6a4a2e',    // Bronce Oscuro (variante)
-  '6': '#8b6b4a',      // ID 6 = Bronce (fallback numérico)
 
   // Roble / Oak
   'RO': '#8b6e42',     // Roble
@@ -133,7 +128,6 @@ const FINISH_MAP: Record<string, string> = {
   'ROB': '#6a4e22',    // Roble Oscuro (variante)
   'ROD': '#6a4e22',    // Roble Dark
   'ROL': '#9a7e52',    // Roble Light
-  '7': '#8b6e42',      // ID 7 = Roble (fallback numérico)
 
   // Wengué
   'WE': '#3a2214',     // Wengué
@@ -142,7 +136,6 @@ const FINISH_MAP: Record<string, string> = {
   'WEN': '#3a2214',    // Wengué Natural
   'WEM': '#3a2214',    // Wengué Medio
   'WED': '#2e180a',    // Wengué Dark
-  '8': '#3a2214',      // ID 8 = Wengué (fallback numérico)
 
   // Teca / Teak
   'TE': '#8a6e3e',     // Teca
@@ -151,7 +144,6 @@ const FINISH_MAP: Record<string, string> = {
   'TEN': '#8a6e3e',    // Teca Natural
   'TEG': '#8a6e3e',    // Teca Golden
   'TED': '#6a4e1e',    // Teca Dark
-  '9': '#8a6e3e',      // ID 9 = Teca (fallback numérico)
 
   // Aluminio / Plata
   'AL': '#d5d4d1',     // Aluminio
@@ -171,7 +163,6 @@ const FINISH_MAP: Record<string, string> = {
   'ALF': '#d5d4d1',    // Aluminio Frío
   'ALW': '#d5d4d1',    // Aluminio Warm
   'ALCL': '#c0bfbc',   // Aluminio Claro (variante)
-  '10': '#d5d4d1',     // ID 10 = Aluminio (fallback numérico)
 
   // Colores especiales
   'ROJ': '#c0392b',    // Rojo
@@ -251,12 +242,15 @@ const DEFAULT_FRAME_COLOR = '#d5d4d1';
  * @param codigo - Código de acabado HETMO (ej. 'NO', 'BL', 'GR')
  * @param descripcion - Descripción del acabado (fallback si no hay código)
  * @param patron - Patrón del acabado (fallback adicional)
+ * @param materialAcabados - Acabados de los materiales de la línea (fallback
+ *   final si la ventana no trae código/descripción/patrón propios)
  * @returns Color hex del marco
  */
 export function getFrameColor(
   codigo?: string,
   descripcion?: string,
-  patron?: string
+  patron?: string,
+  materialAcabados?: string[]
 ): string {
   if (codigo) {
     const normalized = codigo.trim().toUpperCase();
@@ -277,6 +271,22 @@ export function getFrameColor(
     }
   }
 
+  // Fallback: acabado declarado en los materiales de la línea (perfil,
+  // tapajuntas, etc.), cuando la ventana no trae acabado propio.
+  for (const acabado of materialAcabados ?? []) {
+    if (!acabado) continue;
+    const normalized = acabado.trim().toUpperCase();
+    if (FINISH_MAP[normalized]) {
+      return FINISH_MAP[normalized];
+    }
+    const materialLabel = acabado.toLocaleLowerCase('es');
+    for (const { pattern, color } of DESCRIPTION_PATTERNS) {
+      if (pattern.test(materialLabel)) {
+        return color;
+      }
+    }
+  }
+
   return DEFAULT_FRAME_COLOR;
 }
 
@@ -286,15 +296,17 @@ export function getFrameColor(
  * @param codigo - Código de acabado HETMO
  * @param descripcion - Descripción del acabado
  * @param patron - Patrón del acabado
+ * @param materialAcabados - Acabados de los materiales de la línea (fallback final)
  * @returns Objeto FinishColors con el color del marco
  */
 export function createFinish(
   codigo?: string,
   descripcion?: string,
-  patron?: string
+  patron?: string,
+  materialAcabados?: string[]
 ): FinishColors {
   return {
-    frame: getFrameColor(codigo, descripcion, patron),
+    frame: getFrameColor(codigo, descripcion, patron, materialAcabados),
   };
 }
 
