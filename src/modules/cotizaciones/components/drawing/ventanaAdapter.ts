@@ -29,6 +29,7 @@ const toLineMaterial = (m: MaterialVentana): LineMaterial => ({
   descripcion: m.material?.descripcion,
   cantidad: m.cantidad,
   uds: m.piezas ?? undefined,
+  acabado: m.acabado ?? undefined,
 });
 
 /**
@@ -39,10 +40,12 @@ const toLineMaterial = (m: MaterialVentana): LineMaterial => ({
  *    un nuevo paño. Los items siguientes (tipo 3, 6, etc.) pertenecen a ese
  *    paño hasta el siguiente item tipo 10000.
  *
- * 2. Si no hay items tipo 10000, busca items tipo 3 (aperturas) que tengan
- *    numero_ventana explícito (del HETMO original). Esto cubre casos donde
- *    HETMO declara múltiples paños sin items tipo 10000, por ejemplo en
- *    ventanas compuestas donde cada paño tiene su propia apertura.
+ * 2. Si no hay items tipo 10000 pero al menos 2 geometrías declaran
+ *    perteneceHueco distinto (y mayor que 0: HETMO usa 0 como "sin
+ *    asignar", no como paño real), se confía en ese valor tal cual viene.
+ *    Un único valor no alcanza para inferir los límites de los paños de
+ *    forma fiable, así que en ese caso se sigue con la inferencia por
+ *    items tipo 10000.
  *
  * En HETMO, cada paño de una ventana compuesta tiene:
  *   - Un item tipo 10000 con ancho/alto del paño (opcional)
@@ -54,14 +57,23 @@ const toLineMaterial = (m: MaterialVentana): LineMaterial => ({
 const assignPanelNumbers = (geometrias: VentanaGeometria[]): VentanaGeometria[] => {
   if (!geometrias.length) return geometrias;
 
-  // Si alguna geometría tiene perteneceHueco no nulo, usarlo directamente
-  const hasPerteneceHueco = geometrias.some(g => g.perteneceHueco != null);
-  if (hasPerteneceHueco) return geometrias;
+  // perteneceHueco === 0 no identifica un paño real, así que para esta
+  // inferencia se trata igual que si no viniera declarado.
+  const paneloDe = (g: VentanaGeometria): number | null =>
+    g.perteneceHueco != null && g.perteneceHueco > 0 ? g.perteneceHueco : null;
 
-  // Intentar 1: Inferir numero_ventana a partir de items tipo 10000
+  const distinctPaneles = new Set(
+    geometrias.map(paneloDe).filter((n): n is number => n != null)
+  );
+  if (distinctPaneles.size >= 2) return geometrias;
+
+  // Inferir numero_ventana a partir de items tipo 10000.
+  // Number(...) normaliza: tipoElemento puede llegar sin tipar como string
+  // desde algún consumidor que no pase por el tipo VentanaGeometria.
+  const esPano = (g: VentanaGeometria) => Number(g.tipoElemento) === 10000;
   const panelStarts = geometrias
     .map((g, i) => ({ g, i }))
-    .filter(({ g }) => g.tipoElemento === 10000);
+    .filter(({ g }) => esPano(g));
 
   if (panelStarts.length >= 2) {
     // Múltiples paños definidos por items tipo 10000
@@ -69,7 +81,7 @@ const assignPanelNumbers = (geometrias: VentanaGeometria[]): VentanaGeometria[] 
     const result: VentanaGeometria[] = [];
     for (let i = 0; i < geometrias.length; i++) {
       const g = geometrias[i];
-      if (g.tipoElemento === 10000 && i > 0) {
+      if (esPano(g) && i > 0) {
         currentPanel++;
       }
       result.push({
@@ -78,24 +90,6 @@ const assignPanelNumbers = (geometrias: VentanaGeometria[]): VentanaGeometria[] 
       });
     }
     return result;
-  }
-
-  // Intentar 2: Buscar perteneceHueco explícito en items tipo 3 (aperturas)
-  // Algunos HETMO declaran múltiples paños con perteneceHueco en las aperturas
-  // sin items tipo 10000. Ej: ventana compuesta con 2 hojas proyectantes.
-  const aperturePanelNumbers = new Set<number>();
-  geometrias.forEach(g => {
-    if (g.tipoElemento === 3 && g.perteneceHueco != null && g.perteneceHueco > 0) {
-      aperturePanelNumbers.add(g.perteneceHueco);
-    }
-  });
-
-  if (aperturePanelNumbers.size >= 2) {
-    // Múltiples paños detectados por perteneceHueco en aperturas
-    return geometrias.map(g => ({
-      ...g,
-      perteneceHueco: g.perteneceHueco ?? 1, // NO usar posicion como respaldo
-    }));
   }
 
   // Un solo paño o ninguno: todas las geometrías pertenecen al paño 1
