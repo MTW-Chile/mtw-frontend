@@ -33,7 +33,24 @@ export { WindowSlidingHardware } from './WindowSlidingHardware';
 export { WindowRendererSvg } from './WindowRendererSvg';
 export { buildWindow } from './windowGeometryBuilder';
 export { toWindowLine } from './ventanaAdapter';
-export { getFrameColor, createFinish, hexRgb, mixedColor, profileColors, metalColors } from './colorSystem';
+export {
+  getFrameColor,
+  createFinish,
+  hexRgb,
+  mixedColor,
+  profileColors,
+  metalColors,
+  getGlassNomenclature,
+  getGlassDescription,
+  getGlassColor,
+  getMuntinNomenclature,
+  getMuntinColor,
+  getTraverseNomenclature,
+  getTraverseColor,
+  GLASS_NOMENCLATURE,
+  MUNTIN_NOMENCLATURE,
+  TRAVERSE_NOMENCLATURE,
+} from './colorSystem';
 
 // Re-exportar tipos comunes desde types.ts para conveniencia
 export type {
@@ -69,4 +86,7 @@ export type {
   HetmoVerticalCut,
   HetmoBaseRow,
   RailInfo,
+  GlassNomenclature,
+  MuntinNomenclature,
+  TraverseNomenclature,
 } from './types';

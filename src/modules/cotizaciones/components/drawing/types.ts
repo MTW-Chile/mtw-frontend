@@ -344,6 +344,43 @@ export interface RenderResult {
   glassOnly: boolean;
 }
 
+// ─── Nomenclatura de vidrios, barrotillos y travesaños ──────────────────────
+
+/**
+ * Nomenclatura de un vidrio: código HETMO → descripción y color.
+ */
+export interface GlassNomenclature {
+  codigo: string;
+  descripcion: string;
+  color: string;
+  esDoble?: boolean;
+  esTriple?: boolean;
+  esLaminado?: boolean;
+  esTemplado?: boolean;
+  esBajoEmisivo?: boolean;
+  esIncoloro?: boolean;
+}
+
+/**
+ * Nomenclatura de un barrotillo (muntin): código → descripción y color.
+ */
+export interface MuntinNomenclature {
+  codigo: string;
+  descripcion: string;
+  color: string;
+  ancho?: number;
+}
+
+/**
+ * Nomenclatura de un travesaño (traverse): código → descripción y color.
+ */
+export interface TraverseNomenclature {
+  codigo: string;
+  descripcion: string;
+  color: string;
+  ancho?: number;
+}
+
 // ─── Constantes visuales ─────────────────────────────────────────────────────
 
 export interface VisualPalette {

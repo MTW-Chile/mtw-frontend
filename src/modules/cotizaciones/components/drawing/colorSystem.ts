@@ -8,7 +8,15 @@
  * @module colorSystem
  */
 
-import type { FinishColors, ProfileColorSet, MetalColorSet, VisualPalette } from './types';
+import type {
+  FinishColors,
+  ProfileColorSet,
+  MetalColorSet,
+  VisualPalette,
+  GlassNomenclature,
+  MuntinNomenclature,
+  TraverseNomenclature,
+} from './types';
 
 // ─── Paleta visual global ─────────────────────────────────────────────────────
 
@@ -37,6 +45,7 @@ const FINISH_MAP: Record<string, string> = {
   'BLC': '#f5f4ef',    // Blanco Claro
   'BLR': '#f5f4ef',    // Blanco Roto
   'BCO': '#ffffff',    // Blanco Puro
+  '1': '#f5f4ef',      // ID 1 = Blanco (fallback numérico)
 
   // Grises
   'GR': '#838688',     // Gris
@@ -57,6 +66,7 @@ const FINISH_MAP: Record<string, string> = {
   'GRL': '#b0b2b4',    // Gris Luminoso
   'GRV': '#929496',    // Gris Viento
   'GRZ': '#66686a',    // Gris Zinc
+  '2': '#838688',      // ID 2 = Gris (fallback numérico)
 
   // Negros
   'NE': '#212225',     // Negro
@@ -69,6 +79,7 @@ const FINISH_MAP: Record<string, string> = {
   'NED': '#2c2d30',    // Negro Oscuro
   'NEL': '#303134',    // Negro Lavado
   'NEMT': '#1a1b1d',   // Negro Mate (variante)
+  '3': '#212225',      // ID 3 = Negro (fallback numérico)
 
   // Marrones / Nogal
   'NO': '#6e4528',     // Nogal
@@ -81,6 +92,7 @@ const FINISH_MAP: Record<string, string> = {
   'NOD': '#4e301e',    // Nogal Dark
   'NOV': '#7250a0',    // Nogal Vintage (tinte)
   'NOCL': '#8a5a38',   // Nogal Claro (variante)
+  '4': '#6e4528',      // ID 4 = Nogal (fallback numérico)
 
   // Marrones
   'MA': '#6d402c',     // Marrón
@@ -91,6 +103,7 @@ const FINISH_MAP: Record<string, string> = {
   'MAT': '#6d402c',    // Marrón Tierra
   'MAB': '#4a2a1c',    // Marrón Barro
   'MACL': '#7d4e36',   // Marrón Claro (variante)
+  '5': '#6d402c',      // ID 5 = Marrón (fallback numérico)
 
   // Bronce
   'BR': '#8b6b4a',     // Bronce
@@ -101,6 +114,7 @@ const FINISH_MAP: Record<string, string> = {
   'BRV': '#8b6b4a',    // Bronce Viejo
   'BRL': '#9a7a58',    // Bronce Liso
   'BRB': '#6a4a2e',    // Bronce Oscuro (variante)
+  '6': '#8b6b4a',      // ID 6 = Bronce (fallback numérico)
 
   // Roble / Oak
   'RO': '#8b6e42',     // Roble
@@ -113,6 +127,7 @@ const FINISH_MAP: Record<string, string> = {
   'ROB': '#6a4e22',    // Roble Oscuro (variante)
   'ROD': '#6a4e22',    // Roble Dark
   'ROL': '#9a7e52',    // Roble Light
+  '7': '#8b6e42',      // ID 7 = Roble (fallback numérico)
 
   // Wengué
   'WE': '#3a2214',     // Wengué
@@ -121,6 +136,7 @@ const FINISH_MAP: Record<string, string> = {
   'WEN': '#3a2214',    // Wengué Natural
   'WEM': '#3a2214',    // Wengué Medio
   'WED': '#2e180a',    // Wengué Dark
+  '8': '#3a2214',      // ID 8 = Wengué (fallback numérico)
 
   // Teca / Teak
   'TE': '#8a6e3e',     // Teca
@@ -129,6 +145,7 @@ const FINISH_MAP: Record<string, string> = {
   'TEN': '#8a6e3e',    // Teca Natural
   'TEG': '#8a6e3e',    // Teca Golden
   'TED': '#6a4e1e',    // Teca Dark
+  '9': '#8a6e3e',      // ID 9 = Teca (fallback numérico)
 
   // Aluminio / Plata
   'AL': '#d5d4d1',     // Aluminio
@@ -148,6 +165,7 @@ const FINISH_MAP: Record<string, string> = {
   'ALF': '#d5d4d1',    // Aluminio Frío
   'ALW': '#d5d4d1',    // Aluminio Warm
   'ALCL': '#c0bfbc',   // Aluminio Claro (variante)
+  '10': '#d5d4d1',     // ID 10 = Aluminio (fallback numérico)
 
   // Colores especiales
   'ROJ': '#c0392b',    // Rojo
@@ -331,4 +349,184 @@ export function metalColors(baseColor: string): MetalColorSet {
     light: mixedColor(baseColor, '#ffffff', 0.55),
     edge: mixedColor(baseColor, '#000000', 0.45),
   };
+}
+
+// ─── Nomenclatura de vidrios ──────────────────────────────────────────────────
+
+/**
+ * Catálogo de nomenclatura de vidrios HETMO.
+ * Cada código describe una configuración de vidrio (monolítico, doble, triple,
+ * laminado, templado, etc.) con su color de representación visual.
+ *
+ * Basado en el catálogo de vidrios HETMO.
+ */
+export const GLASS_NOMENCLATURE: Record<string, GlassNomenclature> = {
+  // Monolíticos
+  '3':  { codigo: '3',  descripcion: 'Vidrio monolítico 3mm', color: '#d8f2f4', esIncoloro: true },
+  '4':  { codigo: '4',  descripcion: 'Vidrio monolítico 4mm', color: '#d8f2f4', esIncoloro: true },
+  '5':  { codigo: '5',  descripcion: 'Vidrio monolítico 5mm', color: '#d8f2f4', esIncoloro: true },
+  '6':  { codigo: '6',  descripcion: 'Vidrio monolítico 6mm', color: '#d8f2f4', esIncoloro: true },
+  '8':  { codigo: '8',  descripcion: 'Vidrio monolítico 8mm', color: '#d8f2f4', esIncoloro: true },
+  '10': { codigo: '10', descripcion: 'Vidrio monolítico 10mm', color: '#d8f2f4', esIncoloro: true },
+
+  // Doble vidriado hermético (DVH) — formato "X/Y/X"
+  '4/6/4':   { codigo: '4/6/4',   descripcion: 'DVH 4+6+4', color: '#d8f2f4', esDoble: true, esIncoloro: true },
+  '4/9/4':   { codigo: '4/9/4',   descripcion: 'DVH 4+9+4', color: '#d8f2f4', esDoble: true, esIncoloro: true },
+  '4/12/4':  { codigo: '4/12/4',  descripcion: 'DVH 4+12+4', color: '#d8f2f4', esDoble: true, esIncoloro: true },
+  '4/15/4':  { codigo: '4/15/4',  descripcion: 'DVH 4+15+4', color: '#d8f2f4', esDoble: true, esIncoloro: true },
+  '4/18/4':  { codigo: '4/18/4',  descripcion: 'DVH 4+18+4', color: '#d8f2f4', esDoble: true, esIncoloro: true },
+  '4/20/4':  { codigo: '4/20/4',  descripcion: 'DVH 4+20+4', color: '#d8f2f4', esDoble: true, esIncoloro: true },
+  '5/9/5':   { codigo: '5/9/5',   descripcion: 'DVH 5+9+5', color: '#d8f2f4', esDoble: true, esIncoloro: true },
+  '5/12/5':  { codigo: '5/12/5',  descripcion: 'DVH 5+12+5', color: '#d8f2f4', esDoble: true, esIncoloro: true },
+  '5/15/5':  { codigo: '5/15/5',  descripcion: 'DVH 5+15+5', color: '#d8f2f4', esDoble: true, esIncoloro: true },
+  '6/9/6':   { codigo: '6/9/6',   descripcion: 'DVH 6+9+6', color: '#d8f2f4', esDoble: true, esIncoloro: true },
+  '6/12/6':  { codigo: '6/12/6',  descripcion: 'DVH 6+12+6', color: '#d8f2f4', esDoble: true, esIncoloro: true },
+  '6/15/6':  { codigo: '6/15/6',  descripcion: 'DVH 6+15+6', color: '#d8f2f4', esDoble: true, esIncoloro: true },
+  '8/12/8':  { codigo: '8/12/8',  descripcion: 'DVH 8+12+8', color: '#d8f2f4', esDoble: true, esIncoloro: true },
+  '4/12/3+3': { codigo: '4/12/3+3', descripcion: 'DVH 4+12+3+3 laminado', color: '#d8f2f4', esDoble: true, esLaminado: true },
+  '3+3/12/4': { codigo: '3+3/12/4', descripcion: 'DVH 3+3 laminado +12+4', color: '#d8f2f4', esDoble: true, esLaminado: true },
+  '4/12/4+4': { codigo: '4/12/4+4', descripcion: 'DVH 4+12+4+4 laminado', color: '#d8f2f4', esDoble: true, esLaminado: true },
+
+  // Triple vidriado hermético (TVH)
+  '4/12/4/12/4': { codigo: '4/12/4/12/4', descripcion: 'TVH 4+12+4+12+4', color: '#c8e8ea', esTriple: true, esIncoloro: true },
+  '4/15/4/15/4': { codigo: '4/15/4/15/4', descripcion: 'TVH 4+15+4+15+4', color: '#c8e8ea', esTriple: true, esIncoloro: true },
+
+  // Laminados
+  '3+3': { codigo: '3+3', descripcion: 'Laminado 3+3mm', color: '#d0eef0', esLaminado: true },
+  '4+4': { codigo: '4+4', descripcion: 'Laminado 4+4mm', color: '#d0eef0', esLaminado: true },
+  '5+5': { codigo: '5+5', descripcion: 'Laminado 5+5mm', color: '#d0eef0', esLaminado: true },
+  '6+6': { codigo: '6+6', descripcion: 'Laminado 6+6mm', color: '#d0eef0', esLaminado: true },
+  '8+8': { codigo: '8+8', descripcion: 'Laminado 8+8mm', color: '#d0eef0', esLaminado: true },
+
+  // Templados
+  'T4':  { codigo: 'T4',  descripcion: 'Templado 4mm', color: '#d8f2f4', esTemplado: true, esIncoloro: true },
+  'T5':  { codigo: 'T5',  descripcion: 'Templado 5mm', color: '#d8f2f4', esTemplado: true, esIncoloro: true },
+  'T6':  { codigo: 'T6',  descripcion: 'Templado 6mm', color: '#d8f2f4', esTemplado: true, esIncoloro: true },
+  'T8':  { codigo: 'T8',  descripcion: 'Templado 8mm', color: '#d8f2f4', esTemplado: true, esIncoloro: true },
+  'T10': { codigo: 'T10', descripcion: 'Templado 10mm', color: '#d8f2f4', esTemplado: true, esIncoloro: true },
+
+  // Bajo emisivo (Low-E)
+  '4/12/4+LE': { codigo: '4/12/4+LE', descripcion: 'DVH 4+12+4 Low-E', color: '#c8e8f0', esDoble: true, esBajoEmisivo: true },
+  '4/15/4+LE': { codigo: '4/15/4+LE', descripcion: 'DVH 4+15+4 Low-E', color: '#c8e8f0', esDoble: true, esBajoEmisivo: true },
+  '6/12/6+LE': { codigo: '6/12/6+LE', descripcion: 'DVH 6+12+6 Low-E', color: '#c8e8f0', esDoble: true, esBajoEmisivo: true },
+
+  // Especiales
+  'SIN': { codigo: 'SIN', descripcion: 'Sin vidrio', color: '#ffffff' },
+};
+
+/**
+ * Obtiene la nomenclatura de un vidrio por su código HETMO.
+ *
+ * @param codigo - Código de vidrio HETMO (ej. '4/12/4', '3+3', 'T6')
+ * @returns Objeto GlassNomenclature o undefined si no se encuentra
+ */
+export function getGlassNomenclature(codigo?: string): GlassNomenclature | undefined {
+  if (!codigo) return undefined;
+  const normalized = codigo.trim();
+  return GLASS_NOMENCLATURE[normalized];
+}
+
+/**
+ * Obtiene la descripción de un vidrio por su código HETMO.
+ *
+ * @param codigo - Código de vidrio HETMO
+ * @returns Descripción del vidrio, o el código si no se encuentra
+ */
+export function getGlassDescription(codigo?: string): string {
+  const nom = getGlassNomenclature(codigo);
+  return nom ? nom.descripcion : codigo || '';
+}
+
+/**
+ * Obtiene el color de representación de un vidrio por su código HETMO.
+ *
+ * @param codigo - Código de vidrio HETMO
+ * @returns Color hex del vidrio, o el color por defecto si no se encuentra
+ */
+export function getGlassColor(codigo?: string): string {
+  const nom = getGlassNomenclature(codigo);
+  return nom ? nom.color : VISUAL.glass;
+}
+
+// ─── Nomenclatura de barrotillos (muntins) ────────────────────────────────────
+
+/**
+ * Catálogo de nomenclatura de barrotillos HETMO.
+ * Los barrotillos son rejillas decorativas dentro del vidrio.
+ */
+export const MUNTIN_NOMENCLATURE: Record<string, MuntinNomenclature> = {
+  'BAR':   { codigo: 'BAR',   descripcion: 'Barrotillo estándar', color: '#ffffff', ancho: 18 },
+  'BARF':  { codigo: 'BARF',  descripcion: 'Barrotillo fino', color: '#ffffff', ancho: 12 },
+  'BARG':  { codigo: 'BARG',  descripcion: 'Barrotillo grueso', color: '#ffffff', ancho: 25 },
+  'BARV':  { codigo: 'BARV',  descripcion: 'Barrotillo victoriano', color: '#ffffff', ancho: 18 },
+  'BARA':  { codigo: 'BARA',  descripcion: 'Barrotillo americano', color: '#ffffff', ancho: 22 },
+  'BARC':  { codigo: 'BARC',  descripcion: 'Barrotillo colonial', color: '#ffffff', ancho: 15 },
+  'BARM':  { codigo: 'BARM',  descripcion: 'Barrotillo mixto', color: '#ffffff', ancho: 18 },
+  'BARE':  { codigo: 'BARE',  descripcion: 'Barrotillo entrepaño', color: '#ffffff', ancho: 18 },
+  'BARD':  { codigo: 'BARD',  descripcion: 'Barrotillo decorativo', color: '#ffffff', ancho: 20 },
+};
+
+/**
+ * Obtiene la nomenclatura de un barrotillo por su código.
+ *
+ * @param codigo - Código de barrotillo
+ * @returns Objeto MuntinNomenclature o undefined si no se encuentra
+ */
+export function getMuntinNomenclature(codigo?: string): MuntinNomenclature | undefined {
+  if (!codigo) return undefined;
+  const normalized = codigo.trim().toUpperCase();
+  return MUNTIN_NOMENCLATURE[normalized];
+}
+
+/**
+ * Obtiene el color de un barrotillo. Si no está en el catálogo,
+ * devuelve el color del marco proporcionado.
+ *
+ * @param codigo - Código de barrotillo
+ * @param frameColor - Color del marco (fallback)
+ * @returns Color hex del barrotillo
+ */
+export function getMuntinColor(codigo?: string, frameColor?: string): string {
+  const nom = getMuntinNomenclature(codigo);
+  return nom ? nom.color : (frameColor || '#ffffff');
+}
+
+// ─── Nomenclatura de travesaños (traverses) ───────────────────────────────────
+
+/**
+ * Catálogo de nomenclatura de travesaños HETMO.
+ * Los travesaños son barras horizontales/verticales que dividen el vidrio.
+ */
+export const TRAVERSE_NOMENCLATURE: Record<string, TraverseNomenclature> = {
+  'TRA':   { codigo: 'TRA',   descripcion: 'Travesaño estándar', color: '#ffffff', ancho: 20 },
+  'TRAF':  { codigo: 'TRAF',  descripcion: 'Travesaño fino', color: '#ffffff', ancho: 14 },
+  'TRAG':  { codigo: 'TRAG',  descripcion: 'Travesaño grueso', color: '#ffffff', ancho: 28 },
+  'TRAM':  { codigo: 'TRAM',  descripcion: 'Travesaño medio', color: '#ffffff', ancho: 20 },
+  'TRAE':  { codigo: 'TRAE',  descripcion: 'Travesaño estructural', color: '#ffffff', ancho: 25 },
+  'TRAD':  { codigo: 'TRAD',  descripcion: 'Travesaño decorativo', color: '#ffffff', ancho: 18 },
+};
+
+/**
+ * Obtiene la nomenclatura de un travesaño por su código.
+ *
+ * @param codigo - Código de travesaño
+ * @returns Objeto TraverseNomenclature o undefined si no se encuentra
+ */
+export function getTraverseNomenclature(codigo?: string): TraverseNomenclature | undefined {
+  if (!codigo) return undefined;
+  const normalized = codigo.trim().toUpperCase();
+  return TRAVERSE_NOMENCLATURE[normalized];
+}
+
+/**
+ * Obtiene el color de un travesaño. Si no está en el catálogo,
+ * devuelve el color del marco proporcionado.
+ *
+ * @param codigo - Código de travesaño
+ * @param frameColor - Color del marco (fallback)
+ * @returns Color hex del travesaño
+ */
+export function getTraverseColor(codigo?: string, frameColor?: string): string {
+  const nom = getTraverseNomenclature(codigo);
+  return nom ? nom.color : (frameColor || '#ffffff');
 }
