@@ -10,8 +10,8 @@ import {
 import { formatNumber } from '../../../../lib/utils';
 import type { Ventana } from '../../../../types';
 import { WindowRendererSvg } from '../../components/drawing/WindowRendererSvg';
-import { toLegacyLine } from '../../components/drawing/ventanaAdapter';
-import { finishFor } from '../../components/drawing/legacyGeometrySvg';
+import { toWindowLine } from '../../components/drawing/ventanaAdapter';
+import { createFinish } from '../../components/drawing/colorSystem';
 import * as core from '../../components/drawing/legacyGeometryCore';
 
 interface VentanaCardProps {
@@ -29,8 +29,15 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
   const totalLinea = (ventana.importeUnitario || 0) * (ventana.unidades || 1);
 
   // Extraemos el acabado y nombre de la apertura según el motor de HETMO
-  const finish = useMemo(() => finishFor(toLegacyLine(ventana)), [ventana]);
-  const apertureLabel = useMemo(() => core.apertureLabel(toLegacyLine(ventana)), [ventana]);
+  const windowLine = useMemo(() => toWindowLine(ventana), [ventana]);
+  const finish = useMemo(
+    () => createFinish(windowLine?.acabadoCodigo, windowLine?.acabadoDescripcion, windowLine?.acabadoPatron),
+    [windowLine]
+  );
+  const apertureLabel = useMemo(() => {
+    if (!windowLine) return ventana.modelo || '—';
+    return core.apertureLabel(windowLine as any);
+  }, [windowLine, ventana.modelo]);
 
   return (
     <article className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all flex flex-col overflow-hidden group">
@@ -117,7 +124,7 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
                 className="w-2.5 h-2.5 rounded-full border border-slate-300 shadow-inner" 
                 style={{ backgroundColor: finish.frame }}
               />
-              {(ventana as any).acabadoDescripcion || ventana.acabadoCodigo || 'Estándar'}
+              {ventana.acabadoDescripcion || ventana.acabadoCodigo || 'Estándar'}
             </span>
           </div>
         </div>
@@ -183,5 +190,3 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
     </article>
   );
 };
-
-

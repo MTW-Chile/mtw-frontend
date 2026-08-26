@@ -110,6 +110,8 @@ export interface Ventana {
   numeroCuadrosHojas: number | null;
   dibujoTipoApertura: number | null;
   acabadoCodigo: string | null;
+  acabadoDescripcion: string | null;
+  acabadoPatron: string | null;
   importeUnitario: number | null;
   descuentoLinea: number | null;
   comentarioPresupuesto: string | null;

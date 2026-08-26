@@ -45,7 +45,13 @@ const FINISH_MAP: Record<string, string> = {
   'BLC': '#f5f4ef',    // Blanco Claro
   'BLR': '#f5f4ef',    // Blanco Roto
   'BCO': '#ffffff',    // Blanco Puro
+  'BLAN': '#f5f4ef',   // Blanco (variante)
+  'BLANCO': '#f5f4ef', // Blanco (completo)
+  'BLANCA': '#f5f4ef', // Blanca (variante)
+  'WHITE': '#f5f4ef',  // White (inglés)
   '1': '#f5f4ef',      // ID 1 = Blanco (fallback numérico)
+  '01': '#f5f4ef',     // ID 01 = Blanco
+  '001': '#f5f4ef',    // ID 001 = Blanco
 
   // Grises
   'GR': '#838688',     // Gris
