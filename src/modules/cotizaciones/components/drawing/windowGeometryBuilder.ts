@@ -12,17 +12,12 @@
 import * as core from './legacyGeometryCore';
 import {
   VISUAL,
-  createFinish,
-  profileColors,
-  metalColors,
 } from './colorSystem';
 import {
-  lineStyle,
   escape,
   clamp,
   number,
   finishFor,
-  metalFor,
   glassMarkup,
   frameMarkup,
   sashMarkup,
@@ -51,13 +46,8 @@ import type {
   CompositePanel,
   CompositeTile,
   ApertureDefinition,
-  MetalColorSet,
-  FinishColors,
   SpecialOutline,
-  MuntinLine,
   TraverseLine,
-  GlassSplit,
-  OpeningSymbolSegment,
   RenderResult,
 } from './types';
 

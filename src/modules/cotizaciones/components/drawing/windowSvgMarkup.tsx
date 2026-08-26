@@ -7,8 +7,6 @@
  * @module windowSvgMarkup
  */
 
-import React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import * as core from './legacyGeometryCore';
 import {
   VISUAL,
