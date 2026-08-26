@@ -36,14 +36,24 @@ export interface VentanaGeometria {
   ordenGeometria: number;
   tipoElemento: number | null;
   tipoGeometria: number | null;
+  numeroPuntos: number | null;
   anchoMm: number | null;
   altoMm: number | null;
   tipoApertura: number | null;
   posicion: number | null;
   perteneceHueco: number | null;
+  numeroHoja: number | null;
+  carril: number | null;
   formaCodigo: string | null;
   modificadorX: number | null;
   modificadorY: number | null;
+  /**
+   * Fila HETMO cruda, sin normalizar (barrotillos_*, bh_*, cota,
+   * geometria_n1/n2, altura_manilla, radio/angulo_curvatura, etc.).
+   * Respaldo para campos que aún no tienen columna propia -- ver
+   * ventanaAdapter.ts:toRawGeometry().
+   */
+  parametrosJson: Record<string, unknown> | null;
 }
 
 export interface MaterialVentana {

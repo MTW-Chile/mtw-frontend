@@ -108,12 +108,21 @@ const assignPanelNumbers = (geometrias: VentanaGeometria[]): VentanaGeometria[] 
  * NOTA: Este formato usa snake_case porque el núcleo (compartido con API/PDF)
  *       lee claves snake_case. Ver toCoreLine() para el puente tipado.
  *
- * Algunos campos (codigoComponente, barrotillosHorizontales, etc.) no existen
- * en el tipo VentanaGeometria pero SÍ son devueltos por el endpoint HETMO.
- * Se accede via rawGeometry (any) para capturarlos sin perder información.
+ * Los campos de nivel 2 (barrotillos, travesaños, cota, N1/N2, altura de
+ * manilla, curvatura) no tienen columna propia en VentanaGeometria: viven en
+ * parametrosJson, la fila HETMO cruda tal como la persiste el sync. Se leen
+ * de ahí, con las columnas tipadas (numeroHoja, carril) como fuente
+ * preferida cuando existen.
  */
 const toRawGeometry = (g: VentanaGeometria): Record<string, unknown> => {
-  const rg = g as any;
+  const params = g.parametrosJson ?? {};
+  const fromParams = (...keys: string[]): unknown => {
+    for (const key of keys) {
+      const value = params[key];
+      if (value !== undefined && value !== null) return value;
+    }
+    return undefined;
+  };
   return {
     numero_ventana: g.perteneceHueco ?? 1, // NO usar g.posicion - significa otra cosa en HETMO
     orden: g.ordenGeometria,
@@ -132,25 +141,27 @@ const toRawGeometry = (g: VentanaGeometria): Record<string, unknown> => {
     forma_codigo: toFiniteOrNull(g.formaCodigo), // 0 es válido en specialOutline()
     modificador_x: toFiniteOrNull(g.modificadorX), // puede ser negativo (trapecios)
     modificador_y: toFiniteOrNull(g.modificadorY), // puede ser negativo (trapecios)
-    // Campos HETMO adicionales que el núcleo consulta.
-    // Existen en la respuesta del endpoint aunque no estén en el tipo TS.
-    codigo_componente: rg.codigoComponente ?? rg.codigo_componente,
-    barrotillos_horizontales: rg.barrotillosHorizontales ?? rg.barrotillos_horizontales,
-    barrotillos_verticales: rg.barrotillosVerticales ?? rg.barrotillos_verticales,
-    bh_numero_travesano: rg.bhNumeroTravesano ?? rg.bh_numero_travesano,
-    bh_x_inicio: rg.bhXInicio ?? rg.bh_x_inicio,
-    bh_x_fin: rg.bhXFin ?? rg.bh_x_fin,
-    bh_y_inicio: rg.bhYInicio ?? rg.bh_y_inicio,
-    bh_y_fin: rg.bhYFin ?? rg.bh_y_fin,
-    cota: rg.cota ?? rg.cota_fija,
-    cota_fija: rg.cotaFija ?? rg.cota_fija,
-    geometria_n1: rg.geometriaN1,
-    geometria_n2: rg.geometriaN2,
-    altura_manilla: toFiniteOrNull(rg.alturaManilla ?? rg.altura_manilla),
-    radio_curvatura: toFiniteOrNull(rg.radioCurvatura ?? rg.radio_curvatura),
-    angulo_curvatura: toFiniteOrNull(rg.anguloCurvatura ?? rg.angulo_curvatura),
-    numero_hoja: rg.numeroHoja ?? rg.numero_hoja,
-    orden_hoja: rg.ordenHoja ?? rg.orden_hoja,
+    // Nivel 2: sin columna propia, se leen de parametrosJson.
+    codigo_componente: fromParams('codigo_componente', 'codigoComponente'),
+    barrotillos_horizontales: fromParams('barrotillos_horizontales', 'barrotillosHorizontales'),
+    barrotillos_verticales: fromParams('barrotillos_verticales', 'barrotillosVerticales'),
+    bh_numero_travesano: fromParams('bh_numero_travesano', 'bhNumeroTravesano'),
+    bh_x_inicio: fromParams('bh_x_inicio', 'bhXInicio'),
+    bh_x_fin: fromParams('bh_x_fin', 'bhXFin'),
+    bh_y_inicio: fromParams('bh_y_inicio', 'bhYInicio'),
+    bh_y_fin: fromParams('bh_y_fin', 'bhYFin'),
+    cota: fromParams('cota', 'cota_fija', 'cotaFija'),
+    cota_fija: fromParams('cota_fija', 'cotaFija'),
+    geometria_n1: fromParams('geometria_n1', 'geometriaN1'),
+    geometria_n2: fromParams('geometria_n2', 'geometriaN2'),
+    altura_manilla: toFiniteOrNull(fromParams('altura_manilla', 'alturaManilla')),
+    radio_curvatura: toFiniteOrNull(fromParams('radio_curvatura', 'radioCurvatura')),
+    angulo_curvatura: toFiniteOrNull(fromParams('angulo_curvatura', 'anguloCurvatura')),
+    // Nivel 1: ya tienen columna propia desde el fix del sync; parametrosJson
+    // sólo cubre las filas sincronizadas antes de ese fix.
+    numero_hoja: g.numeroHoja ?? fromParams('numero_hoja', 'numeroHoja'),
+    orden_hoja: fromParams('orden_hoja', 'ordenHoja'),
+    carril: g.carril ?? fromParams('carril'),
   };
 };
 
