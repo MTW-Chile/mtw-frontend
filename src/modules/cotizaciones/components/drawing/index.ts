@@ -30,6 +30,10 @@ export {
 } from './WindowLabels';
 export { WindowSlidingGuides } from './WindowSlidingGuides';
 export { WindowSlidingHardware } from './WindowSlidingHardware';
+export { WindowRendererSvg } from './WindowRendererSvg';
+export { buildWindow } from './windowGeometryBuilder';
+export { toWindowLine } from './ventanaAdapter';
+export { getFrameColor, createFinish, hexRgb, mixedColor, profileColors, metalColors } from './colorSystem';
 
 // Re-exportar tipos comunes desde types.ts para conveniencia
 export type {
