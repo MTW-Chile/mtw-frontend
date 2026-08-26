@@ -1,16 +1,18 @@
 // @ts-nocheck
-/* Núcleo geométrico compartido de MTW: interpreta componentes HETMO (paños,
-   hojas, aperturas, barrotillos, travesaños) en estructuras genéricas, sin
-   dibujar nada. Dos renderizadores lo consumen: app/window-geometry.js (SVG,
-   navegador) y mtw-api/scripts/generate_project_budget.js (pdf-lib, Node).
+/* Núcleo geométrico de MTW: interpreta componentes HETMO (paños, hojas,
+   aperturas, barrotillos, travesaños) en estructuras genéricas, sin dibujar
+   nada. Único consumidor confirmado: windowGeometryBuilder.ts /
+   windowSvgMarkup.tsx (SVG, navegador). Ya no hay una segunda copia de este
+   archivo en otro repo -- si eso cambia (por ejemplo, un generador de PDF en
+   Python), ese consumidor nuevo debe llamar a esta misma lógica en vez de
+   duplicarla.
 
-   ESTE ARCHIVO DEBE SER IDÉNTICO en mtw-dashboard (app/window-geometry-core.js)
-   y en mtw-api (scripts/window-geometry-core.js). Viven en repos separados sin
-   filesystem compartido en producción, así que no hay forma de referenciar un
-   único archivo en tiempo de ejecución: cualquier cambio en la lógica de
-   geometría se hace aquí y se copia literal al otro repo en el mismo cambio.
-   No hay una segunda copia de esta lógica en ningún otro archivo: si algo de
-   geometría necesita ajustarse, se ajusta acá y no donde se dibuja. */
+   Acepta directamente los tipos de la app (WindowLine / VentanaGeometria[],
+   camelCase) sin una capa de traducción intermedia: normalizeGeometryItem()
+   hace el único ajuste de nombres que sigue siendo necesario (los campos de
+   nivel 2 -- barrotillos, travesaños, cota, N1/N2, altura de manilla,
+   curvatura -- no tienen columna propia y viven en parametrosJson bajo su
+   nombre HETMO original en snake_case; ver comentario en normalizeGeometryItem). */
 
   'use strict';
 
@@ -166,14 +168,51 @@
     }
     return 0;
   };
-  // Los callers de este modulo no siempre normalizan la linea antes de
-  // pasarla (el editor de correcciones, en particular, la arma con
-  // enrichLine() sin pasar por normaliseLine() de proyectos.html). Las
-  // filas que vienen directo de MTW_Proyectos usan el nombre de columna
-  // en mayusculas (ANCHO/ALTO) tal cual; sin este respaldo, un ancho
-  // ausente en minusculas caia silenciosamente al minimo hardcodeado de
-  // 1mm en vez del valor real de la linea.
-  export const lineDimension = (line, lower, upper) => firstPositive(line && line[lower], line && line[upper]);
+  // ─── Normalización de geometría ────────────────────────────────────────────
+  // Un item de línea.geometria trae los campos tipados en camelCase
+  // (tipoElemento, anchoMm, altoMm, tipoApertura, posicion, perteneceHueco,
+  // numeroHoja, carril, formaCodigo, modificadorX, modificadorY,
+  // ordenGeometria) más, cuando existen, los campos crudos de HETMO sin
+  // columna propia (barrotillos_*, bh_*, cota, geometria_n1/n2,
+  // altura_manilla, radio/angulo_curvatura, codigo_componente, orden_hoja)
+  // bajo su nombre HETMO original en parametrosJson -- no tiene sentido
+  // normalizarlos a camelCase porque no describen un concepto propio de esta
+  // app, sino una fila HETMO tal cual.
+  //
+  // Idempotente a propósito: un paño de compositePanels() vuelve a pasar sus
+  // propios items (ya normalizados) a otras funciones del núcleo, y esto no
+  // debe duplicar ni perder nada la segunda vez.
+  export function normalizeGeometryItem(item) {
+    if (!item) return item;
+    const params = (item.parametrosJson && typeof item.parametrosJson === 'object') ? item.parametrosJson : {};
+    const perteneceHueco = item.perteneceHueco != null ? item.perteneceHueco : item.pertenece_hueco;
+    return {
+      ...params,
+      ...item,
+      orden_geometria: item.ordenGeometria != null ? item.ordenGeometria : item.orden_geometria,
+      tipo_elemento: item.tipoElemento != null ? item.tipoElemento : item.tipo_elemento,
+      tipo_apertura: item.tipoApertura != null ? item.tipoApertura : item.tipo_apertura,
+      apertura: item.tipoApertura != null ? item.tipoApertura : item.apertura,
+      ancho: item.anchoMm != null ? item.anchoMm : item.ancho,
+      alto: item.altoMm != null ? item.altoMm : item.alto,
+      posicion: item.posicion,
+      // HETMO usa 0 como "sin asignar", no como paño real (ver assignPanelNumbers
+      // en ventanaAdapter.ts). numero_ventana asume paño 1 cuando no hay dato;
+      // pertenece_hueco conserva el valor crudo para los usos que sólo
+      // necesitan una clave de agrupación estable.
+      numero_ventana: perteneceHueco != null && perteneceHueco > 0 ? perteneceHueco : (item.numero_ventana != null ? item.numero_ventana : 1),
+      pertenece_hueco: perteneceHueco,
+      forma_codigo: item.formaCodigo != null ? item.formaCodigo : item.forma_codigo,
+      modificador_x: item.modificadorX != null ? item.modificadorX : item.modificador_x,
+      modificador_y: item.modificadorY != null ? item.modificadorY : item.modificador_y,
+      numero_hoja: item.numeroHoja != null ? item.numeroHoja : item.numero_hoja,
+      carril: item.carril,
+    };
+  }
+  export const geometryItemsOf = source => {
+    const raw = Array.isArray(source) ? source : (source && (source.raw || source.geometria));
+    return (Array.isArray(raw) ? raw : []).map(normalizeGeometryItem);
+  };
 
   export function normalizedApertura(line, value) {
     const code = number(value);
@@ -193,8 +232,8 @@
   // existe (ventana fija normal), las filas restantes son marco, uniones y
   // cotas: tratarlas como hojas creaba separadores y paños falsos.
   export function sourceComponents(line) {
-    const raw = Array.isArray(line && line.geometria) ? line.geometria : [];
-    const openingRows = raw.filter(item => number(item && (item.tipo_elemento != null ? item.tipo_elemento : item.elemento)) === 3);
+    const raw = geometryItemsOf(line);
+    const openingRows = raw.filter(item => number(item && item.tipo_elemento) === 3);
     const components = openingRows.map((item, index) => ({
       orden: number(item && (item.orden != null ? item.orden : index)),
       posicion: number(item && (item.posicion != null ? item.posicion : index)),
@@ -216,14 +255,14 @@
       alturaManilla: firstPositive(item && item.altura_manilla, item && item.ALTURA_MANILLA, item && item.cota_manilla, item && item.COTA_MANILLA)
     })).sort((a, b) => a.posicion - b.posicion || a.orden - b.orden);
     if (components.length) return components;
-    return [{ apertura: normalizedApertura(line, line && (line.tipo_apertura != null ? line.tipo_apertura : line.dibujo_tipo_apertura)), ancho: 0, alto: 0, geometria: 'principal' }];
+    return [{ apertura: normalizedApertura(line, line && (line.dibujoTipoApertura != null ? line.dibujoTipoApertura : line.tipoApertura)), ancho: 0, alto: 0, geometria: 'principal' }];
   }
 
   // Algunas líneas no son un solo rectángulo: HETMO registra cada paño con
   // NUMERO_VENTANA y sus cotas (ej. un proyectante sobre un fijo). Esta
   // lectura respeta esas cotas en vez de inventar paños iguales.
   export function compositePanels(line) {
-    const raw = Array.isArray(line && line.geometria) ? line.geometria : [];
+    const raw = geometryItemsOf(line);
     const groups = new Map();
     raw.forEach((item, index) => {
       const panelNumber = number(item && item.numero_ventana);
@@ -231,8 +270,8 @@
       if (!groups.has(panelNumber)) groups.set(panelNumber, { number: panelNumber, order: index, width: 0, height: 0, apertura: 0, aperturaCount: 0, raw: [] });
       const panel = groups.get(panelNumber);
       panel.raw.push(item);
-      panel.order = Math.min(panel.order, number(item && (item.orden != null ? item.orden : item.orden_geometria) != null ? (item.orden != null ? item.orden : item.orden_geometria) : index));
-      const tipo = number(item && (item.tipo_elemento != null ? item.tipo_elemento : item.elemento));
+      panel.order = Math.min(panel.order, number(item && item.orden_geometria != null ? item.orden_geometria : index));
+      const tipo = number(item && item.tipo_elemento);
       if (tipo === 10000) {
         panel.width = firstPositive(item.ancho, item.ancho_mm, panel.width);
         panel.height = firstPositive(item.alto, item.alto_mm, panel.height);
@@ -244,14 +283,14 @@
       // apertura hubo, para que el dibujo pueda distinguir una puerta de una
       // hoja de una de dos sin inventar una partición donde HETMO no la deja.
       if (tipo === 3) {
-        panel.apertura = normalizedApertura(line, item.apertura != null ? item.apertura : item.tipo_apertura);
+        panel.apertura = normalizedApertura(line, item.tipo_apertura);
         panel.aperturaCount += 1;
         // N1/N2 de la fila de apertura de ESTE paño: es lo que declara si el
         // paño trae un fijo (ver slidingPieces). Sin conservarlo aquí, la
         // ruta compuesta no tenía forma de saberlo.
         panel.movilLado = number(item.geometria_n1);
         panel.movilAncho = firstPositive(item.geometria_n2);
-        panel.alturaManilla = firstPositive(item.altura_manilla, item.ALTURA_MANILLA, item.cota_manilla, item.COTA_MANILLA);
+        panel.alturaManilla = firstPositive(item.altura_manilla);
       }
     });
     const panels = [...groups.values()].filter(panel => panel.width > 0 && panel.height > 0).sort((a, b) => a.number - b.number || a.order - b.order);
@@ -263,9 +302,7 @@
     // nivel de línea, un solo paño con apertura (código 21) y una sola fila
     // tipo 3 en ese paño -- sin esto se dibujaba como una única bisagra
     // gigante en vez de dos puertas independientes.
-    const declaredLeaves = number(line && (line.NUMERO_CUADROS_HOJAS != null ? line.NUMERO_CUADROS_HOJAS
-      : line.numero_cuadros_hojas != null ? line.numero_cuadros_hojas
-      : line.numero_cuadros != null ? line.numero_cuadros : line.numero_hojas));
+    const declaredLeaves = number(line && (line.numeroCuadrosHojas != null ? line.numeroCuadrosHojas : line.cantidadVidriosPorUnidad));
     const openingPanels = panels.filter(panel => panel.aperturaCount > 0);
     if (openingPanels.length === 1 && openingPanels[0].aperturaCount === 1 && declaredLeaves === 2
       && apertureDefinition(line, openingPanels[0].apertura).leafCount === 2) {
@@ -274,12 +311,12 @@
     // La orientación se determina contra la medida total de la línea: un
     // conjunto de N paños puede apilarse en horizontal o en vertical según
     // cuál combinación efectivamente suma el ancho/alto declarado.
-    const lineWidth = firstPositive(line && line.dibujo_ancho, lineDimension(line, 'ancho', 'ANCHO'));
-    const lineHeight = firstPositive(line && line.dibujo_alto, lineDimension(line, 'alto', 'ALTO'));
+    const lineWidth = firstPositive(line && line.dibujoAncho, line && line.ancho);
+    const lineHeight = firstPositive(line && line.dibujoAlto, line && line.alto);
     const widthError = lineWidth ? Math.abs(panels.reduce((sum, panel) => sum + panel.width, 0) - lineWidth) : Number.POSITIVE_INFINITY;
     const heightError = lineHeight ? Math.abs(panels.reduce((sum, panel) => sum + panel.height, 0) - lineHeight) : Number.POSITIVE_INFINITY;
     const verticalCuts = [...new Set(raw
-      .filter(item => number(item && (item.tipo_elemento != null ? item.tipo_elemento : item.elemento)) === 6)
+      .filter(item => number(item && item.tipo_elemento) === 6)
       .map(item => firstPositive(item.cota, item.cota_fija))
       .filter(cut => cut > 0 && cut < lineWidth))].sort((a, b) => a - b);
     const tolerance = value => Math.max(3, value * .006);
@@ -328,8 +365,8 @@
   // en el despiece; un paño fijo queda como vidrio suelto (40000) sin hoja.
   export function collectExactLeaves(rawItems) {
     const map = new Map();
-    (rawItems || []).filter(item => number(item && item.tipo_elemento) === 40001 && firstPositive(item.ancho, item.ancho_mm) > 0).forEach(item => {
-      const key = [number(item.numero_ventana), number(item.numero_hoja), number(item.orden_hoja), firstPositive(item.ancho, item.ancho_mm), firstPositive(item.alto, item.alto_mm)].join('|');
+    geometryItemsOf(rawItems).filter(item => number(item && item.tipo_elemento) === 40001 && firstPositive(item.ancho) > 0).forEach(item => {
+      const key = [number(item.numero_ventana), number(item.numero_hoja), number(item.orden_hoja), firstPositive(item.ancho), firstPositive(item.alto)].join('|');
       if (!map.has(key)) map.set(key, item);
     });
     return [...map.values()].sort((a, b) => number(a.numero_ventana) - number(b.numero_ventana) || number(a.orden_hoja) - number(b.orden_hoja) || number(a.numero_hoja) - number(b.numero_hoja));
@@ -351,11 +388,10 @@
   export function sliderGuideCount(source) {
     const texts = [];
     const add = value => { if (value != null && String(value).trim()) texts.push(String(value)); };
-    ['serie_perfiles', 'descripcion', 'descripcion_corta', 'DESCRIPCION_CORTA'].forEach(key => add(source && source[key]));
     const line = source && source.linea && typeof source.linea === 'object' ? source.linea : null;
-    ['serie_perfiles', 'linea', 'descripcion', 'descripcion_corta', 'DESCRIPCION_CORTA'].forEach(key => add(line && line[key]));
+    ['seriePerfiles', 'modelo'].forEach(key => add(line && line[key]));
     (Array.isArray(source && source.materiales) ? source.materiales : []).forEach(item => {
-      add(item && (item.descripcion_articulo ?? item.descripcion ?? item.DESCRIPCION));
+      add(item && (item.descripcionArticulo ?? item.descripcion));
     });
     let count = 0;
     texts.forEach(text => {
@@ -483,9 +519,8 @@
     const perWindow = Math.max(1, number(unidades) || 1);
     let carros = 0;
     materials.forEach(item => {
-      const text = String((item && (item.descripcion_articulo ?? item.descripcion ?? item.DESCRIPCION)) || '');
-      const total = number(item && (item.cantidad != null ? item.cantidad
-        : item.uds != null ? item.uds : item.UDS));
+      const text = String((item && (item.descripcionArticulo ?? item.descripcion)) || '');
+      const total = number(item && (item.cantidad != null ? item.cantidad : item.uds));
       if (total <= 0) return;
       const units = total / perWindow;
       // "CALZO CARRO VENTO ..." es el suplemento del carro, no un carro: si
@@ -543,9 +578,9 @@
     const leafCount = Math.max(1, number(operableLeaves) || 1);
     let total = 0;
     materials.forEach(item => {
-      const text = String((item && (item.descripcion_articulo ?? item.descripcion ?? item.DESCRIPCION)) || '');
+      const text = String((item && (item.descripcionArticulo ?? item.descripcion)) || '');
       if (!/\b(bisagra|pernio)\b/i.test(text)) return;
-      total += number(item && (item.cantidad != null ? item.cantidad : item.uds != null ? item.uds : item.UDS)) / perWindow;
+      total += number(item && (item.cantidad != null ? item.cantidad : item.uds)) / perWindow;
     });
     const count = total > 0 ? Math.max(1, Math.round(total / leafCount)) : 0;
     return { count, reason: count ? 'hardware-quantity-per-leaf' : 'no-hinge-hardware' };
@@ -569,7 +604,7 @@
     const rolePattern = role === 'handle' ? /\b(manilla|cremona)\b/i
       : role === 'hinge' ? /\b(bisagra|pernio)\b/i : /\b(manilla|cremona|bisagra|pernio)\b/i;
     for (const item of rows) {
-      const text = String((item && (item.descripcion_articulo ?? item.descripcion ?? item.DESCRIPCION)) || '');
+      const text = String((item && (item.descripcionArticulo ?? item.descripcion)) || '');
       if (!rolePattern.test(text)) continue;
       const match = hardwarePalette.find(([pattern]) => pattern.test(text));
       if (match) return match[1];
@@ -578,14 +613,15 @@
   }
 
   export function handleHeightFor(line, leaf, physicalHeight) {
-    const geometryCustom = Array.isArray(line && line.geometria)
-      ? firstPositive(...line.geometria.map(item => item && (item.altura_manilla ?? item.ALTURA_MANILLA ?? item.cota_manilla ?? item.COTA_MANILLA)))
+    const geometryItems = geometryItemsOf(line);
+    const geometryCustom = geometryItems.length
+      ? firstPositive(...geometryItems.map(item => item && item.altura_manilla))
       : 0;
     const custom = firstPositive(leaf && leaf.alturaManilla, leaf && leaf.altura_manilla,
       leaf && leaf.component && leaf.component.alturaManilla,
-      line && line.altura_manilla, line && line.ALTURA_MANILLA, line && line.cota_manilla, line && line.COTA_MANILLA,
+      line && line.alturaManilla,
       geometryCustom);
-    const height = Math.max(1, number(physicalHeight) || lineDimension(line, 'alto', 'ALTO') || 1);
+    const height = Math.max(1, number(physicalHeight) || (line && line.alto) || 1);
     // ALTURA_MANILLA se mide desde la base. Cuando HETMO la informa, manilla
     // y vértice de apertura comparten esa cota; si falta, ambos quedan al
     // centro. El clamp evita que una cota inválida saque el herraje del marco.
@@ -668,8 +704,8 @@
 
   export function leavesFor(line) {
     const components = sourceComponents(line);
-    const fallbackWidth = Math.max(1, lineDimension(line, 'ancho', 'ANCHO') || 1);
-    const rawGeometry = Array.isArray(line && line.geometria) ? line.geometria : [];
+    const fallbackWidth = Math.max(1, (line && line.ancho) || 1);
+    const rawGeometry = geometryItemsOf(line);
     const slidingComponent = components.find(part => sliderLayouts[part.apertura]);
     if (slidingComponent) {
       const layout = sliderLayouts[slidingComponent.apertura];
@@ -680,7 +716,7 @@
         movilLado: slidingComponent.movilLado,
         movilAncho: slidingComponent.movilAncho,
         materiales: Array.isArray(line && line.materiales) ? line.materiales : null,
-        unidades: number(line && (line.uds != null ? line.uds : line.UDS)),
+        unidades: number(line && line.uds),
         linea: line
       });
       if (pieces) return pieces.map(piece => ({ ...piece, component: slidingComponent }));
@@ -773,7 +809,7 @@
       if (label && labels.indexOf(label) < 0) labels.push(label);
     });
     if (labels.length) return labels.join(' - ');
-    const source = [line && line.apertura, line && line.descripcion_corta, line && line.descripcion, line && line.modelo].join(' ').toLowerCase();
+    const source = [line && line.modelo].join(' ').toLowerCase();
     if (/puerta.*(?:ext|exter)/.test(source)) return 'Puerta abatible exterior';
     if (/puerta.*(?:int|inter)/.test(source)) return 'Puerta abatible interior';
     if (/(corred|desliz)/.test(source)) return 'Corredera';
@@ -783,9 +819,9 @@
   }
 
   export function profileSeries(line) {
-    const explicit = String((line && line.serie_perfiles) || '').trim();
+    const explicit = String((line && line.seriePerfiles) || '').trim();
     if (explicit) return explicit;
-    const source = [line && line.descripcion_corta, line && line.descripcion, line && line.modelo].join(' ').toLowerCase();
+    const source = [line && line.modelo].join(' ').toLowerCase();
     if (/jumbo/.test(source)) return 'Línea Jumbo';
     if (/prime\s*90/.test(source)) return 'Línea Prime 90';
     if (/prime\s*74/.test(source)) return 'Línea Prime 74';
@@ -796,7 +832,7 @@
   }
 
   export function renderGlassRows(line) {
-    const rows = (Array.isArray(line && line.geometria) ? line.geometria : []).filter(item => number(item && item.tipo_elemento) === 40000);
+    const rows = geometryItemsOf(line).filter(item => number(item && item.tipo_elemento) === 40000);
     const unique = new Map();
     rows.forEach(item => {
       const key = [String((item && item.codigo_componente) || ''), number(item && item.numero_ventana), number(item && item.pertenece_hueco), firstPositive(item.ancho, item.ancho_mm), firstPositive(item.alto, item.alto_mm)].join('|');
@@ -808,17 +844,17 @@
   export function isWithoutGlass(line) {
     const codes = renderGlassRows(line).map(item => String((item && item.codigo_componente) || '').trim()).filter(Boolean);
     if (!codes.length) {
-      const fallback = String((line && (line.dibujo_vidrio != null ? line.dibujo_vidrio : line.vidrio_codigo)) || '').trim();
+      const fallback = String((line && (line.dibujoVidrio != null ? line.dibujoVidrio : line.vidrioCodigo)) || '').trim();
       return /^SIN(?:\s|\d|$)/i.test(fallback);
     }
     return codes.every(code => /^SIN(?:\s|\d|$)/i.test(code));
   }
 
   export function specialOutline(line) {
-    const raw = Array.isArray(line && line.geometria) ? line.geometria : [];
+    const raw = geometryItemsOf(line);
     const base = raw.find(item => number(item && item.tipo_elemento) === 1);
-    const width = firstPositive(base && base.ancho, base && base.ancho_mm, line && line.dibujo_ancho, lineDimension(line, 'ancho', 'ANCHO'));
-    const height = firstPositive(base && base.alto, base && base.alto_mm, line && line.dibujo_alto, lineDimension(line, 'alto', 'ALTO'));
+    const width = firstPositive(base && base.ancho, line && line.dibujoAncho, line && line.ancho);
+    const height = firstPositive(base && base.alto, line && line.dibujoAlto, line && line.alto);
     // Un radio puede pertenecer a una sola pieza curva de una ventana
     // compuesta. Sólo se trata el modelo completo como redondo cuando HETMO
     // informa una circunferencia de 360 grados y su diámetro coincide con el
@@ -870,7 +906,7 @@
   // Devuelve líneas en el espacio propio del paño (0..panel.width,
   // 0..panel.height); cada renderizador las escala a su propio lienzo.
   export function panelTraverseLines(panel) {
-    const raw = (panel && panel.raw) || [];
+    const raw = geometryItemsOf(panel);
     const seen = new Set();
     const lines = [];
     raw.filter(item => number(item && item.bh_numero_travesano) > 0).forEach(item => {
@@ -913,7 +949,7 @@
   // repetición y no se dibuje. Se prefiere no dibujar antes que partir en dos
   // una hoja que no lo está.
   export function panelGlassSplits(source) {
-    const raw = (source && (source.raw || source.geometria)) || [];
+    const raw = geometryItemsOf(source);
     const groups = new Map();
     const seen = new Set();
     raw.forEach(item => {

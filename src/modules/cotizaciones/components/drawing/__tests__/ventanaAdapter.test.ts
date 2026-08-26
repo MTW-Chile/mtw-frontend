@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { toWindowLine, toCoreLine } from '../ventanaAdapter';
-import * as core from '../legacyGeometryCore';
+import { toWindowLine } from '../ventanaAdapter';
+import * as core from '../geometryCore';
 import { ventana, geometria } from './fixtures';
 
-describe('toWindowLine + toCoreLine — contrato con el núcleo', () => {
-  // A1: el núcleo lee snake_case. Si algún día alguien vuelve a pasarle un
-  // WindowLine (camelCase) directo a core.*, este test lo detecta: la
-  // apertura real (32, corredera) no debe degradar a 0 (fija).
+describe('toWindowLine — contrato con el núcleo', () => {
+  // A1: si algún día alguien vuelve a envolver la línea en una traducción
+  // manual antes de pasarla a core.*, este test lo detecta: la apertura
+  // real (32, corredera) no debe degradar a 0 (fija).
   it('la apertura real llega al núcleo aunque no haya filas geometria tipo 3', () => {
     const v = ventana({
       lineaHetmo: 101,
@@ -19,23 +19,23 @@ describe('toWindowLine + toCoreLine — contrato con el núcleo', () => {
       acabadoCodigo: 'NO',
       geometrias: [],
     });
-    const coreLine = toCoreLine(toWindowLine(v)!);
-    const leaves = core.leavesFor(coreLine) as { kind: string; apertura: number }[];
+    const line = toWindowLine(v)!;
+    const leaves = core.leavesFor(line) as { kind: string; apertura: number }[];
     expect(leaves.map(l => l.kind)).toEqual(['ext:right', 'int:left']);
     expect(leaves.every(l => l.apertura === 32)).toBe(true);
   });
 
   it('apertureLabel resuelve el nombre real, no "Ventana fija" por defecto', () => {
     const v = ventana({ dibujoTipoApertura: 32, unidades: 1 });
-    const coreLine = toCoreLine(toWindowLine(v)!);
-    expect(core.apertureLabel(coreLine)).toBe('Corredera 2 hojas derecha');
+    const line = toWindowLine(v)!;
+    expect(core.apertureLabel(line)).toBe('Corredera 2 hojas derecha');
   });
 });
 
-describe('toRawGeometry — nivel 1 (columnas tipadas)', () => {
+describe('toWindowLine — geometria se pasa tal cual (VentanaGeometria[], camelCase)', () => {
   // A3: los modificadores de forma son desplazamientos con signo, no
   // dimensiones. Un trapecio con modificador negativo no debe perderse.
-  it('conserva modificadorX/Y negativos (trapecios) y forma_codigo 0', () => {
+  it('conserva modificadorX/Y negativos (trapecios) y formaCodigo', () => {
     const v = ventana({
       geometrias: [
         geometria({ ordenGeometria: 1, tipoElemento: 1, anchoMm: 1000, altoMm: 1000 }),
@@ -43,22 +43,12 @@ describe('toRawGeometry — nivel 1 (columnas tipadas)', () => {
       ],
     });
     const line = toWindowLine(v)!;
-    const mod = line.geometria![1] as Record<string, unknown>;
-    expect(mod.modificador_x).toBe(-300);
-    expect(mod.forma_codigo).toBe(0);
+    const mod = line.geometria![1];
+    expect(mod.modificadorX).toBe(-300);
+    expect(mod.formaCodigo).toBe('0');
   });
 
-  // A4: numero_ventana debe salir de perteneceHueco, nunca de posicion
-  // (que en HETMO significa la posición de la hoja dentro del hueco).
-  it('numero_ventana usa perteneceHueco, no posicion', () => {
-    const v = ventana({
-      geometrias: [geometria({ tipoElemento: 3, perteneceHueco: 2, posicion: 5 })],
-    });
-    const row = toWindowLine(v)!.geometria![0] as Record<string, unknown>;
-    expect(row.numero_ventana).toBe(2);
-  });
-
-  it('numeroHoja y carril tipados tienen prioridad sobre parametrosJson', () => {
+  it('numeroHoja y carril tipados viajan intactos junto con parametrosJson', () => {
     const v = ventana({
       geometrias: [
         geometria({
@@ -69,37 +59,56 @@ describe('toRawGeometry — nivel 1 (columnas tipadas)', () => {
         }),
       ],
     });
-    const row = toWindowLine(v)!.geometria![0] as Record<string, unknown>;
+    const row = toWindowLine(v)!.geometria![0];
+    expect(row.numeroHoja).toBe(2);
+    expect(row.carril).toBe(1);
+    expect((row.parametrosJson as Record<string, unknown>).numero_hoja).toBe(99);
+  });
+});
+
+describe('normalizeGeometryItem — nivel 1 (columnas tipadas con prioridad sobre parametrosJson)', () => {
+  // A4: numero_ventana debe salir de perteneceHueco, nunca de posicion
+  // (que en HETMO significa la posición de la hoja dentro del hueco).
+  it('numero_ventana usa perteneceHueco, no posicion', () => {
+    const g = geometria({ tipoElemento: 3, perteneceHueco: 2, posicion: 5 });
+    const row = core.normalizeGeometryItem(g) as Record<string, unknown>;
+    expect(row.numero_ventana).toBe(2);
+  });
+
+  it('numeroHoja y carril tipados tienen prioridad sobre parametrosJson', () => {
+    const g = geometria({
+      tipoElemento: 40001,
+      numeroHoja: 2,
+      carril: 1,
+      parametrosJson: { numero_hoja: 99, carril: 99 },
+    });
+    const row = core.normalizeGeometryItem(g) as Record<string, unknown>;
     expect(row.numero_hoja).toBe(2);
     expect(row.carril).toBe(1);
   });
 });
 
-describe('toRawGeometry — nivel 2 (parametrosJson)', () => {
+describe('normalizeGeometryItem — nivel 2 (parametrosJson, sin columna propia)', () => {
   it('lee barrotillos, bh_*, cota, geometria_n1/n2, altura_manilla y curvatura desde parametrosJson', () => {
-    const v = ventana({
-      geometrias: [
-        geometria({
-          tipoElemento: 40000,
-          parametrosJson: {
-            barrotillos_horizontales: 1,
-            barrotillos_verticales: 2,
-            bh_numero_travesano: 1,
-            bh_x_inicio: 0,
-            bh_y_inicio: 1438,
-            bh_x_fin: 842,
-            bh_y_fin: 1438,
-            cota: 500,
-            geometria_n1: 1,
-            geometria_n2: 1500,
-            altura_manilla: 1020,
-            radio_curvatura: 500,
-            angulo_curvatura: 360,
-          },
-        }),
-      ],
+    const g = geometria({
+      tipoElemento: 40000,
+      parametrosJson: {
+        barrotillos_horizontales: 1,
+        barrotillos_verticales: 2,
+        bh_numero_travesano: 1,
+        bh_x_inicio: 0,
+        bh_y_inicio: 1438,
+        bh_x_fin: 842,
+        bh_y_fin: 1438,
+        cota: 500,
+        geometria_n1: 1,
+        geometria_n2: 1500,
+        altura_manilla: 1020,
+        radio_curvatura: 500,
+        angulo_curvatura: 360,
+      },
     });
-    const row = toWindowLine(v)!.geometria![0] as Record<string, unknown>;
+    const row = core.normalizeGeometryItem(g) as Record<string, unknown>;
     expect(row.barrotillos_horizontales).toBe(1);
     expect(row.barrotillos_verticales).toBe(2);
     expect(row.bh_numero_travesano).toBe(1);
@@ -112,14 +121,12 @@ describe('toRawGeometry — nivel 2 (parametrosJson)', () => {
     expect(row.angulo_curvatura).toBe(360);
   });
 
-  it('una fila sin parametrosJson (datos previos al backfill) no rompe el mapeo', () => {
-    const v = ventana({
-      geometrias: [geometria({ tipoElemento: 3, tipoApertura: 32, anchoMm: 1500, altoMm: 1200, posicion: 1 })],
-    });
-    expect(() => toWindowLine(v)).not.toThrow();
-    const row = toWindowLine(v)!.geometria![0] as Record<string, unknown>;
+  it('una fila sin parametrosJson (datos previos al backfill) no rompe la normalización', () => {
+    const g = geometria({ tipoElemento: 3, tipoApertura: 32, anchoMm: 1500, altoMm: 1200, posicion: 1 });
+    expect(() => core.normalizeGeometryItem(g)).not.toThrow();
+    const row = core.normalizeGeometryItem(g) as Record<string, unknown>;
     expect(row.cota).toBeUndefined();
-    expect(row.altura_manilla).toBeNull(); // toFiniteOrNull(undefined) => null
+    expect(row.altura_manilla).toBeUndefined();
   });
 });
 
@@ -135,8 +142,8 @@ describe('assignPanelNumbers — inferencia de numero_ventana cuando perteneceHu
         geometria({ ordenGeometria: 4, tipoElemento: 3, tipoApertura: 0, anchoMm: 1200, altoMm: 1200 }),
       ],
     });
-    const coreLine = toCoreLine(toWindowLine(v)!);
-    const composite = core.compositePanels(coreLine) as { panels: { number: number }[] } | null;
+    const line = toWindowLine(v)!;
+    const composite = core.compositePanels(line) as { panels: { number: number }[] } | null;
     expect(composite).not.toBeNull();
     expect(composite!.panels.map(p => p.number)).toEqual([1, 2]);
   });
@@ -155,8 +162,8 @@ describe('assignPanelNumbers — inferencia de numero_ventana cuando perteneceHu
         geometria({ ordenGeometria: 4, tipoElemento: 3, tipoApertura: 0, anchoMm: 1200, altoMm: 1200 }),
       ],
     });
-    const coreLine = toCoreLine(toWindowLine(v)!);
-    const composite = core.compositePanels(coreLine) as { panels: { number: number }[] } | null;
+    const line = toWindowLine(v)!;
+    const composite = core.compositePanels(line) as { panels: { number: number }[] } | null;
     expect(composite).not.toBeNull();
     expect(composite!.panels.map(p => p.number)).toEqual([1, 2]);
   });
@@ -174,8 +181,8 @@ describe('assignPanelNumbers — inferencia de numero_ventana cuando perteneceHu
         geometria({ ordenGeometria: 4, tipoElemento: 3, tipoApertura: 0, anchoMm: 1200, altoMm: 1200, perteneceHueco: 0 }),
       ],
     });
-    const coreLine = toCoreLine(toWindowLine(v)!);
-    const composite = core.compositePanels(coreLine) as { panels: { number: number }[] } | null;
+    const line = toWindowLine(v)!;
+    const composite = core.compositePanels(line) as { panels: { number: number }[] } | null;
     expect(composite).not.toBeNull();
     expect(composite!.panels.map(p => p.number)).toEqual([1, 2]);
   });
@@ -191,8 +198,8 @@ describe('assignPanelNumbers — inferencia de numero_ventana cuando perteneceHu
         geometria({ ordenGeometria: 4, tipoElemento: 3, tipoApertura: 0, anchoMm: 1200, altoMm: 1200, perteneceHueco: 2 }),
       ],
     });
-    const coreLine = toCoreLine(toWindowLine(v)!);
-    const composite = core.compositePanels(coreLine) as { panels: { number: number }[] } | null;
+    const line = toWindowLine(v)!;
+    const composite = core.compositePanels(line) as { panels: { number: number }[] } | null;
     expect(composite).not.toBeNull();
     expect(composite!.panels.map(p => p.number)).toEqual([1, 2]);
   });
@@ -210,8 +217,8 @@ describe('assignPanelNumbers — inferencia de numero_ventana cuando perteneceHu
         geometria({ ordenGeometria: 4, tipoElemento: 3, tipoApertura: 0, anchoMm: 1000, altoMm: 1400 }),
       ],
     });
-    const coreLine = toCoreLine(toWindowLine(v)!);
-    const composite = core.compositePanels(coreLine) as { panels: unknown[] } | null;
+    const line = toWindowLine(v)!;
+    const composite = core.compositePanels(line) as { panels: unknown[] } | null;
     expect(composite?.panels.length).toBe(2);
   });
 });
@@ -219,7 +226,7 @@ describe('assignPanelNumbers — inferencia de numero_ventana cuando perteneceHu
 describe('toWindowLine — regresión ventana simple', () => {
   it('ventana fija sin geometría no rompe y resuelve apertura 0', () => {
     const v = ventana({ dibujoTipoApertura: 0 });
-    const coreLine = toCoreLine(toWindowLine(v)!);
-    expect(core.apertureLabel(coreLine)).toBe('Ventana fija');
+    const line = toWindowLine(v)!;
+    expect(core.apertureLabel(line)).toBe('Ventana fija');
   });
 });

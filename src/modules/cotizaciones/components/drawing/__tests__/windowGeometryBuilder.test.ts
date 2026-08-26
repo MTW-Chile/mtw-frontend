@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { toWindowLine } from '../ventanaAdapter';
 import { buildWindow } from '../windowGeometryBuilder';
-import * as core from '../legacyGeometryCore';
-import { toCoreLine } from '../ventanaAdapter';
+import * as core from '../geometryCore';
 import { ventana, geometria, materialDescrito } from './fixtures';
 
 /**
@@ -11,7 +10,7 @@ import { ventana, geometria, materialDescrito } from './fixtures';
  * durante los pasos 1 y 4 de la refactorización del renderizador.
  */
 
-describe('buildWindow — regresión del fix A1 (toCoreLine en el builder)', () => {
+describe('buildWindow — regresión del fix A1 (el núcleo lee WindowLine directamente)', () => {
   it('corredera 32 sin filas geometria tipo 3 dibuja la apertura real, no fija', () => {
     const v = ventana({
       lineaHetmo: 101,
@@ -151,7 +150,7 @@ describe('buildWindow — nivel 2 vía parametrosJson', () => {
         }),
       ],
     });
-    const leaves = core.leavesFor(toCoreLine(toWindowLine(v)!)) as { kind: string; width: number }[];
+    const leaves = core.leavesFor(toWindowLine(v)!) as { kind: string; width: number }[];
     expect(leaves.map(l => Math.round(l.width))).toEqual([1500, 1162]);
   });
 
@@ -168,7 +167,7 @@ describe('buildWindow — nivel 2 vía parametrosJson', () => {
         geometria({ tipoElemento: 40001, anchoMm: 1400, altoMm: 1380, numeroHoja: 3, carril: 1 }),
       ],
     });
-    const leaves = core.leavesFor(toCoreLine(toWindowLine(v)!)) as { carril: number }[];
+    const leaves = core.leavesFor(toWindowLine(v)!) as { carril: number }[];
     expect(leaves.map(l => l.carril)).toEqual([1, 2, 1]);
   });
 

@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import * as core from '../legacyGeometryCore';
+import * as core from '../geometryCore';
 
 /**
- * Tests directos sobre el núcleo compartido, con su vocabulario nativo
- * (snake_case, sin pasar por el adaptador). Cada caso documentado en los
- * comentarios de legacyGeometryCore.ts como "confirmado en terreno" se
- * convierte aquí en una regla ejecutable: si alguien la rompe, esto falla
- * en vez de esperar a que se note en una ficha de fábrica real.
+ * Tests directos sobre el núcleo geométrico, con su vocabulario nativo
+ * (snake_case para los campos de nivel 2, sin columna propia -- ver
+ * normalizeGeometryItem() en geometryCore.ts). Cada caso documentado en
+ * sus comentarios como "confirmado en terreno" se convierte aquí en una
+ * regla ejecutable: si alguien la rompe, esto falla en vez de esperar a
+ * que se note en una ficha de fábrica real.
  */
 
 describe('slidingPieces — paño fijo detectado por N1/N2 (Portal Las Pataguas)', () => {
@@ -46,8 +47,8 @@ describe('slidingPieces — paño fijo detectado por N1/N2 (Portal Las Pataguas)
 describe('mobileLeavesFromHardware — carro vs. su calzo (Gorbea)', () => {
   it('cuenta los CARRO pero no el CALZO CARRO (evita duplicar hojas móviles)', () => {
     const materiales = [
-      { descripcion_articulo: 'CARRO VENTO SIMP VE180', cantidad: 8 },
-      { descripcion_articulo: 'CALZO CARRO VENTO SIMP VE180', cantidad: 8 },
+      { descripcionArticulo: 'CARRO VENTO SIMP VE180', cantidad: 8 },
+      { descripcionArticulo: 'CALZO CARRO VENTO SIMP VE180', cantidad: 8 },
     ];
     // 8 carros reales / 2 por hoja = 4 hojas móviles, no 8.
     expect(core.mobileLeavesFromHardware(materiales, 1)).toBe(4);
@@ -61,12 +62,12 @@ describe('mobileLeavesFromHardware — carro vs. su calzo (Gorbea)', () => {
 
 describe('mobileLeavesFromHardware — V1A1 vs V8A1 (mismo código 33, distinto herraje real)', () => {
   it('V1A1: 2 carros -> 1 hoja móvil + 1 fijo', () => {
-    const materiales = [{ descripcion_articulo: 'CARRO VENTO SIMP VE180', cantidad: 2 }];
+    const materiales = [{ descripcionArticulo: 'CARRO VENTO SIMP VE180', cantidad: 2 }];
     expect(core.mobileLeavesFromHardware(materiales, 1)).toBe(1);
   });
 
   it('V8A1: 4 carros -> 2 hojas móviles', () => {
-    const materiales = [{ descripcion_articulo: 'CARRO VENTO SIMP VE180', cantidad: 4 }];
+    const materiales = [{ descripcionArticulo: 'CARRO VENTO SIMP VE180', cantidad: 4 }];
     expect(core.mobileLeavesFromHardware(materiales, 1)).toBe(2);
   });
 });
@@ -102,8 +103,8 @@ describe('exactLeavesFor — Casa La Aurora, apertura 36: anchos genéricos no c
 });
 
 describe('handleHeightFor — puerta P6 Vista Monseñor (10332, 900x2600, código 18)', () => {
-  it('altura_manilla=1020 resuelve "hetmo-custom", no el centro por defecto', () => {
-    const result = core.handleHeightFor({ altura_manilla: 1020 }, {}, 2600);
+  it('alturaManilla=1020 resuelve "hetmo-custom", no el centro por defecto', () => {
+    const result = core.handleHeightFor({ alturaManilla: 1020 }, {}, 2600);
     expect(result).toMatchObject({ millimeters: 1020, reason: 'hetmo-custom' });
   });
 
@@ -153,7 +154,7 @@ describe('apertureDefinition / apertureCatalog — casos base', () => {
 
 describe('sourceComponents — respaldo cuando no hay filas tipo 3', () => {
   it('sin geometría, usa la apertura de la línea como componente único', () => {
-    const parts = core.sourceComponents({ geometria: [], tipo_apertura: 18 }) as { apertura: number }[];
+    const parts = core.sourceComponents({ geometria: [], tipoApertura: 18 }) as { apertura: number }[];
     expect(parts).toHaveLength(1);
     expect(parts[0].apertura).toBe(18);
   });

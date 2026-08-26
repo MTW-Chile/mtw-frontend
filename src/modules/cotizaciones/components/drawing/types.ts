@@ -6,6 +6,8 @@
  * del renderizado (SVG/JSX), permitiendo que ambos evolucionen independientemente.
  */
 
+import type { VentanaGeometria } from '../../../../types';
+
 // ─── Catálogo de aperturas ───────────────────────────────────────────────────
 
 export interface ApertureDefinition {
@@ -244,8 +246,8 @@ export interface WindowLine {
   dibujoAncho?: number;
   /** Alto para dibujo (puede diferir del real) */
   dibujoAlto?: number;
-  /** Geometría HETMO cruda (array de filas) */
-  geometria?: Record<string, unknown>[];
+  /** Geometría HETMO (una fila por elemento; nivel 2 vive en parametrosJson) */
+  geometria?: VentanaGeometria[];
   /** Materiales de la línea */
   materiales?: LineMaterial[];
   /** Número de cuadros/hojas declarado */
