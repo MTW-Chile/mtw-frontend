@@ -10,7 +10,7 @@ import {
 import { formatNumber } from '../../../../lib/utils';
 import type { Ventana } from '../../../../types';
 import { WindowRendererSvg } from '../../components/drawing/WindowRendererSvg';
-import { toWindowLine } from '../../components/drawing/ventanaAdapter';
+import { toWindowLine, toCoreLine } from '../../components/drawing/ventanaAdapter';
 import { createFinish } from '../../components/drawing/colorSystem';
 import * as core from '../../components/drawing/legacyGeometryCore';
 
@@ -36,7 +36,7 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
   );
   const apertureLabel = useMemo(() => {
     if (!windowLine) return ventana.modelo || '—';
-    return core.apertureLabel(windowLine as any);
+    return core.apertureLabel(toCoreLine(windowLine));
   }, [windowLine, ventana.modelo]);
 
   return (
@@ -74,14 +74,15 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
       {/* Contenedor del Dibujo Técnico SVG */}
       <div className="bg-[#f8fafc] w-full p-4 flex flex-col items-center justify-center border-b border-slate-100 min-h-[180px] group-hover:bg-[#f1f5f9] transition-colors relative">
         <WindowRendererSvg ventana={ventana} />
-        
-        {/* DEBUG TEMPORAL PARA V2 */}
-        <details className="absolute top-2 right-2 text-[8px] max-w-[200px] bg-white/80 p-1 opacity-20 hover:opacity-100 z-50">
-          <summary className="cursor-pointer text-slate-500 font-bold">Debug Geo</summary>
-          <pre className="overflow-auto max-h-32 text-left text-slate-700">
-            {JSON.stringify(ventana.geometrias, null, 2)}
-          </pre>
-        </details>
+
+        {import.meta.env.DEV && (
+          <details className="absolute top-2 right-2 text-[8px] max-w-[200px] bg-white/80 p-1 opacity-20 hover:opacity-100 z-50">
+            <summary className="cursor-pointer text-slate-500 font-bold">Debug Geo</summary>
+            <pre className="overflow-auto max-h-32 text-left text-slate-700">
+              {JSON.stringify(ventana.geometrias, null, 2)}
+            </pre>
+          </details>
+        )}
       </div>
 
       {/* Cuerpo y Especificaciones */}
