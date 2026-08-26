@@ -1,0 +1,160 @@
+import { describe, it, expect } from 'vitest';
+import * as core from '../legacyGeometryCore';
+
+/**
+ * Tests directos sobre el núcleo compartido, con su vocabulario nativo
+ * (snake_case, sin pasar por el adaptador). Cada caso documentado en los
+ * comentarios de legacyGeometryCore.ts como "confirmado en terreno" se
+ * convierte aquí en una regla ejecutable: si alguien la rompe, esto falla
+ * en vez de esperar a que se note en una ficha de fábrica real.
+ */
+
+describe('slidingPieces — paño fijo detectado por N1/N2 (Portal Las Pataguas)', () => {
+  // Código 33: layout ['int:right', 'ext:left']. Confirmado cruzando N2
+  // con los anchos reales del despiece en 8 líneas de la obra.
+  it('V2H1: N1=1, N2=1500 sobre 3662mm totales -> móvil 1500, fijo 2162', () => {
+    const pieces = core.slidingPieces({
+      apertura: 33,
+      raw: [],
+      width: 3662,
+      movilLado: 1,
+      movilAncho: 1500,
+      materiales: null,
+      unidades: 0,
+      linea: null,
+    }) as { kind: string; width: number }[];
+    expect(pieces.map(p => Math.round(p.width))).toEqual([1500, 2162]);
+    expect(pieces[0].kind).toBe('int:right'); // móvil: kind real del layout
+    expect(pieces[1].kind).toBe('fijo');
+  });
+
+  it('sin N1 (movilLado=0) no hay paño fijo: se respeta el layout del código', () => {
+    const pieces = core.slidingPieces({
+      apertura: 33,
+      raw: [],
+      width: 1528, // V8A1: 764|764, dos hojas móviles iguales
+      movilLado: 0,
+      movilAncho: 0,
+      materiales: null,
+      unidades: 0,
+      linea: null,
+    });
+    expect(pieces).toBeNull(); // sin N1 ni hojas exactas, slidingPieces no resuelve por sí solo
+  });
+});
+
+describe('mobileLeavesFromHardware — carro vs. su calzo (Gorbea)', () => {
+  it('cuenta los CARRO pero no el CALZO CARRO (evita duplicar hojas móviles)', () => {
+    const materiales = [
+      { descripcion_articulo: 'CARRO VENTO SIMP VE180', cantidad: 8 },
+      { descripcion_articulo: 'CALZO CARRO VENTO SIMP VE180', cantidad: 8 },
+    ];
+    // 8 carros reales / 2 por hoja = 4 hojas móviles, no 8.
+    expect(core.mobileLeavesFromHardware(materiales, 1)).toBe(4);
+  });
+
+  it('sin materiales no inventa hojas móviles', () => {
+    expect(core.mobileLeavesFromHardware([], 1)).toBe(0);
+    expect(core.mobileLeavesFromHardware(null, 1)).toBe(0);
+  });
+});
+
+describe('mobileLeavesFromHardware — V1A1 vs V8A1 (mismo código 33, distinto herraje real)', () => {
+  it('V1A1: 2 carros -> 1 hoja móvil + 1 fijo', () => {
+    const materiales = [{ descripcion_articulo: 'CARRO VENTO SIMP VE180', cantidad: 2 }];
+    expect(core.mobileLeavesFromHardware(materiales, 1)).toBe(1);
+  });
+
+  it('V8A1: 4 carros -> 2 hojas móviles', () => {
+    const materiales = [{ descripcion_articulo: 'CARRO VENTO SIMP VE180', cantidad: 4 }];
+    expect(core.mobileLeavesFromHardware(materiales, 1)).toBe(2);
+  });
+});
+
+describe('exactLeavesFor — Casa La Aurora, apertura 36: anchos genéricos no confiables', () => {
+  it('descarta 3 hojas "exactas" de 1393,30mm cuando no calzan con el ancho real (4100mm)', () => {
+    const rawItems = [1, 2, 3].map(numeroHoja => ({
+      tipo_elemento: 40001,
+      numero_ventana: 1,
+      numero_hoja: numeroHoja,
+      orden_hoja: numeroHoja,
+      ancho: 1393.3,
+      alto: 1400,
+    }));
+    // Suma real: 4179.9mm contra un ANCHO de línea de 4100mm -- ninguna
+    // corredera física tiene ~80mm de holgura ahí.
+    expect(core.exactLeavesFor(rawItems, 3, 4100)).toBeNull();
+  });
+
+  it('acepta las mismas 3 hojas cuando la suma sí calza con el ancho real', () => {
+    const rawItems = [1, 2, 3].map(numeroHoja => ({
+      tipo_elemento: 40001,
+      numero_ventana: 1,
+      numero_hoja: numeroHoja,
+      orden_hoja: numeroHoja,
+      ancho: 1366.63,
+      alto: 1400,
+    }));
+    const leaves = core.exactLeavesFor(rawItems, 3, 4100 - 0.1); // 3 x 1366.63 ~= 4099.9
+    expect(leaves).not.toBeNull();
+    expect(leaves).toHaveLength(3);
+  });
+});
+
+describe('handleHeightFor — puerta P6 Vista Monseñor (10332, 900x2600, código 18)', () => {
+  it('altura_manilla=1020 resuelve "hetmo-custom", no el centro por defecto', () => {
+    const result = core.handleHeightFor({ altura_manilla: 1020 }, {}, 2600);
+    expect(result).toMatchObject({ millimeters: 1020, reason: 'hetmo-custom' });
+  });
+
+  it('sin altura_manilla cae al centro de la hoja', () => {
+    const result = core.handleHeightFor({}, {}, 2600);
+    expect(result).toMatchObject({ millimeters: 1300, reason: 'center-default' });
+  });
+});
+
+describe('panelGlassSplits — la misma puerta P6: travesaño detectado por partición de vidrio', () => {
+  it('dos vidrios de igual ancho y distinto alto en la misma hoja producen un corte horizontal', () => {
+    const splits = core.panelGlassSplits({
+      raw: [
+        { tipo_elemento: 40000, numero_ventana: 1, numero_hoja: 1, codigo_componente: '4/12/4', ancho: 670, alto: 1438 },
+        { tipo_elemento: 40000, numero_ventana: 1, numero_hoja: 1, codigo_componente: '4/12/4', ancho: 670, alto: 878 },
+      ],
+    }) as { axis: string; at: number }[];
+    expect(splits).toHaveLength(1);
+    expect(splits[0].axis).toBe('horizontal');
+    expect(splits[0].at).toBeCloseTo(1438 / (1438 + 878), 3);
+  });
+
+  it('dos vidrios idénticos (repetición por unidades) no producen ningún corte', () => {
+    const splits = core.panelGlassSplits({
+      raw: [
+        { tipo_elemento: 40000, numero_ventana: 1, numero_hoja: 1, codigo_componente: '4/12/4', ancho: 670, alto: 1000 },
+        { tipo_elemento: 40000, numero_ventana: 1, numero_hoja: 1, codigo_componente: '4/12/4', ancho: 670, alto: 1000 },
+      ],
+    });
+    expect(splits).toHaveLength(0);
+  });
+});
+
+describe('apertureDefinition / apertureCatalog — casos base', () => {
+  it('código 0 es fija, con confianza hetmo-fixed-code', () => {
+    const def = core.apertureDefinition(null, 0) as { family: string; confidence: string };
+    expect(def.family).toBe('fixed');
+    expect(def.confidence).toBe('hetmo-fixed-code');
+  });
+
+  it('un código desconocido no se inventa: family "unknown", nunca cae a un código cercano', () => {
+    const def = core.apertureDefinition(null, 987654) as { family: string; label: string };
+    expect(def.family).toBe('unknown');
+    expect(def.label).toBe('');
+  });
+});
+
+describe('sourceComponents — respaldo cuando no hay filas tipo 3', () => {
+  it('sin geometría, usa la apertura de la línea como componente único', () => {
+    const parts = core.sourceComponents({ geometria: [], tipo_apertura: 18 }) as { apertura: number }[];
+    expect(parts).toHaveLength(1);
+    expect(parts[0].apertura).toBe(18);
+  });
+});

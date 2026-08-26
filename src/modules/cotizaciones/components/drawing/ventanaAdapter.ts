@@ -58,10 +58,13 @@ const assignPanelNumbers = (geometrias: VentanaGeometria[]): VentanaGeometria[] 
   const hasPerteneceHueco = geometrias.some(g => g.perteneceHueco != null);
   if (hasPerteneceHueco) return geometrias;
 
-  // Intentar 1: Inferir numero_ventana a partir de items tipo 10000
+  // Intentar 1: Inferir numero_ventana a partir de items tipo 10000.
+  // Number(...) normaliza: tipoElemento puede llegar sin tipar como string
+  // desde algún consumidor que no pase por el tipo VentanaGeometria.
+  const esPano = (g: VentanaGeometria) => Number(g.tipoElemento) === 10000;
   const panelStarts = geometrias
     .map((g, i) => ({ g, i }))
-    .filter(({ g }) => g.tipoElemento === 10000);
+    .filter(({ g }) => esPano(g));
 
   if (panelStarts.length >= 2) {
     // Múltiples paños definidos por items tipo 10000
@@ -69,7 +72,7 @@ const assignPanelNumbers = (geometrias: VentanaGeometria[]): VentanaGeometria[] 
     const result: VentanaGeometria[] = [];
     for (let i = 0; i < geometrias.length; i++) {
       const g = geometrias[i];
-      if (g.tipoElemento === 10000 && i > 0) {
+      if (esPano(g) && i > 0) {
         currentPanel++;
       }
       result.push({
