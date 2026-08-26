@@ -10,6 +10,7 @@
  */
 
 import * as core from './legacyGeometryCore';
+import { toCoreLine } from './ventanaAdapter';
 import {
   VISUAL,
 } from './colorSystem';
@@ -100,12 +101,13 @@ function buildCompositePanel(
   composite: CompositeLayout,
   target: string
 ): string {
+  const coreLine = toCoreLine(line);
   const width = Math.max(1, number(line.dibujoAncho ?? line.ancho) || 1);
   const height = Math.max(1, number(line.dibujoAlto ?? line.alto) || 1);
   const { drawingW, drawingH, x, y } = computeDrawingDimensions(width, height);
   const finish = finishFor(line);
   const glassOnly = Boolean(line.dibujoSinMarco);
-  const guideCount = core.sliderGuideCount({ linea: line, materiales: line.materiales });
+  const guideCount = core.sliderGuideCount({ linea: coreLine, materiales: line.materiales });
   const frameClass = target === 'line' ? 'line-window-frame' : 'offer-frame';
   const glassClass = target === 'line' ? 'line-window-glass' : 'offer-glass';
   const codeClass = target === 'line' ? 'line-window-glass-code' : 'offer-glass-code';
@@ -113,7 +115,7 @@ function buildCompositePanel(
   const glassCodes = getGlassCodes(line);
   const singleGlassCode = getUniqueGlassCode(line);
   const compositeOperable = composite.panels.reduce((sum: number, panel: CompositePanel) => {
-    const definition = core.apertureDefinition(line, panel.apertura) as ApertureDefinition;
+    const definition = core.apertureDefinition(coreLine, panel.apertura) as ApertureDefinition;
     if (!['hinged', 'door', 'tilt-turn'].includes(definition.family)) return sum;
     return sum + Math.max(1, definition.leafCount === 2 ? panel.aperturaCount || 2 : 1);
   }, 0);
@@ -167,7 +169,7 @@ function buildCompositePanel(
       }
 
       let sash = '';
-      const panelDefinition = core.apertureDefinition(line, panel.apertura) as ApertureDefinition;
+      const panelDefinition = core.apertureDefinition(coreLine, panel.apertura) as ApertureDefinition;
       sash = glassOnly ? '' : panelDefinition.family === 'fixed'
         ? fixedGlazingMarkup(px, py, pw, ph, finish)
         : sashMarkup(px, py, pw, ph, finish, inset);
@@ -371,10 +373,10 @@ function buildCompositePanel(
   const className = target === 'line' ? 'line-window-sketch' : 'offer-window-sketch';
   const apertureCodes = [...new Set(composite.panels.map((panel: CompositePanel) => number(panel.apertura)))];
   const apertureText = apertureCodes
-    .map((code: number) => `Apertura ${code} · ${(core.apertureDefinition(line, code) as ApertureDefinition).label || 'Sin nombre confirmado'}`)
+    .map((code: number) => `Apertura ${code} · ${(core.apertureDefinition(coreLine, code) as ApertureDefinition).label || 'Sin nombre confirmado'}`)
     .join(' + ');
 
-  return `<svg class="${className}${glassOnly ? ` ${target === 'line' ? 'line-window-glass-only' : 'offer-window-glass-only'}` : ''}" data-aperture-code="${escape(apertureCodes.join(','))}" data-aperture-name="${escape(core.apertureLabel(line))}" data-guide-count="${guideCount || ''}" style="--window-finish:${finish.frame};font-family:system-ui,sans-serif" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Esquema compuesto de ${escape(line.modelo || 'ventana')}"><title>${escape(apertureText)}</title>${frame}${panels}<g class="window-glass-code-layer">${foregroundGlassCodes.join('')}</g>${dimensionMarkup(width, height, x, y, drawingW, drawingH)}</svg>`;
+  return `<svg class="${className}${glassOnly ? ` ${target === 'line' ? 'line-window-glass-only' : 'offer-window-glass-only'}` : ''}" data-aperture-code="${escape(apertureCodes.join(','))}" data-aperture-name="${escape(core.apertureLabel(coreLine))}" data-guide-count="${guideCount || ''}" style="--window-finish:${finish.frame};font-family:system-ui,sans-serif" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Esquema compuesto de ${escape(line.modelo || 'ventana')}"><title>${escape(apertureText)}</title>${frame}${panels}<g class="window-glass-code-layer">${foregroundGlassCodes.join('')}</g>${dimensionMarkup(width, height, x, y, drawingW, drawingH)}</svg>`;
 }
 
 // ─── Builder de ventana simple ────────────────────────────────────────────────
@@ -383,14 +385,15 @@ function buildSimpleWindow(
   line: WindowLine,
   target: string
 ): string {
+  const coreLine = toCoreLine(line);
   const width = Math.max(1, number(line.dibujoAncho ?? line.ancho) || 1);
   const height = Math.max(1, number(line.dibujoAlto ?? line.alto) || 1);
   const { drawingW, drawingH, x, y } = computeDrawingDimensions(width, height);
   const finish = finishFor(line);
   const glassOnly = Boolean(line.dibujoSinMarco);
-  const guideCount = core.sliderGuideCount({ linea: line, materiales: line.materiales });
-  const noGlass = core.isWithoutGlass(line);
-  const outline = core.specialOutline(line) as SpecialOutline | null;
+  const guideCount = core.sliderGuideCount({ linea: coreLine, materiales: line.materiales });
+  const noGlass = core.isWithoutGlass(coreLine);
+  const outline = core.specialOutline(coreLine) as SpecialOutline | null;
 
   // ─── Forma especial (círculo, polígono) ──────────────────────────────────
   if (outline) {
@@ -406,16 +409,16 @@ function buildSimpleWindow(
         })();
     const mark = noGlass ? '' : fixedMark(x, y, drawingW, drawingH, '#2452d6');
     const specialCode = number(line.dibujoTipoApertura ?? line.tipoApertura);
-    const specialName = (core.apertureDefinition(line, specialCode) as ApertureDefinition).label || core.apertureLabel(line);
+    const specialName = (core.apertureDefinition(coreLine, specialCode) as ApertureDefinition).label || core.apertureLabel(coreLine);
     return `<svg class="${className}" data-aperture-code="${specialCode || ''}" data-aperture-name="${escape(specialName)}" style="--window-finish:${finish.frame};font-family:system-ui,sans-serif" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Geometria especial de ${escape(line.modelo || 'ventana')}"><title>${escape(`Apertura ${specialCode || 0} · ${specialName}`)}</title>${shape}${mark}${muntinMarkup(line, x, y, drawingW, drawingH, finish.frame)}${dimensionMarkup(width, height, x, y, drawingW, drawingH)}</svg>`;
   }
 
   // ─── Ventana normal (hojas) ──────────────────────────────────────────────
-  const allLeaves = core.leavesFor(line) as Record<string, unknown>[];
+  const allLeaves = core.leavesFor(coreLine) as Record<string, unknown>[];
   const totalLeafWidth = allLeaves.reduce((sum: number, leaf: Record<string, unknown>) => sum + (leaf.width as number), 0) || width;
   const isSlider = allLeaves.some((leaf: Record<string, unknown>) => /^(?:int|ext|fijo):?/.test(String(leaf.kind || '')));
   const leafRails = allLeaves.map((leaf: Record<string, unknown>, index: number) => {
-    const definition = core.apertureDefinition(line, leaf.apertura) as ApertureDefinition;
+    const definition = core.apertureDefinition(coreLine, leaf.apertura) as ApertureDefinition;
     return core.railForLeaf(leaf, definition, index) as RailInfo;
   });
   const overlap = isSlider && allLeaves.length > 1 ? clamp(drawingW * 0.03, 3, 5) : 0;
@@ -435,7 +438,7 @@ function buildSimpleWindow(
   const singleGlassCode = getUniqueGlassCode(line);
   const sliderHardware: HardwareSpec[] = isSlider ? (core.sliderHardware(allLeaves) as HardwareSpec[]) : [];
   const operableHingedLeaves = allLeaves.filter((leaf: Record<string, unknown>) => {
-    const definition = core.apertureDefinition(line, leaf.apertura) as ApertureDefinition;
+    const definition = core.apertureDefinition(coreLine, leaf.apertura) as ApertureDefinition;
     return ['hinged', 'door', 'tilt-turn'].includes(definition.family);
   }).length;
   const hingeInfo = core.hingeCountFromHardware(
@@ -446,7 +449,7 @@ function buildSimpleWindow(
 
   allLeaves.forEach((leaf: Record<string, unknown>, index: number) => {
     const leafWidth = leafDrawingWidth * (leaf.width as number) / totalLeafWidth;
-    const definition = core.apertureDefinition(line, leaf.apertura) as ApertureDefinition;
+    const definition = core.apertureDefinition(coreLine, leaf.apertura) as ApertureDefinition;
     const rail = leafRails[index];
     const depth = rail.number;
     const hiddenLeaf = leaf?.oculta === true || leaf?.kind === 'oculta';
@@ -574,10 +577,10 @@ function buildSimpleWindow(
 
   const apertureCodes = [...new Set(allLeaves.map((leaf: Record<string, unknown>) => number(leaf.apertura)))];
   const apertureText = apertureCodes
-    .map((code: number) => `Apertura ${code} · ${(core.apertureDefinition(line, code) as ApertureDefinition).label || 'Sin nombre confirmado'}`)
+    .map((code: number) => `Apertura ${code} · ${(core.apertureDefinition(coreLine, code) as ApertureDefinition).label || 'Sin nombre confirmado'}`)
     .join(' + ');
 
-  return `<svg class="${className}${glassOnly ? ` ${target === 'line' ? 'line-window-glass-only' : 'offer-window-glass-only'}` : ''}" data-aperture-code="${escape(apertureCodes.join(','))}" data-aperture-name="${escape(core.apertureLabel(line))}" data-guide-count="${guideCount || ''}" style="--window-finish:${finish.frame};font-family:system-ui,sans-serif" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Esquema de ${escape(line.modelo || 'ventana')}"><title>${escape(apertureText)}</title>${frame}${leavesMarkup}${traverses}${splits}${hardwareMarkupStr}<g class="window-glass-code-layer">${glassCodeLayers.join('')}</g>${segmentDimensions.join('')}${dimensionMarkup(width, height, x, y, drawingW, drawingH)}</svg>`;
+  return `<svg class="${className}${glassOnly ? ` ${target === 'line' ? 'line-window-glass-only' : 'offer-window-glass-only'}` : ''}" data-aperture-code="${escape(apertureCodes.join(','))}" data-aperture-name="${escape(core.apertureLabel(coreLine))}" data-guide-count="${guideCount || ''}" style="--window-finish:${finish.frame};font-family:system-ui,sans-serif" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Esquema de ${escape(line.modelo || 'ventana')}"><title>${escape(apertureText)}</title>${frame}${leavesMarkup}${traverses}${splits}${hardwareMarkupStr}<g class="window-glass-code-layer">${glassCodeLayers.join('')}</g>${segmentDimensions.join('')}${dimensionMarkup(width, height, x, y, drawingW, drawingH)}</svg>`;
 }
 
 // ─── Función principal unificada ──────────────────────────────────────────────
@@ -596,7 +599,7 @@ export function buildWindow(
   line: WindowLine,
   target: 'line' | 'offer' = 'line'
 ): RenderResult {
-  const composite = core.compositePanels(line) as CompositeLayout | null;
+  const composite = core.compositePanels(toCoreLine(line)) as CompositeLayout | null;
 
   let svg: string;
   if (composite) {
