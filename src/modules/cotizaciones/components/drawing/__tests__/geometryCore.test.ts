@@ -114,6 +114,29 @@ describe('handleHeightFor — puerta P6 Vista Monseñor (10332, 900x2600, códig
   });
 });
 
+describe('handleHeightFor — puerta Casa A PV02 (10581, 870x2475, código 18) sin altura_manilla', () => {
+  // Confirmado en terreno: esta puerta no trae altura_manilla, pero sí un
+  // travesaño (tipo_elemento 6, cota=1375mm desde arriba de 2475mm de alto).
+  // La manilla real queda a la altura de ese travesaño, no al centro -- así
+  // que la manilla y el eje de apertura deben moverse ahí en vez de a 1237.5.
+  const line = {
+    ancho: 870,
+    geometria: [
+      { tipo_elemento: 6, parametrosJson: { cota: 1375 } },
+    ],
+  };
+
+  it('usa la altura del travesaño (2475 - 1375 = 1100mm desde la base), no el centro', () => {
+    const result = core.handleHeightFor(line, { apertura: 18 }, 2475);
+    expect(result).toMatchObject({ millimeters: 1100, reason: 'hetmo-transom' });
+  });
+
+  it('una ventana fija con el mismo travesaño sigue centrada (la regla sólo aplica a puertas/abatibles/correderas)', () => {
+    const result = core.handleHeightFor(line, { apertura: 0 }, 2475);
+    expect(result).toMatchObject({ millimeters: 2475 / 2, reason: 'center-default' });
+  });
+});
+
 describe('panelGlassSplits — la misma puerta P6: travesaño detectado por partición de vidrio', () => {
   it('dos vidrios de igual ancho y distinto alto en la misma hoja producen un corte horizontal', () => {
     const splits = core.panelGlassSplits({
