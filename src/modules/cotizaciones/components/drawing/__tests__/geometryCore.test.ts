@@ -159,3 +159,57 @@ describe('sourceComponents — respaldo cuando no hay filas tipo 3', () => {
     expect(parts[0].apertura).toBe(18);
   });
 });
+
+describe('normalizeGeometryItem — numero_ventana crudo tiene prioridad sobre pertenece_hueco', () => {
+  // Confirmado con Franklin Sánchez V01 (HETMO 10200): las filas hijas de
+  // un paño (travesaño tipo 6, vidrio tipo 200) traen pertenece_hueco con
+  // la sub-región DENTRO del paño (marco=1, vidrio sup=2, vidrio inf=4),
+  // no el número de paño -- confiar en ese campo para agrupar paños hacía
+  // que compositePanels() nunca encontrara las filas tipo 10000 agrupadas
+  // bajo un número real (todas venían con pertenece_hueco=0) y descartara
+  // la ventana entera como compuesta.
+  it('agrupa por numero_ventana crudo aunque pertenece_hueco traiga valores de otra sub-región', () => {
+    const line = {
+      dibujoAncho: 2200,
+      dibujoAlto: 1900,
+      geometria: [
+        { tipo_elemento: 10000, ancho: 1100, alto: 1900, perteneceHueco: 0, parametrosJson: { numero_ventana: 1 } },
+        { tipo_elemento: 6, perteneceHueco: 1, parametrosJson: { numero_ventana: 1, cota: 700, pertenece_hueco: 1 } },
+        { tipo_elemento: 200, perteneceHueco: 2, parametrosJson: { numero_ventana: 1, pertenece_hueco: 2 } },
+        { tipo_elemento: 10000, ancho: 1100, alto: 1900, perteneceHueco: 0, parametrosJson: { numero_ventana: 2 } },
+      ],
+    };
+    const composite = core.compositePanels(line) as { panels: { number: number; width: number }[] } | null;
+    expect(composite).not.toBeNull();
+    expect(composite!.panels.map(p => ({ number: p.number, width: p.width }))).toEqual([
+      { number: 1, width: 1100 },
+      { number: 2, width: 1100 },
+    ]);
+  });
+});
+
+describe('panelTraverseLines — travesaño declarado como fila tipo_elemento 6 + cota', () => {
+  // Confirmado con Franklin Sánchez V01/V02 (HETMO 10200/10201): sin
+  // bh_numero_travesano, el travesaño real de cada paño es una fila tipo 6
+  // con sólo una cota (medida desde arriba del paño).
+  it('cota=700 en un paño de 1900mm de alto -> línea horizontal a y=1200 (base del paño)', () => {
+    const lines = core.panelTraverseLines({
+      width: 1100,
+      height: 1900,
+      raw: [{ tipo_elemento: 6, cota: 700 }],
+    }) as { x1: number; y1: number; x2: number; y2: number }[];
+    expect(lines).toEqual([{ x1: 0, y1: 1200, x2: 1100, y2: 1200 }]);
+  });
+
+  it('bh_numero_travesano tiene prioridad cuando existe (no se duplica con tipo 6)', () => {
+    const lines = core.panelTraverseLines({
+      width: 1100,
+      height: 1900,
+      raw: [
+        { tipo_elemento: 40000, bh_numero_travesano: 1, bh_x_inicio: 0, bh_y_inicio: 1000, bh_x_fin: 1100, bh_y_fin: 1000 },
+        { tipo_elemento: 6, cota: 700 },
+      ],
+    }) as { x1: number; y1: number; x2: number; y2: number }[];
+    expect(lines).toEqual([{ x1: 0, y1: 1000, x2: 1100, y2: 1000 }]);
+  });
+});

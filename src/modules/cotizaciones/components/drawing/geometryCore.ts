@@ -186,6 +186,23 @@
     if (!item) return item;
     const params = (item.parametrosJson && typeof item.parametrosJson === 'object') ? item.parametrosJson : {};
     const perteneceHueco = item.perteneceHueco != null ? item.perteneceHueco : item.pertenece_hueco;
+    // numero_ventana (a qué paño de una ventana compuesta pertenece esta fila)
+    // y pertenece_hueco/perteneceHueco NO son el mismo dato, aunque el nombre
+    // de la columna tipada sugiera lo contrario. Confirmado con datos reales
+    // (Franklin Sánchez V01, HETMO 10200): las filas tipo 10000 que definen
+    // cada paño traen pertenece_hueco=0 para las 5, pero numero_ventana
+    // 1..5 correcto; en cambio sus filas hijas (travesaño tipo 6, vidrio
+    // tipo 200) traen pertenece_hueco con la SUB-región dentro del paño
+    // (marco=1, vidrio superior=2, vidrio inferior=4) -- un dato real pero
+    // de otro nivel, no el número de paño. Confiar en pertenece_hueco para
+    // agrupar paños hacía que esas filas hijas con valores 1/2/4 se
+    // confundieran con paños reales y la ventana completa se descartara
+    // como compuesta (compositePanels() no encontraba sus filas tipo 10000
+    // agrupadas bajo ningún número real). numero_ventana crudo es el dato
+    // que HETMO usa consistentemente para esto; se prioriza siempre que
+    // venga poblado (>0). El respaldo de perteneceHueco/assignPanelNumbers
+    // (ventanaAdapter.ts) sólo aplica cuando numero_ventana crudo falta.
+    const numeroVentanaCrudo = params.numero_ventana;
     return {
       ...params,
       ...item,
@@ -196,11 +213,8 @@
       ancho: item.anchoMm != null ? item.anchoMm : item.ancho,
       alto: item.altoMm != null ? item.altoMm : item.alto,
       posicion: item.posicion,
-      // HETMO usa 0 como "sin asignar", no como paño real (ver assignPanelNumbers
-      // en ventanaAdapter.ts). numero_ventana asume paño 1 cuando no hay dato;
-      // pertenece_hueco conserva el valor crudo para los usos que sólo
-      // necesitan una clave de agrupación estable.
-      numero_ventana: perteneceHueco != null && perteneceHueco > 0 ? perteneceHueco : (item.numero_ventana != null ? item.numero_ventana : 1),
+      numero_ventana: numeroVentanaCrudo != null && Number(numeroVentanaCrudo) > 0 ? numeroVentanaCrudo
+        : (perteneceHueco != null && perteneceHueco > 0 ? perteneceHueco : (item.numero_ventana != null ? item.numero_ventana : 1)),
       pertenece_hueco: perteneceHueco,
       forma_codigo: item.formaCodigo != null ? item.formaCodigo : item.forma_codigo,
       modificador_x: item.modificadorX != null ? item.modificadorX : item.modificador_x,
@@ -918,6 +932,27 @@
       seen.add(key);
       lines.push({ x1: x0, y1: y0, x2: x1, y2: y1 });
     });
+    if (lines.length) return lines;
+    // Travesaño declarado como fila tipo_elemento 6 ("corte") con una cota
+    // simple, sin coordenadas bh_x/y de inicio/fin -- confirmado con
+    // Franklin Sánchez V01/V02 (HETMO 10200/10201): cada paño trae una fila
+    // tipo 6 con cota=700 y ningún bh_*. La cota se mide desde arriba del
+    // paño; el espacio de esta función tiene y=0 en la base (ver el mapeo
+    // 1 - item.y1/panel.height en windowGeometryBuilder.ts), así que se
+    // invierte acá. Se traza como línea horizontal a todo el ancho del paño.
+    const panelWidth = firstPositive(panel && panel.width);
+    const panelHeight = firstPositive(panel && panel.height);
+    if (panelWidth > 0 && panelHeight > 0) {
+      raw.filter(item => number(item && item.tipo_elemento) === 6).forEach(item => {
+        const cota = firstPositive(item.cota, item.cota_fija);
+        if (!(cota > 0) || cota >= panelHeight) return;
+        const y = panelHeight - cota;
+        const key = `corte|${y}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        lines.push({ x1: 0, y1: y, x2: panelWidth, y2: y });
+      });
+    }
     return lines;
   }
 
