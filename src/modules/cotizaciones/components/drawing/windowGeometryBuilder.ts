@@ -419,6 +419,14 @@ function buildSimpleWindow(
       leafRails[index].number !== leafRails[index + 1].number ? overlap : 0
   );
   const leafDrawingWidth = drawingW + boundaryOverlaps.reduce((sum: number, value: number) => sum + value, 0);
+  // Varias hojas no-corredera en la misma línea (p.ej. "ventana fija +
+  // puerta practicable") son, físicamente, marcos separados unidos entre
+  // sí -- confirmado contra el propio dibujo de HETMO (Casa A V13, HETMO
+  // 10595): cada hoja trae su propio marco biselado completo, no una línea
+  // divisoria fina. Una corredera, en cambio, es un solo marco con varias
+  // hojas móviles por dentro, así que sigue con el marco único de siempre.
+  const usesPerLeafFrame = !isSlider && allLeaves.length > 1;
+  const frameClass = target === 'line' ? 'line-window-frame' : 'offer-frame';
   let cursor = x;
   const leafLayers: { depth: number; index: number; markup: string }[] = [];
   const hardwareLayers: { depth: number; index: number; markup: string }[] = [];
@@ -513,8 +521,14 @@ function buildSimpleWindow(
       }
     }
 
-    const divider = !isSlider && index < allLeaves.length - 1
+    // Con marco propio por hoja, la unión entre hojas ya se ve en el doble
+    // marco que se solapa en el borde compartido -- una línea divisoria fina
+    // encima sería redundante (y en HETMO no aparece).
+    const divider = !isSlider && !usesPerLeafFrame && index < allLeaves.length - 1
       ? dividerMarkup(cursor + leafWidth, y + 2, y + drawingH - 2, finish)
+      : '';
+    const leafFrame = !glassOnly && !hiddenLeaf && usesPerLeafFrame
+      ? frameMarkup(frameClass, cursor, y, leafWidth, drawingH, finish)
       : '';
 
     leafLayers.push({
@@ -522,7 +536,7 @@ function buildSimpleWindow(
       index,
       markup: hiddenLeaf
         ? `<g class="window-leaf-space" data-leaf-index="${index}" data-leaf-x="${cursor}" data-leaf-width="${leafWidth}" data-hidden-leaf="true"></g>`
-        : `<g class="window-leaf-depth window-rail-${depth || 0}" data-leaf-index="${index}" data-leaf-x="${cursor}" data-leaf-width="${leafWidth}" data-rail="${depth > 0 ? `C${depth}` : ''}" data-rail-source="${escape(rail.source)}">${leafGlass}${leafSash}${leafMuntins}${leafMark}${divider}</g>`,
+        : `<g class="window-leaf-depth window-rail-${depth || 0}" data-leaf-index="${index}" data-leaf-x="${cursor}" data-leaf-width="${leafWidth}" data-rail="${depth > 0 ? `C${depth}` : ''}" data-rail-source="${escape(rail.source)}">${leafFrame}${leafGlass}${leafSash}${leafMuntins}${leafMark}${divider}</g>`,
     });
     if (leafHardware) {
       hardwareLayers.push({ depth, index, markup: `<g class="window-hardware-layer" data-leaf-index="${index}">${leafHardware}</g>` });
@@ -539,8 +553,7 @@ function buildSimpleWindow(
     .map(item => item.markup)
     .join('');
 
-  const frameClass = target === 'line' ? 'line-window-frame' : 'offer-frame';
-  const frame = glassOnly ? '' : frameMarkup(frameClass, x, y, drawingW, drawingH, finish);
+  const frame = glassOnly || usesPerLeafFrame ? '' : frameMarkup(frameClass, x, y, drawingW, drawingH, finish);
   const className = target === 'line' ? 'line-window-sketch' : 'offer-window-sketch';
 
   const traverses = (core.panelTraverseLines({
