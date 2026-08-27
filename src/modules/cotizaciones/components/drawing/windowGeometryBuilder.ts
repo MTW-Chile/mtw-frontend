@@ -296,13 +296,8 @@ function buildCompositePanel(
           const leafCode = glassCodeMarkup(codeClass, visibleGlassCode, leafX + 3, Math.min(py + ph - 3, 140));
           if (leafCode) foregroundGlassCodes.push(leafCode);
           const leafMuntins = muntinMarkup(line, leafX, py, leafWidth, ph, finish.frame);
-          const depthStyle = depth === 1
-            ? 'filter:drop-shadow(1.2px 1px .7px #26344555)'
-            : depth > 1
-              ? `opacity:${Math.max(0.9, 0.98 - (depth - 1) * 0.025)}`
-              : '';
           const railName = depth > 0 ? `C${depth}` : '';
-          const markup = `<g class="window-leaf-depth window-rail-${depth || 0}" data-leaf-index="${leafIndex}" data-leaf-x="${leafX}" data-leaf-width="${leafWidth}" data-rail="${railName}" data-rail-source="${escape(resolvedLeaves[leafIndex].carrilFuente || '')}" style="${depthStyle}">${leafSash}${leafMark}${leafMuntins}</g>`;
+          const markup = `<g class="window-leaf-depth window-rail-${depth || 0}" data-leaf-index="${leafIndex}" data-leaf-x="${leafX}" data-leaf-width="${leafWidth}" data-rail="${railName}" data-rail-source="${escape(resolvedLeaves[leafIndex].carrilFuente || '')}">${leafSash}${leafMark}${leafMuntins}</g>`;
           leafX += leafWidth - (boundaryOverlaps[leafIndex] || 0);
           return { depth, index: leafIndex, markup };
         });
@@ -468,9 +463,15 @@ function buildSimpleWindow(
     if (leafLabel) glassCodeLayers.push(leafLabel);
     if (allLeaves.length > 1) segmentDimensions.push(segmentDimensionMarkup(cursor, leafWidth, y + drawingH, Number(leaf.width) || 0));
 
+    // Una hoja fija sola en la ventana está sostenida directamente por el
+    // marco exterior (basta el junquillo delgado de fixedGlazingMarkup). Pero
+    // cuando comparte línea con otra hoja (p.ej. "ventana fija + practicable"),
+    // cada hoja es físicamente su propio marco unido al de al lado -- por eso
+    // necesita el mismo perfil con peso/bisel que sashMarkup le da a la hoja
+    // practicable, no solo el junquillo.
     const leafSash = glassOnly || hiddenLeaf
       ? ''
-      : (!isSlider && definition.family === 'fixed')
+      : (!isSlider && definition.family === 'fixed' && allLeaves.length === 1)
         ? fixedGlazingMarkup(cursor, y, leafWidth, drawingH, finish)
         : sashMarkup(cursor, y, leafWidth, drawingH, finish, inset);
 
@@ -516,18 +517,12 @@ function buildSimpleWindow(
       ? dividerMarkup(cursor + leafWidth, y + 2, y + drawingH - 2, finish)
       : '';
 
-    const depthStyle = depth === 1
-      ? 'filter:drop-shadow(1.1px 1px .65px #17212b88);'
-      : depth > 1
-        ? `filter:drop-shadow(-.7px .8px .5px #26313d55);opacity:${Math.max(0.9, 0.98 - (depth - 1) * 0.025)};`
-        : '';
-
     leafLayers.push({
       depth,
       index,
       markup: hiddenLeaf
         ? `<g class="window-leaf-space" data-leaf-index="${index}" data-leaf-x="${cursor}" data-leaf-width="${leafWidth}" data-hidden-leaf="true"></g>`
-        : `<g class="window-leaf-depth window-rail-${depth || 0}" data-leaf-index="${index}" data-leaf-x="${cursor}" data-leaf-width="${leafWidth}" data-rail="${depth > 0 ? `C${depth}` : ''}" data-rail-source="${escape(rail.source)}" style="${depthStyle}">${leafGlass}${leafSash}${leafMuntins}${leafMark}${divider}</g>`,
+        : `<g class="window-leaf-depth window-rail-${depth || 0}" data-leaf-index="${index}" data-leaf-x="${cursor}" data-leaf-width="${leafWidth}" data-rail="${depth > 0 ? `C${depth}` : ''}" data-rail-source="${escape(rail.source)}">${leafGlass}${leafSash}${leafMuntins}${leafMark}${divider}</g>`,
     });
     if (leafHardware) {
       hardwareLayers.push({ depth, index, markup: `<g class="window-hardware-layer" data-leaf-index="${index}">${leafHardware}</g>` });

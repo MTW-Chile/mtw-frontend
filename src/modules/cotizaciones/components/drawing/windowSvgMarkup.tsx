@@ -182,7 +182,20 @@ export function transomMarkup(
   finish: FinishColors
 ): string {
   const color = profileColors(finish);
-  return `<g class="window-transom"><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" style="${lineStyle(color.base, 2.8)}"/></g>`;
+  // Perfil con el mismo bisel luz/sombra que el marco (frameMarkup) y las
+  // hojas (sashMarkup), en vez de una línea plana -- el travesaño es un
+  // perfil físico real, no solo una marca de corte.
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const length = Math.hypot(dx, dy) || 1;
+  const nx = -dy / length;
+  const ny = dx / length;
+  const offset = 0.55;
+  return `<g class="window-transom">`
+    + `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" style="${lineStyle(color.base, 2.8)}"/>`
+    + `<line x1="${x1 + nx * offset}" y1="${y1 + ny * offset}" x2="${x2 + nx * offset}" y2="${y2 + ny * offset}" style="${lineStyle(color.light, 0.6, 'opacity:.7')}"/>`
+    + `<line x1="${x1 - nx * offset}" y1="${y1 - ny * offset}" x2="${x2 - nx * offset}" y2="${y2 - ny * offset}" style="${lineStyle(color.dark, 0.6, 'opacity:.55')}"/>`
+    + `</g>`;
 }
 
 export function glassSplitMarkup(
