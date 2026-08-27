@@ -206,6 +206,46 @@ describe('buildWindow — nivel 2 vía parametrosJson', () => {
     expect((result.svg.match(/window-sash-profile/g) || []).length).toBe(2);
   });
 
+  it('Casa A V13 (10595, 1830x1520, practicable + fija): cada hoja dibuja su propio marco biselado, no una línea divisoria', () => {
+    // Confirmado contra el propio dibujo de HETMO para esta línea: se ven
+    // dos marcos completos y separados (cada uno con su bisel de esquina),
+    // no un solo marco con una línea fina entre las dos hojas.
+    const v = ventana({
+      anchoMm: 1830,
+      altoMm: 1520,
+      dibujoTipoApertura: 4,
+      acabadoCodigo: 'NO',
+      geometrias: [
+        geometria({ tipoElemento: 3, tipoApertura: 4, anchoMm: 700, altoMm: 1520, posicion: 1 }),
+        geometria({ tipoElemento: 3, tipoApertura: 0, anchoMm: 1130, altoMm: 1520, posicion: 2 }),
+      ],
+    });
+    const result = buildWindow(toWindowLine(v)!, 'line');
+    expect((result.svg.match(/class="line-window-frame"/g) || []).length).toBe(2);
+    expect(result.svg).not.toContain('window-sash-divider');
+  });
+
+  it('una corredera de varias hojas sigue con un solo marco compartido (no es "ventanas separadas")', () => {
+    const v = ventana({
+      anchoMm: 2662,
+      altoMm: 1400,
+      dibujoTipoApertura: 32,
+      acabadoCodigo: 'BL',
+      geometrias: [
+        geometria({
+          tipoElemento: 3,
+          tipoApertura: 32,
+          anchoMm: 2662,
+          altoMm: 1400,
+          posicion: 1,
+          parametrosJson: { geometria_n1: 1, geometria_n2: 1500 },
+        }),
+      ],
+    });
+    const result = buildWindow(toWindowLine(v)!, 'line');
+    expect((result.svg.match(/class="line-window-frame"/g) || []).length).toBe(1);
+  });
+
   it('ventana fija sola sigue usando el junquillo delgado contra el marco (sin regresión)', () => {
     const v = ventana({ dibujoTipoApertura: 0, acabadoCodigo: 'BL' });
     const result = buildWindow(toWindowLine(v)!, 'line');

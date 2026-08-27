@@ -643,6 +643,24 @@
       const millimeters = Math.max(0, Math.min(height, custom));
       return { millimeters, reason: 'hetmo-custom', reportedMillimeters: millimeters };
     }
+    // Sin altura_manilla explícita: en puertas, practicables/abatibles y
+    // correderas la manilla real queda a la altura del travesaño del paño,
+    // no al centro -- confirmado con Casa A PV02 (HETMO 10581, puerta
+    // practicable código 18): sin altura_manilla, su único travesaño (cota
+    // 1375mm desde arriba de 2475mm de alto) cae justo en la banda donde va
+    // la manilla real de la puerta. El resto de las familias (fija,
+    // proyectante, abatible-tipo-tilt, pivotante) sigue al centro como antes.
+    const apertura = number(leaf && (leaf.apertura != null ? leaf.apertura : (leaf.component && leaf.component.apertura)));
+    const family = (apertureDefinition(line, apertura) || {}).family;
+    const usesTransomHeight = ['door', 'hinged', 'tilt-turn', 'sliding', 'parallel', 'lift-slide', 'adene-sliding'].includes(family);
+    if (usesTransomHeight) {
+      const panelWidth = firstPositive(leaf && leaf.component && leaf.component.width, line && (line.dibujoAncho ?? line.ancho));
+      const transoms = panelTraverseLines({ raw: geometryItems, width: panelWidth, height });
+      if (transoms.length) {
+        const millimeters = Math.max(0, Math.min(height, number(transoms[0].y1)));
+        return { millimeters, reason: 'hetmo-transom', reportedMillimeters: 0 };
+      }
+    }
     return { millimeters: height / 2, reason: 'center-default', reportedMillimeters: 0 };
   }
 
