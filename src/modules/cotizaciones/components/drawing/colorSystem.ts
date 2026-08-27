@@ -81,13 +81,6 @@ export const FINISH_MAP: Record<string, string> = {
   'NED': '#2c2d30',    // Negro Oscuro
   'NEL': '#303134',    // Negro Lavado
   'NEMT': '#1a1b1d',   // Negro Mate (variante)
-  // Código numérico real de Tecnocom Perfiles (el proveedor de perfilería),
-  // no un código HETMO con nombre corto. Confirmado contra HETMO
-  // (presupuesto 500, línea 11269): el acabado se llama "Matex Kitami" --
-  // misma familia "Kitami" que NEK arriba. A diferencia de los códigos
-  // numéricos retirados antes de FINISH_MAP (eran adivinanzas sin forma de
-  // verificar), este viene confirmado con un caso real.
-  '7310': '#161719',   // Matex Kitami
 
   // Marrones / Nogal
   'NO': '#6e4528',     // Nogal
@@ -209,6 +202,33 @@ export const FINISH_MAP: Record<string, string> = {
   'CH': '#7b3f00',     // Chocolate
   'CHC': '#8b4f10',    // Chocolate Claro
   'CHO': '#6b2f00',    // Chocolate Oscuro
+
+  // ─── Códigos numéricos confirmados contra C_ACABADOS de HETMO ──────────────
+  // HETMO usa códigos numéricos propios del proveedor (Tecnocom Perfiles),
+  // no un código con nombre corto como los de arriba. A diferencia de los
+  // numéricos que se retiraron antes de este mapa (eran adivinanzas sin
+  // forma de verificar), estos vienen de una consulta SQL directa contra
+  // C_ACABADOS (CODIGO/DESCRIPCION) en la base de HETMO -- son los que
+  // realmente están en uso, ordenados por frecuencia real en Postgres (ver
+  // `npm run report:acabados` en mtw-relay-api). El hex de cada uno se
+  // toma del color ya validado arriba para el mismo nombre (ej. 7040
+  // "Nogal" -> mismo hex que 'NO'); cuando no hay nombre exactamente igual
+  // arriba, se usa el más cercano por descripción (ej. "Golden Oak" ->
+  // 'ROG' Roble Golden). PALETA_EXTERIOR/INTERIOR de C_ACABADOS resultó no
+  // confiable para la mayoría de las filas (queda en blanco por defecto,
+  // sin configurar) salvo para un puñado de códigos donde sí trae un valor
+  // real; esos dos casos se marcan abajo.
+  '5': '#804000',      // Marrón -- PALETA_EXTERIOR real de HETMO (128,64,0)
+  '6': '#212225',      // Negro -- mismo hex que 'NE'
+  '6997': '#f5f4ef',   // Blanco -- mismo hex que 'BL'
+  '7000': '#8b6e42',   // Golden Oak -- mismo hex que 'ROG' (Roble Golden)
+  '7020': '#8d8f92',   // Gris Grafito -- mismo hex que 'GRA'
+  '7040': '#6e4528',   // Nogal -- mismo hex que 'NO'
+  '7075': '#8a5a38',   // Toffe -- mismo hex que 'NOL' (Nogal Light, tono caramelo cercano)
+  '7130': '#c0c0c0',   // Gri Alum -- PALETA_EXTERIOR real de HETMO (192,192,192)
+  '7279': '#18191b',   // Jet Black -- mismo hex que 'NEB' (Negro Brillante)
+  '7310': '#161719',   // Matex Kitami -- mismo hex que 'NEK' (Negro Kitami)
+  '7320': '#1a1b1d',   // Black Matt -- mismo hex que 'NEM' (Negro Mate)
 };
 
 // ─── Fallback por descripción (cuando no hay código) ──────────────────────────

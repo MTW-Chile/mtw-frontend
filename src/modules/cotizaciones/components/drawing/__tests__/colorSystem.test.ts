@@ -9,7 +9,7 @@ describe('FINISH_MAP — sin alias numéricos sin verificar', () => {
   // FINISH_MAP). Esta lista es la única fuente de "confirmados" -- un
   // numérico nuevo que no esté acá hace fallar el test a propósito, para que
   // agregarlo sea una decisión explícita, no un descuido.
-  const numericosConfirmados = ['7310'];
+  const numericosConfirmados = ['5', '6', '6997', '7000', '7020', '7040', '7075', '7130', '7279', '7310', '7320'];
 
   it('no contiene claves numéricas sin verificar contra un caso real', () => {
     const numericKeys = Object.keys(FINISH_MAP).filter(k => /^\d+$/.test(k));
