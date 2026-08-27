@@ -171,6 +171,68 @@ describe('buildWindow — nivel 2 vía parametrosJson', () => {
     expect(leaves.map(l => l.carril)).toEqual([1, 2, 1]);
   });
 
+  it('travesaño (corte de vidrio) se dibuja con bisel luz/sombra, no una línea plana', () => {
+    const v = ventana({
+      anchoMm: 670,
+      altoMm: 2316,
+      dibujoTipoApertura: 18,
+      acabadoCodigo: 'BL',
+      geometrias: [
+        geometria({ tipoElemento: 3, tipoApertura: 18, anchoMm: 670, altoMm: 2316, posicion: 1 }),
+        geometria({ tipoElemento: 40000, numeroHoja: 1, anchoMm: 670, altoMm: 1438, parametrosJson: { codigo_componente: '4/12/4' } }),
+        geometria({ tipoElemento: 40000, numeroHoja: 1, anchoMm: 670, altoMm: 878, parametrosJson: { codigo_componente: '4/12/4' } }),
+      ],
+    });
+    const result = buildWindow(toWindowLine(v)!, 'line');
+    const transomGroup = result.svg.match(/<g class="window-transom">([\s\S]*?)<\/g>/);
+    expect(transomGroup).not.toBeNull();
+    const lineCount = (transomGroup![1].match(/<line /g) || []).length;
+    expect(lineCount).toBeGreaterThanOrEqual(3); // base + realce luz + realce sombra
+  });
+
+  it('hoja fija que comparte línea con una practicable dibuja su propio marco (sashMarkup), no solo el junquillo', () => {
+    const v = ventana({
+      anchoMm: 1800,
+      altoMm: 2475,
+      dibujoTipoApertura: 3,
+      acabadoCodigo: 'BL',
+      geometrias: [
+        geometria({ tipoElemento: 3, tipoApertura: 0, anchoMm: 1100, altoMm: 2475, posicion: 1 }),
+        geometria({ tipoElemento: 3, tipoApertura: 3, anchoMm: 700, altoMm: 2475, posicion: 2 }),
+      ],
+    });
+    const result = buildWindow(toWindowLine(v)!, 'line');
+    expect(result.svg).not.toContain('window-fixed-glazing');
+    expect((result.svg.match(/window-sash-profile/g) || []).length).toBe(2);
+  });
+
+  it('ventana fija sola sigue usando el junquillo delgado contra el marco (sin regresión)', () => {
+    const v = ventana({ dibujoTipoApertura: 0, acabadoCodigo: 'BL' });
+    const result = buildWindow(toWindowLine(v)!, 'line');
+    expect(result.svg).toContain('window-fixed-glazing');
+  });
+
+  it('no queda rastro del experimento de sombra de profundidad (drop-shadow)', () => {
+    const v = ventana({
+      anchoMm: 2662,
+      altoMm: 1400,
+      dibujoTipoApertura: 32,
+      acabadoCodigo: 'BL',
+      geometrias: [
+        geometria({
+          tipoElemento: 3,
+          tipoApertura: 32,
+          anchoMm: 2662,
+          altoMm: 1400,
+          posicion: 1,
+          parametrosJson: { geometria_n1: 1, geometria_n2: 1500 },
+        }),
+      ],
+    });
+    const result = buildWindow(toWindowLine(v)!, 'line');
+    expect(result.svg).not.toContain('drop-shadow');
+  });
+
   it('una fila sin parametrosJson (previa al backfill) no rompe el dibujo', () => {
     const v = ventana({
       anchoMm: 1500,
