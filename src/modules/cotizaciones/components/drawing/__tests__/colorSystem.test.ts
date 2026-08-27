@@ -2,9 +2,18 @@ import { describe, it, expect } from 'vitest';
 import { getFrameColor, createFinish, FINISH_MAP } from '../colorSystem';
 
 describe('FINISH_MAP — sin alias numéricos sin verificar', () => {
-  it('no contiene claves puramente numéricas (IDs internos, no códigos HETMO reales)', () => {
+  // Los códigos numéricos puros son los que usa el proveedor (Tecnocom
+  // Perfiles) en vez de un código HETMO con nombre corto. Se retiraron los
+  // que eran adivinanzas sin forma de verificar; sólo quedan los confirmados
+  // contra un caso real de HETMO (ver comentario junto a cada uno en
+  // FINISH_MAP). Esta lista es la única fuente de "confirmados" -- un
+  // numérico nuevo que no esté acá hace fallar el test a propósito, para que
+  // agregarlo sea una decisión explícita, no un descuido.
+  const numericosConfirmados = ['7310'];
+
+  it('no contiene claves numéricas sin verificar contra un caso real', () => {
     const numericKeys = Object.keys(FINISH_MAP).filter(k => /^\d+$/.test(k));
-    expect(numericKeys).toEqual([]);
+    expect(numericKeys.sort()).toEqual(numericosConfirmados.sort());
   });
 
   it('no resuelve "NOV" a un color inventado; cae al patrón "nogal" (marrón real)', () => {

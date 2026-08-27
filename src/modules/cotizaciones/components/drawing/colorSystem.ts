@@ -81,6 +81,13 @@ export const FINISH_MAP: Record<string, string> = {
   'NED': '#2c2d30',    // Negro Oscuro
   'NEL': '#303134',    // Negro Lavado
   'NEMT': '#1a1b1d',   // Negro Mate (variante)
+  // Código numérico real de Tecnocom Perfiles (el proveedor de perfilería),
+  // no un código HETMO con nombre corto. Confirmado contra HETMO
+  // (presupuesto 500, línea 11269): el acabado se llama "Matex Kitami" --
+  // misma familia "Kitami" que NEK arriba. A diferencia de los códigos
+  // numéricos retirados antes de FINISH_MAP (eran adivinanzas sin forma de
+  // verificar), este viene confirmado con un caso real.
+  '7310': '#161719',   // Matex Kitami
 
   // Marrones / Nogal
   'NO': '#6e4528',     // Nogal
