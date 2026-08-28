@@ -27,82 +27,11 @@ export const MaestroProductos: React.FC = () => {
   const [selectedFamilia, setSelectedFamilia] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery<Material[]>({
     queryKey: ['materiales'],
     queryFn: async () => {
-      try {
-        const res = await getMateriales();
-        return res?.data || [];
-      } catch {
-        return [
-          {
-            id: 'mat-1',
-            skuInterno: 'AL-MAR-7030',
-            descripcion: 'Marco Ventana Corredera Serie 70 Anodizado Mate',
-            familia: 'PERFILERIA',
-            unidadMedida: 'ml',
-            monedaOrigen: 'CLP',
-            precioOrigen: 18450,
-            proveedorId: null,
-            creadoEn: '2026-02-15T10:00:00Z',
-          },
-          {
-            id: 'mat-2',
-            skuInterno: 'AL-HOJ-7040',
-            descripcion: 'Hoja Móvil Corredera Reforzada Serie 70',
-            familia: 'PERFILERIA',
-            unidadMedida: 'ml',
-            monedaOrigen: 'CLP',
-            precioOrigen: 14200,
-            proveedorId: null,
-            creadoEn: '2026-02-15T10:00:00Z',
-          },
-          {
-            id: 'mat-3',
-            skuInterno: 'DVH-4-12-4-LOWE',
-            descripcion: 'Termopanel DVH 4mm Incoloro + 12mm Aire + 4mm Low-E',
-            familia: 'CRISTALES',
-            unidadMedida: 'm2',
-            monedaOrigen: 'UF',
-            precioOrigen: 1.45,
-            proveedorId: null,
-            creadoEn: '2026-02-10T12:00:00Z',
-          },
-          {
-            id: 'mat-4',
-            skuInterno: 'HR-CIERRE-AUTO-BL',
-            descripcion: 'Cierre Embutido Automático Blanco Serie Corredera',
-            familia: 'HERRAJES',
-            unidadMedida: 'un',
-            monedaOrigen: 'USD',
-            precioOrigen: 12.8,
-            proveedorId: null,
-            creadoEn: '2026-02-12T09:30:00Z',
-          },
-          {
-            id: 'mat-5',
-            skuInterno: 'SL-FELPA-7X6-NG',
-            descripcion: 'Felpa Fin-Seal 7x6 mm Alta Densidad Negra',
-            familia: 'SELLOS_GOMAS',
-            unidadMedida: 'ml',
-            monedaOrigen: 'CLP',
-            precioOrigen: 850,
-            proveedorId: null,
-            creadoEn: '2026-02-01T15:00:00Z',
-          },
-          {
-            id: 'mat-6',
-            skuInterno: 'FJ-TURB-7.5X112',
-            descripcion: 'Tornillo Turbatorx Fijación Mampostería 7.5x112 mm',
-            familia: 'FIJACIONES',
-            unidadMedida: 'un',
-            monedaOrigen: 'CLP',
-            precioOrigen: 320,
-            proveedorId: null,
-            creadoEn: '2026-02-05T11:00:00Z',
-          },
-        ] as Material[];
-      }
+      const res = await getMateriales();
+      return Array.isArray(res) ? res : [];
     },
   });
 
@@ -134,6 +63,17 @@ export const MaestroProductos: React.FC = () => {
     ACCESORIOS: { label: 'Accesorios', variant: 'default' },
     QUIMICOS: { label: 'Químicos & Sellos', variant: 'info' },
     OTROS: { label: 'Otros', variant: 'outline' },
+  };
+
+  const getMaterialPrecioInfo = (mat: Material) => {
+    if (mat.precios && mat.precios.length > 0) {
+      const p = mat.precios[0];
+      return { precio: Number(p.precio), moneda: p.moneda || 'CLP' };
+    }
+    return {
+      precio: mat.precioOrigen !== undefined && mat.precioOrigen !== null ? Number(mat.precioOrigen) : null,
+      moneda: mat.monedaOrigen || 'CLP',
+    };
   };
 
   const formatPrecio = (precio?: number | null, moneda?: string | null) => {
@@ -314,6 +254,7 @@ export const MaestroProductos: React.FC = () => {
                       label: mat.familia,
                       variant: 'default',
                     };
+                    const { precio, moneda } = getMaterialPrecioInfo(mat);
 
                     return (
                       <tr
@@ -342,11 +283,11 @@ export const MaestroProductos: React.FC = () => {
                         </td>
                         <td className="px-5 py-4 text-center font-mono font-bold text-slate-600 whitespace-nowrap">
                           <span className="px-2 py-0.5 rounded-md bg-slate-50 border border-slate-200 text-[11px]">
-                            {mat.monedaOrigen || 'CLP'}
+                            {moneda}
                           </span>
                         </td>
                         <td className="px-5 py-4 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
-                          {formatPrecio(mat.precioOrigen, mat.monedaOrigen)}
+                          {formatPrecio(precio, moneda)}
                         </td>
                       </tr>
                     );
@@ -363,6 +304,7 @@ export const MaestroProductos: React.FC = () => {
                 label: mat.familia,
                 variant: 'default',
               };
+              const { precio, moneda } = getMaterialPrecioInfo(mat);
 
               return (
                 <div
@@ -392,7 +334,7 @@ export const MaestroProductos: React.FC = () => {
 
                     <div className="flex items-center gap-1.5 font-mono font-bold text-slate-900">
                       <Coins className="w-3.5 h-3.5 text-[#E34A26]" />
-                      <span>{formatPrecio(mat.precioOrigen, mat.monedaOrigen)}</span>
+                      <span>{formatPrecio(precio, moneda)}</span>
                     </div>
                   </div>
                 </div>

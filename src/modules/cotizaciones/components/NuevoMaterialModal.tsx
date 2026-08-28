@@ -74,7 +74,8 @@ export const NuevoMaterialModal: React.FC<NuevoMaterialModalProps> = ({
           monedaOrigen: data.monedaOrigen,
           precioOrigen: isNaN(precioNum as number) ? null : precioNum,
         });
-        return res.data;
+        const created = (res as any)?.data || res;
+        return created as Material;
       } catch {
         // Fallback optimista para demostración local si la API aún no está disponible
         const fallbackMaterial: Material = {

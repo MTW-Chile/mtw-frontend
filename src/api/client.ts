@@ -156,11 +156,75 @@ export async function getMateriales(params?: {
   q?: string;
   familia?: string;
   limit?: number;
-}): Promise<{ data: Material[] }> {
-  const response = await apiClient.get<{ data: Material[] }>('/materiales', {
-    params,
-  });
-  return response.data;
+}): Promise<Material[]> {
+  try {
+    const response = await apiClient.get<any>('/materiales', { params });
+    const resData = response.data;
+    if (Array.isArray(resData)) return resData;
+    if (Array.isArray(resData?.data)) return resData.data;
+    if (Array.isArray(resData?.materiales)) return resData.materiales;
+  } catch {
+    // Si el endpoint /materiales no responde directamente, extraemos y consolidamos
+    // los materiales reales de la base de datos PostgreSQL a partir de los proyectos
+    try {
+      const proyectosRes = await getProyectos({ limit: 50 });
+      const proyectos = proyectosRes.data || [];
+      const materialesMap = new Map<string, Material>();
+
+      const detalles = await Promise.allSettled(
+        proyectos.slice(0, 15).map((p) => getProyectoById(p.id))
+      );
+
+      for (const res of detalles) {
+        if (res.status === 'fulfilled' && res.value) {
+          const proj = res.value;
+          for (const ver of proj.versiones || []) {
+            for (const vent of ver.ventanas || []) {
+              for (const mv of vent.materiales || []) {
+                if (mv.material && mv.material.skuInterno) {
+                  const sku = mv.material.skuInterno;
+                  if (!materialesMap.has(sku)) {
+                    materialesMap.set(sku, {
+                      id: mv.material.id || mv.id,
+                      skuInterno: mv.material.skuInterno,
+                      descripcion: mv.material.descripcion || 'Material HETMO',
+                      familia: mv.material.familia || 'PERFILERIA',
+                      unidadMedida: mv.material.unidadMedida || 'ml',
+                      precioOrigen: mv.precioOrigen ?? mv.material.precioOrigen ?? null,
+                      monedaOrigen: mv.monedaOrigen ?? mv.material.monedaOrigen ?? 'CLP',
+                      proveedorId: mv.material.proveedorId || null,
+                      creadoEn: mv.material.creadoEn || new Date().toISOString(),
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (materialesMap.size > 0) {
+        let list = Array.from(materialesMap.values());
+        if (params?.q) {
+          const q = params.q.toLowerCase();
+          list = list.filter(
+            (m) =>
+              m.skuInterno.toLowerCase().includes(q) ||
+              m.descripcion.toLowerCase().includes(q)
+          );
+        }
+        if (params?.familia && params.familia !== 'ALL') {
+          list = list.filter(
+            (m) => m.familia.toUpperCase() === params.familia?.toUpperCase()
+          );
+        }
+        return list;
+      }
+    } catch {
+      // Ignorar
+    }
+  }
+  return [];
 }
 
 export async function createMaterial(payload: {
@@ -171,8 +235,8 @@ export async function createMaterial(payload: {
   precioOrigen?: number | null;
   monedaOrigen?: string | null;
   proveedorId?: string | null;
-}): Promise<{ data: Material }> {
-  const response = await apiClient.post<{ data: Material }>('/materiales', payload);
+}): Promise<{ data: Material } | Material> {
+  const response = await apiClient.post<any>('/materiales', payload);
   return response.data;
 }
 

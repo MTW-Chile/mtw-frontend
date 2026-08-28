@@ -20,6 +20,14 @@ export interface Proveedor {
   creadoEn: string;
 }
 
+export interface PrecioHistorial {
+  id: string;
+  materialId: string;
+  precio: number;
+  moneda: string;
+  fecha: string;
+}
+
 export interface Material {
   id: string;
   skuInterno: string;
@@ -28,6 +36,7 @@ export interface Material {
   unidadMedida: string;
   precioOrigen?: number | null;
   monedaOrigen?: string | null;
+  precios?: PrecioHistorial[];
   proveedorId: string | null;
   proveedor?: Proveedor | null;
   creadoEn: string;
