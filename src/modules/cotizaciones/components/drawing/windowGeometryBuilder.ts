@@ -109,7 +109,6 @@ function buildCompositePanel(
   const frameClass = target === 'line' ? 'line-window-frame' : 'offer-frame';
   const glassClass = target === 'line' ? 'line-window-glass' : 'offer-glass';
   const codeClass = target === 'line' ? 'line-window-glass-code' : 'offer-glass-code';
-  const frame = glassOnly ? '' : frameMarkup(frameClass, x, y, drawingW, drawingH, finish);
   const glassCodes = getGlassCodes(line);
   const singleGlassCode = getUniqueGlassCode(line);
   const compositeOperable = composite.panels.reduce((sum: number, panel: CompositePanel) => {
@@ -359,7 +358,14 @@ function buildCompositePanel(
         ? ''
         : segmentDimensionMarkup(px, pw, y + drawingH, tile.width);
 
-      return `${glassMarkup(glassClass, px, py, pw, ph)}${sash}${mark}${traverses}${splits}${panelMuntins}${panelDimension}${foregroundHardware}`;
+      // Cada paño de una ventana compuesta es, físicamente, un marco propio
+      // unido a sus vecinos (así lo dibuja el propio HETMO) -- incluso
+      // cuando el paño en sí es una corredera de varias hojas por dentro:
+      // esas hojas comparten el marco de SU paño, pero el paño sigue siendo
+      // su propia unidad frente a los paños de al lado.
+      const panelFrame = glassOnly ? '' : frameMarkup(frameClass, px, py, pw, ph, finish);
+
+      return `${panelFrame}${glassMarkup(glassClass, px, py, pw, ph)}${sash}${mark}${traverses}${splits}${panelMuntins}${panelDimension}${foregroundHardware}`;
     })
     .join('');
 
@@ -369,7 +375,7 @@ function buildCompositePanel(
     .map((code: number) => `Apertura ${code} · ${(core.apertureDefinition(line, code) as ApertureDefinition).label || 'Sin nombre confirmado'}`)
     .join(' + ');
 
-  return `<svg class="${className}${glassOnly ? ` ${target === 'line' ? 'line-window-glass-only' : 'offer-window-glass-only'}` : ''}" data-aperture-code="${escape(apertureCodes.join(','))}" data-aperture-name="${escape(core.apertureLabel(line))}" data-guide-count="${guideCount || ''}" style="--window-finish:${finish.frame};font-family:system-ui,sans-serif" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Esquema compuesto de ${escape(line.modelo || 'ventana')}"><title>${escape(apertureText)}</title>${frame}${panels}<g class="window-glass-code-layer">${foregroundGlassCodes.join('')}</g>${dimensionMarkup(width, height, x, y, drawingW, drawingH)}</svg>`;
+  return `<svg class="${className}${glassOnly ? ` ${target === 'line' ? 'line-window-glass-only' : 'offer-window-glass-only'}` : ''}" data-aperture-code="${escape(apertureCodes.join(','))}" data-aperture-name="${escape(core.apertureLabel(line))}" data-guide-count="${guideCount || ''}" style="--window-finish:${finish.frame};font-family:system-ui,sans-serif" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Esquema compuesto de ${escape(line.modelo || 'ventana')}"><title>${escape(apertureText)}</title>${panels}<g class="window-glass-code-layer">${foregroundGlassCodes.join('')}</g>${dimensionMarkup(width, height, x, y, drawingW, drawingH)}</svg>`;
 }
 
 // ─── Builder de ventana simple ────────────────────────────────────────────────
