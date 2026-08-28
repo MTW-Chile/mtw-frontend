@@ -211,7 +211,10 @@ describe('buildWindow — nivel 2 vía parametrosJson', () => {
     expect(lineCount).toBeGreaterThanOrEqual(3); // base + realce luz + realce sombra
   });
 
-  it('hoja fija que comparte línea con una practicable dibuja su propio marco (sashMarkup), no solo el junquillo', () => {
+  it('fija + practicable: dos marcos unidos, y la fija no lleva hoja', () => {
+    // Una ventana fija es marco + vidrio (sin hoja); la practicable es marco +
+    // hoja. Juntas en una línea son dos marcos pegados borde con borde, así
+    // que hay 2 marcos pero una sola hoja.
     const v = ventana({
       anchoMm: 1800,
       altoMm: 2475,
@@ -223,8 +226,8 @@ describe('buildWindow — nivel 2 vía parametrosJson', () => {
       ],
     });
     const result = buildWindow(toWindowLine(v)!, 'line');
-    expect(result.svg).not.toContain('window-fixed-glazing');
-    expect((result.svg.match(/window-sash-profile/g) || []).length).toBe(2);
+    expect((result.svg.match(/class="line-window-frame"/g) || []).length).toBe(2);
+    expect((result.svg.match(/window-sash-profile/g) || []).length).toBe(1);
   });
 
   it('Casa A V13 (10595, 1830x1520, practicable + fija): cada hoja dibuja su propio marco biselado, no una línea divisoria', () => {
@@ -267,10 +270,45 @@ describe('buildWindow — nivel 2 vía parametrosJson', () => {
     expect((result.svg.match(/class="line-window-frame"/g) || []).length).toBe(1);
   });
 
-  it('ventana fija sola sigue usando el junquillo delgado contra el marco (sin regresión)', () => {
+  it('ventana fija sola es marco + vidrio: no lleva hoja', () => {
     const v = ventana({ dibujoTipoApertura: 0, acabadoCodigo: 'BL' });
     const result = buildWindow(toWindowLine(v)!, 'line');
-    expect(result.svg).toContain('window-fixed-glazing');
+    expect((result.svg.match(/class="line-window-frame"/g) || []).length).toBe(1);
+    expect(result.svg).not.toContain('window-sash-profile');
+  });
+
+  it('practicable de 2 hojas: hojas en paralelo, una sola manilla y sin cerradero oculto', () => {
+    // El cerradero (manilla oculta de la hoja pasiva) es exclusivo de las
+    // correderas; una practicable de dos hojas lleva una sola manilla.
+    const v = ventana({
+      anchoMm: 1600,
+      altoMm: 1200,
+      dibujoTipoApertura: 7,
+      acabadoCodigo: 'BL',
+      geometrias: [
+        geometria({ tipoElemento: 3, tipoApertura: 7, anchoMm: 1600, altoMm: 1200, posicion: 1 }),
+      ],
+    });
+    const result = buildWindow(toWindowLine(v)!, 'line');
+    expect((result.svg.match(/class="line-window-frame"/g) || []).length).toBe(1);
+    expect((result.svg.match(/window-sash-profile/g) || []).length).toBe(2);
+    expect((result.svg.match(/class="window-handle"/g) || []).length).toBe(1);
+    expect(result.svg).not.toContain('window-striker');
+  });
+
+  it('toda hoja que abre lleva bisagras aunque HETMO no declare el herraje', () => {
+    const v = ventana({
+      anchoMm: 900,
+      altoMm: 1200,
+      dibujoTipoApertura: 4,
+      acabadoCodigo: 'BL',
+      geometrias: [
+        geometria({ tipoElemento: 3, tipoApertura: 4, anchoMm: 900, altoMm: 1200, posicion: 1 }),
+      ],
+    });
+    const result = buildWindow(toWindowLine(v)!, 'line');
+    expect(result.svg).toContain('window-hinge');
+    expect(result.svg).toContain('minimo-fisico-por-familia');
   });
 
   it('no queda rastro del experimento de sombra de profundidad (drop-shadow)', () => {
