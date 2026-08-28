@@ -114,25 +114,20 @@ describe('handleHeightFor — puerta P6 Vista Monseñor (10332, 900x2600, códig
   });
 });
 
-describe('handleHeightFor — puerta Casa A PV02 (10581, 870x2475, código 18) sin altura_manilla', () => {
-  // Confirmado en terreno: esta puerta no trae altura_manilla, pero sí un
-  // travesaño (tipo_elemento 6, cota=1375mm desde arriba de 2475mm de alto).
-  // La manilla real queda a la altura de ese travesaño, no al centro -- así
-  // que la manilla y el eje de apertura deben moverse ahí en vez de a 1237.5.
-  const line = {
-    ancho: 870,
-    geometria: [
-      { tipo_elemento: 6, parametrosJson: { cota: 1375 } },
-    ],
-  };
-
-  it('usa la altura del travesaño (2475 - 1375 = 1100mm desde la base), no el centro', () => {
+describe('handleHeightFor — el travesaño no tiene relación con la manilla', () => {
+  // altura_manilla y la cota del travesaño son dos conceptos HETMO
+  // independientes -- según la definición original de la API, altura_manilla
+  // sólo trae dato cuando la manilla NO está al centro. Un travesaño
+  // presente (Casa A PV02, HETMO 10581, cota=1375mm) no implica nada sobre
+  // dónde va la manilla: sin altura_manilla, la manilla sigue al centro.
+  it('con un travesaño presente pero sin altura_manilla, la manilla sigue al centro', () => {
+    const line = {
+      ancho: 870,
+      geometria: [
+        { tipo_elemento: 6, parametrosJson: { cota: 1375 } },
+      ],
+    };
     const result = core.handleHeightFor(line, { apertura: 18 }, 2475);
-    expect(result).toMatchObject({ millimeters: 1100, reason: 'hetmo-transom' });
-  });
-
-  it('una ventana fija con el mismo travesaño sigue centrada (la regla sólo aplica a puertas/abatibles/correderas)', () => {
-    const result = core.handleHeightFor(line, { apertura: 0 }, 2475);
     expect(result).toMatchObject({ millimeters: 2475 / 2, reason: 'center-default' });
   });
 });
