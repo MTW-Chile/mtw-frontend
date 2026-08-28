@@ -353,22 +353,30 @@ function buildCompositePanel(
           .join('');
       }
 
+      // El travesaño es una barra acoplada al perfil, a su misma profundidad:
+      // vive dentro del vidrio del paño (por dentro de la hoja cuando la hay),
+      // no cruzando por encima del marco.
+      const paneInset = sash ? sashInset : 0;
+      const tx = px + paneInset;
+      const ty = py + paneInset;
+      const tw = Math.max(1, pw - paneInset * 2);
+      const th = Math.max(1, ph - paneInset * 2);
       const traverses = (core.panelTraverseLines(panel) as TraverseLine[])
         .map((item: TraverseLine) => {
-          const x1 = px + pw * item.x1 / Math.max(1, panel.width);
-          const y1 = py + ph * (1 - item.y1 / Math.max(1, panel.height));
-          const x2 = px + pw * item.x2 / Math.max(1, panel.width);
-          const y2 = py + ph * (1 - item.y2 / Math.max(1, panel.height));
+          const x1 = tx + tw * item.x1 / Math.max(1, panel.width);
+          const y1 = ty + th * (1 - item.y1 / Math.max(1, panel.height));
+          const x2 = tx + tw * item.x2 / Math.max(1, panel.width);
+          const y2 = ty + th * (1 - item.y2 / Math.max(1, panel.height));
           return transomMarkup(x1, y1, x2, y2, finish);
         })
         .join('');
 
       const splits = glassSplitMarkup(
         panel as unknown as Record<string, unknown>,
-        px,
-        py,
-        pw,
-        ph,
+        tx,
+        ty,
+        tw,
+        th,
         finish,
         !panelLayout && !isDoubleOpening
       );
@@ -492,6 +500,24 @@ function buildSimpleWindow(
   const segmentDimensions: string[] = [];
   const profileInset = glassOnly ? 0 : FRAME_THICKNESS;
 
+  // El travesaño es una barra a la misma profundidad que el perfil y acoplada
+  // a él: va DENTRO del vidrio de cada hoja (o del paño fijo), no cruzando la
+  // ventana entera por encima de los marcos. Cada hoja lleva el suyo.
+  const traverseLines = core.panelTraverseLines({
+    raw: Array.isArray(line.geometria) ? line.geometria : [],
+    width,
+    height,
+  }) as TraverseLine[];
+  const traversesIn = (bx: number, by: number, bw: number, bh: number) => traverseLines
+    .map((item: TraverseLine) => transomMarkup(
+      bx + bw * item.x1 / Math.max(1, width),
+      by + bh * (1 - item.y1 / Math.max(1, height)),
+      bx + bw * item.x2 / Math.max(1, width),
+      by + bh * (1 - item.y2 / Math.max(1, height)),
+      finish
+    ))
+    .join('');
+
   let unitCursor = x;
   const unitsMarkup = units.map(unit => {
     const unitWidth = drawingW * unit.width / totalUnitWidth;
@@ -522,6 +548,8 @@ function buildSimpleWindow(
       return `<g class="window-unit window-unit-fixed" data-unit-index="${index}">`
         + unitFrame
         + glassMarkup(glassClassName, contentX, contentY, contentW, contentH, !noGlass)
+        + traversesIn(contentX, contentY, contentW, contentH)
+        + glassSplitMarkup(line as unknown as Record<string, unknown>, contentX, contentY, contentW, contentH, finish, true)
         + fixedMark(contentX, contentY, contentW, contentH, color)
         + muntinMarkup(line, contentX, contentY, contentW, contentH, finish.frame)
         + `</g>`;
@@ -563,6 +591,16 @@ function buildSimpleWindow(
       const leafSash = glassOnly ? '' : sashMarkup(leafX, contentY, leafWidth, contentH, finish);
       const leafGlass = glassMarkup(glassClassName, paneX, paneY, paneW, paneH, !noGlass);
       const leafMuntins = muntinMarkup(line, paneX, paneY, paneW, paneH, finish.frame);
+      const leafTraverses = traversesIn(paneX, paneY, paneW, paneH);
+      const leafSplits = glassSplitMarkup(
+        line as unknown as Record<string, unknown>,
+        paneX,
+        paneY,
+        paneW,
+        paneH,
+        finish,
+        allLeaves.length === 1
+      );
       const leafLabel = glassCodeMarkup(codeClass, glassCodeFor(index), paneX, paneY, paneW, paneH);
       if (leafLabel) glassCodeLayers.push(leafLabel);
       if (allLeaves.length > 1) {
@@ -623,7 +661,7 @@ function buildSimpleWindow(
       leafLayers.push({
         depth,
         position,
-        markup: `<g class="window-leaf-depth window-rail-${depth || 0}" data-leaf-index="${index}" data-leaf-x="${leafX}" data-leaf-width="${leafWidth}" data-rail="${depth > 0 ? `C${depth}` : ''}" data-rail-source="${escape(rail.source)}">${leafSash}${leafGlass}${leafMuntins}${leafMark}</g>`,
+        markup: `<g class="window-leaf-depth window-rail-${depth || 0}" data-leaf-index="${index}" data-leaf-x="${leafX}" data-leaf-width="${leafWidth}" data-rail="${depth > 0 ? `C${depth}` : ''}" data-rail-source="${escape(rail.source)}">${leafSash}${leafGlass}${leafTraverses}${leafSplits}${leafMuntins}${leafMark}</g>`,
       });
     });
 
@@ -637,42 +675,12 @@ function buildSimpleWindow(
   const hardwareMarkupStr = hardwareLayers.join('');
   const className = target === 'line' ? 'line-window-sketch' : 'offer-window-sketch';
 
-  // Travesaños y particiones de vidrio viven dentro del marco, no sobre él.
-  const innerX = x + profileInset;
-  const innerY = y + profileInset;
-  const innerW = Math.max(2, drawingW - profileInset * 2);
-  const innerH = Math.max(2, drawingH - profileInset * 2);
-
-  const traverses = (core.panelTraverseLines({
-    raw: Array.isArray(line.geometria) ? line.geometria : [],
-    width,
-    height,
-  }) as TraverseLine[])
-    .map((item: TraverseLine) => {
-      const x1 = innerX + innerW * item.x1 / Math.max(1, width);
-      const y1 = innerY + innerH * (1 - item.y1 / Math.max(1, height));
-      const x2 = innerX + innerW * item.x2 / Math.max(1, width);
-      const y2 = innerY + innerH * (1 - item.y2 / Math.max(1, height));
-      return transomMarkup(x1, y1, x2, y2, finish);
-    })
-    .join('');
-
-  const splits = glassSplitMarkup(
-    line as unknown as Record<string, unknown>,
-    innerX,
-    innerY,
-    innerW,
-    innerH,
-    finish,
-    allLeaves.length === 1
-  );
-
   const apertureCodes = [...new Set(allLeaves.map((leaf: Record<string, unknown>) => number(leaf.apertura)))];
   const apertureText = apertureCodes
     .map((code: number) => `Apertura ${code} · ${(core.apertureDefinition(line, code) as ApertureDefinition).label || 'Sin nombre confirmado'}`)
     .join(' + ');
 
-  return `<svg class="${className}${glassOnly ? ` ${target === 'line' ? 'line-window-glass-only' : 'offer-window-glass-only'}` : ''}" data-aperture-code="${escape(apertureCodes.join(','))}" data-aperture-name="${escape(core.apertureLabel(line))}" data-guide-count="${guideCount || ''}" style="--window-finish:${finish.frame};font-family:system-ui,sans-serif" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Esquema de ${escape(line.modelo || 'ventana')}"><title>${escape(apertureText)}</title>${unitsMarkup}${traverses}${splits}${hardwareMarkupStr}<g class="window-glass-code-layer">${glassCodeLayers.join('')}</g>${segmentDimensions.join('')}${dimensionMarkup(width, height, x, y, drawingW, drawingH)}</svg>`;
+  return `<svg class="${className}${glassOnly ? ` ${target === 'line' ? 'line-window-glass-only' : 'offer-window-glass-only'}` : ''}" data-aperture-code="${escape(apertureCodes.join(','))}" data-aperture-name="${escape(core.apertureLabel(line))}" data-guide-count="${guideCount || ''}" style="--window-finish:${finish.frame};font-family:system-ui,sans-serif" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Esquema de ${escape(line.modelo || 'ventana')}"><title>${escape(apertureText)}</title>${unitsMarkup}${hardwareMarkupStr}<g class="window-glass-code-layer">${glassCodeLayers.join('')}</g>${segmentDimensions.join('')}${dimensionMarkup(width, height, x, y, drawingW, drawingH)}</svg>`;
 }
 
 // ─── Función principal unificada ──────────────────────────────────────────────

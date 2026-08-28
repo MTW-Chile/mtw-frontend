@@ -346,6 +346,81 @@ describe('buildWindow — nivel 2 vía parametrosJson', () => {
     expect(result.svg).toContain('5/12/5 INC');
   });
 
+  it('herraje blanco sólo con acabado blanco; cualquier otro acabado lo lleva negro', () => {
+    const practicable = (acabado: string) => ventana({
+      anchoMm: 900,
+      altoMm: 1200,
+      dibujoTipoApertura: 4,
+      acabadoCodigo: acabado,
+      geometrias: [geometria({ tipoElemento: 3, tipoApertura: 4, anchoMm: 900, altoMm: 1200, posicion: 1 })],
+      // La descripción del artículo ya no decide el color del herraje.
+      materiales: [materialDescrito('MANILLA NEPTUNO F 33MM , PLATA', { cantidad: 1, piezas: 1 })],
+    });
+    const blanco = buildWindow(toWindowLine(practicable('BL'))!, 'line');
+    expect(blanco.svg).toContain('#eef1f4');
+    expect(blanco.svg).not.toContain('#1c1f24');
+
+    ['NO', 'GRA', '7020', 'NE'].forEach(acabado => {
+      const otro = buildWindow(toWindowLine(practicable(acabado))!, 'line');
+      expect(otro.svg).toContain('#1c1f24');
+      expect(otro.svg).not.toContain('#eef1f4');
+    });
+  });
+
+  it('la manilla de corredera cabe dentro de la hoja', () => {
+    const v = ventana({
+      anchoMm: 1200,
+      altoMm: 1400,
+      dibujoTipoApertura: 32,
+      acabadoCodigo: 'NO',
+      geometrias: [geometria({ tipoElemento: 3, tipoApertura: 32, anchoMm: 1200, altoMm: 1400, posicion: 1 })],
+    });
+    const result = buildWindow(toWindowLine(v)!, 'line');
+    const leaves = [...result.svg.matchAll(/data-leaf-x="([\d.]+)" data-leaf-width="([\d.]+)"/g)]
+      .map(m => ({ x: Number(m[1]), width: Number(m[2]) }));
+    expect(leaves.length).toBeGreaterThan(0);
+    const plates = [...result.svg.matchAll(/<g class="window-handle"[^>]*>\s*<rect x="([\d.-]+)"[^>]*width="([\d.]+)"/g)]
+      .map(m => ({ x: Number(m[1]), width: Number(m[2]) }));
+    expect(plates.length).toBeGreaterThan(0);
+    plates.forEach(plate => {
+      const leaf = leaves.find(l => plate.x >= l.x - 0.01 && plate.x + plate.width <= l.x + l.width + 0.01);
+      expect(leaf).toBeDefined();
+    });
+  });
+
+  it('un herraje MONOBLOCK muestra la cerradura bajo la manilla', () => {
+    const corredera = (material: string) => ventana({
+      anchoMm: 1600,
+      altoMm: 1400,
+      dibujoTipoApertura: 32,
+      acabadoCodigo: 'NO',
+      geometrias: [geometria({ tipoElemento: 3, tipoApertura: 32, anchoMm: 1600, altoMm: 1400, posicion: 1 })],
+      materiales: [materialDescrito(material, { cantidad: 1, piezas: 1 })],
+    });
+    const conCerradura = buildWindow(toWindowLine(corredera('MONOBLOCK CORREDERA NEGRO'))!, 'line');
+    expect(conCerradura.svg).toContain('data-hardware="monoblock"');
+    const sinCerradura = buildWindow(toWindowLine(corredera('MANILLA CORREDERA NEGRO'))!, 'line');
+    expect(sinCerradura.svg).toContain('data-hardware="manilla"');
+  });
+
+  it('el travesaño se dibuja dentro del vidrio de cada hoja, no sobre la ventana entera', () => {
+    const v = ventana({
+      anchoMm: 1600,
+      altoMm: 1400,
+      dibujoTipoApertura: 7,
+      acabadoCodigo: 'NO',
+      geometrias: [
+        geometria({ tipoElemento: 3, tipoApertura: 7, anchoMm: 1600, altoMm: 1400, posicion: 1 }),
+        geometria({ tipoElemento: 6, parametrosJson: { cota: 400 } }),
+      ],
+    });
+    const result = buildWindow(toWindowLine(v)!, 'line');
+    // Una barra por hoja (2 hojas), cada una contenida en su propio grupo.
+    const perLeaf = [...result.svg.matchAll(/<g class="window-leaf-depth[\s\S]*?<\/g>\s*<\/g>/g)];
+    expect(perLeaf.length).toBeGreaterThan(0);
+    expect((result.svg.match(/class="window-transom"/g) || []).length).toBe(2);
+  });
+
   it('toda hoja que abre lleva bisagras aunque HETMO no declare el herraje', () => {
     const v = ventana({
       anchoMm: 900,

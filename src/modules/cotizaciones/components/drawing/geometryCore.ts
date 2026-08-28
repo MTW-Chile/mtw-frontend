@@ -613,30 +613,38 @@
     return { count, reason: count ? 'hardware-quantity-per-leaf' : 'no-hinge-hardware' };
   }
 
-  // Color del herraje. No es metal desnudo: manillas y bisagras se piden del
-  // color del perfil, y el propio artículo lo declara en su descripción
-  // ("MANILLA NEPTUNO F 33MM , NEGRO"). Se lee de ahí, que es dato, y sólo si
-  // el artículo no lo dice se cae al acabado del marco.
-  export const hardwarePalette = [
-    [/\bnegr[oa]\b/i, '#1c1f24'],
-    [/\bblanc[oa]\b/i, '#eef1f4'],
-    [/\b(caf[eé]|marr[oó]n|nogal|golden\s*oak|roble)\b/i, '#5b3a1e'],
-    [/\b(plata|inox|acero|cromo|niquel|n[ií]quel)\b/i, '#9aa3ad'],
-    [/\b(bronce|oro|dorad[oa])\b/i, '#8a6b2f'],
-    [/\bgris\b/i, '#6b7280'],
-    [/\bantracita\b/i, '#33383f']
-  ];
-  export function hardwareColor(materials, fallback, role) {
-    const rows = Array.isArray(materials) ? materials : [];
-    const rolePattern = role === 'handle' ? /\b(manilla|cremona)\b/i
-      : role === 'hinge' ? /\b(bisagra|pernio)\b/i : /\b(manilla|cremona|bisagra|pernio)\b/i;
-    for (const item of rows) {
-      const text = String((item && (item.descripcionArticulo ?? item.descripcion)) || '');
-      if (!rolePattern.test(text)) continue;
-      const match = hardwarePalette.find(([pattern]) => pattern.test(text));
-      if (match) return match[1];
-    }
-    return String(fallback || '#30343a');
+  // Color del herraje. Ya no sigue el color del perfil ni el que declare la
+  // descripcion del articulo: hoy solo hay dos herrajes en catalogo, blanco y
+  // negro. Blanco unicamente cuando el acabado es blanco; en cualquier otro
+  // acabado el herraje es negro.
+  export const HARDWARE_WHITE = '#eef1f4';
+  export const HARDWARE_BLACK = '#1c1f24';
+
+  // Luminancia relativa del acabado del marco: sirve para reconocer un blanco
+  // real sin tener que enumerar cada codigo de acabado que exista.
+  function relativeLuminance(hex) {
+    const match = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+    if (!match) return 0;
+    const value = parseInt(match[1], 16);
+    const channel = raw => {
+      const c = raw / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * channel((value >> 16) & 255)
+      + 0.7152 * channel((value >> 8) & 255)
+      + 0.0722 * channel(value & 255);
+  }
+
+  // Un herraje MONOBLOCK trae cerradura con cilindro integrado, no solo la
+  // manilla: cuando la receta lo declara asi, el dibujo lo muestra.
+  export function hasMonoblock(materials) {
+    return (Array.isArray(materials) ? materials : []).some(item =>
+      /\bmonoblock\b/i.test(String((item && (item.descripcionArticulo ?? item.descripcion)) || ''))
+    );
+  }
+
+  export function hardwareColor(materials, frameColor) {
+    return relativeLuminance(frameColor) >= 0.8 ? HARDWARE_WHITE : HARDWARE_BLACK;
   }
 
   export function handleHeightFor(line, leaf, physicalHeight) {

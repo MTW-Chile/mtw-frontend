@@ -18,7 +18,6 @@ import type {
   WindowLine,
   HardwareSpec,
   FinishColors,
-  MetalColorSet,
   ApertureDefinition,
   OpeningSymbolSegment,
   MuntinLine,
@@ -65,16 +64,6 @@ export function finishFor(line: WindowLine): FinishColors {
     line.acabadoPatron,
     line.materiales?.map(m => m.acabado).filter((a): a is string => Boolean(a))
   );
-}
-
-export function metalFor(line: WindowLine, role: string): MetalColorSet {
-  const finish = finishFor(line);
-  const base = String(core.hardwareColor(
-    line.materiales,
-    finish.frame,
-    role
-  ));
-  return metalColors(base);
 }
 
 // ─── Funciones de markup (retornan string SVG) ─────────────────────────────────
@@ -419,11 +408,7 @@ export function handleMark(
   physicalHeight: number
 ): string {
   if (!spec || spec.role === 'none') return '';
-  const metal = metalColors(String(core.hardwareColor(
-    line.materiales,
-    finishFor(line).frame,
-    'handle'
-  )));
+  const metal = metalColors(String(core.hardwareColor(line.materiales, finishFor(line).frame)));
   const heightInfo = core.handleHeightFor(line, leaf, physicalHeight);
   const hy = spec.position === 'bottom'
     ? y + height - 3
@@ -443,22 +428,39 @@ export function handleMark(
       + `<rect x="${hx - 2.6}" y="${hy - 2.6}" width="5.2" height="5.2" rx=".9" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.45"/>`
       + `</g>`;
   }
-  // La manilla de corredera es una palanca vertical sobre el montante: cuelga
-  // hacia abajo, no apunta hacia el lado como la de una practicable.
-  const vertical = spec.orientation === 'down';
-  const leverX = vertical ? hx : side === 'left' ? hx + 8 : side === 'right' ? hx - 8 : hx;
-  const leverY = vertical
-    ? hy + 9
-    : spec.orientation === 'up' ? hy - 9 : spec.position === 'top' ? hy + 9 : hy;
-  const lever = vertical || side === 'center'
+  const heightSource = spec.position ? `${spec.position}-by-opening` : heightInfo.reason;
+
+  // La manilla de corredera cuelga vertical sobre el montante de la hoja. Su
+  // base tiene que caber DENTRO de la hoja (a diferencia de la de una
+  // practicable o proyectante, cuya palanca entra hacia el vano y sí puede
+  // sobresalir), así que va angosta y se centra en el montante.
+  if (spec.orientation === 'down') {
+    const plateWidth = clamp(width * 0.14, 1.8, 2.8);
+    const plateHeight = clamp(height * 0.16, 9, 15);
+    const half = plateWidth / 2;
+    const cx = clamp(hx, x + half + 0.5, x + width - half - 0.5);
+    const top = hy - plateHeight * 0.32;
+    const monoblock = core.hasMonoblock(line.materiales);
+    const cylinderY = top + plateHeight + 3.4;
+    return `<g class="window-handle" data-axis-y="${hy}" data-height-source="${heightSource}" data-hardware="${monoblock ? 'monoblock' : 'manilla'}" data-reason="${escape(spec.reason || 'opening-leaf')}">`
+      + `<rect x="${cx - half}" y="${top}" width="${plateWidth}" height="${plateHeight}" rx="${half}" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.4"/>`
+      + `<line x1="${cx - half + 0.42}" y1="${top + 0.9}" x2="${cx - half + 0.42}" y2="${top + plateHeight - 0.9}" style="${lineStyle(metal.light, 0.45, 'opacity:.85')}"/>`
+      + (monoblock
+        // Cerradura monoblock: cilindro bajo la manilla, como en el herraje real.
+        ? `<circle cx="${cx}" cy="${cylinderY}" r="${Math.min(1.5, half + 0.4)}" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.4"/>`
+          + `<line x1="${cx}" y1="${cylinderY}" x2="${cx}" y2="${cylinderY + 1.6}" style="${lineStyle(metal.edge, 0.5, 'opacity:.9')}"/>`
+        : '')
+      + `</g>`;
+  }
+
+  const leverX = side === 'left' ? hx + 8 : side === 'right' ? hx - 8 : hx;
+  const leverY = spec.orientation === 'up' ? hy - 9 : spec.position === 'top' ? hy + 9 : hy;
+  const lever = side === 'center'
     ? `M ${hx} ${hy} L ${leverX} ${leverY}`
     : `M ${hx} ${hy} H ${leverX}`;
-  const glare = vertical
+  const glare = side === 'center'
     ? `M ${hx - 0.7} ${hy} L ${leverX - 0.7} ${leverY}`
-    : side === 'center'
-      ? `M ${hx - 0.7} ${hy} L ${leverX - 0.7} ${leverY}`
-      : `M ${hx} ${hy - 0.75} H ${leverX}`;
-  const heightSource = spec.position ? `${spec.position}-by-opening` : heightInfo.reason;
+    : `M ${hx} ${hy - 0.75} H ${leverX}`;
   return `<g class="window-handle" data-axis-y="${hy}" data-height-source="${heightSource}" data-reason="${escape(spec.reason || 'opening-leaf')}">`
     + `<circle cx="${hx}" cy="${hy}" r="2.4" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.45"/>`
     + `<circle cx="${hx - 0.6}" cy="${hy - 0.6}" r="1" style="fill:${metal.light};opacity:.8"/>`
@@ -480,11 +482,7 @@ export function hingeMarkup(
   line: WindowLine
 ): string {
   if (!count || !['left', 'right', 'top', 'bottom'].includes(side)) return '';
-  const metal = metalColors(String(core.hardwareColor(
-    line.materiales,
-    finishFor(line).frame,
-    'hinge'
-  )));
+  const metal = metalColors(String(core.hardwareColor(line.materiales, finishFor(line).frame)));
   const thickness = 2.6;
   // Las proyectantes y abatibles llevan las bisagras en el canto horizontal
   // (arriba o abajo), no en el vertical: mismo herraje, girado 90 grados.
