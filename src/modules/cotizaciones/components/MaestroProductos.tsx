@@ -13,14 +13,9 @@ import { getMateriales } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
 import { TableSkeleton } from '../../../components/ui/Skeleton';
-import { NuevoMaterialModal, FAMILIAS_CATALOGO } from './NuevoMaterialModal';
+import { NuevoMaterialModal } from './NuevoMaterialModal';
 import { formatNumber } from '../../../lib/utils';
 import type { Material } from '../../../types';
-
-const FAMILIAS_CHIPS = [
-  { id: 'ALL', label: 'Todas las Familias' },
-  ...FAMILIAS_CATALOGO.map((f) => ({ id: f.value, label: f.label.split('(')[0].trim() })),
-];
 
 export const MaestroProductos: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,7 +30,25 @@ export const MaestroProductos: React.FC = () => {
     },
   });
 
-  const materiales = data || [];
+  const materiales = useMemo(() => data || [], [data]);
+
+  // Las familias del filtro salen de los datos, no de una lista fija: HETMO
+  // usa Perfileria, Vidrios, Herrajes, Accesorios, Refuerzos, Juntas y Otros,
+  // y una lista escrita a mano dejaba chips que no filtraban nada (CRISTALES)
+  // y familias reales sin chip (Refuerzos, Juntas).
+  const familiasChips = useMemo(() => {
+    const conteo = new Map<string, number>();
+    for (const mat of materiales) {
+      const familia = (mat.familia || 'Otros').trim();
+      conteo.set(familia, (conteo.get(familia) || 0) + 1);
+    }
+    return [
+      { id: 'ALL', label: 'Todas las Familias', total: materiales.length },
+      ...[...conteo.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'))
+        .map(([familia, total]) => ({ id: familia, label: familia, total })),
+    ];
+  }, [materiales]);
 
   const filteredMateriales = useMemo(() => {
     return materiales.filter((mat) => {
@@ -147,9 +160,9 @@ export const MaestroProductos: React.FC = () => {
               onChange={(e) => setSelectedFamilia(e.target.value)}
               className="w-full py-2.5 pl-3.5 pr-10 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#E34A26] appearance-none cursor-pointer"
             >
-              {FAMILIAS_CHIPS.map((chip) => (
+              {familiasChips.map((chip) => (
                 <option key={chip.id} value={chip.id}>
-                  {chip.label}
+                  {chip.label} ({chip.total})
                 </option>
               ))}
             </select>
@@ -163,7 +176,7 @@ export const MaestroProductos: React.FC = () => {
             <Filter className="w-3 h-3" />
             Familia:
           </span>
-          {FAMILIAS_CHIPS.map((chip) => {
+          {familiasChips.map((chip) => {
             const isActive = selectedFamilia === chip.id;
             return (
               <button
@@ -175,7 +188,7 @@ export const MaestroProductos: React.FC = () => {
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 border border-slate-200/60'
                 }`}
               >
-                {chip.label}
+                {chip.label} <span className={isActive ? 'opacity-80' : 'text-slate-400'}>{chip.total}</span>
               </button>
             );
           })}

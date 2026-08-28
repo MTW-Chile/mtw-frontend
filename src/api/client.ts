@@ -157,73 +157,17 @@ export async function getMateriales(params?: {
   familia?: string;
   limit?: number;
 }): Promise<Material[]> {
-  try {
-    const response = await apiClient.get<any>('/materiales', { params });
-    const resData = response.data;
-    if (Array.isArray(resData)) return resData;
-    if (Array.isArray(resData?.data)) return resData.data;
-    if (Array.isArray(resData?.materiales)) return resData.materiales;
-  } catch {
-    // Si el endpoint /materiales no responde directamente, extraemos y consolidamos
-    // los materiales reales de la base de datos PostgreSQL a partir de los proyectos
-    try {
-      const proyectosRes = await getProyectos({ limit: 50 });
-      const proyectos = proyectosRes.data || [];
-      const materialesMap = new Map<string, Material>();
-
-      const detalles = await Promise.allSettled(
-        proyectos.slice(0, 15).map((p) => getProyectoById(p.id))
-      );
-
-      for (const res of detalles) {
-        if (res.status === 'fulfilled' && res.value) {
-          const proj = res.value;
-          for (const ver of proj.versiones || []) {
-            for (const vent of ver.ventanas || []) {
-              for (const mv of vent.materiales || []) {
-                if (mv.material && mv.material.skuInterno) {
-                  const sku = mv.material.skuInterno;
-                  if (!materialesMap.has(sku)) {
-                    materialesMap.set(sku, {
-                      id: mv.material.id || mv.id,
-                      skuInterno: mv.material.skuInterno,
-                      descripcion: mv.material.descripcion || 'Material HETMO',
-                      familia: mv.material.familia || 'PERFILERIA',
-                      unidadMedida: mv.material.unidadMedida || 'ml',
-                      precioOrigen: mv.precioOrigen ?? mv.material.precioOrigen ?? null,
-                      monedaOrigen: mv.monedaOrigen ?? mv.material.monedaOrigen ?? 'CLP',
-                      proveedorId: mv.material.proveedorId || null,
-                      creadoEn: mv.material.creadoEn || new Date().toISOString(),
-                    });
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-
-      if (materialesMap.size > 0) {
-        let list = Array.from(materialesMap.values());
-        if (params?.q) {
-          const q = params.q.toLowerCase();
-          list = list.filter(
-            (m) =>
-              m.skuInterno.toLowerCase().includes(q) ||
-              m.descripcion.toLowerCase().includes(q)
-          );
-        }
-        if (params?.familia && params.familia !== 'ALL') {
-          list = list.filter(
-            (m) => m.familia.toUpperCase() === params.familia?.toUpperCase()
-          );
-        }
-        return list;
-      }
-    } catch {
-      // Ignorar
-    }
-  }
+  // El catálogo vive en la tabla Material del relay, que el sync llena con
+  // TODOS los materiales del presupuesto. No se puede reconstruir desde las
+  // ventanas: HETMO sólo asocia el vidrio a su línea (linea_hetmo), mientras
+  // que perfilería, herrajes, accesorios, refuerzos y juntas viajan con
+  // linea_hetmo 0 y nunca llegan a MaterialVentana. Un respaldo armado desde
+  // los proyectos devolvía, por eso, un maestro con puros vidrios.
+  const response = await apiClient.get<any>('/materiales', { params });
+  const resData = response.data;
+  if (Array.isArray(resData)) return resData;
+  if (Array.isArray(resData?.data)) return resData.data;
+  if (Array.isArray(resData?.materiales)) return resData.materiales;
   return [];
 }
 
