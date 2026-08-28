@@ -86,7 +86,7 @@ export function glassMarkup(
  * solaparse, que es como las une la fábrica.
  */
 export const FRAME_THICKNESS = 4.5;
-export const SASH_THICKNESS = 3.4;
+export const SASH_THICKNESS = 4.6;
 
 /**
  * Perfil de aluminio/PVC como banda sólida: cuerpo relleno con el color del
@@ -423,7 +423,7 @@ export function handleMark(
       : x + width / 2;
   // La base de la manilla siempre cae dentro de la hoja; lo único que puede
   // sobresalir es la palanca cuando apunta hacia el vano (puertas, abatibles).
-  const BASE_RADIUS = 2.4;
+  const BASE_RADIUS = 1.9;
   const hx = clamp(rawHx, x + BASE_RADIUS + 0.4, x + width - BASE_RADIUS - 0.4);
 
   if (spec.role === 'striker') {
@@ -442,18 +442,18 @@ export function handleMark(
   // Misma manilla en todas las familias -- la de corredera es exactamente
   // ésta, sólo que la palanca apunta hacia abajo en vez de hacia el lado.
   const vertical = spec.orientation === 'down';
-  const leverX = vertical ? hx : side === 'left' ? hx + 8 : side === 'right' ? hx - 8 : hx;
+  const leverX = vertical ? hx : side === 'left' ? hx + 7 : side === 'right' ? hx - 7 : hx;
   const leverY = vertical
-    ? hy + 8
+    ? hy + 7
     : spec.orientation === 'up' ? hy - 9 : spec.position === 'top' ? hy + 9 : hy;
   const lever = vertical || side === 'center'
     ? `M ${hx} ${hy} L ${leverX} ${leverY}`
     : `M ${hx} ${hy} H ${leverX}`;
   const glare = vertical
-    ? `M ${hx - 0.7} ${hy} L ${leverX - 0.7} ${leverY}`
+    ? `M ${hx - 0.55} ${hy} L ${leverX - 0.55} ${leverY}`
     : side === 'center'
-      ? `M ${hx - 0.7} ${hy} L ${leverX - 0.7} ${leverY}`
-      : `M ${hx} ${hy - 0.75} H ${leverX}`;
+      ? `M ${hx - 0.55} ${hy} L ${leverX - 0.55} ${leverY}`
+      : `M ${hx} ${hy - 0.6} H ${leverX}`;
 
   // Herraje MONOBLOCK (puertas): la misma manilla, pero montada sobre una
   // placa que se prolonga hacia abajo y termina en el bombín de la cerradura.
@@ -473,11 +473,11 @@ export function handleMark(
   return `<g class="window-handle" data-axis-y="${hy}" data-height-source="${heightSource}" data-hardware="${spec.lock ? 'monoblock' : 'manilla'}" data-reason="${escape(spec.reason || 'opening-leaf')}">`
     + lockPlate
     + `<circle cx="${hx}" cy="${hy}" r="${BASE_RADIUS}" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.45"/>`
-    + `<circle cx="${hx - 0.6}" cy="${hy - 0.6}" r="1" style="fill:${metal.light};opacity:.8"/>`
-    + `<path d="${lever}" style="${lineStyle(metal.base, 3, `stroke:${metal.base}`)}"/>`
-    + `<path d="${lever}" style="${lineStyle(metal.edge, 3.6, 'opacity:.35')}"/>`
-    + `<path d="${lever}" style="${lineStyle(metal.base, 2.8)}"/>`
-    + `<path d="${glare}" style="${lineStyle(metal.light, 0.8, 'opacity:.85')}"/>`
+    + `<circle cx="${hx - 0.5}" cy="${hy - 0.5}" r=".8" style="fill:${metal.light};opacity:.8"/>`
+    + `<path d="${lever}" style="${lineStyle(metal.base, 2.4, `stroke:${metal.base}`)}"/>`
+    + `<path d="${lever}" style="${lineStyle(metal.edge, 2.9, 'opacity:.35')}"/>`
+    + `<path d="${lever}" style="${lineStyle(metal.base, 2.2)}"/>`
+    + `<path d="${glare}" style="${lineStyle(metal.light, 0.65, 'opacity:.85')}"/>`
     + `</g>`;
 }
 
