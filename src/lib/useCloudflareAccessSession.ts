@@ -1,20 +1,49 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, createContext, useContext } from 'react';
 
-type SessionState = 'checking' | 'ready' | 'redirecting';
+export type SessionState = 'checking' | 'ready' | 'redirecting';
+
+export interface UsuarioSession {
+  id?: string;
+  name?: string;
+  nombre?: string;
+  email?: string;
+  displayName?: string;
+  [key: string]: any;
+}
+
+export interface SessionContextType {
+  state: SessionState;
+  usuario: UsuarioSession | null;
+}
+
+export function displayName(usuario?: UsuarioSession | string | null): string {
+  if (!usuario) return 'Usuario';
+  if (typeof usuario === 'string') return usuario;
+  if (usuario.name) return usuario.name;
+  if (usuario.nombre) return usuario.nombre;
+  if (usuario.displayName) return usuario.displayName;
+  if (usuario.email) {
+    const part = usuario.email.split('@')[0];
+    return part.charAt(0).toUpperCase() + part.slice(1);
+  }
+  return 'Usuario';
+}
+
+export const SessionContext = createContext<SessionContextType>({
+  state: 'checking',
+  usuario: null,
+});
+
+export function useSession() {
+  return useContext(SessionContext);
+}
 
 /**
- * "Enciende" la sesion de Cloudflare Access antes de dejar que el resto de
- * la app haga llamadas XHR a mtw-relay-api. Cloudflare Access redirige con
- * una navegacion de pagina completa cuando no hay sesion - eso no funciona
- * si la primera vez que se topa con eso es en medio de un fetch/axios, asi
- * que esta pantalla se asegura de resolverlo primero con una redireccion
- * real de pestaña.
- *
- * Si VITE_API_URL no es una URL absoluta (desarrollo local, mismo origen),
- * no hay nada que "encender" - se considera listo de inmediato.
+ * Gestiona la sesión con Cloudflare Access y Microsoft Entra.
  */
-export function useCloudflareAccessSession(): SessionState {
+export function useCloudflareAccessSession(): SessionContextType {
   const [state, setState] = useState<SessionState>('checking');
+  const [usuario, setUsuario] = useState<UsuarioSession | null>(null);
 
   useEffect(() => {
     const apiUrl = import.meta.env.VITE_API_URL;
@@ -22,15 +51,12 @@ export function useCloudflareAccessSession(): SessionState {
     try {
       relayOrigin = new URL(apiUrl).origin;
     } catch {
-      // VITE_API_URL relativo (ej. "/api") -> mismo origen, no hay Access de por medio.
+      // VITE_API_URL relativo (dev local) -> sesion lista con usuario local
       setState('ready');
+      setUsuario({ name: 'Usuario MTW' });
       return;
     }
 
-    // Bajo /api a proposito: es la unica ruta que Cloudflare Access puede
-    // cubrir (una sola Application solo admite un path), asi que el probe
-    // de sesion tiene que vivir ahi para que Access lo intercepte igual
-    // que a cualquier llamada real de la API.
     const checkUrl = `${relayOrigin}/api/session-check`;
 
     fetch(checkUrl, { credentials: 'include' })
@@ -41,6 +67,7 @@ export function useCloudflareAccessSession(): SessionState {
       .then((body) => {
         if (body?.ok) {
           setState('ready');
+          setUsuario(body.usuario || body.user || { name: body.email?.split('@')[0] || 'Usuario' });
         } else {
           throw new Error('access-check respondio sin ok:true');
         }
@@ -52,5 +79,5 @@ export function useCloudflareAccessSession(): SessionState {
       });
   }, []);
 
-  return state;
+  return { state, usuario };
 }

@@ -1,5 +1,15 @@
 import axios from 'axios';
-import type { ProyectosResponse, Proyecto, ProyectoVersion, Fase, ProyectoMaterialAjuste, SyncLog, Cliente } from '../types';
+import type {
+  ProyectosResponse,
+  Proyecto,
+  ProyectoVersion,
+  Fase,
+  ProyectoMaterialAjuste,
+  SyncLog,
+  Cliente,
+  Material,
+  Proveedor,
+} from '../types';
 
 // withCredentials: true es lo que hace que el navegador mande la cookie de
 // sesion de Cloudflare Access en cada llamada (relay.mtw.cl/api/* esta
@@ -141,3 +151,34 @@ export async function createCliente(payload: Partial<Cliente>): Promise<{ data: 
   const response = await apiClient.post<{ data: Cliente }>('/clientes', payload);
   return response.data;
 }
+
+export async function getMateriales(params?: {
+  q?: string;
+  familia?: string;
+  limit?: number;
+}): Promise<{ data: Material[] }> {
+  const response = await apiClient.get<{ data: Material[] }>('/materiales', {
+    params,
+  });
+  return response.data;
+}
+
+export async function createMaterial(payload: {
+  skuInterno: string;
+  descripcion: string;
+  familia: string;
+  unidadMedida: string;
+  precioOrigen?: number | null;
+  monedaOrigen?: string | null;
+  proveedorId?: string | null;
+}): Promise<{ data: Material }> {
+  const response = await apiClient.post<{ data: Material }>('/materiales', payload);
+  return response.data;
+}
+
+export async function getProveedores(): Promise<{ data: Proveedor[] }> {
+  const response = await apiClient.get<{ data: Proveedor[] }>('/proveedores');
+  return response.data;
+}
+
+

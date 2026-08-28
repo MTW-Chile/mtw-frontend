@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
+import { InicioPage } from './modules/inicio/InicioPage';
 import { CotizacionesPage } from './modules/cotizaciones/CotizacionesPage';
 import { getProyectos } from './api/client';
-import { useCloudflareAccessSession } from './lib/useCloudflareAccessSession';
+import { useCloudflareAccessSession, SessionContext } from './lib/useCloudflareAccessSession';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -16,7 +17,7 @@ const queryClient = new QueryClient({
 });
 
 const AppContent: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('cotizaciones');
+  const [activeTab, setActiveTab] = useState('inicio');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -43,13 +44,25 @@ const AppContent: React.FC = () => {
         />
 
         <main className="flex-1 overflow-y-auto">
+          {activeTab === 'inicio' && (
+            <InicioPage onNavigate={(tab) => setActiveTab(tab)} />
+          )}
+
           {activeTab === 'cotizaciones' && (
             <CotizacionesPage searchTerm={searchTerm} />
           )}
 
-          {activeTab !== 'cotizaciones' && (
-            <div className="p-12 text-center text-slate-500 text-sm">
-              Módulo en construcción para próximas etapas.
+          {activeTab === 'taller' && (
+            <div className="p-8 sm:p-16 text-center space-y-3 max-w-md mx-auto">
+              <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-500 font-bold">
+                🛠️
+              </div>
+              <h3 className="text-sm font-bold text-slate-900">
+                Módulo de Taller & Fabricación
+              </h3>
+              <p className="text-xs text-slate-500">
+                Este módulo estará disponible en las próximas etapas para la gestión de corte, ensamble y despacho.
+              </p>
             </div>
           )}
         </main>
@@ -59,17 +72,21 @@ const AppContent: React.FC = () => {
 };
 
 const SessionGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const sessionState = useCloudflareAccessSession();
+  const session = useCloudflareAccessSession();
 
-  if (sessionState !== 'ready') {
+  if (session.state !== 'ready') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-500 text-sm">
-        {sessionState === 'redirecting' ? 'Redirigiendo a login...' : 'Verificando sesión...'}
+        {session.state === 'redirecting' ? 'Redirigiendo a login...' : 'Verificando sesión...'}
       </div>
     );
   }
 
-  return <>{children}</>;
+  return (
+    <SessionContext.Provider value={session}>
+      {children}
+    </SessionContext.Provider>
+  );
 };
 
 export const App: React.FC = () => {
