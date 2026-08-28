@@ -883,26 +883,51 @@
     return [...unique.values()];
   }
 
-  // Hay lineas que se venden como puro vidrio (el clasico "SOLO DVH" de
-  // COND. QUILLAYES DE LA DEHESA, Casa A V01 / HETMO 10583: un unico material,
-  // el termopanel). Sin perfiles no hay marco ni hoja que dibujar: es el
-  // vidrio solo. Se exige que la receta traiga materiales -- si la linea no
-  // trae ninguno no se sabe nada y se dibuja con marco, como siempre.
+  // Una línea es "sin marco" solo si su receta declara explícitamente al
+  // menos un material de vidrio (termopanel, DVH, monolítico…) Y ningún
+  // material es perfilería de PVC o aluminio.
+  //
+  // Contexto clave: en HETMO la perfilería suele ir asociada al presupuesto
+  // completo (linea_hetmo: 0) y no a cada línea individual. Eso significa que
+  // la receta de una línea típica solo trae el cristal aunque la ventana
+  // tenga marco. Por eso el criterio NO puede ser "toda la receta es vidrio"
+  // (rows.every → true para casi todas), sino la PRESENCIA POSITIVA de
+  // perfilería en la línea. Si la línea declara explícitamente un perfil de
+  // PVC/aluminio → tiene marco. Si no hay perfiles Y hay al menos un cristal
+  // → es una venta de puro vidrio (sin marco).
   export function isFrameless(line) {
     const rows = Array.isArray(line && line.materiales) ? line.materiales : [];
+    // Sin materiales de ningún tipo: no sabemos nada → dibujar con marco.
     if (!rows.length) return false;
-    // Se exige que TODA la receta sea vidrio, no solo que falten los perfiles:
-    // una linea que declara herrajes pero no perfiles es una receta incompleta,
-    // no una venta de puro termopanel.
-    return rows.every(item => {
-      const familia = String((item && item.familia) || '');
-      if (/vidrio|cristal/i.test(familia)) return true;
-      if (familia) return false;
-      // Respaldo por descripcion cuando la familia no viaja en el material.
-      const texto = String((item && (item.descripcionArticulo ?? item.descripcion)) || '');
-      return /\b(vidrio|cristal|termopanel|dvh|laminado|monol[ií]tico)\b/i.test(texto)
-        || /\d+\s*\/\s*\d+\s*\/\s*\d+/.test(texto);
-    });
+
+    let hasGlass = false;
+    let hasFrame = false;
+
+    for (const item of rows) {
+      const familia = String((item && item.familia) || '').trim();
+      const texto   = String((item && (item.descripcionArticulo ?? item.descripcion)) || '');
+
+      // Detectar perfilería de PVC o aluminio por familia o descripción.
+      if (
+        /perfiler[ií]a|perfil\b|pvc\b|alumin/i.test(familia) ||
+        /perfil[^a-z]|perfiler[ií]a/i.test(texto)
+      ) {
+        hasFrame = true;
+        break; // Basta con encontrar uno para confirmar que hay marco.
+      }
+
+      // Detectar vidrio / cristal por familia o descripción.
+      if (
+        /vidrio|cristal/i.test(familia) ||
+        /\b(vidrio|cristal|termopanel|dvh|laminado|monol[ií]tico)\b/i.test(texto) ||
+        /\d+\s*\/\s*\d+\s*\/\s*\d+/.test(texto) // p.ej. "4/12/4"
+      ) {
+        hasGlass = true;
+      }
+    }
+
+    // Sin marco solo si encontramos vidrio explícito y ninguna perfilería.
+    return hasGlass && !hasFrame;
   }
 
   export function isWithoutGlass(line) {
