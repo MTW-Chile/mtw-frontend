@@ -128,6 +128,8 @@ function buildCompositePanel(
   const compositeHinges = compositeHingeInfo.count > 0
     ? compositeHingeInfo
     : { count: height >= 2000 ? 3 : 2, reason: 'minimo-fisico-por-familia' };
+  // El herraje MONOBLOCK trae cerradura integrada y sólo existe en puertas.
+  const monoblock = core.hasMonoblock(line.materiales);
   const scaleX = drawingW / Math.max(1, composite.width);
   const scaleY = drawingH / Math.max(1, composite.height);
   const foregroundGlassCodes: string[] = [];
@@ -181,6 +183,7 @@ function buildCompositePanel(
 
       let sash = '';
       const panelDefinition = core.apertureDefinition(line, panel.apertura) as ApertureDefinition;
+      const panelLock = panelDefinition.family === 'door' && monoblock;
       // Una ventana fija no tiene hoja: es el marco con el vidrio montado
       // directamente sobre él. El resto sí lleva su hoja dentro del marco.
       sash = glassOnly || panelDefinition.family === 'fixed'
@@ -220,7 +223,7 @@ function buildCompositePanel(
           // Una practicable o abatible de dos hojas lleva UNA sola manilla: el
           // cerradero oculto de la hoja pasiva es cosa exclusiva de correderas.
           hardwareMarkup += handleMark(
-            { role: 'handle' as const, side: (activeSide === 'left' ? 'right' : 'left') as 'left' | 'right', reason: 'catalog-active-leaf' },
+            { role: 'handle' as const, side: (activeSide === 'left' ? 'right' : 'left') as 'left' | 'right', lock: panelLock, reason: 'catalog-active-leaf' },
             line,
             { component: panel },
             activeX,
@@ -236,7 +239,7 @@ function buildCompositePanel(
         }
       } else if (!glassOnly && (panelDefinition.family === 'hinged' || panelDefinition.family === 'door' || panelDefinition.family === 'tilt-turn')) {
         hardwareMarkup += handleMark(
-          { role: 'handle' as const, side: (panelDefinition.hinge === 'right' ? 'left' : 'right') as 'left' | 'right', reason: 'opposite-hinge' },
+          { role: 'handle' as const, side: (panelDefinition.hinge === 'right' ? 'left' : 'right') as 'left' | 'right', lock: panelLock, reason: 'opposite-hinge' },
           line,
           { component: panel },
           px,
@@ -491,6 +494,8 @@ function buildSimpleWindow(
   // Toda hoja que abre lleva bisagras, aunque la receta de materiales no las
   // declare (en HETMO suelen venir como accesorio de proyecto, no de línea).
   // El conteo real manda cuando existe; si no, se dibuja el mínimo físico.
+  // El herraje MONOBLOCK trae cerradura integrada y sólo existe en puertas.
+  const monoblock = core.hasMonoblock(line.materiales);
   const hinges = hingeInfo.count > 0
     ? hingeInfo
     : { count: height >= 2000 ? 3 : 2, reason: 'minimo-fisico-por-familia' };
@@ -635,7 +640,7 @@ function buildSimpleWindow(
           // Una practicable o abatible de dos hojas lleva UNA sola manilla: el
           // cerradero oculto de la hoja pasiva es cosa exclusiva de correderas.
           handleSpec = active
-            ? { role: 'handle' as const, side: (unitDefinition.hinge === 'right' ? 'left' : 'right') as 'left' | 'right', reason: isDouble ? 'catalog-active-leaf' : 'opposite-hinge' }
+            ? { role: 'handle' as const, side: (unitDefinition.hinge === 'right' ? 'left' : 'right') as 'left' | 'right', lock: unitDefinition.family === 'door' && monoblock, reason: isDouble ? 'catalog-active-leaf' : 'opposite-hinge' }
             : { role: 'none' as const, reason: 'catalog-passive-leaf' };
         }
         leafHardware += handleMark(handleSpec, line, leaf, leafX, contentY, leafWidth, contentH, height);

@@ -367,7 +367,9 @@ describe('buildWindow — nivel 2 vía parametrosJson', () => {
     });
   });
 
-  it('la manilla de corredera cabe dentro de la hoja', () => {
+  it('la base de la manilla de corredera cabe dentro de la hoja', () => {
+    // La manilla es la misma de una puerta, girada hacia abajo: lo que tiene
+    // que caber en la hoja es su base (el disco), no la palanca.
     const v = ventana({
       anchoMm: 1200,
       altoMm: 1400,
@@ -379,28 +381,50 @@ describe('buildWindow — nivel 2 vía parametrosJson', () => {
     const leaves = [...result.svg.matchAll(/data-leaf-x="([\d.]+)" data-leaf-width="([\d.]+)"/g)]
       .map(m => ({ x: Number(m[1]), width: Number(m[2]) }));
     expect(leaves.length).toBeGreaterThan(0);
-    const plates = [...result.svg.matchAll(/<g class="window-handle"[^>]*>\s*<rect x="([\d.-]+)"[^>]*width="([\d.]+)"/g)]
-      .map(m => ({ x: Number(m[1]), width: Number(m[2]) }));
-    expect(plates.length).toBeGreaterThan(0);
-    plates.forEach(plate => {
-      const leaf = leaves.find(l => plate.x >= l.x - 0.01 && plate.x + plate.width <= l.x + l.width + 0.01);
+    const bases = [...result.svg.matchAll(/<g class="window-handle"[\s\S]*?<circle cx="([\d.-]+)" cy="[\d.-]+" r="([\d.]+)"/g)]
+      .map(m => ({ cx: Number(m[1]), r: Number(m[2]) }));
+    expect(bases.length).toBeGreaterThan(0);
+    bases.forEach(base => {
+      const leaf = leaves.find(l => base.cx - base.r >= l.x - 0.01 && base.cx + base.r <= l.x + l.width + 0.01);
       expect(leaf).toBeDefined();
     });
   });
 
-  it('un herraje MONOBLOCK muestra la cerradura bajo la manilla', () => {
-    const corredera = (material: string) => ventana({
-      anchoMm: 1600,
-      altoMm: 1400,
-      dibujoTipoApertura: 32,
+  it('el cerradero de la corredera es más chico que la manilla', () => {
+    // El cerradero sólo existe cuando dos hojas se encuentran en el MISMO
+    // carril (código 44: Fijo-Int-Int-Fijo), no en una corredera de 2 hojas.
+    const v = ventana({
+      anchoMm: 5200,
+      altoMm: 1800,
+      dibujoTipoApertura: 44,
       acabadoCodigo: 'NO',
-      geometrias: [geometria({ tipoElemento: 3, tipoApertura: 32, anchoMm: 1600, altoMm: 1400, posicion: 1 })],
-      materiales: [materialDescrito(material, { cantidad: 1, piezas: 1 })],
+      geometrias: [geometria({ tipoElemento: 3, tipoApertura: 44, anchoMm: 5200, altoMm: 1800, posicion: 1 })],
     });
-    const conCerradura = buildWindow(toWindowLine(corredera('MONOBLOCK CORREDERA NEGRO'))!, 'line');
-    expect(conCerradura.svg).toContain('data-hardware="monoblock"');
-    const sinCerradura = buildWindow(toWindowLine(corredera('MANILLA CORREDERA NEGRO'))!, 'line');
-    expect(sinCerradura.svg).toContain('data-hardware="manilla"');
+    const result = buildWindow(toWindowLine(v)!, 'line');
+    const striker = result.svg.match(/<g class="window-striker"[\s\S]*?<rect x="[\d.-]+" y="[\d.-]+" width="([\d.]+)" height="([\d.]+)"/);
+    expect(striker).not.toBeNull();
+    // La barra del cerradero no puede superar el diámetro de la base de la
+    // manilla (2 * 2.4): antes medía 14 de alto y se comía el dibujo.
+    expect(Number(striker![2])).toBeLessThanOrEqual(2.4 * 2.8);
+  });
+
+  it('MONOBLOCK pone cerradura en la puerta, y nunca en una corredera', () => {
+    const conMonoblock = (apertura: number) => ventana({
+      anchoMm: 1600,
+      altoMm: 2400,
+      dibujoTipoApertura: apertura,
+      acabadoCodigo: 'NO',
+      geometrias: [geometria({ tipoElemento: 3, tipoApertura: apertura, anchoMm: 1600, altoMm: 2400, posicion: 1 })],
+      materiales: [materialDescrito('MONOBLOCK PUERTA NEGRO', { cantidad: 1, piezas: 1 })],
+    });
+    // 18 = puerta practicable izquierda
+    expect(buildWindow(toWindowLine(conMonoblock(18))!, 'line').svg).toContain('data-hardware="monoblock"');
+    // 32 = corredera: mismo material, pero sin cerradura en el dibujo
+    const corredera = buildWindow(toWindowLine(conMonoblock(32))!, 'line');
+    expect(corredera.svg).not.toContain('data-hardware="monoblock"');
+    expect(corredera.svg).toContain('data-hardware="manilla"');
+    // Una practicable normal (no puerta) tampoco la lleva
+    expect(buildWindow(toWindowLine(conMonoblock(4))!, 'line').svg).not.toContain('data-hardware="monoblock"');
   });
 
   it('el travesaño se dibuja dentro del vidrio de cada hoja, no sobre la ventana entera', () => {

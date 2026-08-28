@@ -416,53 +416,63 @@ export function handleMark(
       ? y + 3
       : openingAxisY(line, leaf, y, height, physicalHeight);
   const side = spec.side === 'left' ? 'left' : spec.side === 'right' ? 'right' : 'center';
-  const hx = side === 'left'
+  const rawHx = side === 'left'
     ? x + 3.5
     : side === 'right'
       ? x + width - 3.5
       : x + width / 2;
+  // La base de la manilla siempre cae dentro de la hoja; lo único que puede
+  // sobresalir es la palanca cuando apunta hacia el vano (puertas, abatibles).
+  const BASE_RADIUS = 2.4;
+  const hx = clamp(rawHx, x + BASE_RADIUS + 0.4, x + width - BASE_RADIUS - 0.4);
+
   if (spec.role === 'striker') {
+    // Cerradero (la "manilla oculta" de la hoja pasiva de una corredera): es
+    // una pieza chica, a escala de la manilla, no una barra que la duplique.
+    const barHeight = BASE_RADIUS * 2.6;
+    const catch_ = BASE_RADIUS * 1.35;
     return `<g class="window-striker" data-reason="${escape(spec.reason)}">`
-      + `<rect x="${hx - 1.3}" y="${hy - 7}" width="2.6" height="14" rx=".9" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.45"/>`
-      + `<line x1="${hx - 0.75}" y1="${hy - 6}" x2="${hx - 0.75}" y2="${hy + 6}" style="${lineStyle(metal.light, 0.55, 'opacity:.8')}"/>`
-      + `<rect x="${hx - 2.6}" y="${hy - 2.6}" width="5.2" height="5.2" rx=".9" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.45"/>`
+      + `<rect x="${hx - 0.9}" y="${hy - barHeight / 2}" width="1.8" height="${barHeight}" rx=".7" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.4"/>`
+      + `<line x1="${hx - 0.45}" y1="${hy - barHeight / 2 + 0.7}" x2="${hx - 0.45}" y2="${hy + barHeight / 2 - 0.7}" style="${lineStyle(metal.light, 0.45, 'opacity:.8')}"/>`
+      + `<rect x="${hx - catch_ / 2}" y="${hy - catch_ / 2}" width="${catch_}" height="${catch_}" rx=".7" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.4"/>`
       + `</g>`;
   }
   const heightSource = spec.position ? `${spec.position}-by-opening` : heightInfo.reason;
 
-  // La manilla de corredera cuelga vertical sobre el montante de la hoja. Su
-  // base tiene que caber DENTRO de la hoja (a diferencia de la de una
-  // practicable o proyectante, cuya palanca entra hacia el vano y sí puede
-  // sobresalir), así que va angosta y se centra en el montante.
-  if (spec.orientation === 'down') {
-    const plateWidth = clamp(width * 0.14, 1.8, 2.8);
-    const plateHeight = clamp(height * 0.16, 9, 15);
-    const half = plateWidth / 2;
-    const cx = clamp(hx, x + half + 0.5, x + width - half - 0.5);
-    const top = hy - plateHeight * 0.32;
-    const monoblock = core.hasMonoblock(line.materiales);
-    const cylinderY = top + plateHeight + 3.4;
-    return `<g class="window-handle" data-axis-y="${hy}" data-height-source="${heightSource}" data-hardware="${monoblock ? 'monoblock' : 'manilla'}" data-reason="${escape(spec.reason || 'opening-leaf')}">`
-      + `<rect x="${cx - half}" y="${top}" width="${plateWidth}" height="${plateHeight}" rx="${half}" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.4"/>`
-      + `<line x1="${cx - half + 0.42}" y1="${top + 0.9}" x2="${cx - half + 0.42}" y2="${top + plateHeight - 0.9}" style="${lineStyle(metal.light, 0.45, 'opacity:.85')}"/>`
-      + (monoblock
-        // Cerradura monoblock: cilindro bajo la manilla, como en el herraje real.
-        ? `<circle cx="${cx}" cy="${cylinderY}" r="${Math.min(1.5, half + 0.4)}" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.4"/>`
-          + `<line x1="${cx}" y1="${cylinderY}" x2="${cx}" y2="${cylinderY + 1.6}" style="${lineStyle(metal.edge, 0.5, 'opacity:.9')}"/>`
-        : '')
-      + `</g>`;
-  }
-
-  const leverX = side === 'left' ? hx + 8 : side === 'right' ? hx - 8 : hx;
-  const leverY = spec.orientation === 'up' ? hy - 9 : spec.position === 'top' ? hy + 9 : hy;
-  const lever = side === 'center'
+  // Misma manilla en todas las familias -- la de corredera es exactamente
+  // ésta, sólo que la palanca apunta hacia abajo en vez de hacia el lado.
+  const vertical = spec.orientation === 'down';
+  const leverX = vertical ? hx : side === 'left' ? hx + 8 : side === 'right' ? hx - 8 : hx;
+  const leverY = vertical
+    ? hy + 8
+    : spec.orientation === 'up' ? hy - 9 : spec.position === 'top' ? hy + 9 : hy;
+  const lever = vertical || side === 'center'
     ? `M ${hx} ${hy} L ${leverX} ${leverY}`
     : `M ${hx} ${hy} H ${leverX}`;
-  const glare = side === 'center'
+  const glare = vertical
     ? `M ${hx - 0.7} ${hy} L ${leverX - 0.7} ${leverY}`
-    : `M ${hx} ${hy - 0.75} H ${leverX}`;
-  return `<g class="window-handle" data-axis-y="${hy}" data-height-source="${heightSource}" data-reason="${escape(spec.reason || 'opening-leaf')}">`
-    + `<circle cx="${hx}" cy="${hy}" r="2.4" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.45"/>`
+    : side === 'center'
+      ? `M ${hx - 0.7} ${hy} L ${leverX - 0.7} ${leverY}`
+      : `M ${hx} ${hy - 0.75} H ${leverX}`;
+
+  // Herraje MONOBLOCK (puertas): la misma manilla, pero montada sobre una
+  // placa que se prolonga hacia abajo y termina en el bombín de la cerradura.
+  const lockPlate = spec.lock
+    ? (() => {
+        const plateHalf = BASE_RADIUS * 1.05;
+        const top = hy - BASE_RADIUS * 1.6;
+        const bottom = hy + BASE_RADIUS * 4.6;
+        const keyY = hy + BASE_RADIUS * 3.1;
+        return `<rect x="${hx - plateHalf}" y="${top}" width="${plateHalf * 2}" height="${bottom - top}" rx="${plateHalf}" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.4"/>`
+          + `<line x1="${hx - plateHalf + 0.5}" y1="${top + 1}" x2="${hx - plateHalf + 0.5}" y2="${bottom - 1}" style="${lineStyle(metal.light, 0.45, 'opacity:.55')}"/>`
+          + `<circle cx="${hx}" cy="${keyY}" r=".95" style="fill:${metal.edge};stroke:none"/>`
+          + `<path d="M ${hx} ${keyY} L ${hx} ${keyY + 1.9}" style="${lineStyle(metal.edge, 0.75)}"/>`;
+      })()
+    : '';
+
+  return `<g class="window-handle" data-axis-y="${hy}" data-height-source="${heightSource}" data-hardware="${spec.lock ? 'monoblock' : 'manilla'}" data-reason="${escape(spec.reason || 'opening-leaf')}">`
+    + lockPlate
+    + `<circle cx="${hx}" cy="${hy}" r="${BASE_RADIUS}" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.45"/>`
     + `<circle cx="${hx - 0.6}" cy="${hy - 0.6}" r="1" style="fill:${metal.light};opacity:.8"/>`
     + `<path d="${lever}" style="${lineStyle(metal.base, 3, `stroke:${metal.base}`)}"/>`
     + `<path d="${lever}" style="${lineStyle(metal.edge, 3.6, 'opacity:.35')}"/>`

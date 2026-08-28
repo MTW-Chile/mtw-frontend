@@ -166,6 +166,8 @@ export interface HardwareSpec {
   side?: 'left' | 'right' | 'center';
   position?: 'top' | 'bottom';
   orientation?: 'up' | 'down';
+  /** Cerradura integrada (herraje MONOBLOCK): extiende la base con el bombín */
+  lock?: boolean;
   reason: string;
   rail?: string;
 }
