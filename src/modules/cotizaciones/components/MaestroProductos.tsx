@@ -14,7 +14,7 @@ import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
 import { TableSkeleton } from '../../../components/ui/Skeleton';
 import { NuevoMaterialModal } from './NuevoMaterialModal';
-import { formatNumber } from '../../../lib/utils';
+import { useMonedas, resolverMoneda, formatMonto } from '../../../lib/monedas';
 import type { Material } from '../../../types';
 
 export const MaestroProductos: React.FC = () => {
@@ -31,6 +31,7 @@ export const MaestroProductos: React.FC = () => {
   });
 
   const materiales = useMemo(() => data || [], [data]);
+  const monedas = useMonedas();
 
   // Las familias del filtro salen de los datos, no de una lista fija: HETMO
   // usa Perfileria, Vidrios, Herrajes, Accesorios, Refuerzos, Juntas y Otros,
@@ -81,22 +82,18 @@ export const MaestroProductos: React.FC = () => {
   const getMaterialPrecioInfo = (mat: Material) => {
     if (mat.precios && mat.precios.length > 0) {
       const p = mat.precios[0];
-      return { precio: Number(p.precio), moneda: p.moneda || 'CLP' };
+      return { precio: Number(p.precio), moneda: p.moneda || '' };
     }
     return {
       precio: mat.precioOrigen !== undefined && mat.precioOrigen !== null ? Number(mat.precioOrigen) : null,
-      moneda: mat.monedaOrigen || 'CLP',
+      moneda: mat.monedaOrigen || '',
     };
   };
 
-  const formatPrecio = (precio?: number | null, moneda?: string | null) => {
-    if (precio === undefined || precio === null) return '-';
-    const curr = moneda || 'CLP';
-    if (curr === 'UF') return `UF ${formatNumber(precio, 2)}`;
-    if (curr === 'USD') return `USD $${formatNumber(precio, 2)}`;
-    if (curr === 'EUR') return `€ ${formatNumber(precio, 2)}`;
-    return `$${formatNumber(precio, 0)}`;
-  };
+  // El material trae el codigo de divisa de HETMO ("2"), no un ISO: hay que
+  // resolverlo contra el diccionario antes de mostrar nada.
+  const formatPrecio = (precio?: number | null, moneda?: string | null) =>
+    formatMonto(precio, resolverMoneda(moneda, monedas));
 
   return (
     <div className="space-y-4 sm:space-y-5 animate-fade-in">
@@ -296,7 +293,7 @@ export const MaestroProductos: React.FC = () => {
                         </td>
                         <td className="px-5 py-4 text-center font-mono font-bold text-slate-600 whitespace-nowrap">
                           <span className="px-2 py-0.5 rounded-md bg-slate-50 border border-slate-200 text-[11px]">
-                            {moneda}
+                            {resolverMoneda(moneda, monedas).nombre}
                           </span>
                         </td>
                         <td className="px-5 py-4 text-right font-mono font-bold text-slate-900 whitespace-nowrap">

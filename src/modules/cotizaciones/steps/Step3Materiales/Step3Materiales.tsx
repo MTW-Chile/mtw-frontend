@@ -8,6 +8,7 @@ import {
   Check 
 } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
+import { useMonedas, resolverMoneda, formatMonto } from '../../../../lib/monedas';
 import type { Proyecto, ProyectoVersion, MaterialVentana } from '../../../../types';
 import { DivisasForm } from '../Step1DatosCliente/DivisasForm';
 
@@ -57,6 +58,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [materialExclusiones, setMaterialExclusiones] = useState<Record<string, boolean>>({});
 
+  const monedas = useMonedas();
   const tasaDolar = Number(dolar) || 950;
   const tasaUf = Number(uf) || 38500;
   const tasaEuro = Number(euro) || 1030;
@@ -75,12 +77,15 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
         const key = mv.materialId || mv.id;
         const cantidadTotal = (mv.cantidad || 1) * unidadesVentana;
         const precioOrigen = mv.precioOrigen || 0;
-        const monedaOrigen = mv.monedaOrigen || 'CLP';
+        const monedaOrigen = mv.monedaOrigen || '';
 
+        // HETMO manda el codigo de divisa ("2"), no el ISO: hay que resolverlo
+        // antes de elegir el factor, o todo se convertia con factor 1.
+        const iso = resolverMoneda(monedaOrigen, monedas).iso;
         let factorCLP = 1;
-        if (monedaOrigen === 'USD') factorCLP = tasaDolar;
-        else if (monedaOrigen === 'EUR') factorCLP = tasaEuro;
-        else if (monedaOrigen === 'UF') factorCLP = tasaUf;
+        if (iso === 'USD') factorCLP = tasaDolar;
+        else if (iso === 'EUR') factorCLP = tasaEuro;
+        else if (iso === 'UF') factorCLP = tasaUf;
 
         const precioCLP = precioOrigen * factorCLP;
 
@@ -107,7 +112,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     });
 
     return Array.from(map.values());
-  }, [activeVersion, tasaDolar, tasaEuro, tasaUf, materialExclusiones]);
+  }, [activeVersion, tasaDolar, tasaEuro, tasaUf, materialExclusiones, monedas]);
 
   // Familias disponibles
   const familias = useMemo(() => {
@@ -328,7 +333,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                   </td>
                   <td className="px-3.5 py-2 text-center text-slate-500 font-mono">{m.unidadMedida}</td>
                   <td className="px-3.5 py-2 text-right font-mono text-slate-700">
-                    {m.monedaOrigen} {formatNumber(m.precioOrigen, 2)}
+                    {formatMonto(m.precioOrigen, resolverMoneda(m.monedaOrigen, monedas))}
                   </td>
                   <td className="px-3.5 py-2 text-right font-mono font-bold text-slate-900">
                     $ {formatNumber(m.precioCLP * m.cantidadTotal, 0)}
