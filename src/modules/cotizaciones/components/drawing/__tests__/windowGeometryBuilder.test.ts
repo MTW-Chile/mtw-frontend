@@ -45,6 +45,27 @@ describe('buildWindow — regresión del fix A1 (el núcleo lee WindowLine direc
     expect(result.apertureCodes.sort()).toEqual([0, 23]);
   });
 
+  it('ventana compuesta: cada paño dibuja su propio marco, no uno solo compartido para toda la línea', () => {
+    // Confirmado contra el propio dibujo de HETMO: cada paño de una
+    // compuesta es un marco físico unido al de al lado, igual que en una
+    // ventana simple de varias hojas -- no un solo marco exterior con los
+    // paños sueltos por dentro.
+    const v = ventana({
+      anchoMm: 1200,
+      altoMm: 1800,
+      dibujoTipoApertura: 23,
+      acabadoCodigo: 'BL',
+      geometrias: [
+        geometria({ ordenGeometria: 1, tipoElemento: 10000, anchoMm: 1200, altoMm: 600 }),
+        geometria({ ordenGeometria: 2, tipoElemento: 3, tipoApertura: 23, anchoMm: 1200, altoMm: 600 }),
+        geometria({ ordenGeometria: 3, tipoElemento: 10000, anchoMm: 1200, altoMm: 1200 }),
+        geometria({ ordenGeometria: 4, tipoElemento: 3, tipoApertura: 0, anchoMm: 1200, altoMm: 1200 }),
+      ],
+    });
+    const result = buildWindow(toWindowLine(v)!, 'line');
+    expect((result.svg.match(/class="line-window-frame"/g) || []).length).toBe(2);
+  });
+
   it('ventana fija simple sigue resolviendo apertura 0 (sin regresión)', () => {
     const v = ventana({ dibujoTipoApertura: 0, acabadoCodigo: 'BL' });
     const result = buildWindow(toWindowLine(v)!, 'line');
