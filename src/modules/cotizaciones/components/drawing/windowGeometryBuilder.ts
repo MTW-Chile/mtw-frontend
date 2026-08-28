@@ -187,6 +187,16 @@ function buildCompositePanel(
         ? ''
         : sashMarkup(px, py, pw, ph, finish);
 
+      // El vidrio va DENTRO de la hoja (o directamente contra el marco, si la
+      // ventana es fija): la hoja es un perfil relleno, así que dibujarla
+      // encima del vidrio lo taparía por completo.
+      const sashInset = glassOnly ? 0 : SASH_THICKNESS;
+      const glazing = (gx: number, gy: number, gw: number, gh: number, insideSash: boolean) => {
+        const i = insideSash ? sashInset : 0;
+        return glassMarkup(glassClass, gx + i, gy + i, Math.max(1, gw - i * 2), Math.max(1, gh - i * 2));
+      };
+      let panelGlazing = glazing(px, py, pw, ph, panelDefinition.family !== 'fixed');
+
       const panelAxisY = panelDefinition?.family === 'projecting'
         ? py + ph - 3
         : openingAxisY(line, { component: panel }, py, ph, panel.height);
@@ -203,6 +213,7 @@ function buildCompositePanel(
       if (isDoubleOpening) {
         // Dos hojas en paralelo dentro del mismo marco, sin solape.
         sash = glassOnly ? '' : `${sashMarkup(px, py, pw / 2, ph, finish)}${sashMarkup(px + pw / 2, py, pw / 2, ph, finish)}`;
+        panelGlazing = `${glazing(px, py, pw / 2, ph, true)}${glazing(px + pw / 2, py, pw / 2, ph, true)}`;
         if (!glassOnly) {
           const activeSide = panelDefinition.hand === 'left' ? 'left' : 'right';
           const activeX = activeSide === 'left' ? px : px + pw / 2;
@@ -285,11 +296,13 @@ function buildCompositePanel(
         let leafX = px;
         const sliderHardware = core.sliderHardware(resolvedLeaves) as HardwareSpec[];
         sash = '';
+        // Cada hoja de la corredera lleva su propio vidrio adentro.
+        panelGlazing = '';
         const sliderLayers = panelLayout.map((kind: string, leafIndex: number) => {
           const leafWidth = availableWidth * panelWeights[leafIndex] / totalWeight;
           const depth = resolvedLeaves[leafIndex].carril;
-          const leafInset = depth > 0 ? clamp(3.2 - (depth - 1) * 0.8, 1.4, 3.2) : 2.2;
-          const leafSash = glassOnly ? '' : sashMarkup(leafX, py, leafWidth, ph, finish, leafInset);
+          const leafSash = glassOnly ? '' : sashMarkup(leafX, py, leafWidth, ph, finish);
+          const leafGlass = glazing(leafX, py, leafWidth, ph, true);
           const leafAxisY = openingAxisY(line, resolvedLeaves[leafIndex], py, ph, panel.height);
           const leafMark = slidingMark(kind, leafX, py, leafWidth, ph, '#2452d6', leafAxisY);
           const leafHandle = glassOnly ? '' : handleMark(
@@ -308,7 +321,7 @@ function buildCompositePanel(
           if (leafCode) foregroundGlassCodes.push(leafCode);
           const leafMuntins = muntinMarkup(line, leafX, py, leafWidth, ph, finish.frame);
           const railName = depth > 0 ? `C${depth}` : '';
-          const markup = `<g class="window-leaf-depth window-rail-${depth || 0}" data-leaf-index="${leafIndex}" data-leaf-x="${leafX}" data-leaf-width="${leafWidth}" data-rail="${railName}" data-rail-source="${escape(resolvedLeaves[leafIndex].carrilFuente || '')}">${leafSash}${leafMark}${leafMuntins}</g>`;
+          const markup = `<g class="window-leaf-depth window-rail-${depth || 0}" data-leaf-index="${leafIndex}" data-leaf-x="${leafX}" data-leaf-width="${leafWidth}" data-rail="${railName}" data-rail-source="${escape(resolvedLeaves[leafIndex].carrilFuente || '')}">${leafSash}${leafGlass}${leafMark}${leafMuntins}</g>`;
           leafX += leafWidth - (boundaryOverlaps[leafIndex] || 0);
           return { depth, index: leafIndex, markup };
         });
@@ -377,7 +390,7 @@ function buildCompositePanel(
       // su propia unidad frente a los paños de al lado.
       const panelFrame = glassOnly ? '' : frameMarkup(frameClass, outerX, outerY, outerW, outerH, finish);
 
-      return `${panelFrame}${glassMarkup(glassClass, px, py, pw, ph)}${sash}${mark}${traverses}${splits}${panelMuntins}${panelDimension}${foregroundHardware}`;
+      return `${panelFrame}${sash}${panelGlazing}${mark}${traverses}${splits}${panelMuntins}${panelDimension}${foregroundHardware}`;
     })
     .join('');
 
@@ -612,7 +625,7 @@ function buildSimpleWindow(
       leafLayers.push({
         depth,
         position,
-        markup: `<g class="window-leaf-depth window-rail-${depth || 0}" data-leaf-index="${index}" data-leaf-x="${leafX}" data-leaf-width="${leafWidth}" data-rail="${depth > 0 ? `C${depth}` : ''}" data-rail-source="${escape(rail.source)}">${leafGlass}${leafSash}${leafMuntins}${leafMark}</g>`,
+        markup: `<g class="window-leaf-depth window-rail-${depth || 0}" data-leaf-index="${index}" data-leaf-x="${leafX}" data-leaf-width="${leafWidth}" data-rail="${depth > 0 ? `C${depth}` : ''}" data-rail-source="${escape(rail.source)}">${leafSash}${leafGlass}${leafMuntins}${leafMark}</g>`,
       });
     });
 
