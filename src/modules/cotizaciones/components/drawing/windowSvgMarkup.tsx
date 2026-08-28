@@ -18,7 +18,6 @@ import type {
   WindowLine,
   HardwareSpec,
   FinishColors,
-  MetalColorSet,
   ApertureDefinition,
   OpeningSymbolSegment,
   MuntinLine,
@@ -67,16 +66,6 @@ export function finishFor(line: WindowLine): FinishColors {
   );
 }
 
-export function metalFor(line: WindowLine, role: string): MetalColorSet {
-  const finish = finishFor(line);
-  const base = String(core.hardwareColor(
-    line.materiales,
-    finish.frame,
-    role
-  ));
-  return metalColors(base);
-}
-
 // ─── Funciones de markup (retornan string SVG) ─────────────────────────────────
 
 export function glassMarkup(
@@ -90,26 +79,58 @@ export function glassMarkup(
   return `<rect class="${className}" x="${x}" y="${y}" width="${width}" height="${height}" style="fill:${hasGlass ? VISUAL.glass : '#ffffff'};stroke:${VISUAL.glassEdge};stroke-width:.8"/>`;
 }
 
+/**
+ * Grosor de los perfiles, en unidades del lienzo. Un perfil se dibuja SIEMPRE
+ * dentro de los límites que recibe (nunca hacia afuera): así dos unidades
+ * vecinas de una ventana compuesta quedan pegadas borde con borde en vez de
+ * solaparse, que es como las une la fábrica.
+ */
+export const FRAME_THICKNESS = 4.5;
+export const SASH_THICKNESS = 4.6;
+
+/**
+ * Perfil de aluminio/PVC como banda sólida: cuerpo relleno con el color del
+ * acabado, bisel de luz arriba-izquierda y de sombra abajo-derecha, ingletes
+ * en las esquinas y el canto interior hundido. Es la pieza común del marco
+ * (frameMarkup) y de la hoja (sashMarkup): ambos son perfiles reales, no
+ * contornos huecos.
+ */
+function profileBandMarkup(
+  groupClass: string,
+  bodyClass: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  thickness: number,
+  color: { base: string; light: string; dark: string },
+  extraAttrs = ''
+): string {
+  const t = clamp(thickness, 1, Math.max(1, Math.min(width, height) / 2 - 0.4));
+  const ix = x + t;
+  const iy = y + t;
+  const iw = Math.max(0.6, width - t * 2);
+  const ih = Math.max(0.6, height - t * 2);
+  return `<g class="${groupClass}"${extraAttrs}>`
+    + `<rect class="${bodyClass}" x="${x}" y="${y}" width="${width}" height="${height}" rx=".8" style="fill:${color.base};stroke:${color.dark};stroke-width:.6"/>`
+    + `<path d="M ${x + 0.5} ${y + height - 0.5} V ${y + 0.5} H ${x + width - 0.5}" style="${lineStyle(color.light, 1, 'opacity:.75')}"/>`
+    + `<path d="M ${x + 0.5} ${y + height - 0.5} H ${x + width - 0.5} V ${y + 0.5}" style="${lineStyle(color.dark, 1, 'opacity:.6')}"/>`
+    + `<path class="window-profile-miters" d="M ${x} ${y} L ${ix} ${iy} M ${x + width} ${y} L ${ix + iw} ${iy} M ${x} ${y + height} L ${ix} ${iy + ih} M ${x + width} ${y + height} L ${ix + iw} ${iy + ih}" style="${lineStyle(color.dark, 0.35, 'opacity:.45')}"/>`
+    + `<path d="M ${ix} ${iy + ih} V ${iy} H ${ix + iw}" style="${lineStyle(color.dark, 0.8, 'opacity:.55')}"/>`
+    + `<path d="M ${ix} ${iy + ih} H ${ix + iw} V ${iy}" style="${lineStyle(color.light, 0.8, 'opacity:.5')}"/>`
+    + `</g>`;
+}
+
 export function frameMarkup(
   className: string,
   x: number,
   y: number,
   width: number,
   height: number,
-  finish: FinishColors
+  finish: FinishColors,
+  thickness = FRAME_THICKNESS
 ): string {
-  const color = profileColors(finish);
-  const outerX = x - 4.5;
-  const outerY = y - 4.5;
-  const outerWidth = width + 9;
-  const outerHeight = height + 9;
-  return `<g class="${className}">`
-    + `<rect x="${outerX}" y="${outerY}" width="${outerWidth}" height="${outerHeight}" rx="1" style="fill:${color.base};stroke:${color.dark};stroke-width:1"/>`
-    + `<path d="M ${outerX + 1} ${outerY + outerHeight - 1} V ${outerY + 1} H ${outerX + outerWidth - 1}" style="${lineStyle(color.light, 1.25, 'opacity:.72')}"/>`
-    + `<path d="M ${outerX + 1} ${outerY + outerHeight - 1} H ${outerX + outerWidth - 1} V ${outerY + 1}" style="${lineStyle(color.dark, 1.25, 'opacity:.62')}"/>`
-    + `<rect x="${x - 0.7}" y="${y - 0.7}" width="${width + 1.4}" height="${height + 1.4}" rx=".7" style="fill:none;stroke:${color.dark};stroke-width:.7;opacity:.66"/>`
-    + `<path d="M ${x} ${y + height} V ${y} H ${x + width}" style="${lineStyle(color.light, 0.55, 'opacity:.55')}"/>`
-    + `</g>`;
+  return profileBandMarkup(className, 'window-frame-profile', x, y, width, height, thickness, profileColors(finish));
 }
 
 export function sashMarkup(
@@ -118,26 +139,19 @@ export function sashMarkup(
   width: number,
   height: number,
   finish: FinishColors,
-  inset = 2.2
+  thickness = SASH_THICKNESS
 ): string {
-  const color = profileColors(finish);
-  const sx = x + inset;
-  const sy = y + inset;
-  const sw = Math.max(2, width - inset * 2);
-  const sh = Math.max(2, height - inset * 2);
-  const weight = clamp(Math.min(width, height) * 0.03, 1.8, 2.8);
-  const beadInset = Math.max(1.4, weight * 0.8);
-  const innerX = sx + beadInset;
-  const innerY = sy + beadInset;
-  const innerW = Math.max(1, sw - beadInset * 2);
-  const innerH = Math.max(1, sh - beadInset * 2);
-  return `<g class="window-sash" data-profile-layer="raised">`
-    + `<rect class="window-sash-profile" x="${sx}" y="${sy}" width="${sw}" height="${sh}" rx=".65" style="fill:none;stroke:${color.base};stroke-width:${weight}"/>`
-    + `<path class="window-sash-highlight" d="M ${sx + 0.45} ${sy + sh - 0.45} V ${sy + 0.45} H ${sx + sw - 0.45}" style="${lineStyle(color.light, 0.9, 'opacity:.82')}"/>`
-    + `<path class="window-sash-shade" d="M ${sx + 0.45} ${sy + sh - 0.45} H ${sx + sw - 0.45} V ${sy + 0.45}" style="${lineStyle(color.dark, 0.9, 'opacity:.72')}"/>`
-    + `<rect class="window-glazing-bead" x="${innerX}" y="${innerY}" width="${innerW}" height="${innerH}" rx=".2" style="fill:none;stroke:${color.dark};stroke-width:.42;opacity:.72"/>`
-    + `<path class="window-sash-miters" d="M ${sx} ${sy} L ${innerX} ${innerY} M ${sx + sw} ${sy} L ${innerX + innerW} ${innerY} M ${sx} ${sy + sh} L ${innerX} ${innerY + innerH} M ${sx + sw} ${sy + sh} L ${innerX + innerW} ${innerY + innerH}" style="${lineStyle(color.dark, 0.34, 'opacity:.42')}"/>`
-    + `</g>`;
+  return profileBandMarkup(
+    'window-sash',
+    'window-sash-profile',
+    x,
+    y,
+    width,
+    height,
+    thickness,
+    profileColors(finish),
+    ' data-profile-layer="raised"'
+  );
 }
 
 export function fixedGlazingMarkup(
@@ -248,15 +262,32 @@ export function segmentDimensionMarkup(
     + `</g>`;
 }
 
+/**
+ * Composición del vidrio, anclada siempre en la esquina inferior izquierda del
+ * área que la contiene. Va pequeña a propósito: tiene que caber en paños
+ * angostos y no puede taparle la manilla a una proyectante (que la lleva
+ * abajo al centro).
+ */
 export function glassCodeMarkup(
   className: string,
   value: string,
-  x: number,
-  y: number
+  boxX: number,
+  boxY: number,
+  boxWidth: number,
+  boxHeight: number
 ): string {
-  return value
-    ? `<text class="${className}" x="${x}" y="${y}" style="font:700 6.4px system-ui,sans-serif;fill:${VISUAL.glassText};paint-order:stroke;stroke:#f6fbfc;stroke-width:1.7px;stroke-linejoin:round">${escape(value)}</text>`
+  if (!value) return '';
+  const fontSize = 4.8;
+  const x = boxX + 2.2;
+  const y = boxY + boxHeight - 2.2;
+  // Si el paño es demasiado angosto para el texto, se comprime en vez de
+  // desbordarse fuera del vidrio.
+  const available = Math.max(6, boxWidth - 4.4);
+  const estimated = value.length * fontSize * 0.55;
+  const fit = estimated > available
+    ? ` textLength="${available.toFixed(2)}" lengthAdjust="spacingAndGlyphs"`
     : '';
+  return `<text class="${className}" x="${x}" y="${y}"${fit} style="font:700 ${fontSize}px system-ui,sans-serif;fill:${VISUAL.glassText};paint-order:stroke;stroke:#f6fbfc;stroke-width:1.5px;stroke-linejoin:round">${escape(value)}</text>`;
 }
 
 export function fixedMark(
@@ -323,8 +354,9 @@ export function hingedMark(
         return `<path data-opening-role="${segment.role}" data-opening-face="${segment.face || ''}"${axis} d="${d}" style="${lineStyle(color, segment.role === 'tilt' ? 1.05 : 1.2, segment.dashed ? 'stroke-dasharray:3 2' : '')}"/>`;
       })
       .join('');
-    const face = sharedDefinition.face === 'interior' ? 'Int.' : sharedDefinition.face === 'exterior' ? 'Ext.' : '';
-    return `${paths}${face ? `<text x="${x + width / 2}" y="${y + 9}" text-anchor="middle" style="font:700 6px system-ui,sans-serif;fill:${color}">${face}</text>` : ''}`;
+    // La cara Int./Ext. ya se entiende por el propio símbolo de apertura: la
+    // etiqueta sólo robaba espacio dentro del paño.
+    return paths;
   }
   return fixedMark(x, y, width, height, color);
 }
@@ -376,11 +408,7 @@ export function handleMark(
   physicalHeight: number
 ): string {
   if (!spec || spec.role === 'none') return '';
-  const metal = metalColors(String(core.hardwareColor(
-    line.materiales,
-    finishFor(line).frame,
-    'handle'
-  )));
+  const metal = metalColors(String(core.hardwareColor(line.materiales, finishFor(line).frame)));
   const heightInfo = core.handleHeightFor(line, leaf, physicalHeight);
   const hy = spec.position === 'bottom'
     ? y + height - 3
@@ -388,34 +416,68 @@ export function handleMark(
       ? y + 3
       : openingAxisY(line, leaf, y, height, physicalHeight);
   const side = spec.side === 'left' ? 'left' : spec.side === 'right' ? 'right' : 'center';
-  const hx = side === 'left'
+  const rawHx = side === 'left'
     ? x + 3.5
     : side === 'right'
       ? x + width - 3.5
       : x + width / 2;
+  // La base de la manilla siempre cae dentro de la hoja; lo único que puede
+  // sobresalir es la palanca cuando apunta hacia el vano (puertas, abatibles).
+  const BASE_RADIUS = 1.9;
+  const hx = clamp(rawHx, x + BASE_RADIUS + 0.4, x + width - BASE_RADIUS - 0.4);
+
   if (spec.role === 'striker') {
+    // Cerradero (la "manilla oculta" de la hoja pasiva de una corredera): es
+    // una pieza chica, a escala de la manilla, no una barra que la duplique.
+    const barHeight = BASE_RADIUS * 2.6;
+    const catch_ = BASE_RADIUS * 1.35;
     return `<g class="window-striker" data-reason="${escape(spec.reason)}">`
-      + `<rect x="${hx - 1.3}" y="${hy - 7}" width="2.6" height="14" rx=".9" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.45"/>`
-      + `<line x1="${hx - 0.75}" y1="${hy - 6}" x2="${hx - 0.75}" y2="${hy + 6}" style="${lineStyle(metal.light, 0.55, 'opacity:.8')}"/>`
-      + `<rect x="${hx - 2.6}" y="${hy - 2.6}" width="5.2" height="5.2" rx=".9" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.45"/>`
+      + `<rect x="${hx - 0.9}" y="${hy - barHeight / 2}" width="1.8" height="${barHeight}" rx=".7" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.4"/>`
+      + `<line x1="${hx - 0.45}" y1="${hy - barHeight / 2 + 0.7}" x2="${hx - 0.45}" y2="${hy + barHeight / 2 - 0.7}" style="${lineStyle(metal.light, 0.45, 'opacity:.8')}"/>`
+      + `<rect x="${hx - catch_ / 2}" y="${hy - catch_ / 2}" width="${catch_}" height="${catch_}" rx=".7" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.4"/>`
       + `</g>`;
   }
-  const leverX = side === 'left' ? hx + 8 : side === 'right' ? hx - 8 : hx;
-  const leverY = spec.orientation === 'up' ? hy - 9 : spec.position === 'top' ? hy + 9 : hy;
-  const lever = side === 'center'
+  const heightSource = spec.position ? `${spec.position}-by-opening` : heightInfo.reason;
+
+  // Misma manilla en todas las familias -- la de corredera es exactamente
+  // ésta, sólo que la palanca apunta hacia abajo en vez de hacia el lado.
+  const vertical = spec.orientation === 'down';
+  const leverX = vertical ? hx : side === 'left' ? hx + 7 : side === 'right' ? hx - 7 : hx;
+  const leverY = vertical
+    ? hy + 7
+    : spec.orientation === 'up' ? hy - 9 : spec.position === 'top' ? hy + 9 : hy;
+  const lever = vertical || side === 'center'
     ? `M ${hx} ${hy} L ${leverX} ${leverY}`
     : `M ${hx} ${hy} H ${leverX}`;
-  const glare = side === 'center'
-    ? `M ${hx - 0.7} ${hy} L ${leverX - 0.7} ${leverY}`
-    : `M ${hx} ${hy - 0.75} H ${leverX}`;
-  const heightSource = spec.position ? `${spec.position}-by-opening` : heightInfo.reason;
-  return `<g class="window-handle" data-axis-y="${hy}" data-height-source="${heightSource}" data-reason="${escape(spec.reason || 'opening-leaf')}">`
-    + `<circle cx="${hx}" cy="${hy}" r="2.4" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.45"/>`
-    + `<circle cx="${hx - 0.6}" cy="${hy - 0.6}" r="1" style="fill:${metal.light};opacity:.8"/>`
-    + `<path d="${lever}" style="${lineStyle(metal.base, 3, `stroke:${metal.base}`)}"/>`
-    + `<path d="${lever}" style="${lineStyle(metal.edge, 3.6, 'opacity:.35')}"/>`
-    + `<path d="${lever}" style="${lineStyle(metal.base, 2.8)}"/>`
-    + `<path d="${glare}" style="${lineStyle(metal.light, 0.8, 'opacity:.85')}"/>`
+  const glare = vertical
+    ? `M ${hx - 0.55} ${hy} L ${leverX - 0.55} ${leverY}`
+    : side === 'center'
+      ? `M ${hx - 0.55} ${hy} L ${leverX - 0.55} ${leverY}`
+      : `M ${hx} ${hy - 0.6} H ${leverX}`;
+
+  // Herraje MONOBLOCK (puertas): la misma manilla, pero montada sobre una
+  // placa que se prolonga hacia abajo y termina en el bombín de la cerradura.
+  const lockPlate = spec.lock
+    ? (() => {
+        const plateHalf = BASE_RADIUS * 1.05;
+        const top = hy - BASE_RADIUS * 1.6;
+        const bottom = hy + BASE_RADIUS * 4.6;
+        const keyY = hy + BASE_RADIUS * 3.1;
+        return `<rect x="${hx - plateHalf}" y="${top}" width="${plateHalf * 2}" height="${bottom - top}" rx="${plateHalf}" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.4"/>`
+          + `<line x1="${hx - plateHalf + 0.5}" y1="${top + 1}" x2="${hx - plateHalf + 0.5}" y2="${bottom - 1}" style="${lineStyle(metal.light, 0.45, 'opacity:.55')}"/>`
+          + `<circle cx="${hx}" cy="${keyY}" r=".95" style="fill:${metal.edge};stroke:none"/>`
+          + `<path d="M ${hx} ${keyY} L ${hx} ${keyY + 1.9}" style="${lineStyle(metal.edge, 0.75)}"/>`;
+      })()
+    : '';
+
+  return `<g class="window-handle" data-axis-y="${hy}" data-height-source="${heightSource}" data-hardware="${spec.lock ? 'monoblock' : 'manilla'}" data-reason="${escape(spec.reason || 'opening-leaf')}">`
+    + lockPlate
+    + `<circle cx="${hx}" cy="${hy}" r="${BASE_RADIUS}" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.45"/>`
+    + `<circle cx="${hx - 0.5}" cy="${hy - 0.5}" r=".8" style="fill:${metal.light};opacity:.8"/>`
+    + `<path d="${lever}" style="${lineStyle(metal.base, 2.4, `stroke:${metal.base}`)}"/>`
+    + `<path d="${lever}" style="${lineStyle(metal.edge, 2.9, 'opacity:.35')}"/>`
+    + `<path d="${lever}" style="${lineStyle(metal.base, 2.2)}"/>`
+    + `<path d="${glare}" style="${lineStyle(metal.light, 0.65, 'opacity:.85')}"/>`
     + `</g>`;
 }
 
@@ -429,15 +491,25 @@ export function hingeMarkup(
   reason: string,
   line: WindowLine
 ): string {
-  if (!count || (side !== 'left' && side !== 'right')) return '';
-  const metal = metalColors(String(core.hardwareColor(
-    line.materiales,
-    finishFor(line).frame,
-    'hinge'
-  )));
+  if (!count || !['left', 'right', 'top', 'bottom'].includes(side)) return '';
+  const metal = metalColors(String(core.hardwareColor(line.materiales, finishFor(line).frame)));
+  const thickness = 2.6;
+  // Las proyectantes y abatibles llevan las bisagras en el canto horizontal
+  // (arriba o abajo), no en el vertical: mismo herraje, girado 90 grados.
+  if (side === 'top' || side === 'bottom') {
+    const hy = side === 'top' ? y + 2.2 : y + height - 2.2;
+    const barrel = clamp(width * 0.07, 5, 9);
+    return Array.from({ length: count }, (_, index) => {
+      const hx = x + width * (index + 1) / (count + 1);
+      const left = hx - barrel / 2;
+      return `<g class="window-hinge" data-reason="${escape(reason)}">`
+        + `<rect x="${left}" y="${hy - thickness / 2}" width="${barrel}" height="${thickness}" rx="${thickness / 2}" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.45"/>`
+        + `<line x1="${left + 0.8}" y1="${hy - thickness / 2 + 0.55}" x2="${left + barrel - 0.8}" y2="${hy - thickness / 2 + 0.55}" style="${lineStyle(metal.light, 0.6, 'opacity:.85')}"/>`
+        + `</g>`;
+    }).join('');
+  }
   const hx = side === 'left' ? x + 2.2 : x + width - 2.2;
   const barrel = clamp(height * 0.07, 5, 9);
-  const thickness = 2.6;
   return Array.from({ length: count }, (_, index) => {
     const hy = y + height * (index + 1) / (count + 1);
     const top = hy - barrel / 2;

@@ -165,7 +165,9 @@ export interface HardwareSpec {
   style?: 'straight' | 'angled';
   side?: 'left' | 'right' | 'center';
   position?: 'top' | 'bottom';
-  orientation?: 'up';
+  orientation?: 'up' | 'down';
+  /** Cerradura integrada (herraje MONOBLOCK): extiende la base con el bombín */
+  lock?: boolean;
   reason: string;
   rail?: string;
 }
@@ -198,6 +200,8 @@ export interface FinishColors {
 export interface LineMaterial {
   descripcionArticulo?: string;
   descripcion?: string;
+  /** Familia HETMO del artículo (Perfileria, Vidrio, Herrajes, ...) */
+  familia?: string;
   cantidad?: number;
   uds?: number;
   acabado?: string;
@@ -349,40 +353,8 @@ export interface RenderResult {
 
 // ─── Nomenclatura de vidrios, barrotillos y travesaños ──────────────────────
 
-/**
- * Nomenclatura de un vidrio: código HETMO → descripción y color.
- */
-export interface GlassNomenclature {
-  codigo: string;
-  descripcion: string;
-  color: string;
-  esDoble?: boolean;
-  esTriple?: boolean;
-  esLaminado?: boolean;
-  esTemplado?: boolean;
-  esBajoEmisivo?: boolean;
-  esIncoloro?: boolean;
-}
 
-/**
- * Nomenclatura de un barrotillo (muntin): código → descripción y color.
- */
-export interface MuntinNomenclature {
-  codigo: string;
-  descripcion: string;
-  color: string;
-  ancho?: number;
-}
 
-/**
- * Nomenclatura de un travesaño (traverse): código → descripción y color.
- */
-export interface TraverseNomenclature {
-  codigo: string;
-  descripcion: string;
-  color: string;
-  ancho?: number;
-}
 
 // ─── Constantes visuales ─────────────────────────────────────────────────────
 

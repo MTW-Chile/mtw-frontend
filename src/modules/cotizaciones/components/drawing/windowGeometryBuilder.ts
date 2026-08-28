@@ -37,6 +37,8 @@ import {
   handleMark,
   hingeMarkup,
   muntinMarkup,
+  FRAME_THICKNESS,
+  SASH_THICKNESS,
 } from './windowSvgMarkup';
 import type {
   WindowLine,
@@ -104,7 +106,7 @@ function buildCompositePanel(
   const height = Math.max(1, number(line.dibujoAlto ?? line.alto) || 1);
   const { drawingW, drawingH, x, y } = computeDrawingDimensions(width, height);
   const finish = finishFor(line);
-  const glassOnly = Boolean(line.dibujoSinMarco);
+  const glassOnly = Boolean(line.dibujoSinMarco) || core.isFrameless(line);
   const guideCount = core.sliderGuideCount({ linea: line, materiales: line.materiales });
   const frameClass = target === 'line' ? 'line-window-frame' : 'offer-frame';
   const glassClass = target === 'line' ? 'line-window-glass' : 'offer-glass';
@@ -116,11 +118,18 @@ function buildCompositePanel(
     if (!['hinged', 'door', 'tilt-turn'].includes(definition.family)) return sum;
     return sum + Math.max(1, definition.leafCount === 2 ? panel.aperturaCount || 2 : 1);
   }, 0);
-  const compositeHinges = core.hingeCountFromHardware(
+  const compositeHingeInfo = core.hingeCountFromHardware(
     line.materiales,
     line.uds ?? 0,
     compositeOperable
   ) as { count: number; reason: string };
+  // Toda hoja que abre lleva bisagras, aunque la receta de materiales no las
+  // declare (en HETMO suelen venir como accesorio de proyecto, no de línea).
+  const compositeHinges = compositeHingeInfo.count > 0
+    ? compositeHingeInfo
+    : { count: height >= 2000 ? 3 : 2, reason: 'minimo-fisico-por-familia' };
+  // El herraje MONOBLOCK trae cerradura integrada y sólo existe en puertas.
+  const monoblock = core.hasMonoblock(line.materiales);
   const scaleX = drawingW / Math.max(1, composite.width);
   const scaleY = drawingH / Math.max(1, composite.height);
   const foregroundGlassCodes: string[] = [];
@@ -128,11 +137,18 @@ function buildCompositePanel(
   const panels = composite.tiles
     .map((tile: CompositeTile, index: number) => {
       const panel = tile.panel;
-      const px = x + tile.x * scaleX;
-      const py = y + tile.y * scaleY;
-      const pw = tile.width * scaleX;
-      const ph = tile.height * scaleY;
-      const inset = 2.2;
+      const outerX = x + tile.x * scaleX;
+      const outerY = y + tile.y * scaleY;
+      const outerW = tile.width * scaleX;
+      const outerH = tile.height * scaleY;
+      // El marco del paño ocupa el borde del tile y todo el contenido (vidrio,
+      // hojas, travesaños, herraje) va dentro de él: así los marcos de dos
+      // paños vecinos quedan pegados borde con borde en vez de solaparse.
+      const panelInset = glassOnly ? 0 : FRAME_THICKNESS;
+      const px = outerX + panelInset;
+      const py = outerY + panelInset;
+      const pw = Math.max(2, outerW - panelInset * 2);
+      const ph = Math.max(2, outerH - panelInset * 2);
 
       const panelPieces = core.slidingPieces({
         apertura: panel.apertura,
@@ -167,9 +183,22 @@ function buildCompositePanel(
 
       let sash = '';
       const panelDefinition = core.apertureDefinition(line, panel.apertura) as ApertureDefinition;
-      sash = glassOnly ? '' : panelDefinition.family === 'fixed'
-        ? fixedGlazingMarkup(px, py, pw, ph, finish)
-        : sashMarkup(px, py, pw, ph, finish, inset);
+      const panelLock = panelDefinition.family === 'door' && monoblock;
+      // Una ventana fija no tiene hoja: es el marco con el vidrio montado
+      // directamente sobre él. El resto sí lleva su hoja dentro del marco.
+      sash = glassOnly || panelDefinition.family === 'fixed'
+        ? ''
+        : sashMarkup(px, py, pw, ph, finish);
+
+      // El vidrio va DENTRO de la hoja (o directamente contra el marco, si la
+      // ventana es fija): la hoja es un perfil relleno, así que dibujarla
+      // encima del vidrio lo taparía por completo.
+      const sashInset = glassOnly ? 0 : SASH_THICKNESS;
+      const glazing = (gx: number, gy: number, gw: number, gh: number, insideSash: boolean) => {
+        const i = insideSash ? sashInset : 0;
+        return glassMarkup(glassClass, gx + i, gy + i, Math.max(1, gw - i * 2), Math.max(1, gh - i * 2));
+      };
+      let panelGlazing = glazing(px, py, pw, ph, panelDefinition.family !== 'fixed');
 
       const panelAxisY = panelDefinition?.family === 'projecting'
         ? py + ph - 3
@@ -185,26 +214,19 @@ function buildCompositePanel(
 
       let hardwareMarkup = '';
       if (isDoubleOpening) {
-        sash = glassOnly ? '' : `${sashMarkup(px, py, pw / 2, ph, finish, inset)}${sashMarkup(px + pw / 2, py, pw / 2, ph, finish, inset)}${dividerMarkup(px + pw / 2, py + 2, py + ph - 2, finish)}`;
+        // Dos hojas en paralelo dentro del mismo marco, sin solape.
+        sash = glassOnly ? '' : `${sashMarkup(px, py, pw / 2, ph, finish)}${sashMarkup(px + pw / 2, py, pw / 2, ph, finish)}`;
+        panelGlazing = `${glazing(px, py, pw / 2, ph, true)}${glazing(px + pw / 2, py, pw / 2, ph, true)}`;
         if (!glassOnly) {
           const activeSide = panelDefinition.hand === 'left' ? 'left' : 'right';
           const activeX = activeSide === 'left' ? px : px + pw / 2;
-          const passiveX = activeSide === 'left' ? px + pw / 2 : px;
+          // Una practicable o abatible de dos hojas lleva UNA sola manilla: el
+          // cerradero oculto de la hoja pasiva es cosa exclusiva de correderas.
           hardwareMarkup += handleMark(
-            { role: 'handle' as const, side: (activeSide === 'left' ? 'right' : 'left') as 'left' | 'right', reason: 'catalog-active-leaf' },
+            { role: 'handle' as const, side: (activeSide === 'left' ? 'right' : 'left') as 'left' | 'right', lock: panelLock, reason: 'catalog-active-leaf' },
             line,
             { component: panel },
             activeX,
-            py,
-            pw / 2,
-            ph,
-            panel.height
-          );
-          hardwareMarkup += handleMark(
-            { role: 'striker' as const, side: (activeSide === 'left' ? 'left' : 'right') as 'left' | 'right', reason: 'catalog-passive-leaf' },
-            line,
-            { component: panel },
-            passiveX,
             py,
             pw / 2,
             ph,
@@ -217,7 +239,7 @@ function buildCompositePanel(
         }
       } else if (!glassOnly && (panelDefinition.family === 'hinged' || panelDefinition.family === 'door' || panelDefinition.family === 'tilt-turn')) {
         hardwareMarkup += handleMark(
-          { role: 'handle' as const, side: (panelDefinition.hinge === 'right' ? 'left' : 'right') as 'left' | 'right', reason: 'opposite-hinge' },
+          { role: 'handle' as const, side: (panelDefinition.hinge === 'right' ? 'left' : 'right') as 'left' | 'right', lock: panelLock, reason: 'opposite-hinge' },
           line,
           { component: panel },
           px,
@@ -240,6 +262,8 @@ function buildCompositePanel(
           ph,
           panel.height
         );
+        // La proyectante abisagra por el canto superior.
+        hardwareMarkup += hingeMarkup('top', compositeHinges.count, px, py, pw, ph, compositeHinges.reason, line);
       } else if (!glassOnly && panelDefinition.family === 'tilt') {
         hardwareMarkup += handleMark(
           { role: 'handle' as const, side: 'center' as const, reason: 'center-forced' },
@@ -251,6 +275,8 @@ function buildCompositePanel(
           ph,
           panel.height
         );
+        // La abatible abisagra por el canto inferior.
+        hardwareMarkup += hingeMarkup('bottom', compositeHinges.count, px, py, pw, ph, compositeHinges.reason, line);
       }
 
       const panelGlass = glassCodes[index] || (glassCodes.length === 1 ? glassCodes[0] : '');
@@ -273,15 +299,17 @@ function buildCompositePanel(
         let leafX = px;
         const sliderHardware = core.sliderHardware(resolvedLeaves) as HardwareSpec[];
         sash = '';
+        // Cada hoja de la corredera lleva su propio vidrio adentro.
+        panelGlazing = '';
         const sliderLayers = panelLayout.map((kind: string, leafIndex: number) => {
           const leafWidth = availableWidth * panelWeights[leafIndex] / totalWeight;
           const depth = resolvedLeaves[leafIndex].carril;
-          const leafInset = depth > 0 ? clamp(3.2 - (depth - 1) * 0.8, 1.4, 3.2) : 2.2;
-          const leafSash = glassOnly ? '' : sashMarkup(leafX, py, leafWidth, ph, finish, leafInset);
+          const leafSash = glassOnly ? '' : sashMarkup(leafX, py, leafWidth, ph, finish);
+          const leafGlass = glazing(leafX, py, leafWidth, ph, true);
           const leafAxisY = openingAxisY(line, resolvedLeaves[leafIndex], py, ph, panel.height);
           const leafMark = slidingMark(kind, leafX, py, leafWidth, ph, '#2452d6', leafAxisY);
           const leafHandle = glassOnly ? '' : handleMark(
-            sliderHardware[leafIndex],
+            { ...sliderHardware[leafIndex], orientation: 'down' as const },
             line,
             resolvedLeaves[leafIndex],
             leafX,
@@ -292,11 +320,11 @@ function buildCompositePanel(
           );
           foregroundHardware += leafHandle;
           const visibleGlassCode = leafIndex === 0 && (!singleGlassCode || index === 0) ? panelGlass : '';
-          const leafCode = glassCodeMarkup(codeClass, visibleGlassCode, leafX + 3, Math.min(py + ph - 3, 140));
+          const leafCode = glassCodeMarkup(codeClass, visibleGlassCode, leafX, py, leafWidth, ph);
           if (leafCode) foregroundGlassCodes.push(leafCode);
           const leafMuntins = muntinMarkup(line, leafX, py, leafWidth, ph, finish.frame);
           const railName = depth > 0 ? `C${depth}` : '';
-          const markup = `<g class="window-leaf-depth window-rail-${depth || 0}" data-leaf-index="${leafIndex}" data-leaf-x="${leafX}" data-leaf-width="${leafWidth}" data-rail="${railName}" data-rail-source="${escape(resolvedLeaves[leafIndex].carrilFuente || '')}">${leafSash}${leafMark}${leafMuntins}</g>`;
+          const markup = `<g class="window-leaf-depth window-rail-${depth || 0}" data-leaf-index="${leafIndex}" data-leaf-x="${leafX}" data-leaf-width="${leafWidth}" data-rail="${railName}" data-rail-source="${escape(resolvedLeaves[leafIndex].carrilFuente || '')}">${leafSash}${leafGlass}${leafMark}${leafMuntins}</g>`;
           leafX += leafWidth - (boundaryOverlaps[leafIndex] || 0);
           return { depth, index: leafIndex, markup };
         });
@@ -328,44 +356,51 @@ function buildCompositePanel(
           .join('');
       }
 
+      // El travesaño es una barra acoplada al perfil, a su misma profundidad:
+      // vive dentro del vidrio del paño (por dentro de la hoja cuando la hay),
+      // no cruzando por encima del marco.
+      const paneInset = sash ? sashInset : 0;
+      const tx = px + paneInset;
+      const ty = py + paneInset;
+      const tw = Math.max(1, pw - paneInset * 2);
+      const th = Math.max(1, ph - paneInset * 2);
       const traverses = (core.panelTraverseLines(panel) as TraverseLine[])
         .map((item: TraverseLine) => {
-          const x1 = px + pw * item.x1 / Math.max(1, panel.width);
-          const y1 = py + ph * (1 - item.y1 / Math.max(1, panel.height));
-          const x2 = px + pw * item.x2 / Math.max(1, panel.width);
-          const y2 = py + ph * (1 - item.y2 / Math.max(1, panel.height));
+          const x1 = tx + tw * item.x1 / Math.max(1, panel.width);
+          const y1 = ty + th * (1 - item.y1 / Math.max(1, panel.height));
+          const x2 = tx + tw * item.x2 / Math.max(1, panel.width);
+          const y2 = ty + th * (1 - item.y2 / Math.max(1, panel.height));
           return transomMarkup(x1, y1, x2, y2, finish);
         })
         .join('');
 
       const splits = glassSplitMarkup(
         panel as unknown as Record<string, unknown>,
-        px,
-        py,
-        pw,
-        ph,
+        tx,
+        ty,
+        tw,
+        th,
         finish,
         !panelLayout && !isDoubleOpening
       );
 
       const visiblePanelGlass = !singleGlassCode || index === 0 ? panelGlass : '';
-      const panelCodeY = panelDefinition.family === 'projecting' ? py + 9 : Math.min(py + ph - 3, 140);
-      const code = panelLayout ? '' : glassCodeMarkup(codeClass, visiblePanelGlass, px + 3, panelCodeY);
+      const code = panelLayout ? '' : glassCodeMarkup(codeClass, visiblePanelGlass, px, py, pw, ph);
       if (code) foregroundGlassCodes.push(code);
 
       const panelMuntins = panelLayout ? '' : muntinMarkup(line, px, py, pw, ph, finish.frame);
       const panelDimension = composite.direction === 'vertical'
         ? ''
-        : segmentDimensionMarkup(px, pw, y + drawingH, tile.width);
+        : segmentDimensionMarkup(outerX, outerW, y + drawingH, tile.width);
 
       // Cada paño de una ventana compuesta es, físicamente, un marco propio
       // unido a sus vecinos (así lo dibuja el propio HETMO) -- incluso
       // cuando el paño en sí es una corredera de varias hojas por dentro:
       // esas hojas comparten el marco de SU paño, pero el paño sigue siendo
       // su propia unidad frente a los paños de al lado.
-      const panelFrame = glassOnly ? '' : frameMarkup(frameClass, px, py, pw, ph, finish);
+      const panelFrame = glassOnly ? '' : frameMarkup(frameClass, outerX, outerY, outerW, outerH, finish);
 
-      return `${panelFrame}${glassMarkup(glassClass, px, py, pw, ph)}${sash}${mark}${traverses}${splits}${panelMuntins}${panelDimension}${foregroundHardware}`;
+      return `${panelFrame}${sash}${panelGlazing}${mark}${traverses}${splits}${panelMuntins}${panelDimension}${foregroundHardware}`;
     })
     .join('');
 
@@ -388,7 +423,7 @@ function buildSimpleWindow(
   const height = Math.max(1, number(line.dibujoAlto ?? line.alto) || 1);
   const { drawingW, drawingH, x, y } = computeDrawingDimensions(width, height);
   const finish = finishFor(line);
-  const glassOnly = Boolean(line.dibujoSinMarco);
+  const glassOnly = Boolean(line.dibujoSinMarco) || core.isFrameless(line);
   const guideCount = core.sliderGuideCount({ linea: line, materiales: line.materiales });
   const noGlass = core.isWithoutGlass(line);
   const outline = core.specialOutline(line) as SpecialOutline | null;
@@ -411,35 +446,39 @@ function buildSimpleWindow(
     return `<svg class="${className}" data-aperture-code="${specialCode || ''}" data-aperture-name="${escape(specialName)}" style="--window-finish:${finish.frame};font-family:system-ui,sans-serif" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Geometria especial de ${escape(line.modelo || 'ventana')}"><title>${escape(`Apertura ${specialCode || 0} · ${specialName}`)}</title>${shape}${mark}${muntinMarkup(line, x, y, drawingW, drawingH, finish.frame)}${dimensionMarkup(width, height, x, y, drawingW, drawingH)}</svg>`;
   }
 
-  // ─── Ventana normal (hojas) ──────────────────────────────────────────────
+  // ─── Ventana normal (unidades: marco + contenido) ────────────────────────
   const allLeaves = core.leavesFor(line) as Record<string, unknown>[];
-  const totalLeafWidth = allLeaves.reduce((sum: number, leaf: Record<string, unknown>) => sum + (leaf.width as number), 0) || width;
   const isSlider = allLeaves.some((leaf: Record<string, unknown>) => /^(?:int|ext|fijo):?/.test(String(leaf.kind || '')));
   const leafRails = allLeaves.map((leaf: Record<string, unknown>, index: number) => {
     const definition = core.apertureDefinition(line, leaf.apertura) as ApertureDefinition;
     return core.railForLeaf(leaf, definition, index) as RailInfo;
   });
-  const overlap = isSlider && allLeaves.length > 1 ? clamp(drawingW * 0.03, 3, 5) : 0;
-  const boundaryOverlaps = allLeaves.slice(0, -1).map(
-    (_leaf: Record<string, unknown>, index: number) =>
-      leafRails[index].number !== leafRails[index + 1].number ? overlap : 0
-  );
-  const leafDrawingWidth = drawingW + boundaryOverlaps.reduce((sum: number, value: number) => sum + value, 0);
-  // Varias hojas no-corredera en la misma línea (p.ej. "ventana fija +
-  // puerta practicable") son, físicamente, marcos separados unidos entre
-  // sí -- confirmado contra el propio dibujo de HETMO (Casa A V13, HETMO
-  // 10595): cada hoja trae su propio marco biselado completo, no una línea
-  // divisoria fina. Una corredera, en cambio, es un solo marco con varias
-  // hojas móviles por dentro, así que sigue con el marco único de siempre.
-  const usesPerLeafFrame = !isSlider && allLeaves.length > 1;
+
+  // Cada componente HETMO (un código de apertura) es una ventana física con su
+  // propio marco. Las hojas de un mismo componente comparten ese marco -- una
+  // corredera de 2 hojas, una practicable de 2 hojas --, mientras que dos
+  // componentes distintos en la misma línea ("ventana fija + puerta
+  // practicable") son dos marcos separados unidos borde con borde. Nunca se
+  // solapan entre sí: el solape sólo existe entre hojas de corredera, dentro
+  // de un mismo marco.
+  const units: { key: unknown; indices: number[]; width: number }[] = [];
+  allLeaves.forEach((leaf: Record<string, unknown>, index: number) => {
+    const key = leaf.component ?? leaf;
+    const current = units[units.length - 1];
+    const leafWidth = Math.max(0, Number(leaf.width) || 0);
+    if (current && current.key === key) {
+      current.indices.push(index);
+      current.width += leafWidth;
+    } else {
+      units.push({ key, indices: [index], width: leafWidth });
+    }
+  });
+  const totalUnitWidth = units.reduce((sum, unit) => sum + unit.width, 0) || 1;
+
   const frameClass = target === 'line' ? 'line-window-frame' : 'offer-frame';
-  let cursor = x;
-  const leafLayers: { depth: number; index: number; markup: string }[] = [];
-  const hardwareLayers: { depth: number; index: number; markup: string }[] = [];
-  const glassCodeLayers: string[] = [];
-  const segmentDimensions: string[] = [];
-  const color = '#2452d6';
+  const glassClassName = target === 'line' ? 'line-window-glass' : 'offer-glass';
   const codeClass = target === 'line' ? 'line-window-glass-code' : 'offer-glass-code';
+  const color = '#2452d6';
   const glassCodes = getGlassCodes(line);
   const singleGlassCode = getUniqueGlassCode(line);
   const sliderHardware: HardwareSpec[] = isSlider ? (core.sliderHardware(allLeaves) as HardwareSpec[]) : [];
@@ -452,146 +491,201 @@ function buildSimpleWindow(
     line.uds ?? 0,
     operableHingedLeaves
   ) as { count: number; reason: string };
+  // Toda hoja que abre lleva bisagras, aunque la receta de materiales no las
+  // declare (en HETMO suelen venir como accesorio de proyecto, no de línea).
+  // El conteo real manda cuando existe; si no, se dibuja el mínimo físico.
+  // El herraje MONOBLOCK trae cerradura integrada y sólo existe en puertas.
+  const monoblock = core.hasMonoblock(line.materiales);
+  const hinges = hingeInfo.count > 0
+    ? hingeInfo
+    : { count: height >= 2000 ? 3 : 2, reason: 'minimo-fisico-por-familia' };
 
-  allLeaves.forEach((leaf: Record<string, unknown>, index: number) => {
-    const leafWidth = leafDrawingWidth * (leaf.width as number) / totalLeafWidth;
-    const definition = core.apertureDefinition(line, leaf.apertura) as ApertureDefinition;
-    const rail = leafRails[index];
-    const depth = rail.number;
-    const hiddenLeaf = leaf?.oculta === true || leaf?.kind === 'oculta';
-    const inset = depth > 0 ? clamp(3.2 - (depth - 1) * 0.8, 1.4, 3.2) : 2.2;
-    const leafGlass = hiddenLeaf ? '' : glassMarkup(
-      target === 'line' ? 'line-window-glass' : 'offer-glass',
-      cursor,
-      y,
-      leafWidth,
-      drawingH,
-      !noGlass
-    );
-    const leafMuntins = hiddenLeaf ? '' : muntinMarkup(line, cursor, y, leafWidth, drawingH, finish.frame);
-    const leafGlassCode = singleGlassCode
-      ? (index === 0 ? singleGlassCode : '')
-      : (glassCodes[index] || '');
-    const labelY = definition.family === 'projecting' ? y + 9 : Math.min(y + drawingH - 3, 140);
-    const leafLabel = hiddenLeaf ? '' : glassCodeMarkup(codeClass, leafGlassCode, cursor + 3, labelY);
-    if (leafLabel) glassCodeLayers.push(leafLabel);
-    if (allLeaves.length > 1) segmentDimensions.push(segmentDimensionMarkup(cursor, leafWidth, y + drawingH, Number(leaf.width) || 0));
+  const hardwareLayers: string[] = [];
+  const glassCodeLayers: string[] = [];
+  const segmentDimensions: string[] = [];
+  const profileInset = glassOnly ? 0 : FRAME_THICKNESS;
 
-    // Una hoja fija sola en la ventana está sostenida directamente por el
-    // marco exterior (basta el junquillo delgado de fixedGlazingMarkup). Pero
-    // cuando comparte línea con otra hoja (p.ej. "ventana fija + practicable"),
-    // cada hoja es físicamente su propio marco unido al de al lado -- por eso
-    // necesita el mismo perfil con peso/bisel que sashMarkup le da a la hoja
-    // practicable, no solo el junquillo.
-    const leafSash = glassOnly || hiddenLeaf
-      ? ''
-      : (!isSlider && definition.family === 'fixed' && allLeaves.length === 1)
-        ? fixedGlazingMarkup(cursor, y, leafWidth, drawingH, finish)
-        : sashMarkup(cursor, y, leafWidth, drawingH, finish, inset);
-
-    let leafMark = '';
-    const leafAxisY = definition.family === 'projecting'
-      ? y + drawingH - 3
-      : openingAxisY(line, leaf, y, drawingH, height);
-
-    if (hiddenLeaf) leafMark = '';
-    else if (definition.obLeaf === index) leafMark = doubleTiltTurnMark(index === 0 ? 'left' : 'right', cursor, y, leafWidth, drawingH, color);
-    else if (leaf.kind === 'single') leafMark = hingedMark(leaf.apertura as number, cursor, y, leafWidth, drawingH, color, leafAxisY);
-    else if (String(leaf.kind).startsWith?.('double-tilt-turn:')) leafMark = doubleTiltTurnMark(String(leaf.kind).endsWith('left') ? 'left' : 'right', cursor, y, leafWidth, drawingH, color);
-    else if (String(leaf.kind).startsWith?.('double-hinged:')) leafMark = doubleHingedMark(String(leaf.kind).endsWith('left') ? 'left' : 'right', cursor, y, leafWidth, drawingH, color, leafAxisY);
-    else leafMark = slidingMark(String(leaf.kind), cursor, y, leafWidth, drawingH, color, leafAxisY);
-
-    let leafHardware = '';
-    if (!glassOnly && !hiddenLeaf) {
-      let handleSpec: HardwareSpec = sliderHardware[index] || { role: 'none' as const, reason: '' };
-      if (definition.obLeaf === index) {
-        handleSpec = { role: 'handle' as const, side: (index === 0 ? 'right' : 'left') as 'left' | 'right', reason: 'adene-ob-leaf' };
-      } else if (!isSlider && definition.family === 'projecting') {
-        handleSpec = { role: 'handle' as const, side: 'center' as const, position: 'bottom' as const, orientation: 'up' as const, reason: 'projecting-bottom' };
-      } else if (!isSlider && definition.family === 'tilt') {
-        handleSpec = { role: 'handle' as const, side: 'center' as const, reason: 'center-forced' };
-      } else if (!isSlider && (definition.family === 'hinged' || definition.family === 'door' || definition.family === 'tilt-turn')) {
-        const isDouble = String(leaf.kind).startsWith('double-');
-        const leafSide = String(leaf.kind).endsWith(':left') ? 'left' : String(leaf.kind).endsWith(':right') ? 'right' : '';
-        const active = !isDouble || !definition.hand || leafSide === definition.hand;
-        handleSpec = active
-          ? { role: 'handle' as const, side: (definition.hinge === 'right' ? 'left' : 'right') as 'left' | 'right', reason: isDouble ? 'catalog-active-leaf' : 'opposite-hinge' }
-          : { role: 'striker' as const, side: (leafSide === 'left' ? 'right' : 'left') as 'left' | 'right', reason: 'catalog-passive-leaf' };
-      }
-      leafHardware += handleMark(handleSpec, line, leaf, cursor, y, leafWidth, drawingH, height);
-      if (hingeInfo.count && ['hinged', 'door', 'tilt-turn'].includes(definition.family)) {
-        const hingeSide = String(leaf.kind).startsWith('double-')
-          ? (String(leaf.kind).endsWith(':left') ? 'left' : 'right')
-          : definition.hinge;
-        leafHardware += hingeMarkup(hingeSide || 'left', hingeInfo.count, cursor, y, leafWidth, drawingH, hingeInfo.reason, line);
-      }
-    }
-
-    // Con marco propio por hoja, la unión entre hojas ya se ve en el doble
-    // marco que se solapa en el borde compartido -- una línea divisoria fina
-    // encima sería redundante (y en HETMO no aparece).
-    const divider = !isSlider && !usesPerLeafFrame && index < allLeaves.length - 1
-      ? dividerMarkup(cursor + leafWidth, y + 2, y + drawingH - 2, finish)
-      : '';
-    const leafFrame = !glassOnly && !hiddenLeaf && usesPerLeafFrame
-      ? frameMarkup(frameClass, cursor, y, leafWidth, drawingH, finish)
-      : '';
-
-    leafLayers.push({
-      depth,
-      index,
-      markup: hiddenLeaf
-        ? `<g class="window-leaf-space" data-leaf-index="${index}" data-leaf-x="${cursor}" data-leaf-width="${leafWidth}" data-hidden-leaf="true"></g>`
-        : `<g class="window-leaf-depth window-rail-${depth || 0}" data-leaf-index="${index}" data-leaf-x="${cursor}" data-leaf-width="${leafWidth}" data-rail="${depth > 0 ? `C${depth}` : ''}" data-rail-source="${escape(rail.source)}">${leafFrame}${leafGlass}${leafSash}${leafMuntins}${leafMark}${divider}</g>`,
-    });
-    if (leafHardware) {
-      hardwareLayers.push({ depth, index, markup: `<g class="window-hardware-layer" data-leaf-index="${index}">${leafHardware}</g>` });
-    }
-    cursor += leafWidth - (boundaryOverlaps[index] || 0);
-  });
-
-  const leavesMarkup = leafLayers
-    .sort((left, right) => right.depth - left.depth || left.index - right.index)
-    .map(item => item.markup)
-    .join('');
-  const hardwareMarkupStr = hardwareLayers
-    .sort((left, right) => right.depth - left.depth || left.index - right.index)
-    .map(item => item.markup)
-    .join('');
-
-  const frame = glassOnly || usesPerLeafFrame ? '' : frameMarkup(frameClass, x, y, drawingW, drawingH, finish);
-  const className = target === 'line' ? 'line-window-sketch' : 'offer-window-sketch';
-
-  const traverses = (core.panelTraverseLines({
+  // El travesaño es una barra a la misma profundidad que el perfil y acoplada
+  // a él: va DENTRO del vidrio de cada hoja (o del paño fijo), no cruzando la
+  // ventana entera por encima de los marcos. Cada hoja lleva el suyo.
+  const traverseLines = core.panelTraverseLines({
     raw: Array.isArray(line.geometria) ? line.geometria : [],
     width,
     height,
-  }) as TraverseLine[])
-    .map((item: TraverseLine) => {
-      const x1 = x + drawingW * item.x1 / Math.max(1, width);
-      const y1 = y + drawingH * (1 - item.y1 / Math.max(1, height));
-      const x2 = x + drawingW * item.x2 / Math.max(1, width);
-      const y2 = y + drawingH * (1 - item.y2 / Math.max(1, height));
-      return transomMarkup(x1, y1, x2, y2, finish);
-    })
+  }) as TraverseLine[];
+  const traversesIn = (bx: number, by: number, bw: number, bh: number) => traverseLines
+    .map((item: TraverseLine) => transomMarkup(
+      bx + bw * item.x1 / Math.max(1, width),
+      by + bh * (1 - item.y1 / Math.max(1, height)),
+      bx + bw * item.x2 / Math.max(1, width),
+      by + bh * (1 - item.y2 / Math.max(1, height)),
+      finish
+    ))
     .join('');
 
-  const splits = glassSplitMarkup(
-    line as unknown as Record<string, unknown>,
-    x,
-    y,
-    drawingW,
-    drawingH,
-    finish,
-    allLeaves.length === 1
-  );
+  let unitCursor = x;
+  const unitsMarkup = units.map(unit => {
+    const unitWidth = drawingW * unit.width / totalUnitWidth;
+    const unitLeaves = unit.indices.map(index => allLeaves[index]);
+    const unitDefinition = core.apertureDefinition(line, unitLeaves[0].apertura) as ApertureDefinition;
+    const unitIsSlider = unitLeaves.some((leaf: Record<string, unknown>) => /^(?:int|ext|fijo):?/.test(String(leaf.kind || '')));
+    const unitFrame = glassOnly ? '' : frameMarkup(frameClass, unitCursor, y, unitWidth, drawingH, finish);
+    const contentX = unitCursor + profileInset;
+    const contentY = y + profileInset;
+    const contentW = Math.max(2, unitWidth - profileInset * 2);
+    const contentH = Math.max(2, drawingH - profileInset * 2);
+    const unitLeft = unitCursor;
+    unitCursor += unitWidth;
+
+    const glassCodeFor = (index: number) => (singleGlassCode
+      ? (index === 0 ? singleGlassCode : '')
+      : (glassCodes[index] || ''));
+
+    // Una ventana fija no tiene hoja: es el marco con el vidrio montado
+    // directamente sobre él.
+    if (!unitIsSlider && unitDefinition.family === 'fixed') {
+      const index = unit.indices[0];
+      const label = glassCodeMarkup(codeClass, glassCodeFor(index), contentX, contentY, contentW, contentH);
+      if (label) glassCodeLayers.push(label);
+      if (units.length > 1) {
+        segmentDimensions.push(segmentDimensionMarkup(unitLeft, unitWidth, y + drawingH, Number(unitLeaves[0].width) || 0));
+      }
+      return `<g class="window-unit window-unit-fixed" data-unit-index="${index}">`
+        + unitFrame
+        + glassMarkup(glassClassName, contentX, contentY, contentW, contentH, !noGlass)
+        + traversesIn(contentX, contentY, contentW, contentH)
+        + glassSplitMarkup(line as unknown as Record<string, unknown>, contentX, contentY, contentW, contentH, finish, true)
+        + fixedMark(contentX, contentY, contentW, contentH, color)
+        + muntinMarkup(line, contentX, contentY, contentW, contentH, finish.frame)
+        + `</g>`;
+    }
+
+    // Unidad con hojas. Sólo las correderas solapan una hoja sobre otra
+    // (carriles distintos); practicables y abatibles van en paralelo.
+    const unitLeafTotal = unitLeaves.reduce((sum, leaf) => sum + (Number(leaf.width) || 0), 0) || 1;
+    const unitOverlap = unitIsSlider && unitLeaves.length > 1 ? clamp(contentW * 0.03, 3, 5) : 0;
+    const boundaries = unitLeaves.slice(0, -1).map((_leaf, position) =>
+      leafRails[unit.indices[position]].number !== leafRails[unit.indices[position + 1]].number ? unitOverlap : 0
+    );
+    const spread = contentW + boundaries.reduce((sum, value) => sum + value, 0);
+    let leafCursor = contentX;
+    const leafLayers: { depth: number; position: number; markup: string }[] = [];
+
+    unitLeaves.forEach((leaf: Record<string, unknown>, position: number) => {
+      const index = unit.indices[position];
+      const leafWidth = spread * (Number(leaf.width) || 0) / unitLeafTotal;
+      const leafX = leafCursor;
+      leafCursor += leafWidth - (boundaries[position] || 0);
+      const rail = leafRails[index];
+      const depth = rail.number;
+      const hiddenLeaf = leaf?.oculta === true || leaf?.kind === 'oculta';
+      if (hiddenLeaf) {
+        leafLayers.push({
+          depth,
+          position,
+          markup: `<g class="window-leaf-space" data-leaf-index="${index}" data-leaf-x="${leafX}" data-leaf-width="${leafWidth}" data-hidden-leaf="true"></g>`,
+        });
+        return;
+      }
+
+      const sashInset = glassOnly ? 0 : SASH_THICKNESS;
+      const paneX = leafX + sashInset;
+      const paneY = contentY + sashInset;
+      const paneW = Math.max(1, leafWidth - sashInset * 2);
+      const paneH = Math.max(1, contentH - sashInset * 2);
+      const leafSash = glassOnly ? '' : sashMarkup(leafX, contentY, leafWidth, contentH, finish);
+      const leafGlass = glassMarkup(glassClassName, paneX, paneY, paneW, paneH, !noGlass);
+      const leafMuntins = muntinMarkup(line, paneX, paneY, paneW, paneH, finish.frame);
+      const leafTraverses = traversesIn(paneX, paneY, paneW, paneH);
+      const leafSplits = glassSplitMarkup(
+        line as unknown as Record<string, unknown>,
+        paneX,
+        paneY,
+        paneW,
+        paneH,
+        finish,
+        allLeaves.length === 1
+      );
+      const leafLabel = glassCodeMarkup(codeClass, glassCodeFor(index), paneX, paneY, paneW, paneH);
+      if (leafLabel) glassCodeLayers.push(leafLabel);
+      if (allLeaves.length > 1) {
+        segmentDimensions.push(segmentDimensionMarkup(leafX, leafWidth, y + drawingH, Number(leaf.width) || 0));
+      }
+
+      const leafAxisY = unitDefinition.family === 'projecting'
+        ? contentY + contentH - 3
+        : openingAxisY(line, leaf, contentY, contentH, height);
+      let leafMark = '';
+      if (unitDefinition.obLeaf === position) leafMark = doubleTiltTurnMark(position === 0 ? 'left' : 'right', leafX, contentY, leafWidth, contentH, color);
+      else if (leaf.kind === 'single') leafMark = hingedMark(leaf.apertura as number, leafX, contentY, leafWidth, contentH, color, leafAxisY);
+      else if (String(leaf.kind).startsWith?.('double-tilt-turn:')) leafMark = doubleTiltTurnMark(String(leaf.kind).endsWith('left') ? 'left' : 'right', leafX, contentY, leafWidth, contentH, color);
+      else if (String(leaf.kind).startsWith?.('double-hinged:')) leafMark = doubleHingedMark(String(leaf.kind).endsWith('left') ? 'left' : 'right', leafX, contentY, leafWidth, contentH, color, leafAxisY);
+      else leafMark = slidingMark(String(leaf.kind), leafX, contentY, leafWidth, contentH, color, leafAxisY);
+
+      let leafHardware = '';
+      if (!glassOnly) {
+        let handleSpec: HardwareSpec = unitIsSlider
+          ? (sliderHardware[index] ? { ...sliderHardware[index], orientation: 'down' as const } : { role: 'none' as const, reason: '' })
+          : { role: 'none' as const, reason: '' };
+        if (unitDefinition.obLeaf === position) {
+          handleSpec = { role: 'handle' as const, side: (position === 0 ? 'right' : 'left') as 'left' | 'right', reason: 'adene-ob-leaf' };
+        } else if (!unitIsSlider && unitDefinition.family === 'projecting') {
+          handleSpec = { role: 'handle' as const, side: 'center' as const, position: 'bottom' as const, orientation: 'up' as const, reason: 'projecting-bottom' };
+        } else if (!unitIsSlider && unitDefinition.family === 'tilt') {
+          handleSpec = { role: 'handle' as const, side: 'center' as const, reason: 'center-forced' };
+        } else if (!unitIsSlider && ['hinged', 'door', 'tilt-turn'].includes(unitDefinition.family)) {
+          const isDouble = String(leaf.kind).startsWith('double-');
+          const leafSide = String(leaf.kind).endsWith(':left') ? 'left' : String(leaf.kind).endsWith(':right') ? 'right' : '';
+          const active = !isDouble || !unitDefinition.hand || leafSide === unitDefinition.hand;
+          // Una practicable o abatible de dos hojas lleva UNA sola manilla: el
+          // cerradero oculto de la hoja pasiva es cosa exclusiva de correderas.
+          handleSpec = active
+            ? { role: 'handle' as const, side: (unitDefinition.hinge === 'right' ? 'left' : 'right') as 'left' | 'right', lock: unitDefinition.family === 'door' && monoblock, reason: isDouble ? 'catalog-active-leaf' : 'opposite-hinge' }
+            : { role: 'none' as const, reason: 'catalog-passive-leaf' };
+        }
+        leafHardware += handleMark(handleSpec, line, leaf, leafX, contentY, leafWidth, contentH, height);
+
+        // Bisagras en el canto que corresponde a la familia: vertical en
+        // practicables/puertas/oscilobatientes, horizontal en proyectantes
+        // (arriba) y abatibles (abajo). Las correderas no llevan.
+        const hingeSide = ['hinged', 'door', 'tilt-turn'].includes(unitDefinition.family)
+          ? (String(leaf.kind).startsWith('double-')
+              ? (String(leaf.kind).endsWith(':left') ? 'left' : 'right')
+              : (unitDefinition.hinge || 'left'))
+          : unitDefinition.family === 'projecting' ? 'top'
+            : unitDefinition.family === 'tilt' ? 'bottom'
+              : '';
+        if (!unitIsSlider && hingeSide && hinges.count) {
+          leafHardware += hingeMarkup(hingeSide, hinges.count, leafX, contentY, leafWidth, contentH, hinges.reason, line);
+        }
+      }
+      if (leafHardware) {
+        hardwareLayers.push(`<g class="window-hardware-layer" data-leaf-index="${index}">${leafHardware}</g>`);
+      }
+
+      leafLayers.push({
+        depth,
+        position,
+        markup: `<g class="window-leaf-depth window-rail-${depth || 0}" data-leaf-index="${index}" data-leaf-x="${leafX}" data-leaf-width="${leafWidth}" data-rail="${depth > 0 ? `C${depth}` : ''}" data-rail-source="${escape(rail.source)}">${leafSash}${leafGlass}${leafTraverses}${leafSplits}${leafMuntins}${leafMark}</g>`,
+      });
+    });
+
+    const leavesInUnit = leafLayers
+      .sort((left, right) => right.depth - left.depth || left.position - right.position)
+      .map(item => item.markup)
+      .join('');
+    return `<g class="window-unit" data-unit-leaves="${unit.indices.length}">${unitFrame}${leavesInUnit}</g>`;
+  }).join('');
+
+  const hardwareMarkupStr = hardwareLayers.join('');
+  const className = target === 'line' ? 'line-window-sketch' : 'offer-window-sketch';
 
   const apertureCodes = [...new Set(allLeaves.map((leaf: Record<string, unknown>) => number(leaf.apertura)))];
   const apertureText = apertureCodes
     .map((code: number) => `Apertura ${code} · ${(core.apertureDefinition(line, code) as ApertureDefinition).label || 'Sin nombre confirmado'}`)
     .join(' + ');
 
-  return `<svg class="${className}${glassOnly ? ` ${target === 'line' ? 'line-window-glass-only' : 'offer-window-glass-only'}` : ''}" data-aperture-code="${escape(apertureCodes.join(','))}" data-aperture-name="${escape(core.apertureLabel(line))}" data-guide-count="${guideCount || ''}" style="--window-finish:${finish.frame};font-family:system-ui,sans-serif" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Esquema de ${escape(line.modelo || 'ventana')}"><title>${escape(apertureText)}</title>${frame}${leavesMarkup}${traverses}${splits}${hardwareMarkupStr}<g class="window-glass-code-layer">${glassCodeLayers.join('')}</g>${segmentDimensions.join('')}${dimensionMarkup(width, height, x, y, drawingW, drawingH)}</svg>`;
+  return `<svg class="${className}${glassOnly ? ` ${target === 'line' ? 'line-window-glass-only' : 'offer-window-glass-only'}` : ''}" data-aperture-code="${escape(apertureCodes.join(','))}" data-aperture-name="${escape(core.apertureLabel(line))}" data-guide-count="${guideCount || ''}" style="--window-finish:${finish.frame};font-family:system-ui,sans-serif" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Esquema de ${escape(line.modelo || 'ventana')}"><title>${escape(apertureText)}</title>${unitsMarkup}${hardwareMarkupStr}<g class="window-glass-code-layer">${glassCodeLayers.join('')}</g>${segmentDimensions.join('')}${dimensionMarkup(width, height, x, y, drawingW, drawingH)}</svg>`;
 }
 
 // ─── Función principal unificada ──────────────────────────────────────────────

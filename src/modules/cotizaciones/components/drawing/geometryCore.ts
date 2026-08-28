@@ -228,6 +228,19 @@
     return (Array.isArray(raw) ? raw : []).map(normalizeGeometryItem);
   };
 
+  // HETMO nombra la cota de manilla de cuatro formas distintas segun por
+  // donde salga la fila. El renderizador anterior (mtw-dashboard) las leia
+  // todas; leer solo altura_manilla dejaba la manilla al centro en las lineas
+  // que la declaran como cota_manilla.
+  export function alturaManillaDe(item) {
+    return firstPositive(
+      item && item.altura_manilla,
+      item && item.ALTURA_MANILLA,
+      item && item.cota_manilla,
+      item && item.COTA_MANILLA
+    );
+  }
+
   export function normalizedApertura(line, value) {
     const code = number(value);
     // La serie comercial nunca reemplaza el código real. Advance, Prime,
@@ -266,7 +279,7 @@
       // móvil real y N2 su ancho real en mm.
       movilLado: number(item && item.geometria_n1),
       movilAncho: firstPositive(item && item.geometria_n2),
-      alturaManilla: firstPositive(item && item.altura_manilla, item && item.ALTURA_MANILLA, item && item.cota_manilla, item && item.COTA_MANILLA)
+      alturaManilla: alturaManillaDe(item)
     })).sort((a, b) => a.posicion - b.posicion || a.orden - b.orden);
     if (components.length) return components;
     return [{ apertura: normalizedApertura(line, line && (line.dibujoTipoApertura != null ? line.dibujoTipoApertura : line.tipoApertura)), ancho: 0, alto: 0, geometria: 'principal' }];
@@ -304,7 +317,7 @@
         // ruta compuesta no tenía forma de saberlo.
         panel.movilLado = number(item.geometria_n1);
         panel.movilAncho = firstPositive(item.geometria_n2);
-        panel.alturaManilla = firstPositive(item.altura_manilla);
+        panel.alturaManilla = alturaManillaDe(item);
       }
     });
     const panels = [...groups.values()].filter(panel => panel.width > 0 && panel.height > 0).sort((a, b) => a.number - b.number || a.order - b.order);
@@ -600,36 +613,44 @@
     return { count, reason: count ? 'hardware-quantity-per-leaf' : 'no-hinge-hardware' };
   }
 
-  // Color del herraje. No es metal desnudo: manillas y bisagras se piden del
-  // color del perfil, y el propio artículo lo declara en su descripción
-  // ("MANILLA NEPTUNO F 33MM , NEGRO"). Se lee de ahí, que es dato, y sólo si
-  // el artículo no lo dice se cae al acabado del marco.
-  export const hardwarePalette = [
-    [/\bnegr[oa]\b/i, '#1c1f24'],
-    [/\bblanc[oa]\b/i, '#eef1f4'],
-    [/\b(caf[eé]|marr[oó]n|nogal|golden\s*oak|roble)\b/i, '#5b3a1e'],
-    [/\b(plata|inox|acero|cromo|niquel|n[ií]quel)\b/i, '#9aa3ad'],
-    [/\b(bronce|oro|dorad[oa])\b/i, '#8a6b2f'],
-    [/\bgris\b/i, '#6b7280'],
-    [/\bantracita\b/i, '#33383f']
-  ];
-  export function hardwareColor(materials, fallback, role) {
-    const rows = Array.isArray(materials) ? materials : [];
-    const rolePattern = role === 'handle' ? /\b(manilla|cremona)\b/i
-      : role === 'hinge' ? /\b(bisagra|pernio)\b/i : /\b(manilla|cremona|bisagra|pernio)\b/i;
-    for (const item of rows) {
-      const text = String((item && (item.descripcionArticulo ?? item.descripcion)) || '');
-      if (!rolePattern.test(text)) continue;
-      const match = hardwarePalette.find(([pattern]) => pattern.test(text));
-      if (match) return match[1];
-    }
-    return String(fallback || '#30343a');
+  // Color del herraje. Ya no sigue el color del perfil ni el que declare la
+  // descripcion del articulo: hoy solo hay dos herrajes en catalogo, blanco y
+  // negro. Blanco unicamente cuando el acabado es blanco; en cualquier otro
+  // acabado el herraje es negro.
+  export const HARDWARE_WHITE = '#eef1f4';
+  export const HARDWARE_BLACK = '#1c1f24';
+
+  // Luminancia relativa del acabado del marco: sirve para reconocer un blanco
+  // real sin tener que enumerar cada codigo de acabado que exista.
+  function relativeLuminance(hex) {
+    const match = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+    if (!match) return 0;
+    const value = parseInt(match[1], 16);
+    const channel = raw => {
+      const c = raw / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * channel((value >> 16) & 255)
+      + 0.7152 * channel((value >> 8) & 255)
+      + 0.0722 * channel(value & 255);
+  }
+
+  // Un herraje MONOBLOCK trae cerradura con cilindro integrado, no solo la
+  // manilla: cuando la receta lo declara asi, el dibujo lo muestra.
+  export function hasMonoblock(materials) {
+    return (Array.isArray(materials) ? materials : []).some(item =>
+      /\bmonoblock\b/i.test(String((item && (item.descripcionArticulo ?? item.descripcion)) || ''))
+    );
+  }
+
+  export function hardwareColor(materials, frameColor) {
+    return relativeLuminance(frameColor) >= 0.8 ? HARDWARE_WHITE : HARDWARE_BLACK;
   }
 
   export function handleHeightFor(line, leaf, physicalHeight) {
     const geometryItems = geometryItemsOf(line);
     const geometryCustom = geometryItems.length
-      ? firstPositive(...geometryItems.map(item => item && item.altura_manilla))
+      ? firstPositive(...geometryItems.map(alturaManillaDe))
       : 0;
     const custom = firstPositive(leaf && leaf.alturaManilla, leaf && leaf.altura_manilla,
       leaf && leaf.component && leaf.component.alturaManilla,
@@ -845,14 +866,43 @@
     return 'Línea no especificada';
   }
 
+  // HETMO declara el vidrio con dos tipos de elemento distintos segun el
+  // modelo: 40000 (despiece con medidas reales por pano, p.ej. la puerta P6 de
+  // Vista Monsenor) y 200 (solo la composicion, sin medidas: confirmado en
+  // Casa A PV02 / HETMO 10581, donde el unico portador de "5/12/5 INC" es una
+  // fila tipo 200). Mirar solo 40000 dejaba sin composicion de vidrio a todas
+  // las lineas del segundo tipo.
+  export const glassElementTypes = [40000, 200];
   export function renderGlassRows(line) {
-    const rows = geometryItemsOf(line).filter(item => number(item && item.tipo_elemento) === 40000);
+    const rows = geometryItemsOf(line).filter(item => glassElementTypes.indexOf(number(item && item.tipo_elemento)) >= 0);
     const unique = new Map();
     rows.forEach(item => {
       const key = [String((item && item.codigo_componente) || ''), number(item && item.numero_ventana), number(item && item.pertenece_hueco), firstPositive(item.ancho, item.ancho_mm), firstPositive(item.alto, item.alto_mm)].join('|');
       if (!unique.has(key)) unique.set(key, item);
     });
     return [...unique.values()];
+  }
+
+  // Hay lineas que se venden como puro vidrio (el clasico "SOLO DVH" de
+  // COND. QUILLAYES DE LA DEHESA, Casa A V01 / HETMO 10583: un unico material,
+  // el termopanel). Sin perfiles no hay marco ni hoja que dibujar: es el
+  // vidrio solo. Se exige que la receta traiga materiales -- si la linea no
+  // trae ninguno no se sabe nada y se dibuja con marco, como siempre.
+  export function isFrameless(line) {
+    const rows = Array.isArray(line && line.materiales) ? line.materiales : [];
+    if (!rows.length) return false;
+    // Se exige que TODA la receta sea vidrio, no solo que falten los perfiles:
+    // una linea que declara herrajes pero no perfiles es una receta incompleta,
+    // no una venta de puro termopanel.
+    return rows.every(item => {
+      const familia = String((item && item.familia) || '');
+      if (/vidrio|cristal/i.test(familia)) return true;
+      if (familia) return false;
+      // Respaldo por descripcion cuando la familia no viaja en el material.
+      const texto = String((item && (item.descripcionArticulo ?? item.descripcion)) || '');
+      return /\b(vidrio|cristal|termopanel|dvh|laminado|monol[ií]tico)\b/i.test(texto)
+        || /\d+\s*\/\s*\d+\s*\/\s*\d+/.test(texto);
+    });
   }
 
   export function isWithoutGlass(line) {
