@@ -145,40 +145,90 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
         </div>
       )}
 
-      {/* Modal Informativo: Revisión de Materiales Individual (Pendiente) */}
+      {/* Modal: Revisión de Materiales Individual de la Ventana */}
       {selectedVentanaForMaterials && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl space-y-4 border border-slate-200">
+          <div className="w-full max-w-2xl max-h-[85vh] rounded-2xl bg-white p-6 shadow-2xl space-y-4 border border-slate-200 flex flex-col">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">
                   Despiece de Materiales: {selectedVentanaForMaterials.modelo}
                 </h3>
                 <span className="text-xs text-slate-500 font-mono">
-                  Línea #{selectedVentanaForMaterials.lineaHetmo} · {selectedVentanaForMaterials.unidades} unidades
+                  Línea #{selectedVentanaForMaterials.lineaHetmo} · {selectedVentanaForMaterials.unidades} unidades ({selectedVentanaForMaterials.anchoMm} × {selectedVentanaForMaterials.altoMm} mm)
                 </span>
               </div>
               <button
                 onClick={() => setSelectedVentanaForMaterials(null)}
-                className="text-slate-400 hover:text-slate-700 text-xs font-bold"
+                className="text-slate-400 hover:text-slate-700 text-xs font-bold px-2 py-1 rounded-lg hover:bg-slate-100 transition-colors"
               >
                 Cerrar
               </button>
             </div>
 
-            <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200 text-blue-900 flex items-start gap-2.5 text-xs">
-              <Info className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
-              <p>
-                La revisión de materiales individual categorizada por ventana se encuentra en desarrollo. El análisis global consolidado de insumos está disponible en el <strong>Paso 3: Analítica de Materiales</strong>.
-              </p>
+            <div className="overflow-y-auto flex-1 pr-1 space-y-3">
+              {selectedVentanaForMaterials.materiales && selectedVentanaForMaterials.materiales.length > 0 ? (
+                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                      <tr>
+                        <th className="py-2.5 px-3">Familia</th>
+                        <th className="py-2.5 px-3">SKU / Descripción</th>
+                        <th className="py-2.5 px-3 text-right">Cant. / Longitud</th>
+                        <th className="py-2.5 px-3 text-center">Acabado</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-700">
+                      {selectedVentanaForMaterials.materiales.map((m, idx) => (
+                        <tr key={m.id || idx} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-2 px-3 align-top">
+                            <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide uppercase bg-slate-100 text-slate-700">
+                              {m.material?.familia || 'General'}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 align-top">
+                            <div className="font-semibold text-slate-900 font-mono text-[11px]">
+                              {m.material?.skuInterno || '—'}
+                            </div>
+                            <div className="text-slate-600 text-[11px] line-clamp-2">
+                              {m.material?.descripcion || 'Material de fábrica'}
+                            </div>
+                          </td>
+                          <td className="py-2 px-3 align-top text-right font-mono">
+                            <div>{Number(m.cantidad || 1).toLocaleString('es-CL')} un</div>
+                            {m.longitudMm && (
+                              <div className="text-[10px] text-slate-400">
+                                {Number(m.longitudMm).toLocaleString('es-CL')} mm
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 align-top text-center font-mono text-[11px]">
+                            {m.acabado || '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200 text-blue-900 flex items-start gap-2.5 text-xs">
+                  <Info className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+                  <p>
+                    Esta ventana no registra despiece de materiales individual en el presupuesto actual. El análisis consolidado de insumos está disponible en el <strong>Paso 3: Analítica de Materiales</strong>.
+                  </p>
+                </div>
+              )}
             </div>
 
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+              <span className="text-[11px] text-slate-500 font-medium">
+                Total artículos: {selectedVentanaForMaterials.materiales?.length || 0}
+              </span>
               <button
                 onClick={() => setSelectedVentanaForMaterials(null)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs"
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs transition-colors"
               >
-                Entendido
+                Cerrar
               </button>
             </div>
           </div>
