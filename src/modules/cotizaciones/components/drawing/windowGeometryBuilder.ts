@@ -106,7 +106,7 @@ function buildCompositePanel(
   const height = Math.max(1, number(line.dibujoAlto ?? line.alto) || 1);
   const { drawingW, drawingH, x, y } = computeDrawingDimensions(width, height);
   const finish = finishFor(line);
-  const glassOnly = Boolean(line.dibujoSinMarco);
+  const glassOnly = Boolean(line.dibujoSinMarco) || core.isFrameless(line);
   const guideCount = core.sliderGuideCount({ linea: line, materiales: line.materiales });
   const frameClass = target === 'line' ? 'line-window-frame' : 'offer-frame';
   const glassClass = target === 'line' ? 'line-window-glass' : 'offer-glass';
@@ -413,7 +413,7 @@ function buildSimpleWindow(
   const height = Math.max(1, number(line.dibujoAlto ?? line.alto) || 1);
   const { drawingW, drawingH, x, y } = computeDrawingDimensions(width, height);
   const finish = finishFor(line);
-  const glassOnly = Boolean(line.dibujoSinMarco);
+  const glassOnly = Boolean(line.dibujoSinMarco) || core.isFrameless(line);
   const guideCount = core.sliderGuideCount({ linea: line, materiales: line.materiales });
   const noGlass = core.isWithoutGlass(line);
   const outline = core.specialOutline(line) as SpecialOutline | null;

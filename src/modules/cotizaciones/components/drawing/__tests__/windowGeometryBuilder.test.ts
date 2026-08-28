@@ -296,6 +296,56 @@ describe('buildWindow — nivel 2 vía parametrosJson', () => {
     expect(result.svg).not.toContain('window-striker');
   });
 
+  it('línea de puro vidrio (SOLO DVH) se dibuja sin marco ni hoja', () => {
+    // Casa A V01 (HETMO 10583, COND. QUILLAYES DE LA DEHESA): la receta trae
+    // un único material, el termopanel. Sin perfiles no hay nada que dibujar
+    // salvo el vidrio.
+    const v = ventana({
+      anchoMm: 740,
+      altoMm: 2425,
+      dibujoTipoApertura: 0,
+      acabadoCodigo: '7000',
+      materiales: [materialDescrito('DVH 5/12/5 INC', { cantidad: 1, piezas: 1 })],
+    });
+    const result = buildWindow(toWindowLine(v)!, 'line');
+    expect(result.svg).not.toContain('line-window-frame');
+    expect(result.svg).not.toContain('window-sash-profile');
+    expect(result.svg).toContain('line-window-glass');
+  });
+
+  it('una receta con herrajes pero sin perfiles NO es una línea de puro vidrio', () => {
+    // Receta incompleta, no una venta de termopanel suelto: debe seguir
+    // dibujándose con su marco.
+    const v = ventana({
+      anchoMm: 900,
+      altoMm: 1200,
+      dibujoTipoApertura: 4,
+      acabadoCodigo: 'BL',
+      geometrias: [geometria({ tipoElemento: 3, tipoApertura: 4, anchoMm: 900, altoMm: 1200, posicion: 1 })],
+      materiales: [materialDescrito('MANILLA NEPTUNO F 33MM , NEGRO', { cantidad: 1, piezas: 1 })],
+    });
+    const result = buildWindow(toWindowLine(v)!, 'line');
+    expect(result.svg).toContain('line-window-frame');
+  });
+
+  it('composición del vidrio declarada como fila tipo 200 se muestra en el dibujo', () => {
+    // Casa A PV02 (HETMO 10581): el único portador de "5/12/5 INC" es una fila
+    // tipo_elemento 200 (sin medidas). Mirar sólo las filas 40000 dejaba sin
+    // composición de vidrio a todas las líneas de este tipo.
+    const v = ventana({
+      anchoMm: 870,
+      altoMm: 2475,
+      dibujoTipoApertura: 18,
+      acabadoCodigo: 'BL',
+      geometrias: [
+        geometria({ tipoElemento: 3, tipoApertura: 18, anchoMm: 870, altoMm: 2475, posicion: 1 }),
+        geometria({ tipoElemento: 200, parametrosJson: { codigo_componente: '5/12/5 INC' } }),
+      ],
+    });
+    const result = buildWindow(toWindowLine(v)!, 'line');
+    expect(result.svg).toContain('5/12/5 INC');
+  });
+
   it('toda hoja que abre lleva bisagras aunque HETMO no declare el herraje', () => {
     const v = ventana({
       anchoMm: 900,

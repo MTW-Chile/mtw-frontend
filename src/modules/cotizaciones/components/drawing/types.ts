@@ -198,6 +198,8 @@ export interface FinishColors {
 export interface LineMaterial {
   descripcionArticulo?: string;
   descripcion?: string;
+  /** Familia HETMO del artículo (Perfileria, Vidrio, Herrajes, ...) */
+  familia?: string;
   cantidad?: number;
   uds?: number;
   acabado?: string;

@@ -845,14 +845,43 @@
     return 'Línea no especificada';
   }
 
+  // HETMO declara el vidrio con dos tipos de elemento distintos segun el
+  // modelo: 40000 (despiece con medidas reales por pano, p.ej. la puerta P6 de
+  // Vista Monsenor) y 200 (solo la composicion, sin medidas: confirmado en
+  // Casa A PV02 / HETMO 10581, donde el unico portador de "5/12/5 INC" es una
+  // fila tipo 200). Mirar solo 40000 dejaba sin composicion de vidrio a todas
+  // las lineas del segundo tipo.
+  export const glassElementTypes = [40000, 200];
   export function renderGlassRows(line) {
-    const rows = geometryItemsOf(line).filter(item => number(item && item.tipo_elemento) === 40000);
+    const rows = geometryItemsOf(line).filter(item => glassElementTypes.indexOf(number(item && item.tipo_elemento)) >= 0);
     const unique = new Map();
     rows.forEach(item => {
       const key = [String((item && item.codigo_componente) || ''), number(item && item.numero_ventana), number(item && item.pertenece_hueco), firstPositive(item.ancho, item.ancho_mm), firstPositive(item.alto, item.alto_mm)].join('|');
       if (!unique.has(key)) unique.set(key, item);
     });
     return [...unique.values()];
+  }
+
+  // Hay lineas que se venden como puro vidrio (el clasico "SOLO DVH" de
+  // COND. QUILLAYES DE LA DEHESA, Casa A V01 / HETMO 10583: un unico material,
+  // el termopanel). Sin perfiles no hay marco ni hoja que dibujar: es el
+  // vidrio solo. Se exige que la receta traiga materiales -- si la linea no
+  // trae ninguno no se sabe nada y se dibuja con marco, como siempre.
+  export function isFrameless(line) {
+    const rows = Array.isArray(line && line.materiales) ? line.materiales : [];
+    if (!rows.length) return false;
+    // Se exige que TODA la receta sea vidrio, no solo que falten los perfiles:
+    // una linea que declara herrajes pero no perfiles es una receta incompleta,
+    // no una venta de puro termopanel.
+    return rows.every(item => {
+      const familia = String((item && item.familia) || '');
+      if (/vidrio|cristal/i.test(familia)) return true;
+      if (familia) return false;
+      // Respaldo por descripcion cuando la familia no viaja en el material.
+      const texto = String((item && (item.descripcionArticulo ?? item.descripcion)) || '');
+      return /\b(vidrio|cristal|termopanel|dvh|laminado|monol[ií]tico)\b/i.test(texto)
+        || /\d+\s*\/\s*\d+\s*\/\s*\d+/.test(texto);
+    });
   }
 
   export function isWithoutGlass(line) {
