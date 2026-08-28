@@ -26,6 +26,8 @@ export interface Material {
   descripcion: string;
   familia: string;
   unidadMedida: string;
+  precioOrigen?: number | null;
+  monedaOrigen?: string | null;
   proveedorId: string | null;
   proveedor?: Proveedor | null;
   creadoEn: string;

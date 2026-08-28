@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { 
-  X, 
-  Building2, 
-  Ruler, 
-  Layers, 
-  DollarSign, 
-  Boxes
+import {
+  X,
+  Building2,
+  Ruler,
+  Layers,
+  DollarSign,
+  Boxes,
 } from 'lucide-react';
 import { getProyectoById } from '../../api/client';
 import { formatNumber } from '../../lib/utils';
+import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
 import type { Ventana } from '../../types';
 
 export const CotizacionDetalleModal: React.FC<{
@@ -30,34 +32,39 @@ export const CotizacionDetalleModal: React.FC<{
   const ventanas: Ventana[] = version?.ventanas || [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-5xl max-h-[90vh] bg-[#0E131F] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-        
-        {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-white/[0.08] bg-slate-900/60 flex items-center justify-between shrink-0">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+      <div
+        className="relative w-full sm:max-w-5xl max-h-[94vh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-2xl border border-slate-200 shadow-2xl flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header Modal */}
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+            <div className="w-10 h-10 rounded-xl bg-[#E34A26]/10 border border-[#E34A26]/20 flex items-center justify-center text-[#E34A26] shrink-0">
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-slate-100">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-sm sm:text-base font-black text-slate-900 line-clamp-1">
                   {proyecto?.obra || 'Cargando Obra...'}
                 </h2>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 border border-white/10 text-slate-300 font-mono">
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700 font-mono font-bold">
                   {proyecto?.codigoInterno || `PRJ-${proyecto?.numeroPresupuesto}`}
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
-                Cliente: <span className="text-slate-200">{proyecto?.clienteNombreRaw}</span>
-                {proyecto?.clienteRutRaw && <span className="ml-2 font-mono text-slate-400">({proyecto.clienteRutRaw})</span>}
+              <p className="text-xs text-slate-500">
+                Cliente: <span className="text-slate-800 font-semibold">{proyecto?.clienteNombreRaw}</span>
+                {proyecto?.clienteRutRaw && (
+                  <span className="ml-1.5 font-mono text-slate-400">({proyecto.clienteRutRaw})</span>
+                )}
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors"
+            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-colors shrink-0"
+            aria-label="Cerrar"
           >
             <X className="w-4 h-4" />
           </button>
@@ -65,19 +72,18 @@ export const CotizacionDetalleModal: React.FC<{
 
         {/* Modal Body */}
         {isLoading ? (
-          <div className="p-12 flex flex-col items-center justify-center gap-3 text-slate-400">
-            <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
-            <span className="text-xs">Cargando desglose de ventanas y cotas...</span>
+          <div className="p-12 flex flex-col items-center justify-center gap-3 text-slate-500">
+            <div className="w-8 h-8 border-2 border-[#E34A26] border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-xs font-mono">Cargando desglose de ventanas y cotas...</span>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
             {/* Version Selector & Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {/* Version Picker */}
-              <div className="p-4 rounded-xl bg-slate-900/40 border border-white/5 space-y-2">
-                <div className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5 text-cyan-400" />
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="text-[10px] uppercase tracking-wider font-bold text-slate-500 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-[#E34A26]" />
                   <span>Versión HETMO</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -85,52 +91,57 @@ export const CotizacionDetalleModal: React.FC<{
                     <button
                       key={v.id}
                       onClick={() => setSelectedVersionIdx(idx)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                         selectedVersionIdx === idx
-                          ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
-                          : 'bg-slate-800/80 text-slate-400 hover:text-slate-200'
+                          ? 'bg-[#E34A26] text-white shadow-xs'
+                          : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
                       }`}
                     >
                       v{v.versionNumero}
                     </button>
                   ))}
                 </div>
-                <div className="text-[10px] text-slate-400">
-                  Estado: <span className="text-emerald-400 font-medium">{version?.estadoGlosa || 'Terminado'}</span>
+                <div className="text-[10px] text-slate-500">
+                  Estado:{' '}
+                  <span className="text-emerald-700 font-bold">
+                    {version?.estadoGlosa || 'Terminado'}
+                  </span>
                 </div>
               </div>
 
               {/* Superficie Total */}
-              <div className="p-4 rounded-xl bg-slate-900/40 border border-white/5 space-y-1">
-                <div className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 flex items-center gap-1.5">
-                  <Ruler className="w-3.5 h-3.5 text-blue-400" />
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <div className="text-[10px] uppercase tracking-wider font-bold text-slate-500 flex items-center gap-1.5">
+                  <Ruler className="w-3.5 h-3.5 text-sky-600" />
                   <span>Superficie Total</span>
                 </div>
-                <div className="text-2xl font-bold text-slate-100">
-                  {formatNumber(version?.totalM2Ventanas, 2)} <span className="text-xs font-normal text-slate-400">m²</span>
+                <div className="text-xl font-black font-mono text-slate-900">
+                  {formatNumber(version?.totalM2Ventanas, 2)}{' '}
+                  <span className="text-xs font-normal text-slate-500 font-sans">m²</span>
                 </div>
                 <div className="text-[10px] text-slate-400">Calculado sobre paños reales</div>
               </div>
 
               {/* Cantidad Ventanas */}
-              <div className="p-4 rounded-xl bg-slate-900/40 border border-white/5 space-y-1">
-                <div className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 flex items-center gap-1.5">
-                  <Boxes className="w-3.5 h-3.5 text-amber-400" />
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <div className="text-[10px] uppercase tracking-wider font-bold text-slate-500 flex items-center gap-1.5">
+                  <Boxes className="w-3.5 h-3.5 text-amber-600" />
                   <span>Ventanas Físicas</span>
                 </div>
-                <div className="text-2xl font-bold text-slate-100">
-                  {ventanas.length} <span className="text-xs font-normal text-slate-400">unidades</span>
+                <div className="text-xl font-black font-mono text-slate-900">
+                  {ventanas.length}{' '}
+                  <span className="text-xs font-normal text-slate-500 font-sans">unidades</span>
                 </div>
-                <div className="text-[10px] text-slate-400">Desglose individual en tabla</div>
+                <div className="text-[10px] text-slate-400">Total elementos presupuestados</div>
               </div>
 
               {/* Moneda / Monto */}
-              <div className="p-4 rounded-xl bg-slate-900/40 border border-white/5 space-y-1">
-                <div className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 flex items-center gap-1.5">
-                  <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <div className="text-[10px] uppercase tracking-wider font-bold text-slate-500 flex items-center gap-1.5">
+                  <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
                   <span>Moneda Base</span>
                 </div>
-                <div className="text-lg font-bold text-slate-100 truncate">
+                <div className="text-lg font-black text-slate-900 truncate">
                   {version?.monedaDescripcion || 'UF'}
                 </div>
                 <div className="text-[10px] text-slate-400 font-mono">
@@ -142,57 +153,57 @@ export const CotizacionDetalleModal: React.FC<{
             {/* Matrix of Windows */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
                   <span>Despiece de Ventanas y Paños</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800/40 font-mono">
+                  <Badge variant="brand" size="sm">
                     {ventanas.length} ventanas
-                  </span>
+                  </Badge>
                 </h3>
               </div>
 
-              <div className="overflow-x-auto border border-white/10 rounded-xl bg-slate-900/30">
-                <table className="w-full text-left text-xs text-slate-300">
-                  <thead className="bg-slate-900/80 text-[11px] uppercase tracking-wider text-slate-400 border-b border-white/10">
+              <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white shadow-xs">
+                <table className="w-full text-left text-xs text-slate-700">
+                  <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
                     <tr>
-                      <th className="px-4 py-3 font-semibold">Línea</th>
-                      <th className="px-4 py-3 font-semibold">Modelo / Tipología</th>
-                      <th className="px-4 py-3 font-semibold">Dimensiones (Ancho × Alto)</th>
-                      <th className="px-4 py-3 font-semibold text-center">Uds</th>
-                      <th className="px-4 py-3 font-semibold text-right">Superficie (m²)</th>
-                      <th className="px-4 py-3 font-semibold text-center">Geometría</th>
-                      <th className="px-4 py-3 font-semibold">Comentarios</th>
+                      <th className="px-4 py-3">Línea</th>
+                      <th className="px-4 py-3">Modelo / Tipología</th>
+                      <th className="px-4 py-3">Dimensiones (Ancho × Alto)</th>
+                      <th className="px-4 py-3 text-center">Uds</th>
+                      <th className="px-4 py-3 text-right">Superficie (m²)</th>
+                      <th className="px-4 py-3 text-center">Geometría</th>
+                      <th className="px-4 py-3">Comentarios</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5">
+                  <tbody className="divide-y divide-slate-100">
                     {ventanas.map((v, i) => (
-                      <tr key={v.id || i} className="hover:bg-slate-800/40 transition-colors">
-                        <td className="px-4 py-3 font-mono text-slate-400">
+                      <tr key={v.id || i} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="px-4 py-3 font-mono font-bold text-slate-500">
                           #{v.orden || i + 1}
                         </td>
-                        <td className="px-4 py-3 font-medium text-slate-100">
-                          <div className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-                            <span>{v.modelo}</span>
-                          </div>
+                        <td className="px-4 py-3 font-semibold text-slate-900">
+                          <div>{v.modelo}</div>
                           {v.descripcionCorta && (
-                            <span className="text-[10px] text-slate-400 ml-4 block">{v.descripcionCorta}</span>
+                            <span className="text-[10px] text-slate-400 block font-normal">
+                              {v.descripcionCorta}
+                            </span>
                           )}
                         </td>
-                        <td className="px-4 py-3 font-mono text-cyan-300 font-semibold">
-                          {formatNumber(v.anchoMm, 0)} × {formatNumber(v.altoMm, 0)} <span className="text-[10px] text-slate-400 font-normal">mm</span>
+                        <td className="px-4 py-3 font-mono text-[#E34A26] font-bold">
+                          {formatNumber(v.anchoMm, 0)} × {formatNumber(v.altoMm, 0)}{' '}
+                          <span className="text-[10px] text-slate-400 font-normal">mm</span>
                         </td>
-                        <td className="px-4 py-3 text-center font-semibold text-slate-200">
+                        <td className="px-4 py-3 text-center font-bold text-slate-900">
                           {v.unidades}
                         </td>
-                        <td className="px-4 py-3 text-right font-mono text-slate-200 font-semibold">
+                        <td className="px-4 py-3 text-right font-mono font-bold text-slate-900">
                           {formatNumber(v.m2Ventana, 2)} m²
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className="px-2 py-0.5 rounded-full bg-slate-800 text-[10px] text-slate-300 border border-white/5">
+                          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[10px] text-slate-700 border border-slate-200">
                             {v.geometrias?.length || 0} cotas 2D
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-slate-400 max-w-xs truncate text-[11px]">
+                        <td className="px-4 py-3 text-slate-500 max-w-xs truncate text-[11px]">
                           {v.comentarioPresupuesto || v.comentarioFabricacion || '-'}
                         </td>
                       </tr>
@@ -201,21 +212,18 @@ export const CotizacionDetalleModal: React.FC<{
                 </table>
               </div>
             </div>
-
           </div>
         )}
 
         {/* Modal Footer */}
-        <div className="px-6 py-3 border-t border-white/[0.08] bg-slate-950/60 flex items-center justify-between text-xs text-slate-400 shrink-0">
-          <div>ID HETMO: <span className="font-mono text-slate-300 font-semibold">{version?.hetmoId}</span></div>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition-colors"
-          >
-            Cerrar
-          </button>
+        <div className="px-4 sm:px-6 py-3 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between text-xs text-slate-500 shrink-0">
+          <div className="text-[11px] font-mono">
+            ID HETMO: <strong className="text-slate-800">{version?.hetmoId}</strong>
+          </div>
+          <Button variant="secondary" size="sm" onClick={onClose}>
+            Cerrar Ficha
+          </Button>
         </div>
-
       </div>
     </div>
   );
