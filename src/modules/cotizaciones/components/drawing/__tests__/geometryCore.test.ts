@@ -114,6 +114,25 @@ describe('handleHeightFor — puerta P6 Vista Monseñor (10332, 900x2600, códig
   });
 });
 
+describe('handleHeightFor — HETMO nombra la cota de manilla de cuatro formas', () => {
+  // El renderizador anterior (mtw-dashboard) leía las cuatro; leer sólo
+  // altura_manilla dejaba la manilla al centro en las líneas que la declaran
+  // con cualquiera de los otros tres nombres.
+  const nombres = ['altura_manilla', 'ALTURA_MANILLA', 'cota_manilla', 'COTA_MANILLA'];
+  nombres.forEach(nombre => {
+    it(`resuelve "hetmo-custom" cuando la cota viene como ${nombre}`, () => {
+      const line = {
+        ancho: 900,
+        geometria: [
+          { tipo_elemento: 3, tipo_apertura: 18, ancho: 900, alto: 2600, posicion: 1, parametrosJson: { [nombre]: 1020 } },
+        ],
+      };
+      const result = core.handleHeightFor(line, {}, 2600);
+      expect(result).toMatchObject({ millimeters: 1020, reason: 'hetmo-custom' });
+    });
+  });
+});
+
 describe('handleHeightFor — el travesaño no tiene relación con la manilla', () => {
   // altura_manilla y la cota del travesaño son dos conceptos HETMO
   // independientes -- según la definición original de la API, altura_manilla

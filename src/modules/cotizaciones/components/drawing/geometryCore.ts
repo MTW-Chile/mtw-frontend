@@ -228,6 +228,19 @@
     return (Array.isArray(raw) ? raw : []).map(normalizeGeometryItem);
   };
 
+  // HETMO nombra la cota de manilla de cuatro formas distintas segun por
+  // donde salga la fila. El renderizador anterior (mtw-dashboard) las leia
+  // todas; leer solo altura_manilla dejaba la manilla al centro en las lineas
+  // que la declaran como cota_manilla.
+  export function alturaManillaDe(item) {
+    return firstPositive(
+      item && item.altura_manilla,
+      item && item.ALTURA_MANILLA,
+      item && item.cota_manilla,
+      item && item.COTA_MANILLA
+    );
+  }
+
   export function normalizedApertura(line, value) {
     const code = number(value);
     // La serie comercial nunca reemplaza el código real. Advance, Prime,
@@ -266,7 +279,7 @@
       // móvil real y N2 su ancho real en mm.
       movilLado: number(item && item.geometria_n1),
       movilAncho: firstPositive(item && item.geometria_n2),
-      alturaManilla: firstPositive(item && item.altura_manilla, item && item.ALTURA_MANILLA, item && item.cota_manilla, item && item.COTA_MANILLA)
+      alturaManilla: alturaManillaDe(item)
     })).sort((a, b) => a.posicion - b.posicion || a.orden - b.orden);
     if (components.length) return components;
     return [{ apertura: normalizedApertura(line, line && (line.dibujoTipoApertura != null ? line.dibujoTipoApertura : line.tipoApertura)), ancho: 0, alto: 0, geometria: 'principal' }];
@@ -304,7 +317,7 @@
         // ruta compuesta no tenía forma de saberlo.
         panel.movilLado = number(item.geometria_n1);
         panel.movilAncho = firstPositive(item.geometria_n2);
-        panel.alturaManilla = firstPositive(item.altura_manilla);
+        panel.alturaManilla = alturaManillaDe(item);
       }
     });
     const panels = [...groups.values()].filter(panel => panel.width > 0 && panel.height > 0).sort((a, b) => a.number - b.number || a.order - b.order);
@@ -629,7 +642,7 @@
   export function handleHeightFor(line, leaf, physicalHeight) {
     const geometryItems = geometryItemsOf(line);
     const geometryCustom = geometryItems.length
-      ? firstPositive(...geometryItems.map(item => item && item.altura_manilla))
+      ? firstPositive(...geometryItems.map(alturaManillaDe))
       : 0;
     const custom = firstPositive(leaf && leaf.alturaManilla, leaf && leaf.altura_manilla,
       leaf && leaf.component && leaf.component.alturaManilla,

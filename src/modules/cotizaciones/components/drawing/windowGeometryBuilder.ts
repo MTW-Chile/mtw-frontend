@@ -306,7 +306,7 @@ function buildCompositePanel(
           const leafAxisY = openingAxisY(line, resolvedLeaves[leafIndex], py, ph, panel.height);
           const leafMark = slidingMark(kind, leafX, py, leafWidth, ph, '#2452d6', leafAxisY);
           const leafHandle = glassOnly ? '' : handleMark(
-            sliderHardware[leafIndex],
+            { ...sliderHardware[leafIndex], orientation: 'down' as const },
             line,
             resolvedLeaves[leafIndex],
             leafX,
@@ -317,7 +317,7 @@ function buildCompositePanel(
           );
           foregroundHardware += leafHandle;
           const visibleGlassCode = leafIndex === 0 && (!singleGlassCode || index === 0) ? panelGlass : '';
-          const leafCode = glassCodeMarkup(codeClass, visibleGlassCode, leafX + 3, Math.min(py + ph - 3, 140));
+          const leafCode = glassCodeMarkup(codeClass, visibleGlassCode, leafX, py, leafWidth, ph);
           if (leafCode) foregroundGlassCodes.push(leafCode);
           const leafMuntins = muntinMarkup(line, leafX, py, leafWidth, ph, finish.frame);
           const railName = depth > 0 ? `C${depth}` : '';
@@ -374,8 +374,7 @@ function buildCompositePanel(
       );
 
       const visiblePanelGlass = !singleGlassCode || index === 0 ? panelGlass : '';
-      const panelCodeY = panelDefinition.family === 'projecting' ? py + 9 : Math.min(py + ph - 3, 140);
-      const code = panelLayout ? '' : glassCodeMarkup(codeClass, visiblePanelGlass, px + 3, panelCodeY);
+      const code = panelLayout ? '' : glassCodeMarkup(codeClass, visiblePanelGlass, px, py, pw, ph);
       if (code) foregroundGlassCodes.push(code);
 
       const panelMuntins = panelLayout ? '' : muntinMarkup(line, px, py, pw, ph, finish.frame);
@@ -515,7 +514,7 @@ function buildSimpleWindow(
     // directamente sobre él.
     if (!unitIsSlider && unitDefinition.family === 'fixed') {
       const index = unit.indices[0];
-      const label = glassCodeMarkup(codeClass, glassCodeFor(index), contentX + 3, Math.min(contentY + contentH - 3, 140));
+      const label = glassCodeMarkup(codeClass, glassCodeFor(index), contentX, contentY, contentW, contentH);
       if (label) glassCodeLayers.push(label);
       if (units.length > 1) {
         segmentDimensions.push(segmentDimensionMarkup(unitLeft, unitWidth, y + drawingH, Number(unitLeaves[0].width) || 0));
@@ -564,8 +563,7 @@ function buildSimpleWindow(
       const leafSash = glassOnly ? '' : sashMarkup(leafX, contentY, leafWidth, contentH, finish);
       const leafGlass = glassMarkup(glassClassName, paneX, paneY, paneW, paneH, !noGlass);
       const leafMuntins = muntinMarkup(line, paneX, paneY, paneW, paneH, finish.frame);
-      const labelY = unitDefinition.family === 'projecting' ? paneY + 9 : Math.min(paneY + paneH - 3, 140);
-      const leafLabel = glassCodeMarkup(codeClass, glassCodeFor(index), paneX + 3, labelY);
+      const leafLabel = glassCodeMarkup(codeClass, glassCodeFor(index), paneX, paneY, paneW, paneH);
       if (leafLabel) glassCodeLayers.push(leafLabel);
       if (allLeaves.length > 1) {
         segmentDimensions.push(segmentDimensionMarkup(leafX, leafWidth, y + drawingH, Number(leaf.width) || 0));
@@ -584,7 +582,7 @@ function buildSimpleWindow(
       let leafHardware = '';
       if (!glassOnly) {
         let handleSpec: HardwareSpec = unitIsSlider
-          ? (sliderHardware[index] || { role: 'none' as const, reason: '' })
+          ? (sliderHardware[index] ? { ...sliderHardware[index], orientation: 'down' as const } : { role: 'none' as const, reason: '' })
           : { role: 'none' as const, reason: '' };
         if (unitDefinition.obLeaf === position) {
           handleSpec = { role: 'handle' as const, side: (position === 0 ? 'right' : 'left') as 'left' | 'right', reason: 'adene-ob-leaf' };

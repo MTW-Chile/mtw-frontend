@@ -165,7 +165,7 @@ export interface HardwareSpec {
   style?: 'straight' | 'angled';
   side?: 'left' | 'right' | 'center';
   position?: 'top' | 'bottom';
-  orientation?: 'up';
+  orientation?: 'up' | 'down';
   reason: string;
   rail?: string;
 }

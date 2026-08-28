@@ -273,15 +273,32 @@ export function segmentDimensionMarkup(
     + `</g>`;
 }
 
+/**
+ * Composición del vidrio, anclada siempre en la esquina inferior izquierda del
+ * área que la contiene. Va pequeña a propósito: tiene que caber en paños
+ * angostos y no puede taparle la manilla a una proyectante (que la lleva
+ * abajo al centro).
+ */
 export function glassCodeMarkup(
   className: string,
   value: string,
-  x: number,
-  y: number
+  boxX: number,
+  boxY: number,
+  boxWidth: number,
+  boxHeight: number
 ): string {
-  return value
-    ? `<text class="${className}" x="${x}" y="${y}" style="font:700 6.4px system-ui,sans-serif;fill:${VISUAL.glassText};paint-order:stroke;stroke:#f6fbfc;stroke-width:1.7px;stroke-linejoin:round">${escape(value)}</text>`
+  if (!value) return '';
+  const fontSize = 4.8;
+  const x = boxX + 2.2;
+  const y = boxY + boxHeight - 2.2;
+  // Si el paño es demasiado angosto para el texto, se comprime en vez de
+  // desbordarse fuera del vidrio.
+  const available = Math.max(6, boxWidth - 4.4);
+  const estimated = value.length * fontSize * 0.55;
+  const fit = estimated > available
+    ? ` textLength="${available.toFixed(2)}" lengthAdjust="spacingAndGlyphs"`
     : '';
+  return `<text class="${className}" x="${x}" y="${y}"${fit} style="font:700 ${fontSize}px system-ui,sans-serif;fill:${VISUAL.glassText};paint-order:stroke;stroke:#f6fbfc;stroke-width:1.5px;stroke-linejoin:round">${escape(value)}</text>`;
 }
 
 export function fixedMark(
@@ -348,8 +365,9 @@ export function hingedMark(
         return `<path data-opening-role="${segment.role}" data-opening-face="${segment.face || ''}"${axis} d="${d}" style="${lineStyle(color, segment.role === 'tilt' ? 1.05 : 1.2, segment.dashed ? 'stroke-dasharray:3 2' : '')}"/>`;
       })
       .join('');
-    const face = sharedDefinition.face === 'interior' ? 'Int.' : sharedDefinition.face === 'exterior' ? 'Ext.' : '';
-    return `${paths}${face ? `<text x="${x + width / 2}" y="${y + 9}" text-anchor="middle" style="font:700 6px system-ui,sans-serif;fill:${color}">${face}</text>` : ''}`;
+    // La cara Int./Ext. ya se entiende por el propio símbolo de apertura: la
+    // etiqueta sólo robaba espacio dentro del paño.
+    return paths;
   }
   return fixedMark(x, y, width, height, color);
 }
@@ -425,14 +443,21 @@ export function handleMark(
       + `<rect x="${hx - 2.6}" y="${hy - 2.6}" width="5.2" height="5.2" rx=".9" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.45"/>`
       + `</g>`;
   }
-  const leverX = side === 'left' ? hx + 8 : side === 'right' ? hx - 8 : hx;
-  const leverY = spec.orientation === 'up' ? hy - 9 : spec.position === 'top' ? hy + 9 : hy;
-  const lever = side === 'center'
+  // La manilla de corredera es una palanca vertical sobre el montante: cuelga
+  // hacia abajo, no apunta hacia el lado como la de una practicable.
+  const vertical = spec.orientation === 'down';
+  const leverX = vertical ? hx : side === 'left' ? hx + 8 : side === 'right' ? hx - 8 : hx;
+  const leverY = vertical
+    ? hy + 9
+    : spec.orientation === 'up' ? hy - 9 : spec.position === 'top' ? hy + 9 : hy;
+  const lever = vertical || side === 'center'
     ? `M ${hx} ${hy} L ${leverX} ${leverY}`
     : `M ${hx} ${hy} H ${leverX}`;
-  const glare = side === 'center'
+  const glare = vertical
     ? `M ${hx - 0.7} ${hy} L ${leverX - 0.7} ${leverY}`
-    : `M ${hx} ${hy - 0.75} H ${leverX}`;
+    : side === 'center'
+      ? `M ${hx - 0.7} ${hy} L ${leverX - 0.7} ${leverY}`
+      : `M ${hx} ${hy - 0.75} H ${leverX}`;
   const heightSource = spec.position ? `${spec.position}-by-opening` : heightInfo.reason;
   return `<g class="window-handle" data-axis-y="${hy}" data-height-source="${heightSource}" data-reason="${escape(spec.reason || 'opening-leaf')}">`
     + `<circle cx="${hx}" cy="${hy}" r="2.4" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.45"/>`
