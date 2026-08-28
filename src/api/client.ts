@@ -171,6 +171,16 @@ export async function getMateriales(params?: {
   return [];
 }
 
+export async function getMonedas(): Promise<
+  { codigo: string; descripcion: string | null; simbolo: string | null; presupuestos?: number }[]
+> {
+  const response = await apiClient.get<any>('/monedas');
+  const resData = response.data;
+  if (Array.isArray(resData)) return resData;
+  if (Array.isArray(resData?.data)) return resData.data;
+  return [];
+}
+
 export async function createMaterial(payload: {
   skuInterno: string;
   descripcion: string;
