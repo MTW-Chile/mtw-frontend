@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { 
   Search, 
   Layers, 
@@ -26,9 +27,10 @@ interface Step2LineasProps {
 }
 
 export const Step2Lineas: React.FC<Step2LineasProps> = ({
-  proyecto: _proyecto,
+  proyecto,
   activeVersion,
 }) => {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'linea' | 'modelo' | 'unidades' | 'superficie'>('linea');
   const [selectedVentanaForMaterials, setSelectedVentanaForMaterials] = useState<Ventana | null>(null);
@@ -401,6 +403,9 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
           onClose={() => setSelectedVentanaForCorrector(null)}
           onSaved={(updated) => {
             setVentanasOverrides((prev) => ({ ...prev, [updated.id]: updated }));
+            if (proyecto?.id) {
+              queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyecto.id] });
+            }
             setSelectedVentanaForCorrector(null);
           }}
         />
