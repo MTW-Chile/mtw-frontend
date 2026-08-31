@@ -191,6 +191,9 @@ export interface Proyecto {
   clienteLocalidadRaw: string | null;
   clienteId: string | null;
   cliente?: Cliente | null;
+  // Version (ProyectoVersion.hetmoId) elegida para cotizar. null = nunca
+  // se eligio y hay que caer de vuelta a la de versionNumero mas alto.
+  versionActivaHetmoId: number | null;
   versiones: ProyectoVersion[];
   creadoEn: string;
   actualizadoEn: string;

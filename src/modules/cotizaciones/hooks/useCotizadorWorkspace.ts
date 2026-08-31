@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  getProyectoById, 
-  updateVersionConfig, 
-  triggerManualSync, 
-  updateProyectoCliente, 
-  getClientes, 
-  createCliente 
+import {
+  getProyectoById,
+  updateVersionConfig,
+  triggerManualSync,
+  updateProyectoCliente,
+  getClientes,
+  createCliente,
+  setVersionActiva,
 } from '../../../api/client';
 import type { ProyectoVersion, Cliente } from '../../../types';
 
@@ -63,8 +64,36 @@ export function useCotizadorWorkspace(proyectoId: string) {
 
   const masterClientes: Cliente[] = clientesData?.data || [];
 
-  const activeVersion: ProyectoVersion | undefined = 
+  const activeVersion: ProyectoVersion | undefined =
     proyecto?.versiones[selectedVersionIdx] || proyecto?.versiones[0];
+
+  // Al entrar al proyecto, parte de la version que quedo guardada como
+  // activa (no de la de versionNumero mas alto) - HETMO puede tener
+  // versiones mas nuevas que la que en realidad se esta cotizando. Solo
+  // corre al cambiar de proyecto, no en cada refetch, para no pisar una
+  // seleccion que el usuario acaba de hacer en esta misma sesion.
+  useEffect(() => {
+    if (!proyecto) return;
+    if (proyecto.versionActivaHetmoId == null) return;
+    const idx = proyecto.versiones.findIndex((v) => v.hetmoId === proyecto.versionActivaHetmoId);
+    if (idx >= 0) setSelectedVersionIdx(idx);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proyecto?.id]);
+
+  // Mutación para elegir/guardar que version de HETMO se cotiza
+  const setVersionActivaMutation = useMutation({
+    mutationFn: async (hetmoId: number) => setVersionActiva(proyectoId, hetmoId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyectoId] });
+      queryClient.invalidateQueries({ queryKey: ['proyectos'] });
+    },
+  });
+
+  const handleSelectVersion = (index: number) => {
+    setSelectedVersionIdx(index);
+    const version = proyecto?.versiones[index];
+    if (version) setVersionActivaMutation.mutate(version.hetmoId);
+  };
 
   useEffect(() => {
     if (activeVersion) {
@@ -183,6 +212,8 @@ export function useCotizadorWorkspace(proyectoId: string) {
     setCurrentStep,
     selectedVersionIdx,
     setSelectedVersionIdx,
+    handleSelectVersion,
+    setVersionActivaMutation,
     showReimportModal,
     setShowReimportModal,
     // Divisas
