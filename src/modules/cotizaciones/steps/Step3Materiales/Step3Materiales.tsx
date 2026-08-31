@@ -52,6 +52,11 @@ interface MaterialConsolidado {
 // comercial; se trata igual que EN_COTIZACION (ver relay-api).
 const normalizarEstado = (estado: string) => (estado === 'BORRADOR' ? 'EN_COTIZACION' : estado);
 
+// UF se muestra con hasta 2 decimales (sin forzar ceros de relleno) -- CLP
+// siempre redondeado a entero, formatNumber(x, 0) ya lo hace bien.
+const formatUF = (valor: number) =>
+  new Intl.NumberFormat('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(valor);
+
 // Input numerico inline: mantiene texto local mientras se edita y solo
 // dispara el guardado al perder foco o con Enter -- si guardara en cada
 // tecla, cada digito escrito seria un PATCH distinto contra la API.
@@ -180,6 +185,20 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     mutationFn: (estado: 'EN_COTIZACION' | 'ESPERANDO_APROBACION_COMERCIAL') => {
       if (!versionId) return Promise.resolve(null);
       return updateEstadoAprobacion(versionId, estado);
+    },
+    onSuccess: invalidar,
+  });
+
+  // Boton global: no es un segundo control que se habilita recien cuando
+  // cada categoria ya se aprobo a mano una por una -- el es quien aprueba
+  // (o abre) todas las categorias de una sola vez. Aprueba las que falten y
+  // recien ahi dispara el congelamiento, todo en un solo click.
+  const aprobarTodoMutation = useMutation({
+    mutationFn: async () => {
+      if (!versionId) return null;
+      const pendientes = gruposPorFamilia.filter(([familia]) => !aprobacionesPorFamilia.get(familia)?.aprobada);
+      await Promise.all(pendientes.map(([familia]) => setFamiliaAprobacion(versionId, familia, true)));
+      return updateEstadoAprobacion(versionId, 'ESPERANDO_APROBACION_COMERCIAL');
     },
     onSuccess: invalidar,
   });
@@ -332,11 +351,12 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
           {estadoActual === 'EN_COTIZACION' ? (
             <div className="flex items-center gap-3 flex-wrap">
               <button
-                onClick={() => estadoAprobacionMutation.mutate('ESPERANDO_APROBACION_COMERCIAL')}
-                disabled={!todasLasFamiliasAprobadas || estadoAprobacionMutation.isPending}
+                onClick={() => aprobarTodoMutation.mutate()}
+                disabled={gruposPorFamilia.length === 0 || aprobarTodoMutation.isPending}
                 className="px-3.5 py-2 rounded-xl bg-[#E34A26] text-white text-xs font-bold flex items-center gap-1.5 hover:bg-[#c93f1f] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Aprueba todas las categorías que falten y congela el presupuesto, en un solo paso"
               >
-                {estadoAprobacionMutation.isPending ? (
+                {aprobarTodoMutation.isPending ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
                   <ShieldCheck className="w-3.5 h-3.5" />
@@ -344,8 +364,8 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                 Aprobar Analítica Completa
               </button>
               {!todasLasFamiliasAprobadas && (
-                <span className="text-[11px] text-amber-700">
-                  Faltan: {familiasPendientes.map(([familia]) => familia).join(', ')}
+                <span className="text-[11px] text-slate-500">
+                  Pendientes: {familiasPendientes.map(([familia]) => familia).join(', ')} (se aprueban solas al usar el botón)
                 </span>
               )}
             </div>
@@ -435,7 +455,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
               Costo Materiales (UF)
             </span>
             <strong className="text-lg font-mono text-emerald-600 font-bold">
-              {formatNumber(costoTotalUF, 2)} UF
+              {formatUF(costoTotalUF)} UF
             </strong>
           </div>
         </div>
@@ -510,10 +530,10 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                           <th className="px-3.5 py-2.5 font-semibold">SKU</th>
                           <th className="px-3.5 py-2.5 font-semibold">Descripción del Material</th>
                           <th className="px-3.5 py-2.5 font-semibold">Proveedor</th>
+                          <th className="px-3.5 py-2.5 font-semibold text-right">Precio Unitario Origen</th>
+                          <th className="px-3.5 py-2.5 font-semibold text-right">Precio Unitario CLP</th>
                           <th className="px-3.5 py-2.5 font-semibold text-right">Cantidad</th>
                           <th className="px-3.5 py-2.5 font-semibold text-center">Unidad</th>
-                          <th className="px-3.5 py-2.5 font-semibold text-right">Precio Origen</th>
-                          <th className="px-3.5 py-2.5 font-semibold text-right">Precio Unit. CLP</th>
                           <th className="px-3.5 py-2.5 font-semibold text-right">Total CLP</th>
                           <th className="px-3.5 py-2.5 font-semibold text-center">Estado</th>
                         </tr>
@@ -527,10 +547,6 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                             <td className="px-3.5 py-2 font-mono font-bold text-slate-900">{m.skuInterno}</td>
                             <td className="px-3.5 py-2 font-medium text-slate-800">{m.descripcion}</td>
                             <td className="px-3.5 py-2 text-slate-500">{m.proveedorNombre}</td>
-                            <td className="px-3.5 py-2 text-right font-mono font-bold text-slate-900">
-                              {formatNumber(m.cantidadTotal, 2)}
-                            </td>
-                            <td className="px-3.5 py-2 text-center text-slate-500 font-mono">{m.unidadMedida}</td>
                             <td className="px-3.5 py-2 text-right">
                               <div className="flex items-center justify-end gap-1">
                                 <span className="text-slate-400 font-mono text-[10px]">
@@ -553,6 +569,10 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                 />
                               </div>
                             </td>
+                            <td className="px-3.5 py-2 text-right font-mono font-bold text-slate-900">
+                              {formatNumber(m.cantidadTotal, 2)}
+                            </td>
+                            <td className="px-3.5 py-2 text-center text-slate-500 font-mono">{m.unidadMedida}</td>
                             <td className="px-3.5 py-2 text-right font-mono font-bold text-slate-900">
                               $ {formatNumber(m.precioCLP * m.cantidadTotal, 0)}
                             </td>
