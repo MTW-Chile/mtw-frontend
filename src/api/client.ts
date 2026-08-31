@@ -107,6 +107,20 @@ export async function updateProyectoCliente(
   return response.data;
 }
 
+export async function setVersionActiva(
+  id: string,
+  hetmoId: number
+): Promise<{ success: boolean; proyecto: Omit<Proyecto, 'versiones'> }> {
+  // Si hetmoId nunca fue sincronizado (version intermedia que HETMO ya
+  // superaba cuando corrio el sync automatico), el relay la trae en el
+  // momento antes de guardar la eleccion - puede tardar unos segundos.
+  const response = await apiClient.patch<{ success: boolean; proyecto: Omit<Proyecto, 'versiones'> }>(
+    `/proyectos/${id}/version-activa`,
+    { hetmoId }
+  );
+  return response.data;
+}
+
 export async function createFase(
   versionId: string,
   payload: {

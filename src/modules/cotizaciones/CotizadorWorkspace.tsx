@@ -24,7 +24,7 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
     currentStep,
     setCurrentStep,
     selectedVersionIdx,
-    setSelectedVersionIdx,
+    handleSelectVersion,
     showReimportModal,
     setShowReimportModal,
     // Divisas
@@ -84,7 +84,7 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
         proyecto={proyecto}
         activeVersion={activeVersion}
         selectedVersionIdx={selectedVersionIdx}
-        onSelectVersion={setSelectedVersionIdx}
+        onSelectVersion={handleSelectVersion}
         onBack={onBack}
         onOpenReimport={() => setShowReimportModal(true)}
       />
