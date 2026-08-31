@@ -16,6 +16,8 @@ const queryClient = new QueryClient({
   },
 });
 
+import { ScrollToTop } from './components/ui/ScrollToTop';
+
 const MODULE_TITLES: Record<string, string> = {
   inicio: 'Inicio',
   cotizaciones: 'Cotizaciones',
@@ -89,6 +91,8 @@ const AppContent: React.FC = () => {
           )}
         </main>
       </div>
+
+      <ScrollToTop />
     </div>
   );
 };

@@ -392,3 +392,71 @@ export function metalColors(baseColor: string): MetalColorSet {
     edge: mixedColor(baseColor, '#000000', 0.45),
   };
 }
+
+// ─── Nombres oficiales de acabados HETMO ───────────────────────────────────────
+
+/**
+ * Nombres oficiales de acabados de HETMO (tabla C_ACABADOS / Tecnocom Perfiles).
+ */
+export const FINISH_NAMES: Record<string, string> = {
+  // Códigos numéricos confirmados contra C_ACABADOS de HETMO
+  '5': 'Marrón',
+  '6': 'Negro',
+  '6997': 'Blanco',
+  '7000': 'Golden Oak',
+  '7020': 'Gris Grafito',
+  '7040': 'Nogal',
+  '7075': 'Toffe',
+  '7130': 'Gri Alum',
+  '7279': 'Jet Black',
+  '7310': 'Matex Kitami',
+  '7320': 'Black Matt',
+
+  // Códigos alfabéticos estándar de catálogo
+  'BL': 'Blanco',
+  'BLA': 'Blanco',
+  'BLN': 'Blanco Nieve',
+  'BLM': 'Blanco Marfil',
+  'BLC': 'Blanco Claro',
+  'BLR': 'Blanco Roto',
+  'BCO': 'Blanco Puro',
+  'BLAN': 'Blanco',
+  'BLANCO': 'Blanco',
+  'WHITE': 'Blanco',
+  'GR': 'Gris',
+  'GRA': 'Gris Grafito',
+  'GRC': 'Gris Claro',
+  'GRO': 'Gris Oscuro',
+  'NE': 'Negro',
+  'NEM': 'Negro Mate',
+  'NEB': 'Negro Brillante',
+  'NEK': 'Negro Kitami',
+  'NO': 'Nogal',
+  'NOC': 'Nogal Claro',
+  'NOO': 'Nogal Oscuro',
+  'ROG': 'Roble Golden',
+  'RO': 'Roble',
+  'TE': 'Teka',
+  'WE': 'Wengue',
+  'MA': 'Madera',
+  'BR': 'Bronce',
+  'AL': 'Aluminio',
+  'DO': 'Dorado',
+  'PL': 'Plateado',
+};
+
+/**
+ * Obtiene la etiqueta amigable del acabado mostrando su nombre oficial y código.
+ * Si ya viene una descripción clara en la base de datos, la utiliza.
+ */
+export function getAcabadoLabel(codigo?: string | null, descripcion?: string | null): string {
+  if (descripcion && descripcion.trim() && descripcion.trim().toLowerCase() !== (codigo || '').trim().toLowerCase()) {
+    return descripcion.trim();
+  }
+  const cleanCode = (codigo || '').trim().toUpperCase();
+  if (cleanCode && FINISH_NAMES[cleanCode]) {
+    return `${FINISH_NAMES[cleanCode]} (${cleanCode})`;
+  }
+  return codigo || 'Estándar';
+}
+

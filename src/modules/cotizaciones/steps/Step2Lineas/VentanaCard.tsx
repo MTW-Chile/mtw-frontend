@@ -5,13 +5,14 @@ import {
   MessageSquareText, 
   Wrench, 
   Boxes,
-  DoorClosed
+  DoorClosed,
+  ChevronDown
 } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
 import type { Ventana } from '../../../../types';
 import { WindowRendererSvg } from '../../components/drawing/WindowRendererSvg';
 import { toWindowLine } from '../../components/drawing/ventanaAdapter';
-import { createFinish } from '../../components/drawing/colorSystem';
+import { createFinish, getAcabadoLabel } from '../../components/drawing/colorSystem';
 import * as core from '../../components/drawing/geometryCore';
 
 interface VentanaCardProps {
@@ -34,6 +35,10 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
     () => createFinish(windowLine?.acabadoCodigo, windowLine?.acabadoDescripcion, windowLine?.acabadoPatron),
     [windowLine]
   );
+  const finishLabel = useMemo(
+    () => getAcabadoLabel(ventana.acabadoCodigo, ventana.acabadoDescripcion),
+    [ventana.acabadoCodigo, ventana.acabadoDescripcion]
+  );
   const apertureLabel = useMemo(() => {
     if (!windowLine) return ventana.modelo || '—';
     return core.apertureLabel(windowLine);
@@ -48,7 +53,7 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
             <span 
               className="w-2.5 h-2.5 rounded-full shrink-0" 
               style={{ backgroundColor: finish.frame }}
-              title={`Acabado de Marco`}
+              title={`Acabado: ${finishLabel}`}
             />
             <h4 className="text-sm font-black text-slate-900 group-hover:text-[#E34A26] transition-colors">
               {ventana.modelo}
@@ -122,38 +127,46 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
             <span className="text-slate-400 text-[10px] uppercase tracking-wider font-semibold">Acabado:</span>
             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold border border-slate-200 bg-slate-50 text-slate-800">
               <span 
-                className="w-2.5 h-2.5 rounded-full border border-slate-300 shadow-inner" 
+                className="w-2.5 h-2.5 rounded-full border border-slate-300 shadow-inner shrink-0" 
                 style={{ backgroundColor: finish.frame }}
               />
-              {ventana.acabadoDescripcion || ventana.acabadoCodigo || 'Estándar'}
+              <span className="truncate max-w-[200px]" title={finishLabel}>
+                {finishLabel}
+              </span>
             </span>
           </div>
         </div>
 
-        {/* Comentario de Presupuesto */}
+        {/* Comentario de Presupuesto (Desplegable - cerrado por defecto) */}
         {ventana.comentarioPresupuesto && (
-          <div className="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200/80 text-amber-900 space-y-1">
-            <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-700">
-              <MessageSquareText className="w-3 h-3" />
-              <span>Comentario de Presupuesto</span>
-            </div>
-            <p className="text-[11px] leading-relaxed font-medium">
+          <details className="group/pres rounded-xl bg-amber-50/70 border border-amber-200/80 overflow-hidden text-amber-900 text-xs transition-all">
+            <summary className="flex items-center justify-between px-3 py-2 cursor-pointer font-bold text-[10px] uppercase tracking-wider text-amber-800 select-none hover:bg-amber-100/50">
+              <span className="flex items-center gap-1.5">
+                <MessageSquareText className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <span>Comentario de Presupuesto</span>
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 text-amber-600 transition-transform duration-200 group-open/pres:rotate-180" />
+            </summary>
+            <div className="px-3 pb-2.5 pt-1 text-[11px] leading-relaxed font-medium border-t border-amber-200/50 bg-white/50">
               {ventana.comentarioPresupuesto}
-            </p>
-          </div>
+            </div>
+          </details>
         )}
 
-        {/* Comentario de Fabricación */}
+        {/* Comentario de Fabricación (Desplegable - cerrado por defecto) */}
         {ventana.comentarioFabricacion && (
-          <div className="p-2.5 rounded-xl bg-blue-50/80 border border-blue-200/80 text-blue-900 space-y-1">
-            <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-blue-700">
-              <Wrench className="w-3 h-3" />
-              <span>Comentario de Taller / Fábrica</span>
-            </div>
-            <p className="text-[11px] leading-relaxed font-medium">
+          <details className="group/fab rounded-xl bg-blue-50/70 border border-blue-200/80 overflow-hidden text-blue-900 text-xs transition-all">
+            <summary className="flex items-center justify-between px-3 py-2 cursor-pointer font-bold text-[10px] uppercase tracking-wider text-blue-800 select-none hover:bg-blue-100/50">
+              <span className="flex items-center gap-1.5">
+                <Wrench className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                <span>Comentario de Taller / Fábrica</span>
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 text-blue-600 transition-transform duration-200 group-open/fab:rotate-180" />
+            </summary>
+            <div className="px-3 pb-2.5 pt-1 text-[11px] leading-relaxed font-medium border-t border-blue-200/50 bg-white/50">
               {ventana.comentarioFabricacion}
-            </p>
-          </div>
+            </div>
+          </details>
         )}
 
         {/* Valores Comerciales de Línea */}
