@@ -470,6 +470,17 @@ export function handleMark(
       })()
     : '';
 
+  const customHeightAnnotation = heightInfo.reason === 'hetmo-custom' && heightInfo.reportedMillimeters > 0
+    ? (() => {
+        const textX = side === 'left' ? hx + 10 : hx - 10;
+        const anchor = side === 'left' ? 'start' : 'end';
+        return `<g class="window-handle-dimension" data-height-mm="${heightInfo.reportedMillimeters}">`
+          + `<line x1="${hx}" y1="${hy}" x2="${textX}" y2="${hy}" style="${lineStyle(VISUAL.dimension, 0.4, 'stroke-dasharray:1,1;opacity:.75')}"/>`
+          + `<text x="${textX}" y="${hy - 2}" text-anchor="${anchor}" style="font:600 5.5px system-ui,sans-serif;fill:${VISUAL.dimension};opacity:.85">${Math.round(heightInfo.reportedMillimeters).toLocaleString('es-CL')} mm</text>`
+          + `</g>`;
+      })()
+    : '';
+
   return `<g class="window-handle" data-axis-y="${hy}" data-height-source="${heightSource}" data-hardware="${spec.lock ? 'monoblock' : 'manilla'}" data-reason="${escape(spec.reason || 'opening-leaf')}">`
     + lockPlate
     + `<circle cx="${hx}" cy="${hy}" r="${BASE_RADIUS}" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.45"/>`
@@ -478,6 +489,7 @@ export function handleMark(
     + `<path d="${lever}" style="${lineStyle(metal.edge, 2.9, 'opacity:.35')}"/>`
     + `<path d="${lever}" style="${lineStyle(metal.base, 2.2)}"/>`
     + `<path d="${glare}" style="${lineStyle(metal.light, 0.65, 'opacity:.85')}"/>`
+    + customHeightAnnotation
     + `</g>`;
 }
 
