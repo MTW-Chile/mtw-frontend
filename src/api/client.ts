@@ -3,6 +3,8 @@ import type {
   ProyectosResponse,
   Proyecto,
   ProyectoVersion,
+  Ventana,
+  CorreccionGeometria,
   Fase,
   ProyectoMaterialAjuste,
   SyncLog,
@@ -223,5 +225,26 @@ export async function getProveedores(): Promise<{ data: Proveedor[] }> {
   const response = await apiClient.get<{ data: Proveedor[] }>('/proveedores');
   return response.data;
 }
+
+export async function updateVentanaCorreccionGeometria(
+  ventanaId: string,
+  correccion: CorreccionGeometria | null
+): Promise<{ success: boolean; data: Ventana; message?: string }> {
+  const response = await apiClient.put<{ success: boolean; data: Ventana; message?: string }>(
+    `/ventanas/${ventanaId}/correccion-geometria`,
+    { correccion }
+  );
+  return response.data;
+}
+
+export async function deleteVentanaCorreccionGeometria(
+  ventanaId: string
+): Promise<{ success: boolean; data: Ventana; message?: string }> {
+  const response = await apiClient.delete<{ success: boolean; data: Ventana; message?: string }>(
+    `/ventanas/${ventanaId}/correccion-geometria`
+  );
+  return response.data;
+}
+
 
 

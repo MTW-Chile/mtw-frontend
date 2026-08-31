@@ -104,31 +104,45 @@ export function toWindowLine(ventana: Ventana): WindowLine | null {
   const ancho = toPositive(ventana.anchoMm) ?? 1;
   const alto = toPositive(ventana.altoMm) ?? 1;
 
-  // Pre-procesar geometrías para asignar perteneceHueco correctamente
-  const geometrias = Array.isArray(ventana.geometrias) && ventana.geometrias.length > 0
+  const correccion = ventana.correccionGeometria;
+  const effectiveAperture = correccion?.apertura ?? ventana.dibujoTipoApertura ?? undefined;
+
+  // Pre-procesar geometrías para asignar perteneceHueco correctamente y aplicar apertura corregida si existe
+  let geometrias = Array.isArray(ventana.geometrias) && ventana.geometrias.length > 0
     ? assignPanelNumbers(ventana.geometrias)
     : undefined;
+
+  if (geometrias && correccion?.apertura) {
+    geometrias = geometrias.map(g => {
+      if (Number(g.tipoElemento) === 3) {
+        return { ...g, tipoApertura: correccion.apertura };
+      }
+      return g;
+    });
+  }
 
   return {
     lineaHetmo: toPositive(ventana.lineaHetmo) ?? undefined,
     modelo: ventana.modelo,
     ancho,
     alto,
-    tipoApertura: ventana.dibujoTipoApertura ?? undefined,
+    tipoApertura: effectiveAperture,
     acabadoCodigo: ventana.acabadoCodigo ?? undefined,
     acabadoDescripcion: (ventana as any).acabadoDescripcion ?? undefined,
     acabadoPatron: (ventana as any).acabadoPatron ?? undefined,
     uds: toPositive(ventana.unidades) ?? undefined,
     cantidadVidriosPorUnidad: toPositive(ventana.numeroCuadrosHojas) ?? undefined,
-    dibujoTipoApertura: ventana.dibujoTipoApertura ?? undefined,
+    dibujoTipoApertura: effectiveAperture,
     dibujoSinMarco: false,
     numeroCuadrosHojas: toPositive(ventana.numeroCuadrosHojas) ?? undefined,
     dibujoVidrio: (ventana as any).dibujoVidrio ?? undefined,
     vidrioCodigo: (ventana as any).vidrioCodigo ?? undefined,
     dibujoVidrios: Array.isArray((ventana as any).dibujoVidrios) ? (ventana as any).dibujoVidrios : undefined,
     geometria: geometrias,
+    correccionGeometria: correccion,
+    correccion_geometria: correccion,
     materiales: Array.isArray(ventana.materiales) && ventana.materiales.length > 0
       ? ventana.materiales.map(toLineMaterial)
       : undefined,
   };
-}
+}

@@ -737,86 +737,135 @@
     return null;
   }
 
-  export function leavesFor(line) {
-    const components = sourceComponents(line);
-    const fallbackWidth = Math.max(1, (line && line.ancho) || 1);
-    const rawGeometry = geometryItemsOf(line);
-    const slidingComponent = components.find(part => sliderLayouts[part.apertura]);
-    if (slidingComponent) {
-      const layout = sliderLayouts[slidingComponent.apertura];
-      const pieces = slidingPieces({
-        apertura: slidingComponent.apertura,
-        raw: rawGeometry,
-        width: firstPositive(slidingComponent.ancho) || fallbackWidth,
-        movilLado: slidingComponent.movilLado,
-        movilAncho: slidingComponent.movilAncho,
-        materiales: Array.isArray(line && line.materiales) ? line.materiales : null,
-        unidades: number(line && line.uds),
-        linea: line
-      });
-      if (pieces) return pieces.map(piece => ({ ...piece, component: slidingComponent }));
-      // Sin N1: ningún paño fijo declarado. Se respeta el layout del código
-      // pero con los anchos reales del despiece cuando la cantidad calza.
-      const exactLeaves = exactLeavesFor(rawGeometry, layout.length, firstPositive(slidingComponent.ancho) || fallbackWidth);
-      if (exactLeaves) {
-        return exactLeaves.map((leaf, index) => ({
-          kind: layout[index], width: firstPositive(leaf.ancho, leaf.ancho_mm), altura: firstPositive(leaf.alto, leaf.alto_mm),
-          apertura: slidingComponent.apertura, component: slidingComponent, exacta: true,
-          carril: number(leaf.carril), carrilFuente: String(leaf.carril_fuente || '')
-        }));
-      }
-      // Señal directa HETMO en la fila de apertura para los códigos de dos
-      // paños: N1 marca la posición del único paño móvil y N2 su ancho, o
-      // sea que la línea trae un fijo aunque su código no lo declare.
-      // Sirve cuando el despiece no llegó con las hojas. Que N1 venga en
-      // cero es lo normal y significa justamente lo contrario: ningún paño
-      // fijo, se respeta el layout del código.
-      if (layout.length === 2 && slidingComponent.movilLado > 0 && slidingComponent.movilAncho > 0) {
-        const totalWidth = firstPositive(slidingComponent.ancho) || fallbackWidth;
-        const mobileWidth = slidingComponent.movilAncho;
-        const position = slidingComponent.movilLado === 1 ? 1 : 2;
-        const mobileLeaf = { kind: mobileKindAt(layout, position), width: mobileWidth, apertura: slidingComponent.apertura, component: slidingComponent, exacta: true };
-        const fixedLeaf = { kind: 'fijo', width: Math.max(1, totalWidth - mobileWidth), apertura: slidingComponent.apertura, component: slidingComponent, exacta: true };
-        return position === 1 ? [mobileLeaf, fixedLeaf] : [fixedLeaf, mobileLeaf];
-      }
-    }
-    // El código oficial ya declara la cantidad de hojas. HETMO puede entregar
-    // una sola fila tipo 3 para una practicable de dos hojas, de modo que no
-    // se exige un segundo campo redundante. Si existen filas 40001, sus anchos
-    // reales prevalecen; sólo el catálogo sintético usa reparto equidistante.
-    const singleDefinition = components.length === 1 ? apertureDefinition(line, components[0].apertura) : null;
-    if (components.length === 1 && singleDefinition?.leafCount > 1 && !sliderLayouts[components[0].apertura]) {
-      const count = singleDefinition.leafCount;
-      const exactLeaves = exactLeavesFor(rawGeometry, count);
-      return Array.from({ length: count }, (_, index) => {
-        let kind = 'single';
-        if (count === 2 && (singleDefinition.symbol === 'hinged' || singleDefinition.symbol === 'tilt-turn')) {
-          const side = index === 0 ? 'left' : 'right';
-          kind = singleDefinition.symbol === 'tilt-turn' && singleDefinition.hand === side
-            ? `double-tilt-turn:${side}` : `double-hinged:${side}`;
-        }
-        const exact = exactLeaves?.[index];
-        return {
-          kind,
-          width: exact ? firstPositive(exact.ancho, exact.ancho_mm) : fallbackWidth / count,
-          altura: exact ? firstPositive(exact.alto, exact.alto_mm) : 0,
-          apertura: components[0].apertura,
-          component: components[0],
-          exacta: Boolean(exact)
-        };
-      });
-    }
-    const usableWidths = components.map(part => part.ancho).filter(width => width > 0);
-    const measuredTotal = usableWidths.reduce((sum, width) => sum + width, 0);
-    const componentWidth = part => part.ancho > 0 && measuredTotal > 0 ? part.ancho : fallbackWidth / components.length;
-    const pieces = [];
-    components.forEach(part => {
-      const layout = sliderLayouts[part.apertura];
-      const kinds = layout || ['single'];
-      const weights = sliderWeights[part.apertura] || kinds.map(() => 1 / kinds.length);
-      kinds.forEach((kind, index) => pieces.push({ kind, width: componentWidth(part) * (weights[index] != null ? weights[index] : (1 / kinds.length)), apertura: part.apertura, component: part }));
+  function correctedKind(kind, movement) {
+    if (movement === 'oculta') return 'oculta';
+    if (movement === 'fija') return 'fijo';
+    const prefix = /^(int|ext):/.test(String(kind || '')) ? String(kind).split(':')[0] : 'int';
+    const dirMap = { izquierda: 'left', derecha: 'right', ambos: 'both' };
+    return `${prefix}:${dirMap[movement] || 'left'}`;
+  }
+
+  export function correctedLeaves(line, baseLeaves) {
+    const correction = line && (line.correccionGeometria || line.correccion_geometria);
+    if (!correction || !Array.isArray(correction.hojas) || !correction.hojas.length) return baseLeaves;
+    const byIndex = new Map(correction.hojas.map(item => [number(item.indice), item]));
+    return baseLeaves.map((leaf, index) => {
+      const item = byIndex.get(index);
+      if (!item) return leaf;
+      const hidden = item.movimiento === 'oculta' || number(item.carril) === 0;
+      return {
+        ...leaf,
+        width: number(item.ancho) > 0 ? number(item.ancho) : leaf.width,
+        apertura: number(correction.apertura || leaf.apertura),
+        kind: correctedKind(leaf.kind, item.movimiento),
+        carril: hidden ? 0 : number(item.carril),
+        oculta: hidden,
+        carrilFuente: 'mtw-project-version-correction'
+      };
     });
-    return pieces.length ? pieces : [{ kind: 'single', width: fallbackWidth, apertura: 0 }];
+  }
+
+  export function isSlidingLine(line) {
+    if (!line) return false;
+    const composite = compositePanels(line);
+    if (composite) {
+      return composite.panels.some(panel => apertureDefinition(line, panel.apertura).symbol === 'sliding');
+    }
+    const def = apertureDefinition(line, line.tipoApertura || line.dibujoTipoApertura);
+    if (def && def.symbol === 'sliding') return true;
+    const rawLeaves = leavesFor(line);
+    return rawLeaves.some(leaf => apertureDefinition(line, leaf.apertura).symbol === 'sliding');
+  }
+
+  export function leavesFor(line) {
+    const correction = line && (line.correccionGeometria || line.correccion_geometria);
+    const computeBaseLeaves = () => {
+      const components = sourceComponents(line);
+      const fallbackWidth = Math.max(1, (line && line.ancho) || 1);
+      const rawGeometry = geometryItemsOf(line);
+      const slidingComponent = components.find(part => sliderLayouts[part.apertura]);
+      if (slidingComponent) {
+        const layout = sliderLayouts[slidingComponent.apertura];
+        const pieces = slidingPieces({
+          apertura: slidingComponent.apertura,
+          raw: rawGeometry,
+          width: firstPositive(slidingComponent.ancho) || fallbackWidth,
+          movilLado: slidingComponent.movilLado,
+          movilAncho: slidingComponent.movilAncho,
+          materiales: Array.isArray(line && line.materiales) ? line.materiales : null,
+          unidades: number(line && line.uds),
+          linea: line
+        });
+        if (pieces) return pieces.map(piece => ({ ...piece, component: slidingComponent }));
+        // Sin N1: ningún paño fijo declarado. Se respeta el layout del código
+        // pero con los anchos reales del despiece cuando la cantidad calza.
+        const exactLeaves = exactLeavesFor(rawGeometry, layout.length, firstPositive(slidingComponent.ancho) || fallbackWidth);
+        if (exactLeaves) {
+          return exactLeaves.map((leaf, index) => ({
+            kind: layout[index], width: firstPositive(leaf.ancho, leaf.ancho_mm), altura: firstPositive(leaf.alto, leaf.alto_mm),
+            apertura: slidingComponent.apertura, component: slidingComponent, exacta: true,
+            carril: number(leaf.carril), carrilFuente: String(leaf.carril_fuente || '')
+          }));
+        }
+        // Señal directa HETMO en la fila de apertura para los códigos de dos
+        // paños: N1 marca la posición del único paño móvil y N2 su ancho, o
+        // sea que la línea trae un fijo aunque su código no lo declare.
+        // Sirve cuando el despiece no llegó con las hojas. Que N1 venga en
+        // cero es lo normal y significa justamente lo contrario: ningún paño
+        // fijo, se respeta el layout del código.
+        if (layout.length === 2 && slidingComponent.movilLado > 0 && slidingComponent.movilAncho > 0) {
+          const totalWidth = firstPositive(slidingComponent.ancho) || fallbackWidth;
+          const mobileWidth = slidingComponent.movilAncho;
+          const position = slidingComponent.movilLado === 1 ? 1 : 2;
+          const mobileLeaf = { kind: mobileKindAt(layout, position), width: mobileWidth, apertura: slidingComponent.apertura, component: slidingComponent, exacta: true };
+          const fixedLeaf = { kind: 'fijo', width: Math.max(1, totalWidth - mobileWidth), apertura: slidingComponent.apertura, component: slidingComponent, exacta: true };
+          return position === 1 ? [mobileLeaf, fixedLeaf] : [fixedLeaf, mobileLeaf];
+        }
+      }
+      // El código oficial ya declara la cantidad de hojas. HETMO puede entregar
+      // una sola fila tipo 3 para una practicable de dos hojas, de modo que no
+      // se exige un segundo campo redundante. Si existen filas 40001, sus anchos
+      // reales prevalecen; sólo el catálogo sintético usa reparto equidistante.
+      const singleDefinition = components.length === 1 ? apertureDefinition(line, components[0].apertura) : null;
+      if (components.length === 1 && singleDefinition?.leafCount > 1 && !sliderLayouts[components[0].apertura]) {
+        const count = singleDefinition.leafCount;
+        const exactLeaves = exactLeavesFor(rawGeometry, count);
+        return Array.from({ length: count }, (_, index) => {
+          let kind = 'single';
+          if (count === 2 && (singleDefinition.symbol === 'hinged' || singleDefinition.symbol === 'tilt-turn')) {
+            const side = index === 0 ? 'left' : 'right';
+            kind = singleDefinition.symbol === 'tilt-turn' && singleDefinition.hand === side
+              ? `double-tilt-turn:${side}` : `double-hinged:${side}`;
+          }
+          const exact = exactLeaves?.[index];
+          return {
+            kind,
+            width: exact ? firstPositive(exact.ancho, exact.ancho_mm) : fallbackWidth / count,
+            altura: exact ? firstPositive(exact.alto, exact.alto_mm) : 0,
+            apertura: components[0].apertura,
+            component: components[0],
+            exacta: Boolean(exact)
+          };
+        });
+      }
+      const usableWidths = components.map(part => part.ancho).filter(width => width > 0);
+      const measuredTotal = usableWidths.reduce((sum, width) => sum + width, 0);
+      const componentWidth = part => part.ancho > 0 && measuredTotal > 0 ? part.ancho : fallbackWidth / components.length;
+      const pieces = [];
+      components.forEach(part => {
+        const layout = sliderLayouts[part.apertura];
+        const kinds = layout || ['single'];
+        const weights = sliderWeights[part.apertura] || kinds.map(() => 1 / kinds.length);
+        kinds.forEach((kind, index) => pieces.push({ kind, width: componentWidth(part) * (weights[index] != null ? weights[index] : (1 / kinds.length)), apertura: part.apertura, component: part }));
+      });
+      return pieces.length ? pieces : [{ kind: 'single', width: fallbackWidth, apertura: 0 }];
+    };
+
+    const base = computeBaseLeaves();
+    if (correction && Array.isArray(correction.hojas) && correction.hojas.length && !compositePanels(line)) {
+      return correctedLeaves(line, base);
+    }
+    return base;
   }
 
   export function apertureLabel(line) {

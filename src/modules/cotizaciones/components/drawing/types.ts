@@ -258,6 +258,9 @@ export interface WindowLine {
   numeroCuadrosHojas?: number;
   /** Altura de manilla personalizada */
   alturaManilla?: number;
+  /** Corrección de geometría para correderas */
+  correccionGeometria?: import('../../../../types').CorreccionGeometria | null;
+  correccion_geometria?: import('../../../../types').CorreccionGeometria | null;
 }
 
 // ─── Paño compuesto ──────────────────────────────────────────────────────────

@@ -14,6 +14,7 @@ import {
 import { formatNumber } from '../../../../lib/utils';
 import type { Proyecto, ProyectoVersion, Ventana } from '../../../../types';
 import { VentanaCard } from './VentanaCard';
+import { CorrectorCorrederaModal } from './CorrectorCorrederaModal';
 import { WindowRendererSvg } from '../../components/drawing/WindowRendererSvg';
 import { toWindowLine } from '../../components/drawing/ventanaAdapter';
 import { createFinish, getAcabadoLabel } from '../../components/drawing/colorSystem';
@@ -31,8 +32,13 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'linea' | 'modelo' | 'unidades' | 'superficie'>('linea');
   const [selectedVentanaForMaterials, setSelectedVentanaForMaterials] = useState<Ventana | null>(null);
+  const [selectedVentanaForCorrector, setSelectedVentanaForCorrector] = useState<Ventana | null>(null);
+  const [ventanasOverrides, setVentanasOverrides] = useState<Record<string, Ventana>>({});
 
-  const ventanas = useMemo<Ventana[]>(() => activeVersion?.ventanas || [], [activeVersion?.ventanas]);
+  const ventanas = useMemo<Ventana[]>(() => {
+    const list = activeVersion?.ventanas || [];
+    return list.map((v) => ventanasOverrides[v.id] || v);
+  }, [activeVersion?.ventanas, ventanasOverrides]);
 
   // Filtrado y ordenamiento
   const filteredVentanas = useMemo(() => {
@@ -149,6 +155,7 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
               ventana={v}
               monedaSimbolo={activeVersion?.monedaSimbolo || '$'}
               onOpenMaterials={(ventana) => setSelectedVentanaForMaterials(ventana)}
+              onEditCorredera={(ventana) => setSelectedVentanaForCorrector(ventana)}
             />
           ))}
         </div>
@@ -386,7 +393,21 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
           </div>
         );
       })()}
+
+      {/* Modal: Corrector Interactivo de Correderas */}
+      {selectedVentanaForCorrector && (
+        <CorrectorCorrederaModal
+          ventana={selectedVentanaForCorrector}
+          isOpen={Boolean(selectedVentanaForCorrector)}
+          onClose={() => setSelectedVentanaForCorrector(null)}
+          onSaved={(updated) => {
+            setVentanasOverrides((prev) => ({ ...prev, [updated.id]: updated }));
+            setSelectedVentanaForCorrector(null);
+          }}
+        />
+      )}
     </div>
   );
 };
+
 

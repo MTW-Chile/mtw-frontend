@@ -117,6 +117,22 @@ export interface ProyectoMaterialAjuste {
   material?: Material;
 }
 
+export type SentidoMovimientoHoja = 'fija' | 'izquierda' | 'derecha' | 'ambos' | 'oculta';
+
+export interface CorreccionHoja {
+  indice: number;
+  ancho: number;
+  carril: number; // 1 (C1), 2 (C2), 3 (C3), 0 (Oculta)
+  movimiento: SentidoMovimientoHoja;
+}
+
+export interface CorreccionGeometria {
+  esquema: number; // 1
+  lineaHetmo: number;
+  apertura: number;
+  hojas: CorreccionHoja[];
+}
+
 export interface Ventana {
   id: string;
   versionId: string;
@@ -137,6 +153,7 @@ export interface Ventana {
   descuentoLinea: number | null;
   comentarioPresupuesto: string | null;
   comentarioFabricacion: string | null;
+  correccionGeometria?: CorreccionGeometria | null;
   geometrias?: VentanaGeometria[];
   materiales?: MaterialVentana[];
   ventanasFase?: VentanaFase[];

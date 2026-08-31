@@ -6,7 +6,8 @@ import {
   Wrench, 
   Boxes,
   DoorClosed,
-  ChevronDown
+  ChevronDown,
+  Sliders
 } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
 import type { Ventana } from '../../../../types';
@@ -19,18 +20,22 @@ interface VentanaCardProps {
   ventana: Ventana;
   monedaSimbolo?: string;
   onOpenMaterials?: (ventana: Ventana) => void;
+  onEditCorredera?: (ventana: Ventana) => void;
 }
 
 export const VentanaCard: React.FC<VentanaCardProps> = ({
   ventana,
   monedaSimbolo = '$',
   onOpenMaterials,
+  onEditCorredera,
 }) => {
   const superficie = ventana.m2Ventana ?? ((ventana.anchoMm * ventana.altoMm) / 1_000_000);
   const totalLinea = (ventana.importeUnitario || 0) * (ventana.unidades || 1);
 
   // Extraemos el acabado y nombre de la apertura según el motor de HETMO
   const windowLine = useMemo(() => toWindowLine(ventana), [ventana]);
+  const isSliding = useMemo(() => (windowLine ? core.isSlidingLine(windowLine) : false), [windowLine]);
+
   const finish = useMemo(
     () => createFinish(windowLine?.acabadoCodigo, windowLine?.acabadoDescripcion, windowLine?.acabadoPatron),
     [windowLine]
@@ -187,19 +192,35 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
         </div>
       </div>
 
-      {/* Footer de Tarjeta / Revisión de Materiales Individual (Pendiente) */}
+      {/* Footer de Tarjeta / Revisión de Materiales y Ajuste de Correderas */}
       <footer className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs">
         <span className="text-[11px] text-slate-400">
           {ventana.materiales?.length ? `${ventana.materiales.length} materiales` : 'Despiece estándar'}
         </span>
-        <button
-          onClick={() => onOpenMaterials?.(ventana)}
-          className="text-xs font-semibold text-slate-600 hover:text-[#E34A26] flex items-center gap-1 transition-colors"
-          title="Revisión de materiales de esta ventana (en desarrollo)"
-        >
-          <Boxes className="w-3.5 h-3.5" />
-          <span>Ver Materiales</span>
-        </button>
+        <div className="flex items-center gap-1.5">
+          {isSliding && (
+            <button
+              onClick={() => onEditCorredera?.(ventana)}
+              className={`text-xs font-semibold flex items-center gap-1 transition-colors px-2 py-1 rounded-lg border cursor-pointer ${
+                ventana.correccionGeometria
+                  ? 'bg-orange-50 text-[#E34A26] border-orange-200 hover:bg-orange-100'
+                  : 'bg-white text-slate-700 border-slate-200 hover:text-[#E34A26] hover:bg-slate-50'
+              }`}
+              title="Ajustar apertura, carriles y sentidos de las hojas de corredera"
+            >
+              <Sliders className="w-3.5 h-3.5" />
+              <span>{ventana.correccionGeometria ? 'Ajustada' : 'Ajustar'}</span>
+            </button>
+          )}
+          <button
+            onClick={() => onOpenMaterials?.(ventana)}
+            className="text-xs font-semibold text-slate-600 hover:text-[#E34A26] flex items-center gap-1 transition-colors px-2 py-1 rounded-lg hover:bg-slate-100 cursor-pointer"
+            title="Revisión de materiales de esta línea"
+          >
+            <Boxes className="w-3.5 h-3.5" />
+            <span>Ver Materiales</span>
+          </button>
+        </div>
       </footer>
     </article>
   );
