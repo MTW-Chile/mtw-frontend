@@ -1,6 +1,16 @@
 import React from 'react';
-import { ArrowLeft, Building2, RotateCcw, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Building2, RotateCcw, ShieldCheck, Lock } from 'lucide-react';
 import type { Proyecto, ProyectoVersion } from '../../../../types';
+
+// BORRADOR es el valor historico de la columna antes del flujo de estado
+// comercial; se muestra igual que EN_COTIZACION (ver EstadoComercialCard).
+const ESTADO_LABEL: Record<string, string> = {
+  BORRADOR: 'En Cotización',
+  EN_COTIZACION: 'En Cotización',
+  ESPERANDO_APROBACION_COMERCIAL: 'Esperando Aprobación Comercial',
+  APROBADO_GERENCIA: 'Aprobado Gerencia',
+  ACEPTADO_CLIENTE: 'Aceptado por Cliente',
+};
 
 interface WorkspaceHeaderProps {
   proyecto: Proyecto;
@@ -40,11 +50,17 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
               </span>
               {activeVersion?.esCongelado ? (
                 <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-700 font-semibold flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-emerald-600" /> Aprobado Gerencia
+                  {activeVersion.estadoAprobacion === 'APROBADO_GERENCIA' ||
+                  activeVersion.estadoAprobacion === 'ACEPTADO_CLIENTE' ? (
+                    <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                  ) : (
+                    <Lock className="w-3 h-3 text-emerald-600" />
+                  )}
+                  {ESTADO_LABEL[activeVersion.estadoAprobacion] || activeVersion.estadoAprobacion}
                 </span>
               ) : (
                 <span className="text-[10px] px-2.5 py-0.5 rounded-full font-semibold bg-[#E34A26]/10 border border-[#E34A26]/30 text-[#E34A26]">
-                  {activeVersion?.estadoAprobacion || 'En Cotización'}
+                  {activeVersion ? ESTADO_LABEL[activeVersion.estadoAprobacion] || activeVersion.estadoAprobacion : 'En Cotización'}
                 </span>
               )}
             </div>

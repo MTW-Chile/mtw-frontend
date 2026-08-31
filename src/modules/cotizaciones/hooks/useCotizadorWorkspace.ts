@@ -8,6 +8,7 @@ import {
   getClientes,
   createCliente,
   setVersionActiva,
+  updateEstadoAprobacion,
 } from '../../../api/client';
 import type { ProyectoVersion, Cliente } from '../../../types';
 
@@ -95,6 +96,21 @@ export function useCotizadorWorkspace(proyectoId: string) {
     if (version) setVersionActivaMutation.mutate(version.hetmoId);
   };
 
+  // "Crear Nueva Versión Interna" (Paso 5, solo con APROBADO_GERENCIA): a
+  // diferencia de handleSelectVersion, el hetmoId elegido puede no estar
+  // todavia en proyecto.versiones -- setVersionActiva lo trae de HETMO en
+  // el momento. Por eso el indice recien se puede resolver despues de
+  // refrescar el proyecto, no antes como en handleSelectVersion.
+  const handleCrearVersionInterna = async (hetmoId: number) => {
+    await setVersionActivaMutation.mutateAsync(hetmoId);
+    const actualizado = await queryClient.fetchQuery({
+      queryKey: ['proyectoDetail', proyectoId],
+      queryFn: () => getProyectoById(proyectoId),
+    });
+    const idx = actualizado?.versiones.findIndex((v) => v.hetmoId === hetmoId) ?? -1;
+    if (idx >= 0) setSelectedVersionIdx(idx);
+  };
+
   useEffect(() => {
     if (activeVersion) {
       setDolar(activeVersion.tipoCambioDolar ? String(activeVersion.tipoCambioDolar) : '950');
@@ -177,6 +193,19 @@ export function useCotizadorWorkspace(proyectoId: string) {
     },
   });
 
+  // Mutación para avanzar/retroceder el estado comercial interno
+  // (independiente del estado del documento en HETMO)
+  const estadoAprobacionMutation = useMutation({
+    mutationFn: async (estado: 'EN_COTIZACION' | 'ESPERANDO_APROBACION_COMERCIAL' | 'APROBADO_GERENCIA' | 'ACEPTADO_CLIENTE') => {
+      if (!activeVersion) return;
+      return updateEstadoAprobacion(activeVersion.id, estado);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyectoId] });
+      queryClient.invalidateQueries({ queryKey: ['proyectos'] });
+    },
+  });
+
   // Mutación para reimportar desde HETMO
   const reimportMutation = useMutation({
     mutationFn: async () => triggerManualSync(true),
@@ -214,6 +243,8 @@ export function useCotizadorWorkspace(proyectoId: string) {
     setSelectedVersionIdx,
     handleSelectVersion,
     setVersionActivaMutation,
+    estadoAprobacionMutation,
+    handleCrearVersionInterna,
     showReimportModal,
     setShowReimportModal,
     // Divisas

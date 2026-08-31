@@ -121,6 +121,17 @@ export async function setVersionActiva(
   return response.data;
 }
 
+export async function updateEstadoAprobacion(
+  versionId: string,
+  estado: 'EN_COTIZACION' | 'ESPERANDO_APROBACION_COMERCIAL' | 'APROBADO_GERENCIA' | 'ACEPTADO_CLIENTE'
+): Promise<{ success: boolean; version: ProyectoVersion }> {
+  const response = await apiClient.patch<{ success: boolean; version: ProyectoVersion }>(
+    `/versiones/${versionId}/estado-aprobacion`,
+    { estado }
+  );
+  return response.data;
+}
+
 export async function createFase(
   versionId: string,
   payload: {

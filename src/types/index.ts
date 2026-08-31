@@ -164,7 +164,12 @@ export interface ProyectoVersion {
   
   // Aprobación y Modificaciones
   tieneModificaciones: boolean;
-  estadoAprobacion: 'BORRADOR' | 'EN_COTIZACION' | 'APROBADO_GERENCIA' | 'CONGELADO';
+  estadoAprobacion:
+    | 'BORRADOR'
+    | 'EN_COTIZACION'
+    | 'ESPERANDO_APROBACION_COMERCIAL'
+    | 'APROBADO_GERENCIA'
+    | 'ACEPTADO_CLIENTE';
   esCongelado: boolean;
   fechaAprobacion: string | null;
   aprobadoPor: string | null;

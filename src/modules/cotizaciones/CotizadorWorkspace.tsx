@@ -26,6 +26,8 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
     selectedVersionIdx,
     handleSelectVersion,
     setVersionActivaMutation,
+    estadoAprobacionMutation,
+    handleCrearVersionInterna,
     showReimportModal,
     setShowReimportModal,
     // Divisas
@@ -150,6 +152,10 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
           <Step5Consolidacion
             proyecto={proyecto}
             activeVersion={activeVersion}
+            onCambiarEstadoAprobacion={(estado) => estadoAprobacionMutation.mutate(estado)}
+            isCambiandoEstadoAprobacion={estadoAprobacionMutation.isPending}
+            onCrearVersionInterna={handleCrearVersionInterna}
+            isCreandoVersionInterna={setVersionActivaMutation.isPending}
           />
         )}
       </main>
