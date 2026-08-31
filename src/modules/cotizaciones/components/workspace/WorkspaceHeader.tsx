@@ -5,8 +5,6 @@ import type { Proyecto, ProyectoVersion } from '../../../../types';
 interface WorkspaceHeaderProps {
   proyecto: Proyecto;
   activeVersion?: ProyectoVersion;
-  selectedVersionIdx: number;
-  onSelectVersion: (index: number) => void;
   onBack: () => void;
   onOpenReimport: () => void;
 }
@@ -14,8 +12,6 @@ interface WorkspaceHeaderProps {
 export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
   proyecto,
   activeVersion,
-  selectedVersionIdx,
-  onSelectVersion,
   onBack,
   onOpenReimport,
 }) => {
@@ -57,22 +53,16 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-3">
-        {proyecto.versiones.length > 1 && (
-          <div className="flex items-center rounded-xl p-1 bg-slate-100 border border-slate-200">
-            {proyecto.versiones.map((v, idx) => (
-              <button
-                key={v.id}
-                onClick={() => onSelectVersion(idx)}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors ${
-                  selectedVersionIdx === idx
-                    ? 'bg-[#E34A26] text-white font-bold shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Rev {v.versionNumero}
-              </button>
-            ))}
-          </div>
+        {activeVersion && (
+          // Solo informativo: la version se elige en el Paso 1 (o sobre un
+          // presupuesto ya consolidado), nunca desde el header a mitad de
+          // cotizacion -- cambiarla ahi arriesgaba pisar trabajo en curso.
+          <span
+            className="px-2.5 py-1 rounded-xl bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-600"
+            title="La version a presupuestar se elige en el Paso 1"
+          >
+            Rev {activeVersion.versionNumero}
+          </span>
         )}
 
         <button

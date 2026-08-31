@@ -84,8 +84,6 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
       <WorkspaceHeader
         proyecto={proyecto}
         activeVersion={activeVersion}
-        selectedVersionIdx={selectedVersionIdx}
-        onSelectVersion={handleSelectVersion}
         onBack={onBack}
         onOpenReimport={() => setShowReimportModal(true)}
       />
