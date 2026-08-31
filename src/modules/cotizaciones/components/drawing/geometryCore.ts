@@ -862,7 +862,7 @@
     };
 
     const base = computeBaseLeaves();
-    if (correction && Array.isArray(correction.hojas) && correction.hojas.length && !compositePanels(line)) {
+    if (correction && Array.isArray(correction.hojas) && correction.hojas.length) {
       return correctedLeaves(line, base);
     }
     return base;
