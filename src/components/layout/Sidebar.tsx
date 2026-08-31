@@ -54,24 +54,31 @@ export const Sidebar: React.FC<{
         <div className="space-y-6">
           {/* Logo y Encabezado */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                setActiveTab('inicio');
+                onClose();
+              }}
+              className="flex items-center gap-3 group text-left cursor-pointer focus:outline-none"
+              title="Ir al Inicio de MTW ERP"
+            >
               <img
                 src="/mtw-logo.png"
-                alt="MTW"
-                className="h-9 w-auto object-contain"
+                alt="MTW ERP"
+                className="h-9 w-auto object-contain transition-transform group-hover:scale-105"
               />
               <div>
-                <h2 className="text-xs font-black tracking-tight uppercase text-slate-900">
+                <h2 className="text-xs font-black tracking-tight uppercase text-slate-900 group-hover:text-[#E34A26] transition-colors">
                   MTW ERP
                 </h2>
                 <span className="text-[10px] font-mono text-[#E34A26] tracking-wider uppercase font-bold">
                   Alpha V0.2
                 </span>
               </div>
-            </div>
+            </button>
             <button
               onClick={onClose}
-              className="p-2 rounded-xl lg:hidden text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+              className="p-2 rounded-xl lg:hidden text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
               aria-label="Cerrar menú"
             >
               <X className="w-5 h-5" />

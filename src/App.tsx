@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
@@ -16,15 +16,34 @@ const queryClient = new QueryClient({
   },
 });
 
+const MODULE_TITLES: Record<string, string> = {
+  inicio: 'Inicio',
+  cotizaciones: 'Cotizaciones',
+  taller: 'Taller & Fabricación',
+};
+
 const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState('inicio');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Título dinámico del navegador según el módulo activo
+  useEffect(() => {
+    const title = MODULE_TITLES[activeTab] || 'Inicio';
+    document.title = `MTW ERP - ${title}`;
+  }, [activeTab]);
+
   const { data } = useQuery({
     queryKey: ['proyectosCount'],
     queryFn: () => getProyectos({ limit: 1 }),
   });
+
+  const handleNavigate = (tab: string, query?: string) => {
+    setActiveTab(tab);
+    if (query !== undefined) {
+      setSearchTerm(query);
+    }
+  };
 
   return (
     <div className="min-h-screen flex bg-slate-50 text-slate-900 font-sans">
@@ -39,17 +58,20 @@ const AppContent: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0">
         <Header
           onOpenSidebar={() => setIsSidebarOpen(true)}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
+          onNavigateHome={() => handleNavigate('inicio')}
+          moduleTitle={MODULE_TITLES[activeTab] || 'Inicio'}
         />
 
         <main className="flex-1 overflow-y-auto">
           {activeTab === 'inicio' && (
-            <InicioPage onNavigate={(tab) => setActiveTab(tab)} />
+            <InicioPage onNavigate={handleNavigate} />
           )}
 
           {activeTab === 'cotizaciones' && (
-            <CotizacionesPage searchTerm={searchTerm} />
+            <CotizacionesPage
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+            />
           )}
 
           {activeTab === 'taller' && (

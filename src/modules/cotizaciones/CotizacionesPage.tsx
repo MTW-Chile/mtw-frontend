@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   RotateCcw,
@@ -31,16 +31,23 @@ const ESTADOS_FILTRO: { id: EstadoFiltro; label: string }[] = [
 
 export const CotizacionesPage: React.FC<{
   searchTerm?: string;
-}> = ({ searchTerm: externalSearch = '' }) => {
+  onSearchChange?: (val: string) => void;
+}> = ({ searchTerm: externalSearch = '', onSearchChange }) => {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('proyectos');
-  const [internalSearch, setInternalSearch] = useState('');
+  const [internalSearch, setInternalSearch] = useState(externalSearch);
   // Por defecto muestra solo proyectos con estado 2 (Presupuesto Terminado)
   const [statusFilter, setStatusFilter] = useState<EstadoFiltro>('TERMINADOS');
   const [selectedProyectoId, setSelectedProyectoId] = useState<string | null>(null);
   const [cotizarProyectoId, setCotizarProyectoId] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const effectiveSearch = internalSearch || externalSearch;
+  useEffect(() => {
+    if (externalSearch) {
+      setInternalSearch(externalSearch);
+    }
+  }, [externalSearch]);
+
+  const effectiveSearch = internalSearch;
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['proyectos'],
@@ -225,14 +232,20 @@ export const CotizacionesPage: React.FC<{
                 <input
                   type="text"
                   value={internalSearch}
-                  onChange={(e) => setInternalSearch(e.target.value)}
+                  onChange={(e) => {
+                    setInternalSearch(e.target.value);
+                    onSearchChange?.(e.target.value);
+                  }}
                   placeholder="Buscar obra, cliente, RUT o código..."
                   className="w-full pl-10 pr-9 py-2.5 sm:py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[#E34A26] transition-all"
                 />
                 {internalSearch && (
                   <button
-                    onClick={() => setInternalSearch('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                    onClick={() => {
+                      setInternalSearch('');
+                      onSearchChange?.('');
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
                     aria-label="Limpiar búsqueda"
                   >
                     <X className="w-3.5 h-3.5" />

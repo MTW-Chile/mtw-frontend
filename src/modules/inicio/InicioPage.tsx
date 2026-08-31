@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Building2,
   Hammer,
@@ -10,6 +10,8 @@ import {
   Ruler,
   Calendar,
   TrendingUp,
+  Search,
+  X,
 } from 'lucide-react';
 import { StatCard } from '../../components/ui/StatCard';
 import { Badge } from '../../components/ui/Badge';
@@ -18,7 +20,7 @@ import { useIndicadoresChile } from '../../lib/useIndicadoresChile';
 import { formatNumber } from '../../lib/utils';
 
 interface InicioPageProps {
-  onNavigate: (tabId: string) => void;
+  onNavigate: (tabId: string, search?: string) => void;
 }
 
 interface ProyectoComercialMock {
@@ -81,7 +83,15 @@ const OBRAS_APROBADAS_MOCK: ProyectoComercialMock[] = [
 ];
 
 export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
+  const [searchQuery, setSearchQuery] = useState('');
   const { indicadores, feriadoInfo } = useIndicadoresChile();
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (searchQuery.trim()) {
+      onNavigate('cotizaciones', searchQuery.trim());
+    }
+  };
 
   const etapasConfig: Record<
     string,
@@ -117,7 +127,41 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
   }).format(new Date());
 
   return (
-    <div className="p-3 sm:p-5 md:p-8 space-y-5 sm:space-y-6 max-w-7xl mx-auto animate-fade-in">
+    <div className="p-3 sm:p-5 md:p-8 space-y-4 sm:space-y-6 max-w-7xl mx-auto animate-fade-in">
+      {/* BUSCADOR PRINCIPAL EN EL CONTENIDO */}
+      <form onSubmit={handleSearchSubmit} className="relative w-full">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Buscar obra, cliente, RUT o presupuesto HETMO..."
+          className="w-full pl-11 pr-24 py-3 sm:py-3.5 rounded-2xl bg-white border border-slate-200/90 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#E34A26] focus:ring-2 focus:ring-[#E34A26]/10 shadow-xs transition-all"
+        />
+        {searchQuery ? (
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+              aria-label="Limpiar búsqueda"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="submit"
+              className="px-3 py-1.5 rounded-xl bg-[#E34A26] hover:bg-[#c93d1b] text-white text-xs font-bold transition-colors cursor-pointer shadow-xs"
+            >
+              Buscar
+            </button>
+          </div>
+        ) : (
+          <span className="hidden sm:block absolute right-4 top-1/2 -translate-y-1/2 text-[11px] font-mono text-slate-400">
+            Presiona Enter ↵
+          </span>
+        )}
+      </form>
+
       {/* HERO OPERATIVO MTW ERP */}
       <div className="relative overflow-hidden bg-linear-to-r from-slate-950 via-slate-900 to-slate-950 rounded-3xl p-5 sm:p-7 md:p-8 text-white shadow-xl border border-slate-800">
         <div className="relative z-10 space-y-5">
