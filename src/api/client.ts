@@ -7,6 +7,7 @@ import type {
   CorreccionGeometria,
   Fase,
   ProyectoMaterialAjuste,
+  FamiliaMaterialAprobacion,
   SyncLog,
   Cliente,
   Material,
@@ -163,6 +164,18 @@ export async function saveMaterialAjuste(
   const response = await apiClient.post<{ success: boolean; ajuste: ProyectoMaterialAjuste }>(
     `/versiones/${versionId}/material-ajustes`,
     payload
+  );
+  return response.data;
+}
+
+export async function setFamiliaAprobacion(
+  versionId: string,
+  familia: string,
+  aprobada: boolean
+): Promise<{ success: boolean; familiaAprobacion: FamiliaMaterialAprobacion }> {
+  const response = await apiClient.patch<{ success: boolean; familiaAprobacion: FamiliaMaterialAprobacion }>(
+    `/versiones/${versionId}/materiales/familias/${encodeURIComponent(familia)}/aprobacion`,
+    { aprobada }
   );
   return response.data;
 }

@@ -72,14 +72,12 @@ export const EstadoComercialCard: React.FC<EstadoComercialCardProps> = ({
 
       <div className="flex items-center gap-2 flex-wrap">
         {estado === 'EN_COTIZACION' && (
-          <button
-            onClick={() => onCambiarEstado('ESPERANDO_APROBACION_COMERCIAL')}
-            disabled={isCambiandoEstado}
-            className="px-3.5 py-2 rounded-xl bg-[#E34A26] text-white text-xs font-bold flex items-center gap-1.5 hover:bg-[#c93f1f] transition-colors disabled:opacity-50"
-          >
-            {isCambiandoEstado ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
-            Enviar a Aprobación Comercial
-          </button>
+          // El congelamiento ahora se dispara desde la Analitica de
+          // Materiales (Paso 3) cuando todas las familias quedan aprobadas
+          // -- no hay accion manual acá para esta transicion.
+          <p className="text-xs text-slate-500">
+            Aprueba la Analítica de Materiales por completo en el Paso 3 para congelar el presupuesto y avanzar.
+          </p>
         )}
 
         {estado === 'ESPERANDO_APROBACION_COMERCIAL' && (

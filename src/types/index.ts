@@ -117,6 +117,15 @@ export interface ProyectoMaterialAjuste {
   material?: Material;
 }
 
+export interface FamiliaMaterialAprobacion {
+  id: string;
+  versionId: string;
+  familia: string;
+  aprobada: boolean;
+  aprobadoPor: string | null;
+  fechaAprobacion: string | null;
+}
+
 export type SentidoMovimientoHoja = 'fija' | 'izquierda' | 'derecha' | 'ambos' | 'oculta';
 
 export interface CorreccionHoja {
@@ -199,6 +208,7 @@ export interface ProyectoVersion {
   ventanas?: Ventana[];
   fases?: Fase[];
   materialAjustes?: ProyectoMaterialAjuste[];
+  familiaAprobaciones?: FamiliaMaterialAprobacion[];
 }
 
 export interface Proyecto {
