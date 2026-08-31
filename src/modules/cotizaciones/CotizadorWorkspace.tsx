@@ -25,6 +25,7 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
     setCurrentStep,
     selectedVersionIdx,
     handleSelectVersion,
+    setVersionActivaMutation,
     showReimportModal,
     setShowReimportModal,
     // Divisas
@@ -101,6 +102,9 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
           <Step1DatosCliente
             proyecto={proyecto}
             activeVersion={activeVersion}
+            selectedVersionIdx={selectedVersionIdx}
+            onSelectVersion={handleSelectVersion}
+            isSavingVersion={setVersionActivaMutation.isPending}
             clientMode={clientMode}
             setClientMode={setClientMode}
             searchClientTerm={searchClientTerm}
