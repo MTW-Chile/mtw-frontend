@@ -30,7 +30,6 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
   onEditCorredera,
 }) => {
   const superficie = ventana.m2Ventana ?? ((ventana.anchoMm * ventana.altoMm) / 1_000_000);
-  const totalLinea = (ventana.importeUnitario || 0) * (ventana.unidades || 1);
 
   // Extraemos el acabado y nombre de la apertura según el motor de HETMO
   const windowLine = useMemo(() => toWindowLine(ventana), [ventana]);
@@ -48,6 +47,14 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
     if (!windowLine) return ventana.modelo || '—';
     return core.apertureLabel(windowLine);
   }, [windowLine, ventana.modelo]);
+  // El nombre comercial de la serie (Advance/Efficient/Prime/Jumbo) viaja en
+  // descripcionCorta ("Puerta Efficient DC 55-100..."), no en modelo (que
+  // trae el codigo de obra/item, ej. "CASA A - PV02") -- profileSeries lee
+  // line.modelo, asi que le pasamos descripcionCorta como fuente.
+  const lineaProducto = useMemo(
+    () => core.profileSeries({ modelo: ventana.descripcionCorta || ventana.modelo }),
+    [ventana.descripcionCorta, ventana.modelo]
+  );
 
   return (
     <article className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all flex flex-col overflow-hidden group">
@@ -67,9 +74,9 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
               #{ventana.lineaHetmo}
             </span>
           </div>
-          {ventana.descripcionCorta && (
+          {lineaProducto && lineaProducto !== 'Línea no especificada' && (
             <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-              {ventana.descripcionCorta}
+              {lineaProducto}
             </p>
           )}
         </div>
@@ -174,22 +181,6 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
           </details>
         )}
 
-        {/* Valores Comerciales de Línea */}
-        <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-          <div>
-            <span className="text-[10px] text-slate-400 block">Unitario Neto</span>
-            <span className="font-mono font-bold text-slate-800 text-xs">
-              {monedaSimbolo} {formatNumber(ventana.importeUnitario, 0)}
-            </span>
-          </div>
-
-          <div className="text-right">
-            <span className="text-[10px] text-slate-400 block">Total Línea</span>
-            <span className="font-mono font-black text-emerald-600 text-sm">
-              {monedaSimbolo} {formatNumber(totalLinea, 0)}
-            </span>
-          </div>
-        </div>
       </div>
 
       {/* Footer de Tarjeta / Revisión de Materiales y Ajuste de Correderas */}
