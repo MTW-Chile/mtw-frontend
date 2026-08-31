@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Boxes,
@@ -13,7 +13,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
-import { useMonedas, resolverMoneda, formatMonto } from '../../../../lib/monedas';
+import { useMonedas, resolverMoneda } from '../../../../lib/monedas';
 import { saveMaterialAjuste, setFamiliaAprobacion, updateEstadoAprobacion } from '../../../../api/client';
 import type { Proyecto, ProyectoVersion, MaterialVentana } from '../../../../types';
 import { DivisasForm } from '../Step1DatosCliente/DivisasForm';
@@ -51,6 +51,45 @@ interface MaterialConsolidado {
 // BORRADOR es el valor historico de la columna antes del flujo de estado
 // comercial; se trata igual que EN_COTIZACION (ver relay-api).
 const normalizarEstado = (estado: string) => (estado === 'BORRADOR' ? 'EN_COTIZACION' : estado);
+
+// Input numerico inline: mantiene texto local mientras se edita y solo
+// dispara el guardado al perder foco o con Enter -- si guardara en cada
+// tecla, cada digito escrito seria un PATCH distinto contra la API.
+const PrecioEditable: React.FC<{
+  valor: number;
+  disabled: boolean;
+  onGuardar: (valor: number) => void;
+}> = ({ valor, disabled, onGuardar }) => {
+  const [texto, setTexto] = useState(String(valor));
+
+  useEffect(() => {
+    setTexto(String(valor));
+  }, [valor]);
+
+  const confirmar = () => {
+    const parsed = Number(texto.replace(',', '.'));
+    if (Number.isFinite(parsed) && parsed !== valor) {
+      onGuardar(parsed);
+    } else {
+      setTexto(String(valor));
+    }
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={texto}
+      disabled={disabled}
+      onChange={(e) => setTexto(e.target.value)}
+      onBlur={confirmar}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+      }}
+      className="w-20 px-1.5 py-1 rounded-md border border-slate-200 bg-white text-right font-mono text-xs text-slate-800 focus:outline-none focus:border-[#E34A26] disabled:bg-slate-50 disabled:text-slate-400 disabled:border-transparent"
+    />
+  );
+};
 
 export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   proyecto,
@@ -91,16 +130,43 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   // guardan directo contra la API al tocarlos -- nada de estado "flotante"
   // que se pierda al recargar.
   const ajusteMutation = useMutation({
-    mutationFn: (payload: { materialId: string; excluido: boolean; familia: string }) => {
+    mutationFn: (payload: {
+      materialId: string;
+      excluido: boolean;
+      familia: string;
+      precioPersonalizado?: number;
+      monedaPersonalizada?: string;
+    }) => {
       if (!versionId) return Promise.resolve(null);
       return saveMaterialAjuste(versionId, {
         materialId: payload.materialId,
         excluido: payload.excluido,
         familiaPersonalizada: payload.familia,
+        precioPersonalizado: payload.precioPersonalizado,
+        monedaPersonalizada: payload.monedaPersonalizada,
       });
     },
     onSuccess: invalidar,
   });
+
+  // Reenvia siempre excluido/familia actuales junto con el cambio puntual --
+  // el endpoint sobreescribe esos campos con lo que reciba, asi que mandar
+  // solo el campo que cambio resetearia los demas (ej. excluido volveria a
+  // false). precioPersonalizado/monedaPersonalizada se omiten cuando no se
+  // esta editando precio, para no "congelar" el precio de HETMO como
+  // override cada vez que solo se toca la exclusion.
+  const guardarAjuste = (
+    m: MaterialConsolidado,
+    cambios: { excluido?: boolean; precioOrigen?: number; monedaOrigen?: string }
+  ) => {
+    ajusteMutation.mutate({
+      materialId: m.materialId,
+      excluido: cambios.excluido ?? m.excluido,
+      familia: m.familia,
+      precioPersonalizado: cambios.precioOrigen,
+      monedaPersonalizada: cambios.precioOrigen !== undefined ? cambios.monedaOrigen ?? m.monedaOrigen : undefined,
+    });
+  };
 
   const familiaAprobacionMutation = useMutation({
     mutationFn: (payload: { familia: string; aprobada: boolean }) => {
@@ -133,9 +199,11 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
         const mat = mv.material;
         const key = mv.materialId || mv.id;
         const cantidadTotal = (mv.cantidad || 1) * unidadesVentana;
-        const precioOrigen = mv.precioOrigen || 0;
-        const monedaOrigen = mv.monedaOrigen || '';
         const ajuste = ajustesPorMaterial.get(mv.materialId);
+        // precioPersonalizado/monedaPersonalizada pisan el precio original de
+        // HETMO cuando alguien lo edito a mano en la Analitica.
+        const precioOrigen = ajuste?.precioPersonalizado ?? mv.precioOrigen ?? 0;
+        const monedaOrigen = ajuste?.precioPersonalizado != null ? ajuste.monedaPersonalizada || 'CLP' : mv.monedaOrigen || '';
 
         const iso = resolverMoneda(monedaOrigen, monedas).iso;
         let factorCLP = 1;
@@ -445,6 +513,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                           <th className="px-3.5 py-2.5 font-semibold text-right">Cantidad</th>
                           <th className="px-3.5 py-2.5 font-semibold text-center">Unidad</th>
                           <th className="px-3.5 py-2.5 font-semibold text-right">Precio Origen</th>
+                          <th className="px-3.5 py-2.5 font-semibold text-right">Precio Unit. CLP</th>
                           <th className="px-3.5 py-2.5 font-semibold text-right">Total CLP</th>
                           <th className="px-3.5 py-2.5 font-semibold text-center">Estado</th>
                         </tr>
@@ -462,17 +531,34 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                               {formatNumber(m.cantidadTotal, 2)}
                             </td>
                             <td className="px-3.5 py-2 text-center text-slate-500 font-mono">{m.unidadMedida}</td>
-                            <td className="px-3.5 py-2 text-right font-mono text-slate-700">
-                              {formatMonto(m.precioOrigen, resolverMoneda(m.monedaOrigen, monedas))}
+                            <td className="px-3.5 py-2 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <span className="text-slate-400 font-mono text-[10px]">
+                                  {resolverMoneda(m.monedaOrigen, monedas).simbolo}
+                                </span>
+                                <PrecioEditable
+                                  valor={m.precioOrigen}
+                                  disabled={edicionBloqueada}
+                                  onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo, monedaOrigen: m.monedaOrigen })}
+                                />
+                              </div>
+                            </td>
+                            <td className="px-3.5 py-2 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <span className="text-slate-400 font-mono text-[10px]">$</span>
+                                <PrecioEditable
+                                  valor={m.precioCLP}
+                                  disabled={edicionBloqueada}
+                                  onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo, monedaOrigen: 'CLP' })}
+                                />
+                              </div>
                             </td>
                             <td className="px-3.5 py-2 text-right font-mono font-bold text-slate-900">
                               $ {formatNumber(m.precioCLP * m.cantidadTotal, 0)}
                             </td>
                             <td className="px-3.5 py-2 text-center">
                               <button
-                                onClick={() =>
-                                  ajusteMutation.mutate({ materialId: m.materialId, excluido: !m.excluido, familia })
-                                }
+                                onClick={() => guardarAjuste(m, { excluido: !m.excluido })}
                                 disabled={edicionBloqueada || ajusteMutation.isPending}
                                 className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                                   m.excluido
