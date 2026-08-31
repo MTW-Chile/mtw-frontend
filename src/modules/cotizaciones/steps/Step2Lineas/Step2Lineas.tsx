@@ -153,7 +153,6 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
             <VentanaCard
               key={v.id}
               ventana={v}
-              monedaSimbolo={activeVersion?.monedaSimbolo || '$'}
               onOpenMaterials={(ventana) => setSelectedVentanaForMaterials(ventana)}
               onEditCorredera={(ventana) => setSelectedVentanaForCorrector(ventana)}
             />

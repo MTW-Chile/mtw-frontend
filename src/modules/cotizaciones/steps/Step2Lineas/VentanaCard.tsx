@@ -18,14 +18,12 @@ import * as core from '../../components/drawing/geometryCore';
 
 interface VentanaCardProps {
   ventana: Ventana;
-  monedaSimbolo?: string;
   onOpenMaterials?: (ventana: Ventana) => void;
   onEditCorredera?: (ventana: Ventana) => void;
 }
 
 export const VentanaCard: React.FC<VentanaCardProps> = ({
   ventana,
-  monedaSimbolo = '$',
   onOpenMaterials,
   onEditCorredera,
 }) => {
