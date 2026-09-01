@@ -57,6 +57,29 @@ const normalizarEstado = (estado: string) => (estado === 'BORRADOR' ? 'EN_COTIZA
 const formatUF = (valor: number) =>
   new Intl.NumberFormat('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(valor);
 
+// moneda_origen_codigo de HETMO viene hardcodeado en '2' para TODO material
+// (confirmado en el codigo fuente de apiv2 -- nunca fue un dato real), asi
+// que no sirve para resolver la divisa. La divisa real depende de la
+// familia del material (regla de negocio, no de HETMO): Perfileria,
+// Accesorios y Juntas se compran en euros; Refuerzos y Herrajes en dolares;
+// Vidrios se cotiza directo en pesos, sin conversion.
+const MONEDA_POR_FAMILIA: Record<string, 'EUR' | 'USD' | 'CLP'> = {
+  PERFILERIA: 'EUR',
+  ACCESORIOS: 'EUR',
+  JUNTAS: 'EUR',
+  REFUERZOS: 'USD',
+  HERRAJES: 'USD',
+  VIDRIOS: 'CLP',
+};
+
+// Orden de categorias pedido explicitamente, no alfabetico. Cualquier
+// familia que no este en la lista (ej. "Otros") va al final, alfabetica.
+const ORDEN_FAMILIAS = ['PERFILERIA', 'ACCESORIOS', 'JUNTAS', 'REFUERZOS', 'HERRAJES', 'VIDRIOS'];
+const ordenFamilia = (familia: string) => {
+  const idx = ORDEN_FAMILIAS.indexOf(familia);
+  return idx === -1 ? ORDEN_FAMILIAS.length : idx;
+};
+
 // Input numerico inline: mantiene texto local mientras se edita y solo
 // dispara el guardado al perder foco o con Enter -- si guardara en cada
 // tecla, cada digito escrito seria un PATCH distinto contra la API.
@@ -219,10 +242,16 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
         const key = mv.materialId || mv.id;
         const cantidadTotal = (mv.cantidad || 1) * unidadesVentana;
         const ajuste = ajustesPorMaterial.get(mv.materialId);
+        const familia = (ajuste?.familiaPersonalizada || mat?.familia || 'ACCESORIOS').toUpperCase().trim();
+
         // precioPersonalizado/monedaPersonalizada pisan el precio original de
-        // HETMO cuando alguien lo edito a mano en la Analitica.
+        // HETMO cuando alguien lo edito a mano en la Analitica. Sin edicion
+        // manual, la divisa la determina la familia -- moneda_origen_codigo
+        // de HETMO viene hardcodeado en '2' para todo material, nunca fue un
+        // dato real (ver MONEDA_POR_FAMILIA).
         const precioOrigen = ajuste?.precioPersonalizado ?? mv.precioOrigen ?? 0;
-        const monedaOrigen = ajuste?.precioPersonalizado != null ? ajuste.monedaPersonalizada || 'CLP' : mv.monedaOrigen || '';
+        const monedaBase = MONEDA_POR_FAMILIA[familia] || 'CLP';
+        const monedaOrigen = ajuste?.precioPersonalizado != null ? ajuste.monedaPersonalizada || monedaBase : monedaBase;
 
         const iso = resolverMoneda(monedaOrigen, monedas).iso;
         let factorCLP = 1;
@@ -231,7 +260,6 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
         else if (iso === 'UF') factorCLP = tasaUf;
 
         const precioCLP = precioOrigen * factorCLP;
-        const familia = (ajuste?.familiaPersonalizada || mat?.familia || 'ACCESORIOS').toUpperCase().trim();
 
         if (map.has(key)) {
           const existing = map.get(key)!;
@@ -279,7 +307,10 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
       list.push(m);
       map.set(m.familia, list);
     });
-    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    return Array.from(map.entries()).sort((a, b) => {
+      const diff = ordenFamilia(a[0]) - ordenFamilia(b[0]);
+      return diff !== 0 ? diff : a[0].localeCompare(b[0]);
+    });
   }, [filteredMateriales]);
 
   const aprobacionesPorFamilia = useMemo(
