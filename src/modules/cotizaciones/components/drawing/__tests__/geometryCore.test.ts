@@ -151,6 +151,32 @@ describe('handleHeightFor — el travesaño no tiene relación con la manilla', 
   });
 });
 
+describe('handleHeightFor — una hoja con manilla a medida no se filtra a las demás de la misma línea', () => {
+  // Compuesto de dos hojas practicables (dos filas tipo_elemento=3): la
+  // primera declara altura_manilla=1200, la segunda no trae nada (va al
+  // centro). Antes del fix, el barrido de TODA la geometria de la linea
+  // tomaba el 1200 de la primera hoja y se lo aplicaba tambien a la
+  // segunda -- mostrando la cota de manilla en una hoja que en realidad va
+  // al centro.
+  const line = {
+    ancho: 1800,
+    geometria: [
+      { tipo_elemento: 3, tipo_apertura: 18, ancho: 900, alto: 2600, posicion: 1, parametrosJson: { altura_manilla: 1200 } },
+      { tipo_elemento: 3, tipo_apertura: 18, ancho: 900, alto: 2600, posicion: 2 },
+    ],
+  };
+
+  it('la hoja sin altura_manilla propia va al centro, no hereda la de su vecina', () => {
+    const result = core.handleHeightFor(line, {}, 2600);
+    expect(result).toMatchObject({ millimeters: 1300, reason: 'center-default' });
+  });
+
+  it('una hoja con su propio leaf.alturaManilla sigue resolviendo "hetmo-custom"', () => {
+    const result = core.handleHeightFor(line, { alturaManilla: 1200 }, 2600);
+    expect(result).toMatchObject({ millimeters: 1200, reason: 'hetmo-custom' });
+  });
+});
+
 describe('panelGlassSplits — la misma puerta P6: travesaño detectado por partición de vidrio', () => {
   it('dos vidrios de igual ancho y distinto alto en la misma hoja producen un corte horizontal', () => {
     const splits = core.panelGlassSplits({

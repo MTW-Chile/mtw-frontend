@@ -649,7 +649,18 @@
 
   export function handleHeightFor(line, leaf, physicalHeight) {
     const geometryItems = geometryItemsOf(line);
-    const geometryCustom = geometryItems.length
+    // Barrer TODA la geometria de la linea en busca de una cota de manilla
+    // sólo es seguro cuando la linea tiene a lo sumo una hoja real (una fila
+    // tipo_elemento=3): con varias hojas -- ej. un compuesto de un paño
+    // practicable con manilla a medida junto a un paño fijo, o una
+    // corredera -- ese barrido tomaba el altura_manilla de UNA hoja y lo
+    // aplicaba a TODAS las demas de la misma linea, mostrando la cota en
+    // hojas que en realidad van al centro. Con mas de una hoja, cada leaf
+    // debe traer su propio alturaManilla ya resuelto (sourceComponents,
+    // compositePanels, o el .component compartido que arma leavesFor() para
+    // una corredera) -- sin eso, se cae a centro, nunca se adivina.
+    const openingRowCount = geometryItems.filter(item => number(item && item.tipo_elemento) === 3).length;
+    const geometryCustom = geometryItems.length && openingRowCount <= 1
       ? firstPositive(...geometryItems.map(alturaManillaDe))
       : 0;
     const custom = firstPositive(leaf && leaf.alturaManilla, leaf && leaf.altura_manilla,
