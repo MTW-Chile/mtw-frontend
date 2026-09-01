@@ -266,12 +266,14 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
         // stock (confirmado contra el excel real: 93003 son 50,4m de un
         // rollo de 300m, no el rollo completo) -- mv.cantidad para Juntas
         // no es esos metros, es un conteo que no calza con el consumo real
-        // de Hetmo. mv.longitudMm si trae los milimetros cortados en esa
-        // linea, que es el mismo dato que arma "TOTAL Corte" en el reporte
-        // de Hetmo; se suma por ventana y se pasa a metros. precioOrigen
-        // sigue siendo por metro (no se escala, a diferencia de
-        // Perfileria/Refuerzos mas abajo), asi que Total = precio_metro *
-        // metros_reales, igual que Hetmo.
+        // de Hetmo. mv.longitudMm SI trae esos metros reales -- pero pese
+        // al nombre del campo ("_mm") ya viene expresado directamente en
+        // METROS, no en milimetros (mismo tipo de nombre enganoso que en
+        // Vidrios, mas abajo): dividir por 1000 daba 0,05m en vez de los
+        // 50,4m reales para 93003 (confirmado contra pantalla real de la
+        // Analitica). precioOrigen sigue siendo por metro (no se escala, a
+        // diferencia de Perfileria/Refuerzos mas abajo), asi que Total =
+        // precio_metro * metros_reales, igual que Hetmo.
         //
         // mv.cantidad ya viene totalizado por Hetmo para todas las UDS de
         // esta linea (confirmado contra el resumen real de Hetmo: sumar
@@ -282,17 +284,15 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
         // el campo Decimal de Prisma llega como string por el wire -- sin
         // Number() aca, el += de abajo concatena texto en vez de sumar.
         // Vidrios: mv.longitudMm (pese al nombre del campo) ya viene
-        // expresado directamente en m² para esta familia, no en milimetros
-        // -- confirmado sumando las filas crudas de un vidrio real contra
-        // Hetmo: da 73,04 m² para "5/12/5 INC" en Casa La Aurora, exacto
-        // al centesimo contra el dashboard antiguo. mv.cantidad para
-        // vidrios es un conteo de paños, no m², por eso no sirve aca.
+        // expresado directamente en m² para esta familia -- confirmado
+        // sumando las filas crudas de un vidrio real contra Hetmo: da
+        // 73,04 m² para "5/12/5 INC" en Casa La Aurora, exacto al
+        // centesimo contra el dashboard antiguo. mv.cantidad para vidrios
+        // es un conteo de paños, no m², por eso no sirve aca.
         const cantidadTotal =
-          familiaCruda === 'JUNTAS'
-            ? (Number(mv.longitudMm) || 0) / 1000
-            : familiaCruda === 'VIDRIOS'
-              ? Number(mv.longitudMm) || 0
-              : Number(mv.cantidad) || 0;
+          familiaCruda === 'JUNTAS' || familiaCruda === 'VIDRIOS'
+            ? Number(mv.longitudMm) || 0
+            : Number(mv.cantidad) || 0;
 
         // precioPersonalizado/monedaPersonalizada pisan el precio original de
         // HETMO cuando alguien lo edito a mano en la Analitica. Sin edicion
