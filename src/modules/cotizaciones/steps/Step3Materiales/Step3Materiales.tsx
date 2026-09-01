@@ -12,8 +12,10 @@ import {
   Lock,
   Loader2,
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { formatNumber } from '../../../../lib/utils';
-import { useMonedas, resolverMoneda } from '../../../../lib/monedas';
+import { useMonedas, resolverMoneda, formatMonto } from '../../../../lib/monedas';
 import { saveMaterialAjuste, setFamiliaAprobacion, setFamiliaDescuento, updateEstadoAprobacion } from '../../../../api/client';
 import type { Proyecto, ProyectoVersion, MaterialVentana } from '../../../../types';
 import { DivisasForm } from '../Step1DatosCliente/DivisasForm';
@@ -342,6 +344,89 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   const costoTotalUF = tasaUf > 0 ? costoTotalCLP / tasaUf : 0;
   const cantidadExcluidos = materialesConsolidados.filter((m) => m.excluido).length;
 
+  const exportarPDF = () => {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const margen = 32;
+    let y = margen;
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Analítica de Materiales — ${proyecto.obra}`, margen, y);
+    y += 18;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    const encabezado = [
+      proyecto.codigoInterno || `PRJ-${proyecto.numeroPresupuesto}`,
+      activeVersion ? `Revisión ${activeVersion.versionNumero}` : '',
+      `Exportado ${new Date().toLocaleDateString('es-CL')}`,
+    ].filter(Boolean).join('  ·  ');
+    doc.text(encabezado, margen, y);
+    y += 16;
+
+    gruposPorFamilia.forEach(([familia, materiales]) => {
+      const aprobacion = aprobacionesPorFamilia.get(familia);
+      const descuento = Number(aprobacion?.descuentoPct) || 0;
+      const totalFamilia = materiales
+        .filter((m) => !m.excluido)
+        .reduce((acc, m) => acc + m.precioCLP * m.cantidadTotal, 0) * (1 - descuento / 100);
+
+      if (y > 520) {
+        doc.addPage();
+        y = margen;
+      }
+
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      const tituloFamilia = descuento > 0
+        ? `${familia}  (descuento ${descuento}%)`
+        : familia;
+      doc.text(tituloFamilia, margen, y);
+      y += 4;
+
+      autoTable(doc, {
+        startY: y,
+        margin: { left: margen, right: margen },
+        styles: { fontSize: 7.5, cellPadding: 3 },
+        headStyles: { fillColor: [30, 41, 59] },
+        head: [['SKU', 'Descripción', 'Proveedor', 'Precio Unit. Origen', 'Precio Unit. CLP', 'Cantidad', 'Unidad', 'Total CLP', 'Estado']],
+        body: materiales.map((m) => [
+          m.skuInterno,
+          m.descripcion,
+          m.proveedorNombre,
+          formatMonto(m.precioOrigen, resolverMoneda(m.monedaOrigen, monedas)),
+          `$ ${formatNumber(m.precioCLP, 2)}`,
+          formatNumber(m.cantidadTotal, 2),
+          familia === 'VIDRIOS' ? 'M²' : m.unidadMedida,
+          `$ ${formatNumber(m.precioCLP * m.cantidadTotal * (1 - descuento / 100), 0)}`,
+          m.excluido ? 'Excluido' : 'Incluido',
+        ]),
+        didParseCell: (data) => {
+          const fila = materiales[data.row.index];
+          if (fila?.excluido && data.section === 'body') {
+            data.cell.styles.textColor = [148, 163, 184];
+          }
+        },
+      });
+
+      y = (doc as any).lastAutoTable.finalY + 6;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Subtotal ${familia}: $ ${formatNumber(totalFamilia, 0)}`, margen, y);
+      y += 18;
+    });
+
+    if (y > 520) {
+      doc.addPage();
+      y = margen;
+    }
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`TOTAL MATERIALES: $ ${formatNumber(costoTotalCLP, 0)}  (${formatUF(costoTotalUF)} UF)`, margen, y);
+
+    doc.save(`analitica-materiales-${(proyecto.codigoInterno || proyecto.obra).replace(/\s+/g, '-')}.pdf`);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* 1. SECCIÓN: EDITOR DE DIVISAS DE LA OBRA */}
@@ -454,7 +539,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
 
           <div className="flex items-center gap-2.5">
             <button
-              onClick={() => alert('Generando exportación de materiales en PDF...')}
+              onClick={exportarPDF}
               className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm"
               title="Exportar materiales a PDF"
             >
