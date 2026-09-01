@@ -246,6 +246,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   // ajustes ya guardados (exclusion / familia personalizada) aplicados.
   const materialesConsolidados: MaterialConsolidado[] = useMemo(() => {
     const map = new Map<string, MaterialConsolidado>();
+    const familiaCrudaPorMaterial = new Map<string, string>();
     const ventanas = activeVersion?.ventanas || [];
     const ajustesPorMaterial = new Map((activeVersion?.materialAjustes || []).map((a) => [a.materialId, a]));
 
@@ -265,7 +266,9 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
         // Number() aca, el += de abajo concatena texto en vez de sumar.
         const cantidadTotal = Number(mv.cantidad) || 0;
         const ajuste = ajustesPorMaterial.get(mv.materialId);
-        const familia = normalizarFamilia((ajuste?.familiaPersonalizada || mat?.familia || 'ACCESORIOS').toUpperCase().trim());
+        const familiaCruda = (ajuste?.familiaPersonalizada || mat?.familia || 'ACCESORIOS').toUpperCase().trim();
+        const familia = normalizarFamilia(familiaCruda);
+        familiaCrudaPorMaterial.set(mv.materialId, familiaCruda);
 
         // precioPersonalizado/monedaPersonalizada pisan el precio original de
         // HETMO cuando alguien lo edito a mano en la Analitica. Sin edicion
@@ -306,20 +309,24 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
       });
     });
 
-    // Perfileria y Refuerzos se compran por barra de stock, no por pieza
-    // usada: /materiales (el resumen de Hetmo) ya trae esa cantidad de
-    // barras post-optimizacion de corte, confirmado contra el analisis de
-    // materiales real de Casa La Aurora. Para esas dos familias se
-    // reemplaza la suma de piezas por ventana con ese numero cuando esta
-    // disponible; el resto de las familias (Accesorios, Herrajes, Vidrios)
-    // ya calzan sumando por ventana y no se tocan.
-    const FAMILIAS_CANTIDAD_RESUMEN = new Set(['PERFILERIA', 'REFUERZOS']);
+    // Perfileria, Refuerzos y Juntas se compran por barra/rollo de stock, no
+    // por pieza usada: /materiales (el resumen de Hetmo) ya trae esa
+    // cantidad post-optimizacion de corte, confirmado contra el analisis de
+    // materiales real de Casa La Aurora. Juntas sigue esta misma logica de
+    // corte aunque ya no se muestre como categoria propia (se fusiona en
+    // Accesorios solo para agrupar en pantalla -- normalizarFamilia() pisa
+    // el nombre de despliegue, pero la decision de que fuente de cantidad
+    // usar se hace con la familia CRUDA, antes de esa fusion). El resto de
+    // las familias (el resto de Accesorios, Herrajes, Vidrios) ya calzan
+    // sumando por ventana y no se tocan.
+    const FAMILIAS_CANTIDAD_RESUMEN = new Set(['PERFILERIA', 'REFUERZOS', 'JUNTAS']);
     const resumenPorMaterial = new Map(
       (activeVersion?.materialesResumen || []).map((r) => [r.materialId, Number(r.cantidadHetmo) || 0])
     );
     const consolidados = Array.from(map.values());
     consolidados.forEach((m) => {
-      if (!FAMILIAS_CANTIDAD_RESUMEN.has(m.familia)) return;
+      const familiaCruda = familiaCrudaPorMaterial.get(m.materialId) || m.familia;
+      if (!FAMILIAS_CANTIDAD_RESUMEN.has(familiaCruda)) return;
       const cantidadResumen = resumenPorMaterial.get(m.materialId);
       if (cantidadResumen !== undefined) m.cantidadTotal = cantidadResumen;
     });
