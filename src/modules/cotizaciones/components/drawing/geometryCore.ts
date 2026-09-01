@@ -963,6 +963,15 @@
   // que isFrameless la dibujara con marco.
   const FRAME_FALSE_POSITIVE_SKUS = new Set(['001MTW']);
 
+  // El criterio real es "no tiene marco ni hoja", no "no tiene ningún
+  // artículo de familia Perfileria/aluminio". Hay perfiles de aluminio que
+  // no son ni marco ni hoja de la ventana: contravidrio (junquillo que
+  // sujeta el vidrio, a veces cargado por error) y tubular (agregado para
+  // recubrir pilares, ajeno a la ventana). Confirmado con datos reales en
+  // Casa La Aurora V19 "LUCARNA WALKIN", línea 10329 (fija, sin marco ni
+  // hoja) -- traía "CONTRAVIDRIO 13,5MM" y "TUBULAR 76X38" en Perfileria.
+  const NON_FRAME_PROFILE_KEYWORDS = /contravidrio|junquillo|tubular/i;
+
   export function isFrameless(line) {
     const rows = Array.isArray(line && line.materiales) ? line.materiales : [];
     // Sin materiales de ningún tipo: no sabemos nada → dibujar con marco.
@@ -977,6 +986,8 @@
 
       const familia = String((item && item.familia) || '').trim();
       const texto   = String((item && (item.descripcionArticulo ?? item.descripcion)) || '');
+
+      if (NON_FRAME_PROFILE_KEYWORDS.test(texto)) continue;
 
       // Detectar perfilería de PVC o aluminio por familia o descripción.
       if (
