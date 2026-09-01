@@ -245,12 +245,17 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
 
     ventanas.forEach((v) => {
       const mats: MaterialVentana[] = v.materiales || [];
-      const unidadesVentana = v.unidades || 1;
 
       mats.forEach((mv) => {
         const mat = mv.material;
         const key = mv.materialId || mv.id;
-        const cantidadTotal = (mv.cantidad || 1) * unidadesVentana;
+        // mv.cantidad ya viene totalizado por Hetmo para todas las UDS de
+        // esta linea (confirmado contra el resumen real de Hetmo: sumar
+        // cantidad tal cual, sin multiplicar por nada, calza al digito con
+        // el analisis de materiales que Hetmo le entrega al cliente).
+        // Multiplicar de nuevo por v.unidades duplicaba la cantidad en toda
+        // linea con UDS > 1.
+        const cantidadTotal = mv.cantidad || 0;
         const ajuste = ajustesPorMaterial.get(mv.materialId);
         const familia = (ajuste?.familiaPersonalizada || mat?.familia || 'ACCESORIOS').toUpperCase().trim();
 
