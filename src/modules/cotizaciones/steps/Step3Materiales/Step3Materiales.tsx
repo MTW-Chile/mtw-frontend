@@ -64,11 +64,11 @@ const formatUF = (valor: number) =>
 // Accesorios y Juntas se compran en euros; Refuerzos y Herrajes en dolares;
 // Vidrios se cotiza directo en pesos, sin conversion.
 const MONEDA_POR_FAMILIA: Record<string, 'EUR' | 'USD' | 'CLP'> = {
-  PERFILERIA: 'EUR',
-  ACCESORIOS: 'EUR',
-  JUNTAS: 'EUR',
+  PERFILERIA: 'USD',
+  ACCESORIOS: 'USD',
   REFUERZOS: 'USD',
-  HERRAJES: 'USD',
+  JUNTAS: 'EUR',
+  HERRAJES: 'EUR',
   VIDRIOS: 'CLP',
 };
 
