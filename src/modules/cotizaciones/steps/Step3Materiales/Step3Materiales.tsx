@@ -582,18 +582,27 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                 onClick={() => aprobarTodoMutation.mutate()}
                 disabled={gruposPorFamilia.length === 0 || aprobarTodoMutation.isPending}
                 className="px-3.5 py-2 rounded-xl bg-[#E34A26] text-white text-xs font-bold flex items-center gap-1.5 hover:bg-[#c93f1f] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                title="Aprueba todas las categorías que falten y congela el presupuesto, en un solo paso"
+                title={
+                  todasLasFamiliasAprobadas
+                    ? 'Todas las familias ya están aprobadas -- este click solo congela el presupuesto'
+                    : 'Aprueba todas las categorías que falten y congela el presupuesto, en un solo paso'
+                }
               >
                 {aprobarTodoMutation.isPending ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
                   <ShieldCheck className="w-3.5 h-3.5" />
                 )}
-                Aprobar Analítica Completa
+                {todasLasFamiliasAprobadas ? 'Congelar Presupuesto' : 'Aprobar Analítica Completa'}
               </button>
               {!todasLasFamiliasAprobadas && (
                 <span className="text-[11px] text-slate-500">
                   Pendientes: {familiasPendientes.map(([familia]) => familia).join(', ')} (se aprueban solas al usar el botón)
+                </span>
+              )}
+              {todasLasFamiliasAprobadas && (
+                <span className="text-[11px] text-slate-500">
+                  Todas las familias ya están aprobadas -- falta este último paso para congelar el presupuesto
                 </span>
               )}
             </div>
