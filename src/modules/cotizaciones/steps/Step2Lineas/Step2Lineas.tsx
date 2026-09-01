@@ -398,6 +398,7 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
       {/* Modal: Corrector Interactivo de Correderas */}
       {selectedVentanaForCorrector && (
         <CorrectorCorrederaModal
+          key={selectedVentanaForCorrector.id}
           ventana={selectedVentanaForCorrector}
           isOpen={Boolean(selectedVentanaForCorrector)}
           onClose={() => setSelectedVentanaForCorrector(null)}

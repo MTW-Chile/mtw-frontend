@@ -52,7 +52,11 @@ export function useCotizadorWorkspace(proyectoId: string) {
   const [nuevoCliente, setNuevoCliente] = useState<NuevoClienteForm>(initialNuevoCliente);
 
   // Queries
-  const { data: proyecto, isLoading, isError } = useQuery({
+  // Se usa isPending (no isLoading) para que el workspace no se resetee durante
+  // refetches silenciosos provocados por invalidateQueries (ej. al guardar una
+  // corrección de geometría). isPending es true solo en la carga inicial cuando
+  // no hay datos en caché; en refetches posteriores el dato previo sigue visible.
+  const { data: proyecto, isPending: isLoading, isError } = useQuery({
     queryKey: ['proyectoDetail', proyectoId],
     queryFn: () => getProyectoById(proyectoId),
     enabled: !!proyectoId,

@@ -145,4 +145,4 @@ export function toWindowLine(ventana: Ventana): WindowLine | null {
       ? ventana.materiales.map(toLineMaterial)
       : undefined,
   };
-}
+}

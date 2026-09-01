@@ -46,50 +46,57 @@ export const CorrectorCorrederaModal: React.FC<CorrectorCorrederaModalProps> = (
       .sort((a, b) => a.code - b.code);
   }, []);
 
-  // Apertura inicial
-  const initialAperture = useMemo(() => {
-    if (ventana.correccionGeometria?.apertura) {
-      return ventana.correccionGeometria.apertura;
-    }
+  // Apertura inicial: si ya tiene corrección guardada, usar esa; si no, el tipo HETMO original
+  const initialAperture = (() => {
+    if (ventana.correccionGeometria?.apertura) return ventana.correccionGeometria.apertura;
     const defaultCode = ventana.dibujoTipoApertura || 202;
     const exists = slidingApertures.some((a) => a.code === defaultCode);
     return exists ? defaultCode : (slidingApertures[0]?.code || 202);
-  }, [ventana, slidingApertures]);
+  })();
 
   const [selectedAperture, setSelectedAperture] = useState<number>(initialAperture);
 
-  // Inicializar hojas para una apertura dada
+  /**
+   * Inicializa las hojas para una apertura dada leyendo directamente del
+   * `apertureCatalog`, sin depender de las geometrías HETMO. Esto garantiza que
+   * al cambiar el tipo de apertura en el selector, las hojas reflejen el layout
+   * del nuevo código, no el original importado.
+   */
   const initializeLeaves = (apCode: number): CorreccionHoja[] => {
-    // Si ya existe una corrección con esta misma apertura, usar sus hojas
+    // Si ya existe una corrección guardada con esta misma apertura, preservar sus hojas
     if (ventana.correccionGeometria?.apertura === apCode && ventana.correccionGeometria.hojas?.length) {
       return JSON.parse(JSON.stringify(ventana.correccionGeometria.hojas));
     }
 
-    const testLine = toWindowLine({
-      ...ventana,
-      dibujoTipoApertura: apCode,
-      correccionGeometria: null,
-    });
-    const baseLeaves = testLine ? core.leavesFor(testLine) : [];
-    const count = baseLeaves.length || 2;
+    // Leer layout directamente del catálogo (fuente de verdad)
+    const catalogEntry = (core.apertureCatalog as any)[apCode];
+    const layout: string[] = Array.isArray(catalogEntry?.layout) ? catalogEntry.layout : [];
+    const rails: string[] = Array.isArray(catalogEntry?.rails) ? catalogEntry.rails : [];
+    const count = layout.length || (catalogEntry?.leafCount as number) || 2;
     const defaultWidth = Math.round(ventana.anchoMm / count);
 
-    return baseLeaves.map((leaf: any, idx: number) => {
-      let mov: SentidoMovimientoHoja = 'fija';
-      const kindStr = String(leaf.kind || '');
-      if (kindStr.endsWith(':left')) mov = 'izquierda';
-      else if (kindStr.endsWith(':right')) mov = 'derecha';
-      else if (kindStr.endsWith(':both')) mov = 'ambos';
-      else if (kindStr === 'fijo') mov = 'fija';
-      else if (kindStr === 'oculta' || leaf.oculta) mov = 'oculta';
+    if (layout.length > 0) {
+      return layout.map((kind: string, idx: number) => {
+        let mov: SentidoMovimientoHoja = 'fija';
+        if (kind.endsWith(':left')) mov = 'izquierda';
+        else if (kind.endsWith(':right')) mov = 'derecha';
+        else if (kind.endsWith(':both')) mov = 'ambos';
+        else if (kind === 'fijo') mov = 'fija';
 
-      return {
-        indice: idx,
-        ancho: Math.round(Number(leaf.width) || defaultWidth),
-        carril: leaf.oculta || mov === 'oculta' ? 0 : (Number(leaf.carril) || 1),
-        movimiento: mov,
-      };
-    });
+        const railStr = rails[idx] || 'int';
+        const carril = railStr === 'ext' ? 2 : 1;
+
+        return { indice: idx, ancho: defaultWidth, carril, movimiento: mov };
+      });
+    }
+
+    // Fallback: apertura sin layout definido (ej. elevadoras de 1 hoja)
+    return Array.from({ length: count }, (_, idx) => ({
+      indice: idx,
+      ancho: defaultWidth,
+      carril: 1,
+      movimiento: 'fija' as SentidoMovimientoHoja,
+    }));
   };
 
   const [draftHojas, setDraftHojas] = useState<CorreccionHoja[]>(() =>
@@ -195,7 +202,8 @@ export const CorrectorCorrederaModal: React.FC<CorrectorCorrederaModalProps> = (
     }
   };
 
-  if (!isOpen) return null;
+  // El componente sólo existe mientras isOpen=true (el padre lo monta condicionalmente),
+  // por lo que no hace falta el guard isOpen aquí.
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs animate-fade-in">
