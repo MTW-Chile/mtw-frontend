@@ -296,13 +296,18 @@ describe('buildWindow — nivel 2 vía parametrosJson', () => {
     expect(result.svg).not.toContain('window-striker');
   });
 
-  it('toda línea se dibuja con marco: la detección por materiales está desconectada', () => {
-    // El dibujo "sin marco" quedó desconectado a propósito: la única señal es
-    // dibujoSinMarco, no la receta de materiales. Medido sobre datos reales
-    // (WATERLOO 674, 128 materiales), HETMO sólo asocia el vidrio a su línea;
-    // perfilería, herrajes, accesorios, refuerzos y juntas viajan con
-    // linea_hetmo 0 y nunca llegan a MaterialVentana. Deducir "sin marco" de
-    // ahí dejaba sin marco al 98,6% de las ventanas.
+  it('linea con vidrio pero sin ningun perfil propio se dibuja sin marco', () => {
+    // Casa La Aurora V04, linea 10337: ventana fija solo DVH, sin marco ni
+    // hoja cargados en su propia receta -- confirmado como el criterio real
+    // (ver toWindowLine en ventanaAdapter.ts). OJO: en otros proyectos
+    // (WATERLOO 674, 128 materiales) HETMO asocia perfileria/herrajes/
+    // accesorios/refuerzos/juntas a linea_hetmo 0 (pool de todo el
+    // presupuesto) en vez de a la linea individual, mientras que el vidrio
+    // si va por linea -- ahi este mismo criterio marcaria sin marco al
+    // 98,6% de las ventanas. isFrameless() ya exige al menos un material
+    // sincronizado (linea sin nada -> con marco por defecto), pero no
+    // distingue "sin perfil propio" de "perfil pooled a nivel de
+    // presupuesto"; si aparecen mas casos como WATERLOO hay que revisar.
     const v = ventana({
       anchoMm: 740,
       altoMm: 2425,
@@ -311,8 +316,20 @@ describe('buildWindow — nivel 2 vía parametrosJson', () => {
       materiales: [materialDescrito('DVH 5/12/5 INC', { cantidad: 1, piezas: 1 })],
     });
     const result = buildWindow(toWindowLine(v)!, 'line');
-    expect(result.svg).toContain('line-window-frame');
+    expect(result.svg).not.toContain('line-window-frame');
     expect(result.svg).toContain('line-window-glass');
+  });
+
+  it('linea sin ningun material sincronizado se dibuja con marco por defecto', () => {
+    // Sin materiales no hay señal -> conservador, no se asume sin marco.
+    const v = ventana({
+      anchoMm: 740,
+      altoMm: 2425,
+      dibujoTipoApertura: 0,
+      acabadoCodigo: '7000',
+    });
+    const result = buildWindow(toWindowLine(v)!, 'line');
+    expect(result.svg).toContain('line-window-frame');
   });
 
   it('composición del vidrio declarada como fila tipo 200 se muestra en el dibujo', () => {

@@ -106,10 +106,10 @@ function buildCompositePanel(
   const height = Math.max(1, number(line.dibujoAlto ?? line.alto) || 1);
   const { drawingW, drawingH, x, y } = computeDrawingDimensions(width, height);
   const finish = finishFor(line);
-  // dibujoSinMarco es la ÚNICA señal confiable de «sin marco».
-  // isFrameless() NO se usa aquí: la perfilería en HETMO viaja a nivel de
-  // presupuesto (linea_hetmo: 0), nunca a nivel de línea individual, por lo
-  // que line.materiales nunca contiene perfiles y la función siempre falla.
+  // dibujoSinMarco es la ÚNICA señal que se lee acá -- ya viene resuelta
+  // desde ventanaAdapter.ts (toWindowLine llama a core.isFrameless() una
+  // sola vez con los materiales propios de la línea) para no repetir esa
+  // lectura en cada builder.
   const glassOnly = Boolean(line.dibujoSinMarco);
   const guideCount = core.sliderGuideCount({ linea: line, materiales: line.materiales });
   const frameClass = target === 'line' ? 'line-window-frame' : 'offer-frame';

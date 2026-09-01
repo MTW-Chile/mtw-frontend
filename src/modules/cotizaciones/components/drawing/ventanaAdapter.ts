@@ -1,5 +1,6 @@
 import type { Ventana, VentanaGeometria, MaterialVentana } from '../../../../types';
 import type { WindowLine, LineMaterial } from './types';
+import * as core from './geometryCore';
 
 /**
  * Convierte un número a positivo o null si es inválido.
@@ -122,6 +123,18 @@ export function toWindowLine(ventana: Ventana): WindowLine | null {
     });
   }
 
+  const materiales = Array.isArray(ventana.materiales) && ventana.materiales.length > 0
+    ? ventana.materiales.map(toLineMaterial)
+    : undefined;
+
+  // Sin marco: la propia ventana no tiene ningun perfil (marco ni hoja)
+  // cargado en su receta -- confirmado como criterio real (no un patron
+  // general de HETMO) en Casa La Aurora V04, linea 10337. isFrameless()
+  // ya exige al menos un material igual (linea 961 de geometryCore.ts) y
+  // ademas vidrio explicito, asi que una linea sin materiales sincronizados
+  // sigue cayendo a "con marco" por defecto -- no es un vacio -> sin marco.
+  const dibujoSinMarco = core.isFrameless({ materiales });
+
   return {
     lineaHetmo: toPositive(ventana.lineaHetmo) ?? undefined,
     modelo: ventana.modelo,
@@ -134,7 +147,7 @@ export function toWindowLine(ventana: Ventana): WindowLine | null {
     uds: toPositive(ventana.unidades) ?? undefined,
     cantidadVidriosPorUnidad: toPositive(ventana.numeroCuadrosHojas) ?? undefined,
     dibujoTipoApertura: effectiveAperture,
-    dibujoSinMarco: false,
+    dibujoSinMarco,
     numeroCuadrosHojas: toPositive(ventana.numeroCuadrosHojas) ?? undefined,
     dibujoVidrio: (ventana as any).dibujoVidrio ?? undefined,
     vidrioCodigo: (ventana as any).vidrioCodigo ?? undefined,
@@ -142,8 +155,6 @@ export function toWindowLine(ventana: Ventana): WindowLine | null {
     geometria: geometrias,
     correccionGeometria: correccion,
     correccion_geometria: correccion,
-    materiales: Array.isArray(ventana.materiales) && ventana.materiales.length > 0
-      ? ventana.materiales.map(toLineMaterial)
-      : undefined,
+    materiales,
   };
 }
