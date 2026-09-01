@@ -281,8 +281,18 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
         // linea con UDS > 1. Ojo: pese al tipo `number` de MaterialVentana,
         // el campo Decimal de Prisma llega como string por el wire -- sin
         // Number() aca, el += de abajo concatena texto en vez de sumar.
+        // Vidrios: mv.longitudMm (pese al nombre del campo) ya viene
+        // expresado directamente en m² para esta familia, no en milimetros
+        // -- confirmado sumando las filas crudas de un vidrio real contra
+        // Hetmo: da 73,04 m² para "5/12/5 INC" en Casa La Aurora, exacto
+        // al centesimo contra el dashboard antiguo. mv.cantidad para
+        // vidrios es un conteo de paños, no m², por eso no sirve aca.
         const cantidadTotal =
-          familiaCruda === 'JUNTAS' ? (Number(mv.longitudMm) || 0) / 1000 : Number(mv.cantidad) || 0;
+          familiaCruda === 'JUNTAS'
+            ? (Number(mv.longitudMm) || 0) / 1000
+            : familiaCruda === 'VIDRIOS'
+              ? Number(mv.longitudMm) || 0
+              : Number(mv.cantidad) || 0;
 
         // precioPersonalizado/monedaPersonalizada pisan el precio original de
         // HETMO cuando alguien lo edito a mano en la Analitica. Sin edicion
