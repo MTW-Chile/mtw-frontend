@@ -133,6 +133,7 @@ export interface FamiliaMaterialAprobacion {
   aprobadoPor: string | null;
   fechaAprobacion: string | null;
   descuentoPct: number | null;
+  recargoPct: number | null;
 }
 
 export type SentidoMovimientoHoja = 'fija' | 'izquierda' | 'derecha' | 'ambos' | 'oculta';

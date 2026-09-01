@@ -16,7 +16,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatNumber } from '../../../../lib/utils';
 import { useMonedas, resolverMoneda, formatMonto } from '../../../../lib/monedas';
-import { saveMaterialAjuste, setFamiliaAprobacion, setFamiliaDescuento, updateEstadoAprobacion } from '../../../../api/client';
+import { saveMaterialAjuste, setFamiliaAprobacion, setFamiliaDescuento, setFamiliaRecargo, updateEstadoAprobacion } from '../../../../api/client';
 import type { Proyecto, ProyectoVersion, MaterialVentana } from '../../../../types';
 import { DivisasForm } from '../Step1DatosCliente/DivisasForm';
 
@@ -221,6 +221,14 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     onSuccess: invalidar,
   });
 
+  const familiaRecargoMutation = useMutation({
+    mutationFn: (payload: { familia: string; recargoPct: number }) => {
+      if (!versionId) return Promise.resolve(null);
+      return setFamiliaRecargo(versionId, payload.familia, payload.recargoPct);
+    },
+    onSuccess: invalidar,
+  });
+
   const estadoAprobacionMutation = useMutation({
     mutationFn: (estado: 'EN_COTIZACION' | 'ESPERANDO_APROBACION_COMERCIAL') => {
       if (!versionId) return Promise.resolve(null);
@@ -417,13 +425,17 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     gruposPorFamilia.length > 0 && gruposPorFamilia.every(([familia]) => aprobacionesPorFamilia.get(familia)?.aprobada);
   const familiasPendientes = gruposPorFamilia.filter(([familia]) => !aprobacionesPorFamilia.get(familia)?.aprobada);
 
-  // Totales -- el descuento de cada familia se aplica sobre el total CLP de
-  // sus materiales incluidos.
+  // Totales -- el descuento y el recargo de cada familia se aplican sobre
+  // el total CLP de sus materiales incluidos (nunca sobre el precio de
+  // cada material individual). Se combinan como dos ajustes porcentuales
+  // independientes: primero se descuenta, despues se recarga.
   const costoTotalCLP = filteredMateriales
     .filter((m) => !m.excluido)
     .reduce((acc, m) => {
-      const descuento = Number(aprobacionesPorFamilia.get(m.familia)?.descuentoPct) || 0;
-      return acc + m.precioCLP * m.cantidadTotal * (1 - descuento / 100);
+      const aprobacion = aprobacionesPorFamilia.get(m.familia);
+      const descuento = Number(aprobacion?.descuentoPct) || 0;
+      const recargo = Number(aprobacion?.recargoPct) || 0;
+      return acc + m.precioCLP * m.cantidadTotal * (1 - descuento / 100) * (1 + recargo / 100);
     }, 0);
 
   const costoTotalUF = tasaUf > 0 ? costoTotalCLP / tasaUf : 0;
@@ -452,9 +464,11 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     gruposPorFamilia.forEach(([familia, materiales]) => {
       const aprobacion = aprobacionesPorFamilia.get(familia);
       const descuento = Number(aprobacion?.descuentoPct) || 0;
+      const recargo = Number(aprobacion?.recargoPct) || 0;
+      const factorFamilia = (1 - descuento / 100) * (1 + recargo / 100);
       const totalFamilia = materiales
         .filter((m) => !m.excluido)
-        .reduce((acc, m) => acc + m.precioCLP * m.cantidadTotal, 0) * (1 - descuento / 100);
+        .reduce((acc, m) => acc + m.precioCLP * m.cantidadTotal, 0) * factorFamilia;
 
       if (y > 520) {
         doc.addPage();
@@ -463,9 +477,10 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
 
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
-      const tituloFamilia = descuento > 0
-        ? `${familia}  (descuento ${descuento}%)`
-        : familia;
+      const ajustes = [descuento > 0 ? `descuento ${descuento}%` : null, recargo > 0 ? `recargo ${recargo}%` : null]
+        .filter(Boolean)
+        .join(', ');
+      const tituloFamilia = ajustes ? `${familia}  (${ajustes})` : familia;
       doc.text(tituloFamilia, margen, y);
       y += 4;
 
@@ -481,9 +496,9 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
           m.proveedorNombre,
           formatMonto(m.precioOrigen, resolverMoneda(m.monedaOrigen, monedas)),
           `$ ${formatNumber(m.precioCLP, 2)}`,
-          formatNumber(m.cantidadTotal, 2),
+          formatNumber(m.cantidadTotal, familia === 'VIDRIOS' ? 2 : 0),
           familia === 'VIDRIOS' ? 'M²' : m.familiaCruda === 'JUNTAS' ? 'M' : m.unidadMedida,
-          `$ ${formatNumber(m.precioCLP * m.cantidadTotal * (1 - descuento / 100), 0)}`,
+          `$ ${formatNumber(m.precioCLP * m.cantidadTotal * factorFamilia, 0)}`,
           m.excluido ? 'Excluido' : 'Incluido',
         ]),
         didParseCell: (data) => {
@@ -658,7 +673,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
             <span className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider block">
               Costo Materiales (CLP)
             </span>
-            <strong className="text-lg font-mono text-slate-900 font-bold">
+            <strong className="text-lg font-mono text-slate-900 font-bold whitespace-nowrap">
               $ {formatNumber(costoTotalCLP, 0)}
             </strong>
           </div>
@@ -667,7 +682,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
             <span className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider block">
               Costo Materiales (UF)
             </span>
-            <strong className="text-lg font-mono text-emerald-600 font-bold">
+            <strong className="text-lg font-mono text-emerald-600 font-bold whitespace-nowrap">
               {formatUF(costoTotalUF)} UF
             </strong>
           </div>
@@ -696,8 +711,10 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
             const edicionBloqueada = aprobada || congelado;
             const colapsada = familiaColapsada[familia] ?? false;
             const descuentoActual = Number(aprobacion?.descuentoPct) || 0;
+            const recargoActual = Number(aprobacion?.recargoPct) || 0;
+            const factorFamilia = (1 - descuentoActual / 100) * (1 + recargoActual / 100);
             const totalFamiliaBruto = materiales.filter((m) => !m.excluido).reduce((acc, m) => acc + m.precioCLP * m.cantidadTotal, 0);
-            const totalFamiliaCLP = totalFamiliaBruto * (1 - descuentoActual / 100);
+            const totalFamiliaCLP = totalFamiliaBruto * factorFamilia;
             // Vidrios se cotiza y muestra por m2, pero Material.unidadMedida
             // suele venir "UN" desde HETMO -- la cantidad ya esta bien en m2,
             // solo el rotulo de unidad estaba mal.
@@ -717,17 +734,29 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                     <span className="text-[10px] font-mono text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded-md whitespace-nowrap">
                       {materiales.length} ítems · $ {formatNumber(totalFamiliaCLP, 0)}
                       {descuentoActual > 0 && ` (-${descuentoActual}%)`}
+                      {recargoActual > 0 && ` (+${recargoActual}%)`}
                     </span>
                   </button>
 
                   <div className="flex items-center gap-2 flex-wrap">
-                    <div className="flex items-center gap-1" title="Descuento comercial de la categoría">
+                    <div className="flex items-center gap-1" title="Descuento comercial de la categoría (aplicado al total, no a los precios individuales)">
                       <span className="text-[10px] text-slate-500 whitespace-nowrap">Desc.</span>
                       <PrecioEditable
                         valor={descuentoActual}
                         disabled={edicionBloqueada}
                         onGuardar={(nuevo) =>
                           familiaDescuentoMutation.mutate({ familia, descuentoPct: Math.min(100, Math.max(0, nuevo)) })
+                        }
+                      />
+                      <span className="text-[10px] text-slate-500">%</span>
+                    </div>
+                    <div className="flex items-center gap-1" title="Recargo comercial de la categoría (aplicado al total, no a los precios individuales)">
+                      <span className="text-[10px] text-slate-500 whitespace-nowrap">Rec.</span>
+                      <PrecioEditable
+                        valor={recargoActual}
+                        disabled={edicionBloqueada}
+                        onGuardar={(nuevo) =>
+                          familiaRecargoMutation.mutate({ familia, recargoPct: Math.min(100, Math.max(0, nuevo)) })
                         }
                       />
                       <span className="text-[10px] text-slate-500">%</span>
@@ -800,14 +829,14 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                 />
                               </div>
                             </td>
-                            <td className="px-3.5 py-2 text-right font-mono font-bold text-slate-900">
-                              {formatNumber(m.cantidadTotal, 2)}
+                            <td className="px-3.5 py-2 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
+                              {formatNumber(m.cantidadTotal, familia === 'VIDRIOS' ? 2 : 0)}
                             </td>
                             <td className="px-3.5 py-2 text-center text-slate-500 font-mono">
                               {unidadDisplay ?? (m.familiaCruda === 'JUNTAS' ? 'M' : m.unidadMedida)}
                             </td>
-                            <td className="px-3.5 py-2 text-right font-mono font-bold text-slate-900">
-                              $ {formatNumber(m.precioCLP * m.cantidadTotal * (1 - descuentoActual / 100), 0)}
+                            <td className="px-3.5 py-2 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
+                              $ {formatNumber(m.precioCLP * m.cantidadTotal * factorFamilia, 0)}
                             </td>
                             <td className="px-3.5 py-2 text-center">
                               <button

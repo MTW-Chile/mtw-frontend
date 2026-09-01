@@ -192,6 +192,18 @@ export async function setFamiliaDescuento(
   return response.data;
 }
 
+export async function setFamiliaRecargo(
+  versionId: string,
+  familia: string,
+  recargoPct: number
+): Promise<{ success: boolean; familiaAprobacion: FamiliaMaterialAprobacion }> {
+  const response = await apiClient.patch<{ success: boolean; familiaAprobacion: FamiliaMaterialAprobacion }>(
+    `/versiones/${versionId}/materiales/familias/${encodeURIComponent(familia)}/recargo`,
+    { recargoPct }
+  );
+  return response.data;
+}
+
 export async function getClientes(q?: string): Promise<{ data: Cliente[] }> {
   const response = await apiClient.get<{ data: Cliente[] }>('/clientes', {
     params: q ? { q } : undefined,
