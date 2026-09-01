@@ -207,14 +207,17 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
 
   // Boton global: no es un segundo control que se habilita recien cuando
   // cada categoria ya se aprobo a mano una por una -- el es quien aprueba
-  // (o abre) todas las categorias de una sola vez. Aprueba las que falten y
-  // recien ahi dispara el congelamiento, todo en un solo click.
+  // (o abre) todas las categorias de una sola vez. NO congela el
+  // presupuesto -- eso se dispara desde la Hoja de Fijacion (Paso 4), una
+  // vez que esa tambien esta guardada (el backend rechaza el congelamiento
+  // si falta). Antes se congelaba aca mismo, dejando el Paso 4 en solo
+  // lectura antes de poder completarlo.
   const aprobarTodoMutation = useMutation({
     mutationFn: async () => {
       if (!versionId) return null;
       const pendientes = gruposPorFamilia.filter(([familia]) => !aprobacionesPorFamilia.get(familia)?.aprobada);
       await Promise.all(pendientes.map(([familia]) => setFamiliaAprobacion(versionId, familia, true)));
-      return updateEstadoAprobacion(versionId, 'ESPERANDO_APROBACION_COMERCIAL');
+      return null;
     },
     onSuccess: invalidar,
   });
@@ -411,31 +414,29 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
 
           {estadoActual === 'EN_COTIZACION' ? (
             <div className="flex items-center gap-3 flex-wrap">
-              <button
-                onClick={() => aprobarTodoMutation.mutate()}
-                disabled={gruposPorFamilia.length === 0 || aprobarTodoMutation.isPending}
-                className="px-3.5 py-2 rounded-xl bg-[#E34A26] text-white text-xs font-bold flex items-center gap-1.5 hover:bg-[#c93f1f] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                title={
-                  todasLasFamiliasAprobadas
-                    ? 'Todas las familias ya están aprobadas -- este click solo congela el presupuesto'
-                    : 'Aprueba todas las categorías que falten y congela el presupuesto, en un solo paso'
-                }
-              >
-                {aprobarTodoMutation.isPending ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                )}
-                {todasLasFamiliasAprobadas ? 'Congelar Presupuesto' : 'Aprobar Analítica Completa'}
-              </button>
+              {!todasLasFamiliasAprobadas && (
+                <button
+                  onClick={() => aprobarTodoMutation.mutate()}
+                  disabled={gruposPorFamilia.length === 0 || aprobarTodoMutation.isPending}
+                  className="px-3.5 py-2 rounded-xl bg-[#E34A26] text-white text-xs font-bold flex items-center gap-1.5 hover:bg-[#c93f1f] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  title="Aprueba todas las categorías que falten"
+                >
+                  {aprobarTodoMutation.isPending ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                  )}
+                  Aprobar Analítica Completa
+                </button>
+              )}
               {!todasLasFamiliasAprobadas && (
                 <span className="text-[11px] text-slate-500">
                   Pendientes: {familiasPendientes.map(([familia]) => familia).join(', ')} (se aprueban solas al usar el botón)
                 </span>
               )}
               {todasLasFamiliasAprobadas && (
-                <span className="text-[11px] text-slate-500">
-                  Todas las familias ya están aprobadas -- falta este último paso para congelar el presupuesto
+                <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5" /> Analítica aprobada -- congelá el presupuesto desde la Hoja de Fijación (Paso 4)
                 </span>
               )}
             </div>
