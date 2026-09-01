@@ -40,6 +40,23 @@ apiClient.interceptors.response.use(
     if (!error.response && typeof apiUrl === 'string') {
       try {
         const relayOrigin = new URL(apiUrl).origin;
+        // Sin esto, esta rama redirige en silencio ante CUALQUIER falla de
+        // red (no solo sesion vencida: un timeout, el backend caido, un
+        // payload rechazado) y la navegacion completa borra la pestaña
+        // Network/Console antes de que se alcance a leer el motivo real --
+        // "se puso rojo y desaparecio", sin ningun rastro. El console.error
+        // sirve si hay "Preserve log" activado; el alert() es lo unico que
+        // sobrevive la navegacion de forma confiable.
+        console.error(
+          '[apiClient] Peticion sin respuesta -- redirigiendo a session-check. Metodo/URL:',
+          error?.config?.method,
+          error?.config?.url,
+          'Mensaje:',
+          error?.message
+        );
+        window.alert(
+          `No se pudo contactar al servidor (${error?.config?.method?.toUpperCase() || '?'} ${error?.config?.url || '?'}): ${error?.message || 'error de red'}.\n\nSe va a intentar renovar la sesion.`
+        );
         window.location.href = `${relayOrigin}/api/session-check?redirect=${encodeURIComponent(window.location.href)}`;
         return new Promise(() => {}); // corta la cadena, la navegacion ya esta en curso
       } catch {
