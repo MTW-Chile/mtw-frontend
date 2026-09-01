@@ -30,7 +30,6 @@ interface CorrectorCorrederaModalProps {
 
 export const CorrectorCorrederaModal: React.FC<CorrectorCorrederaModalProps> = ({
   ventana,
-  isOpen,
   onClose,
   onSaved,
 }) => {
