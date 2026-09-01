@@ -180,6 +180,18 @@ export async function setFamiliaAprobacion(
   return response.data;
 }
 
+export async function setFamiliaDescuento(
+  versionId: string,
+  familia: string,
+  descuentoPct: number
+): Promise<{ success: boolean; familiaAprobacion: FamiliaMaterialAprobacion }> {
+  const response = await apiClient.patch<{ success: boolean; familiaAprobacion: FamiliaMaterialAprobacion }>(
+    `/versiones/${versionId}/materiales/familias/${encodeURIComponent(familia)}/descuento`,
+    { descuentoPct }
+  );
+  return response.data;
+}
+
 export async function getClientes(q?: string): Promise<{ data: Cliente[] }> {
   const response = await apiClient.get<{ data: Cliente[] }>('/clientes', {
     params: q ? { q } : undefined,

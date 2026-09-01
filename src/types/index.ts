@@ -124,6 +124,7 @@ export interface FamiliaMaterialAprobacion {
   aprobada: boolean;
   aprobadoPor: string | null;
   fechaAprobacion: string | null;
+  descuentoPct: number | null;
 }
 
 export type SentidoMovimientoHoja = 'fija' | 'izquierda' | 'derecha' | 'ambos' | 'oculta';

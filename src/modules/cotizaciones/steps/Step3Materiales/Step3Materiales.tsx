@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
 import { useMonedas, resolverMoneda } from '../../../../lib/monedas';
-import { saveMaterialAjuste, setFamiliaAprobacion, updateEstadoAprobacion } from '../../../../api/client';
+import { saveMaterialAjuste, setFamiliaAprobacion, setFamiliaDescuento, updateEstadoAprobacion } from '../../../../api/client';
 import type { Proyecto, ProyectoVersion, MaterialVentana } from '../../../../types';
 import { DivisasForm } from '../Step1DatosCliente/DivisasForm';
 
@@ -204,6 +204,14 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     onSuccess: invalidar,
   });
 
+  const familiaDescuentoMutation = useMutation({
+    mutationFn: (payload: { familia: string; descuentoPct: number }) => {
+      if (!versionId) return Promise.resolve(null);
+      return setFamiliaDescuento(versionId, payload.familia, payload.descuentoPct);
+    },
+    onSuccess: invalidar,
+  });
+
   const estadoAprobacionMutation = useMutation({
     mutationFn: (estado: 'EN_COTIZACION' | 'ESPERANDO_APROBACION_COMERCIAL') => {
       if (!versionId) return Promise.resolve(null);
@@ -322,10 +330,14 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     gruposPorFamilia.length > 0 && gruposPorFamilia.every(([familia]) => aprobacionesPorFamilia.get(familia)?.aprobada);
   const familiasPendientes = gruposPorFamilia.filter(([familia]) => !aprobacionesPorFamilia.get(familia)?.aprobada);
 
-  // Totales
+  // Totales -- el descuento de cada familia se aplica sobre el total CLP de
+  // sus materiales incluidos.
   const costoTotalCLP = filteredMateriales
     .filter((m) => !m.excluido)
-    .reduce((acc, m) => acc + m.precioCLP * m.cantidadTotal, 0);
+    .reduce((acc, m) => {
+      const descuento = Number(aprobacionesPorFamilia.get(m.familia)?.descuentoPct) || 0;
+      return acc + m.precioCLP * m.cantidadTotal * (1 - descuento / 100);
+    }, 0);
 
   const costoTotalUF = tasaUf > 0 ? costoTotalCLP / tasaUf : 0;
   const cantidadExcluidos = materialesConsolidados.filter((m) => m.excluido).length;
@@ -513,27 +525,45 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
             // flujo, o presupuesto ya emitido).
             const edicionBloqueada = aprobada || congelado;
             const colapsada = familiaColapsada[familia] ?? false;
-            const totalFamiliaCLP = materiales.filter((m) => !m.excluido).reduce((acc, m) => acc + m.precioCLP * m.cantidadTotal, 0);
+            const descuentoActual = Number(aprobacion?.descuentoPct) || 0;
+            const totalFamiliaBruto = materiales.filter((m) => !m.excluido).reduce((acc, m) => acc + m.precioCLP * m.cantidadTotal, 0);
+            const totalFamiliaCLP = totalFamiliaBruto * (1 - descuentoActual / 100);
+            // Vidrios se cotiza y muestra por m2, pero Material.unidadMedida
+            // suele venir "UN" desde HETMO -- la cantidad ya esta bien en m2,
+            // solo el rotulo de unidad estaba mal.
+            const unidadDisplay = familia === 'VIDRIOS' ? 'M²' : undefined;
 
             return (
               <div key={familia} className="rounded-xl border border-slate-200 overflow-hidden">
-                <div className="flex items-center justify-between gap-3 px-4 py-3 bg-slate-50 border-b border-slate-100">
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3 bg-slate-50 border-b border-slate-100">
                   <button
                     onClick={() => setFamiliaColapsada((prev) => ({ ...prev, [familia]: !colapsada }))}
-                    className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                    className="flex items-center gap-2 min-w-0 text-left"
                   >
                     <ChevronDown
                       className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${colapsada ? '-rotate-90' : ''}`}
                     />
-                    <span className="font-bold text-sm text-slate-900">{familia}</span>
-                    <span className="text-[10px] font-mono text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded-md shrink-0">
+                    <span className="font-bold text-sm text-slate-900 whitespace-nowrap">{familia}</span>
+                    <span className="text-[10px] font-mono text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded-md whitespace-nowrap">
                       {materiales.length} ítems · $ {formatNumber(totalFamiliaCLP, 0)}
+                      {descuentoActual > 0 && ` (-${descuentoActual}%)`}
                     </span>
                   </button>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-1" title="Descuento comercial de la categoría">
+                      <span className="text-[10px] text-slate-500 whitespace-nowrap">Desc.</span>
+                      <PrecioEditable
+                        valor={descuentoActual}
+                        disabled={edicionBloqueada}
+                        onGuardar={(nuevo) =>
+                          familiaDescuentoMutation.mutate({ familia, descuentoPct: Math.min(100, Math.max(0, nuevo)) })
+                        }
+                      />
+                      <span className="text-[10px] text-slate-500">%</span>
+                    </div>
                     {aprobada && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-700 font-semibold flex items-center gap-1">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-700 font-semibold flex items-center gap-1 whitespace-nowrap">
                         <ShieldCheck className="w-3 h-3" /> Aprobada
                       </span>
                     )}
@@ -541,7 +571,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                       <button
                         onClick={() => familiaAprobacionMutation.mutate({ familia, aprobada: !aprobada })}
                         disabled={familiaAprobacionMutation.isPending}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all disabled:opacity-50 ${
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all disabled:opacity-50 whitespace-nowrap ${
                           aprobada
                             ? 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-50'
                             : 'bg-emerald-600 text-white hover:bg-emerald-700'
@@ -603,9 +633,9 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                             <td className="px-3.5 py-2 text-right font-mono font-bold text-slate-900">
                               {formatNumber(m.cantidadTotal, 2)}
                             </td>
-                            <td className="px-3.5 py-2 text-center text-slate-500 font-mono">{m.unidadMedida}</td>
+                            <td className="px-3.5 py-2 text-center text-slate-500 font-mono">{unidadDisplay ?? m.unidadMedida}</td>
                             <td className="px-3.5 py-2 text-right font-mono font-bold text-slate-900">
-                              $ {formatNumber(m.precioCLP * m.cantidadTotal, 0)}
+                              $ {formatNumber(m.precioCLP * m.cantidadTotal * (1 - descuentoActual / 100), 0)}
                             </td>
                             <td className="px-3.5 py-2 text-center">
                               <button
