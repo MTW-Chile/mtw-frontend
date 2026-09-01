@@ -29,7 +29,7 @@ interface Step4FijacionesProps {
 // resto de la app. Se agrupa por la familia YA NORMALIZADA (m.familia), la
 // misma que usa aprobacionesPorFamilia para el descuento/recargo.
 const CATEGORIAS_FIJACION: { etiqueta: string; familia: string }[] = [
-  { etiqueta: 'PVC y juntas', familia: 'PERFILERIA' },
+  { etiqueta: 'PVC', familia: 'PERFILERIA' },
   { etiqueta: 'Refuerzos', familia: 'REFUERZOS' },
   { etiqueta: 'Herrajes', familia: 'HERRAJES' },
   { etiqueta: 'Accesorios', familia: 'ACCESORIOS' },
@@ -68,7 +68,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
     filmProtectorCristales: config?.filmProtectorCristales ?? 1000,
     materialInstalacion: config?.materialInstalacion ?? 3100,
     cantidadViajes: config?.cantidadViajes ?? Math.ceil(cantidadVentanas / 14),
-    valorViaje: config?.valorViaje ?? 0,
+    valorViaje: config?.valorViaje ?? 80000,
     valorInstalacionM2: config?.valorInstalacionM2 ?? 1700,
     margenVentaPct: config?.margenVentaPct ?? 0,
   });
@@ -459,10 +459,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
           <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">Flete</h4>
             <div className="flex items-center justify-between gap-3 text-xs">
-              <span className="text-slate-600 flex-1">
-                <span className="block">Cantidad de viajes</span>
-                <span className="block text-[10px] text-slate-400">Default: {cantidadVentanas} ventanas ÷ 14 por viaje</span>
-              </span>
+              <span className="text-slate-600 flex-1">Cantidad de viajes</span>
               <input
                 type="number"
                 min={0}
