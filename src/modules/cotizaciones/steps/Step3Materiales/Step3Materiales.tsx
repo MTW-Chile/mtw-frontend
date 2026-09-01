@@ -309,16 +309,21 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
       });
     });
 
-    // Perfileria, Refuerzos y Juntas se compran por barra/rollo de stock, no
-    // por pieza usada: /materiales (el resumen de Hetmo) ya trae esa
-    // cantidad post-optimizacion de corte, confirmado contra el analisis de
-    // materiales real de Casa La Aurora. Juntas sigue esta misma logica de
-    // corte aunque ya no se muestre como categoria propia (se fusiona en
-    // Accesorios solo para agrupar en pantalla -- normalizarFamilia() pisa
-    // el nombre de despliegue, pero la decision de que fuente de cantidad
-    // usar se hace con la familia CRUDA, antes de esa fusion). El resto de
-    // las familias (el resto de Accesorios, Herrajes, Vidrios) ya calzan
-    // sumando por ventana y no se tocan.
+    // Perfileria, Refuerzos y Juntas se compran por barra de stock, no por
+    // pieza usada: /materiales (el resumen de Hetmo) ya trae esa cantidad
+    // post-optimizacion de corte, confirmado contra el analisis de
+    // materiales real de Casa La Aurora. El largo de barra varia por
+    // material (5,8m para Perfileria/Refuerzos, 300m para Juntas) pero eso
+    // lo resuelve Hetmo internamente al calcular "cantidad" -- aca nunca se
+    // hace matematica de largo de barra propia, solo se consume ese numero
+    // ya calculado, asi que ninguna familia necesita saber su propio largo.
+    // Juntas sigue esta misma logica de corte aunque ya no se muestre como
+    // categoria propia (se fusiona en Accesorios solo para agrupar en
+    // pantalla -- normalizarFamilia() pisa el nombre de despliegue, pero la
+    // decision de que fuente de cantidad usar se hace con la familia CRUDA,
+    // antes de esa fusion). El resto de las familias (el resto de
+    // Accesorios, Herrajes, Vidrios) ya calzan sumando por ventana y no se
+    // tocan.
     const FAMILIAS_CANTIDAD_RESUMEN = new Set(['PERFILERIA', 'REFUERZOS', 'JUNTAS']);
     const resumenPorMaterial = new Map(
       (activeVersion?.materialesResumen || []).map((r) => [r.materialId, Number(r.cantidadHetmo) || 0])
