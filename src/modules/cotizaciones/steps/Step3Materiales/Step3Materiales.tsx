@@ -309,22 +309,37 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
       });
     });
 
-    // Perfileria, Refuerzos y Juntas se compran por barra de stock, no por
-    // pieza usada: /materiales (el resumen de Hetmo) ya trae esa cantidad
-    // post-optimizacion de corte, confirmado contra el analisis de
-    // materiales real de Casa La Aurora. El largo de barra varia por
-    // material (5,8m para Perfileria/Refuerzos, 300m para Juntas) pero eso
-    // lo resuelve Hetmo internamente al calcular "cantidad" -- aca nunca se
-    // hace matematica de largo de barra propia, solo se consume ese numero
-    // ya calculado, asi que ninguna familia necesita saber su propio largo.
-    // Juntas sigue esta misma logica de corte aunque ya no se muestre como
-    // categoria propia (se fusiona en Accesorios solo para agrupar en
-    // pantalla -- normalizarFamilia() pisa el nombre de despliegue, pero la
-    // decision de que fuente de cantidad usar se hace con la familia CRUDA,
-    // antes de esa fusion). El resto de las familias (el resto de
-    // Accesorios, Herrajes, Vidrios) ya calzan sumando por ventana y no se
+    // Perfileria y Refuerzos se compran por barra de stock, no por pieza
+    // usada: /materiales (el resumen de Hetmo) ya trae esa cantidad de
+    // barras post-optimizacion de corte, confirmado contra el analisis de
+    // materiales real de Casa La Aurora. El resto de las familias
+    // (Accesorios, Herrajes, Vidrios) ya calzan sumando por ventana y no se
     // tocan.
-    const FAMILIAS_CANTIDAD_RESUMEN = new Set(['PERFILERIA', 'REFUERZOS', 'JUNTAS']);
+    //
+    // precioOrigen/precioCLP para estas dos familias viene por METRO (asi
+    // lo entrega HETMO -- confirmado contra el excel real: 001mtw da
+    // US$1,618 "por metro", no por barra). Cantidad ahora esta en barras de
+    // 5,8m, asi que Total CLP = precioCLP * cantidad quedaba dividido por
+    // ese largo si no se escala precioCLP a "por barra" aca mismo
+    // (verificado: 001mtw daba $44.576 en vez de los $258.540 reales del
+    // excel, exactamente el precio por metro sin multiplicar por los
+    // 5,8m/barra; 41013 daba igual el mismo patron, calza exacto al
+    // aplicar el factor).
+    //
+    // Juntas NO entra aca todavia pese a comprarse tambien por rollo de
+    // stock (300m): a diferencia de Perfileria/Refuerzos, el excel muestra
+    // que Hetmo cobra Juntas por los METROS REALMENTE CORTADOS (ej. 50,4m
+    // de 300m de rollo), no por rollo completo -- aplicar el mismo factor
+    // de largo de barra aca inflaria el precio ~6x. Falta confirmar de
+    // donde sacar esos metros reales (candidato: MaterialVentana.longitudMm
+    // sumado por ventana) antes de arreglar el precio de Juntas; la
+    // cantidad de Juntas se dejo sumando por ventana como el resto de
+    // Accesorios mientras tanto.
+    const FAMILIAS_CANTIDAD_RESUMEN = new Set(['PERFILERIA', 'REFUERZOS']);
+    const LARGO_BARRA_METROS: Record<string, number> = {
+      PERFILERIA: 5.8,
+      REFUERZOS: 5.8,
+    };
     const resumenPorMaterial = new Map(
       (activeVersion?.materialesResumen || []).map((r) => [r.materialId, Number(r.cantidadHetmo) || 0])
     );
@@ -333,7 +348,9 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
       const familiaCruda = familiaCrudaPorMaterial.get(m.materialId) || m.familia;
       if (!FAMILIAS_CANTIDAD_RESUMEN.has(familiaCruda)) return;
       const cantidadResumen = resumenPorMaterial.get(m.materialId);
-      if (cantidadResumen !== undefined) m.cantidadTotal = cantidadResumen;
+      if (cantidadResumen === undefined) return;
+      m.cantidadTotal = cantidadResumen;
+      m.precioCLP *= LARGO_BARRA_METROS[familiaCruda];
     });
 
     return consolidados;
