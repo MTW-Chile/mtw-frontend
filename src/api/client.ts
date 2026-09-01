@@ -8,6 +8,7 @@ import type {
   Fase,
   ProyectoMaterialAjuste,
   FamiliaMaterialAprobacion,
+  FijacionConfig,
   SyncLog,
   Cliente,
   Material,
@@ -217,6 +218,17 @@ export async function setFamiliaRecargo(
   const response = await apiClient.patch<{ success: boolean; familiaAprobacion: FamiliaMaterialAprobacion }>(
     `/versiones/${versionId}/materiales/familias/${encodeURIComponent(familia)}/recargo`,
     { recargoPct }
+  );
+  return response.data;
+}
+
+export async function updateFijacionConfig(
+  versionId: string,
+  payload: Partial<Omit<FijacionConfig, 'id' | 'versionId'>>
+): Promise<{ success: boolean; fijacionConfig: FijacionConfig }> {
+  const response = await apiClient.patch<{ success: boolean; fijacionConfig: FijacionConfig }>(
+    `/versiones/${versionId}/fijacion-config`,
+    payload
   );
   return response.data;
 }

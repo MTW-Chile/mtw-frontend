@@ -136,6 +136,24 @@ export interface FamiliaMaterialAprobacion {
   recargoPct: number | null;
 }
 
+export interface FijacionExtra {
+  glosa: string;
+  monto: number;
+}
+
+export interface FijacionConfig {
+  id: string;
+  versionId: string;
+  manoObraFabricacion: number;
+  filmProtectorCristales: number;
+  materialInstalacion: number;
+  cantidadViajes: number;
+  valorViaje: number;
+  valorInstalacionM2: number;
+  margenVentaPct: number;
+  extras: FijacionExtra[];
+}
+
 export type SentidoMovimientoHoja = 'fija' | 'izquierda' | 'derecha' | 'ambos' | 'oculta';
 
 export interface CorreccionHoja {
@@ -220,6 +238,7 @@ export interface ProyectoVersion {
   materialAjustes?: ProyectoMaterialAjuste[];
   familiaAprobaciones?: FamiliaMaterialAprobacion[];
   materialesResumen?: MaterialVersionResumen[];
+  fijacionConfig?: FijacionConfig | null;
 }
 
 export interface Proyecto {

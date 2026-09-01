@@ -145,6 +145,9 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
           <Step4Fijaciones
             proyecto={proyecto}
             activeVersion={activeVersion}
+            dolar={dolar}
+            uf={uf}
+            euro={euro}
           />
         )}
 
