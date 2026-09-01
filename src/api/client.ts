@@ -280,11 +280,14 @@ export async function getProveedores(): Promise<{ data: Proveedor[] }> {
   return response.data;
 }
 
+// POST, no PUT/DELETE -- son los unicos dos verbos de la API sin usar en
+// ningun otro lado del cliente, y "Network Error" en panel.mtw.cl al
+// guardar apunta a un bloqueo de metodo aguas arriba de Cloudflare Access.
 export async function updateVentanaCorreccionGeometria(
   ventanaId: string,
   correccion: CorreccionGeometria | null
 ): Promise<{ success: boolean; data: Ventana; message?: string }> {
-  const response = await apiClient.put<{ success: boolean; data: Ventana; message?: string }>(
+  const response = await apiClient.post<{ success: boolean; data: Ventana; message?: string }>(
     `/ventanas/${ventanaId}/correccion-geometria`,
     { correccion }
   );
@@ -294,8 +297,8 @@ export async function updateVentanaCorreccionGeometria(
 export async function deleteVentanaCorreccionGeometria(
   ventanaId: string
 ): Promise<{ success: boolean; data: Ventana; message?: string }> {
-  const response = await apiClient.delete<{ success: boolean; data: Ventana; message?: string }>(
-    `/ventanas/${ventanaId}/correccion-geometria`
+  const response = await apiClient.post<{ success: boolean; data: Ventana; message?: string }>(
+    `/ventanas/${ventanaId}/correccion-geometria/eliminar`
   );
   return response.data;
 }
