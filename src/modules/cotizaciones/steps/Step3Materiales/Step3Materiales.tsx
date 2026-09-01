@@ -41,6 +41,7 @@ interface MaterialConsolidado {
   skuInterno: string;
   descripcion: string;
   familia: string;
+  familiaCruda: string;
   unidadMedida: string;
   proveedorNombre: string;
   cantidadTotal: number;
@@ -256,6 +257,22 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
       mats.forEach((mv) => {
         const mat = mv.material;
         const key = mv.materialId || mv.id;
+        const ajuste = ajustesPorMaterial.get(mv.materialId);
+        const familiaCruda = (ajuste?.familiaPersonalizada || mat?.familia || 'ACCESORIOS').toUpperCase().trim();
+        const familia = normalizarFamilia(familiaCruda);
+        familiaCrudaPorMaterial.set(mv.materialId, familiaCruda);
+
+        // Juntas se cobra por los metros REALMENTE cortados del rollo de
+        // stock (confirmado contra el excel real: 93003 son 50,4m de un
+        // rollo de 300m, no el rollo completo) -- mv.cantidad para Juntas
+        // no es esos metros, es un conteo que no calza con el consumo real
+        // de Hetmo. mv.longitudMm si trae los milimetros cortados en esa
+        // linea, que es el mismo dato que arma "TOTAL Corte" en el reporte
+        // de Hetmo; se suma por ventana y se pasa a metros. precioOrigen
+        // sigue siendo por metro (no se escala, a diferencia de
+        // Perfileria/Refuerzos mas abajo), asi que Total = precio_metro *
+        // metros_reales, igual que Hetmo.
+        //
         // mv.cantidad ya viene totalizado por Hetmo para todas las UDS de
         // esta linea (confirmado contra el resumen real de Hetmo: sumar
         // cantidad tal cual, sin multiplicar por nada, calza al digito con
@@ -264,11 +281,8 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
         // linea con UDS > 1. Ojo: pese al tipo `number` de MaterialVentana,
         // el campo Decimal de Prisma llega como string por el wire -- sin
         // Number() aca, el += de abajo concatena texto en vez de sumar.
-        const cantidadTotal = Number(mv.cantidad) || 0;
-        const ajuste = ajustesPorMaterial.get(mv.materialId);
-        const familiaCruda = (ajuste?.familiaPersonalizada || mat?.familia || 'ACCESORIOS').toUpperCase().trim();
-        const familia = normalizarFamilia(familiaCruda);
-        familiaCrudaPorMaterial.set(mv.materialId, familiaCruda);
+        const cantidadTotal =
+          familiaCruda === 'JUNTAS' ? (Number(mv.longitudMm) || 0) / 1000 : Number(mv.cantidad) || 0;
 
         // precioPersonalizado/monedaPersonalizada pisan el precio original de
         // HETMO cuando alguien lo edito a mano en la Analitica. Sin edicion
@@ -297,6 +311,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
             skuInterno: mat?.skuInterno || `SKU-${key.slice(0, 6)}`,
             descripcion: mat?.descripcion || 'Material de fábrica HETMO',
             familia,
+            familiaCruda,
             unidadMedida: mat?.unidadMedida || 'U',
             proveedorNombre: mat?.proveedor?.nombre || 'HETMO Almacén',
             cantidadTotal,
@@ -457,7 +472,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
           formatMonto(m.precioOrigen, resolverMoneda(m.monedaOrigen, monedas)),
           `$ ${formatNumber(m.precioCLP, 2)}`,
           formatNumber(m.cantidadTotal, 2),
-          familia === 'VIDRIOS' ? 'M²' : m.unidadMedida,
+          familia === 'VIDRIOS' ? 'M²' : m.familiaCruda === 'JUNTAS' ? 'M' : m.unidadMedida,
           `$ ${formatNumber(m.precioCLP * m.cantidadTotal * (1 - descuento / 100), 0)}`,
           m.excluido ? 'Excluido' : 'Incluido',
         ]),
@@ -778,7 +793,9 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                             <td className="px-3.5 py-2 text-right font-mono font-bold text-slate-900">
                               {formatNumber(m.cantidadTotal, 2)}
                             </td>
-                            <td className="px-3.5 py-2 text-center text-slate-500 font-mono">{unidadDisplay ?? m.unidadMedida}</td>
+                            <td className="px-3.5 py-2 text-center text-slate-500 font-mono">
+                              {unidadDisplay ?? (m.familiaCruda === 'JUNTAS' ? 'M' : m.unidadMedida)}
+                            </td>
                             <td className="px-3.5 py-2 text-right font-mono font-bold text-slate-900">
                               $ {formatNumber(m.precioCLP * m.cantidadTotal * (1 - descuentoActual / 100), 0)}
                             </td>
