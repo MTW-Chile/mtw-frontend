@@ -52,6 +52,14 @@ export const CotizacionesPage: React.FC<{
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['proyectos'],
     queryFn: () => getProyectos({ limit: 100 }),
+    // El default global (5 min, sin refetch al volver a la pestaña) dejaba
+    // esta lista mostrando el estado de HETMO desactualizado por minutos
+    // despues de una resincronizacion (automatica o manual) -- incluida la
+    // que se dispara fuera de la app via /api/debug/resync, que no tiene
+    // forma de invalidar la cache del navegador. Se pisa el default aca
+    // para que este listado en particular se refresque solo.
+    staleTime: 1000 * 30,
+    refetchOnWindowFocus: true,
   });
 
   const { data: syncLogs, refetch: refetchLogs } = useQuery({
