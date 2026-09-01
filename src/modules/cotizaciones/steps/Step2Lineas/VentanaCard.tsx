@@ -32,6 +32,8 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
   // Extraemos el acabado y nombre de la apertura según el motor de HETMO
   const windowLine = useMemo(() => toWindowLine(ventana), [ventana]);
   const isSliding = useMemo(() => (windowLine ? core.isSlidingLine(windowLine) : false), [windowLine]);
+  // Sin marco (solo DVH) no tiene perfil -> no hay acabado que mostrar.
+  const isFrameless = Boolean(windowLine?.dibujoSinMarco);
 
   const finish = useMemo(
     () => createFinish(windowLine?.acabadoCodigo, windowLine?.acabadoDescripcion, windowLine?.acabadoPatron),
@@ -60,11 +62,13 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
       <header className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between gap-2">
         <div>
           <div className="flex items-center gap-2">
-            <span 
-              className="w-2.5 h-2.5 rounded-full shrink-0" 
-              style={{ backgroundColor: finish.frame }}
-              title={`Acabado: ${finishLabel}`}
-            />
+            {!isFrameless && (
+              <span
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: finish.frame }}
+                title={`Acabado: ${finishLabel}`}
+              />
+            )}
             <h4 className="text-sm font-black text-slate-900 group-hover:text-[#E34A26] transition-colors">
               {ventana.modelo}
             </h4>
@@ -131,20 +135,22 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
             </div>
           </div>
 
-          {/* Acabado con Chip de color */}
-          <div className="col-span-2 pt-1.5 border-t border-slate-100 flex items-center gap-2">
-            <Paintbrush className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span className="text-slate-400 text-[10px] uppercase tracking-wider font-semibold">Acabado:</span>
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold border border-slate-200 bg-slate-50 text-slate-800">
-              <span 
-                className="w-2.5 h-2.5 rounded-full border border-slate-300 shadow-inner shrink-0" 
-                style={{ backgroundColor: finish.frame }}
-              />
-              <span className="truncate max-w-[200px]" title={finishLabel}>
-                {finishLabel}
+          {/* Acabado con Chip de color -- no aplica a ventanas sin marco (solo DVH) */}
+          {!isFrameless && (
+            <div className="col-span-2 pt-1.5 border-t border-slate-100 flex items-center gap-2">
+              <Paintbrush className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span className="text-slate-400 text-[10px] uppercase tracking-wider font-semibold">Acabado:</span>
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold border border-slate-200 bg-slate-50 text-slate-800">
+                <span
+                  className="w-2.5 h-2.5 rounded-full border border-slate-300 shadow-inner shrink-0"
+                  style={{ backgroundColor: finish.frame }}
+                />
+                <span className="truncate max-w-[200px]" title={finishLabel}>
+                  {finishLabel}
+                </span>
               </span>
-            </span>
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Comentario de Presupuesto (Desplegable - cerrado por defecto) */}
