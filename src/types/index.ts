@@ -82,6 +82,14 @@ export interface MaterialVentana {
   material?: Material;
 }
 
+export interface MaterialVersionResumen {
+  id: string;
+  versionId: string;
+  materialId: string;
+  cantidadHetmo: number;
+  material?: Material;
+}
+
 export interface VentanaFase {
   id: string;
   faseId: string;
@@ -210,6 +218,7 @@ export interface ProyectoVersion {
   fases?: Fase[];
   materialAjustes?: ProyectoMaterialAjuste[];
   familiaAprobaciones?: FamiliaMaterialAprobacion[];
+  materialesResumen?: MaterialVersionResumen[];
 }
 
 export interface Proyecto {

@@ -69,14 +69,20 @@ const MONEDA_POR_FAMILIA: Record<string, 'EUR' | 'USD' | 'CLP'> = {
   PERFILERIA: 'USD',
   ACCESORIOS: 'USD',
   REFUERZOS: 'USD',
-  JUNTAS: 'EUR',
   HERRAJES: 'EUR',
   VIDRIOS: 'CLP',
 };
 
+// Juntas no es una categoria propia en la Analitica -- se compra y reporta
+// junto con Accesorios (asi lo muestran tanto Hetmo como el dashboard
+// antiguo). normalizarFamilia() funde ambas apenas se resuelve la familia
+// de un material, asi que el resto del calculo (agrupacion, moneda,
+// aprobacion por familia, descuento) nunca ve "JUNTAS" por separado.
+const normalizarFamilia = (familia: string) => (familia === 'JUNTAS' ? 'ACCESORIOS' : familia);
+
 // Orden de categorias pedido explicitamente, no alfabetico. Cualquier
 // familia que no este en la lista (ej. "Otros") va al final, alfabetica.
-const ORDEN_FAMILIAS = ['PERFILERIA', 'ACCESORIOS', 'JUNTAS', 'REFUERZOS', 'HERRAJES', 'VIDRIOS'];
+const ORDEN_FAMILIAS = ['PERFILERIA', 'ACCESORIOS', 'REFUERZOS', 'HERRAJES', 'VIDRIOS'];
 const ordenFamilia = (familia: string) => {
   const idx = ORDEN_FAMILIAS.indexOf(familia);
   return idx === -1 ? ORDEN_FAMILIAS.length : idx;
@@ -259,7 +265,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
         // Number() aca, el += de abajo concatena texto en vez de sumar.
         const cantidadTotal = Number(mv.cantidad) || 0;
         const ajuste = ajustesPorMaterial.get(mv.materialId);
-        const familia = (ajuste?.familiaPersonalizada || mat?.familia || 'ACCESORIOS').toUpperCase().trim();
+        const familia = normalizarFamilia((ajuste?.familiaPersonalizada || mat?.familia || 'ACCESORIOS').toUpperCase().trim());
 
         // precioPersonalizado/monedaPersonalizada pisan el precio original de
         // HETMO cuando alguien lo edito a mano en la Analitica. Sin edicion
@@ -300,7 +306,25 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
       });
     });
 
-    return Array.from(map.values());
+    // Perfileria y Refuerzos se compran por barra de stock, no por pieza
+    // usada: /materiales (el resumen de Hetmo) ya trae esa cantidad de
+    // barras post-optimizacion de corte, confirmado contra el analisis de
+    // materiales real de Casa La Aurora. Para esas dos familias se
+    // reemplaza la suma de piezas por ventana con ese numero cuando esta
+    // disponible; el resto de las familias (Accesorios, Herrajes, Vidrios)
+    // ya calzan sumando por ventana y no se tocan.
+    const FAMILIAS_CANTIDAD_RESUMEN = new Set(['PERFILERIA', 'REFUERZOS']);
+    const resumenPorMaterial = new Map(
+      (activeVersion?.materialesResumen || []).map((r) => [r.materialId, Number(r.cantidadHetmo) || 0])
+    );
+    const consolidados = Array.from(map.values());
+    consolidados.forEach((m) => {
+      if (!FAMILIAS_CANTIDAD_RESUMEN.has(m.familia)) return;
+      const cantidadResumen = resumenPorMaterial.get(m.materialId);
+      if (cantidadResumen !== undefined) m.cantidadTotal = cantidadResumen;
+    });
+
+    return consolidados;
   }, [activeVersion, tasaDolar, tasaEuro, tasaUf, monedas]);
 
   // Filtrado por buscador
