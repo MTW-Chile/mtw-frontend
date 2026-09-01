@@ -202,6 +202,8 @@ export interface LineMaterial {
   descripcion?: string;
   /** Familia HETMO del artículo (Perfileria, Vidrio, Herrajes, ...) */
   familia?: string;
+  /** SKU interno (Material.skuInterno) -- para casos puntuales que necesitan identificar un artículo exacto */
+  sku?: string;
   cantidad?: number;
   uds?: number;
   acabado?: string;

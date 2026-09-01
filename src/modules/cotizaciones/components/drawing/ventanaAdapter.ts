@@ -18,6 +18,7 @@ const toLineMaterial = (m: MaterialVentana): LineMaterial => ({
   descripcionArticulo: m.material?.descripcion,
   descripcion: m.material?.descripcion,
   familia: m.material?.familia,
+  sku: m.material?.skuInterno,
   cantidad: m.cantidad,
   uds: m.piezas ?? undefined,
   acabado: m.acabado ?? undefined,

@@ -955,6 +955,14 @@
   // perfilería en la línea. Si la línea declara explícitamente un perfil de
   // PVC/aluminio → tiene marco. Si no hay perfiles Y hay al menos un cristal
   // → es una venta de puro vidrio (sin marco).
+  // SKUs que, aunque clasifican como Perfileria/aluminio por familia o
+  // descripción, no son el marco/hoja real de la ventana (ej. estructura
+  // auxiliar de montaje) -- confirmado caso a caso con datos reales, no es
+  // un patrón general. Ver "001mtw ALUMINIO 50X13" en Casa La Aurora V03,
+  // línea 10337: aparece en una ventana fija sin marco (solo DVH) y hacía
+  // que isFrameless la dibujara con marco.
+  const FRAME_FALSE_POSITIVE_SKUS = new Set(['001MTW']);
+
   export function isFrameless(line) {
     const rows = Array.isArray(line && line.materiales) ? line.materiales : [];
     // Sin materiales de ningún tipo: no sabemos nada → dibujar con marco.
@@ -964,6 +972,9 @@
     let hasFrame = false;
 
     for (const item of rows) {
+      const sku = String((item && item.sku) || '').trim().toUpperCase();
+      if (sku && FRAME_FALSE_POSITIVE_SKUS.has(sku)) continue;
+
       const familia = String((item && item.familia) || '').trim();
       const texto   = String((item && (item.descripcionArticulo ?? item.descripcion)) || '');
 
