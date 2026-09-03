@@ -458,19 +458,6 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
           ` : ''}
         </div>`;
 
-      // Encabezado compacto (páginas siguientes): "{Obra} · Presupuesto - X"
-      // a la izquierda, fecha a la derecha, misma línea -- igual al
-      // documento de referencia.
-      const headerCompactoHtml = `
-        <div style="height:4px;background:${HEX.rojo};"></div>
-        <div style="padding:20px 42px 0 42px;">
-          <table style="width:100%;"><tr>
-            <td style="font-size:9px;font-weight:bold;color:${HEX.navy};">${escapeHtml(proyecto.obra)} · ${escapeHtml(codigoLabel)}</td>
-            <td style="font-size:9px;color:${HEX.gris};text-align:right;">Fecha: ${escapeHtml(fechaLabel)}</td>
-          </tr></table>
-          <div style="border-top:1px solid ${HEX.borde};margin:10px 0 16px 0;"></div>
-        </div>`;
-
       const resumenHtml = `
         <div style="background:${HEX.navy};border-radius:6px;padding:8px 18px;color:#ffffff;display:flex;justify-content:space-between;margin-top:0;">
           <div><div style="font-size:8px;color:#94a3b8;">Subtotal de venta · NETO</div><div style="font-size:13px;font-weight:bold;">${escapeHtml(ufLabel(venta, tasaUf))}</div></div>
@@ -478,110 +465,31 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
           <div><div style="font-size:8px;color:#94a3b8;">Total con IVA</div><div style="font-size:16px;font-weight:bold;">${escapeHtml(ufLabel(totalConIva, tasaUf))}</div></div>
         </div>`;
 
-      // Paginado: ni una cuenta fija ("2 y luego 3") ni una altura estimada
-      // a mano -- las dos formas que ya se probaron y las dos fallaron,
-      // porque la altura real de una tarjeta depende de cuántas filas de
-      // metadatos tiene y de la proporción del dibujo (una ventana angosta
-      // y alta no mide lo mismo que una ancha y baja), y varía de proyecto
-      // en proyecto. En vez de adivinar, se mide la altura real que el
-      // propio navegador le da a cada tarjeta -- montándolas un instante en
-      // un contenedor oculto del mismo ancho que va a tener la página
-      // impresa -- y se empaqueta con esa medida exacta. page-break-inside:
-      // avoid en cada tarjeta sigue de red de seguridad por si el navegador
-      // que genera el PDF (Chromium en el relay) mide un pixel distinto al
-      // de este navegador: en vez de partir una tarjeta a la mitad, empuja
-      // toda la tarjeta a la página siguiente.
-      // Medir dentro del propio DOM de la app (un <div> más colgado del
-      // body) contamina la medida: el preflight de Tailwind fija
-      // line-height:1.5 en <html>, y ese valor se hereda hacia el
-      // contenedor -- pero el documento final que arma Chromium (sin
-      // Tailwind, solo el reset propio de documentoHtml) usa el line-height
-      // por defecto del navegador (~1.2), bastante más bajo. Medir con
-      // line-height de más hace que el paginado piense que cada tarjeta es
-      // más alta de lo que en realidad va a salir, y reserva menos tarjetas
-      // por página de las que sí caben (confirmado comparando ambos
-      // documentos: página 1 con 1 sola ventana en vez de 2-3). Un <iframe>
-      // con su propio documento, con el mismo reset que documentoHtml, mide
-      // en las condiciones reales -- no las de la app.
-      const ANCHO_CONTENIDO_PT = 732; // carta (816px a 96dpi) menos 42px de margen a cada lado
-      const iframeMedidor = document.createElement('iframe');
-      iframeMedidor.style.position = 'absolute';
-      iframeMedidor.style.left = '-99999px';
-      iframeMedidor.style.top = '0';
-      iframeMedidor.style.width = `${ANCHO_CONTENIDO_PT}px`;
-      iframeMedidor.style.border = '0';
-      document.body.appendChild(iframeMedidor);
-      const docMedidor = iframeMedidor.contentDocument!;
-      docMedidor.open();
-      docMedidor.write(
-        '<!DOCTYPE html><html><head><meta charset="utf-8" /><style>' +
-          '* { box-sizing: border-box; } body { margin: 0; font-family: Helvetica, Arial, sans-serif; }' +
-          '</style></head><body><div id="medidor"></div></body></html>'
-      );
-      docMedidor.close();
-      const medidor = docMedidor.getElementById('medidor')!;
-
-      // getBoundingClientRect() justo después de innerHTML mide el layout
-      // ANTES de que la imagen (el dibujo, un PNG en base64) termine de
-      // cargar -- la carga de <img> es asíncrona incluso para un data URI.
-      // Sin esperarla, todas las tarjetas miden lo mismo (la altura la pone
-      // solo la columna de "Valores comerciales", no el dibujo) y la
-      // medición completa pierde el sentido.
-      const medirAltura = async (html: string): Promise<number> => {
-        medidor.innerHTML = html;
-        const imgs = Array.from(medidor.querySelectorAll('img'));
-        await Promise.all(imgs.map((img) => img.complete ? Promise.resolve() : new Promise<void>((res) => {
-          img.onload = () => res();
-          img.onerror = () => res();
-        })));
-        return medidor.getBoundingClientRect().height;
-      };
-
-      const alturaCard = new Map<string, number>();
-      for (const v of ventanas) {
-        alturaCard.set(v.id, await medirAltura(cardHtml(v)));
-      }
-      const alturaHeaderCompleto = await medirAltura(headerCompletoHtml);
-      const alturaHeaderCompacto = await medirAltura(headerCompactoHtml);
-      const alturaResumen = await medirAltura(resumenHtml);
-      document.body.removeChild(iframeMedidor);
-
-      const ALTURA_PAGINA_PT = 792; // carta
-      const ALTURA_PIE_PT = 12; // padding inferior de cada página de ventanas
-
-      const paginasVentanas: Ventana[][] = [];
-      let paginaActual: Ventana[] = [];
-      let alturaUsada = alturaHeaderCompleto;
-      ventanas.forEach((v, idx) => {
-        const altura = alturaCard.get(v.id) || 0;
-        const esUltimaVentana = idx === ventanas.length - 1;
-        const disponible = ALTURA_PAGINA_PT - ALTURA_PIE_PT - (esUltimaVentana ? alturaResumen : 0);
-        if (paginaActual.length > 0 && alturaUsada + altura > disponible) {
-          paginasVentanas.push(paginaActual);
-          paginaActual = [];
-          alturaUsada = alturaHeaderCompacto;
-        }
-        paginaActual.push(v);
-        alturaUsada += altura;
-      });
-      if (paginaActual.length > 0) paginasVentanas.push(paginaActual);
-      if (paginasVentanas.length === 0) paginasVentanas.push([]);
-
-      const paginasHtml = paginasVentanas.map((chunk, i) => {
-        const esUltima = i === paginasVentanas.length - 1;
-        return `
+      // Paginado: ya se probaron tres formas de decidir "cuántas ventanas
+      // por página" -- cuenta fija, altura estimada a mano, altura medida
+      // en el DOM -- y las tres fallaron, siempre por la misma razón de
+      // fondo: es Chromium (en el relay) el que realmente decide dónde
+      // rompe cada página al imprimir, y cualquier cálculo hecho ACÁ, en
+      // otro navegador, sobre otro documento (con o sin Tailwind, con
+      // fuentes que pueden no ser pixel-idénticas), es una apuesta. La
+      // única fuente de verdad es Chromium mismo. Se deja de intentar
+      // calcular la página de cada ventana: todas las tarjetas van en un
+      // solo flujo continuo (con page-break-inside:avoid cada una para que
+      // ninguna quede partida a la mitad) y es el propio motor de
+      // impresión el que decide cuántas entran por hoja, exactamente igual
+      // que "Imprimir a PDF" desde cualquier navegador -- sin estimación
+      // de por medio, no hay margen de error posible.
+      const contenidoVentanasHtml = `
         <div style="width:100%;font-family:Helvetica,Arial,sans-serif;background:#ffffff;">
-          ${i === 0 ? headerCompletoHtml : headerCompactoHtml}
+          ${headerCompletoHtml}
           <div style="padding:0 42px 6px 42px;">
-            ${chunk.map(cardHtml).join('')}
-            ${esUltima ? resumenHtml : ''}
+            ${ventanas.map(cardHtml).join('')}
+            ${resumenHtml}
           </div>
         </div>`;
-      });
 
-      if (condiciones.trim()) {
-        paginasHtml.push(`
-        <div style="width:100%;font-family:Helvetica,Arial,sans-serif;background:#ffffff;">
+      const condicionesHtml = condiciones.trim() ? `
+        <div style="width:100%;font-family:Helvetica,Arial,sans-serif;background:#ffffff;page-break-before:always;">
           <div style="height:4px;background:${HEX.rojo};"></div>
           <div style="padding:20px 42px 0 42px;">
             ${logoImg}
@@ -591,8 +499,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
               ${condiciones.trim().split('\n').filter(Boolean).map((l) => `<li style="margin-bottom:4px;">${escapeHtml(l.trim())}</li>`).join('')}
             </ul>
           </div>
-        </div>`);
-      }
+        </div>` : '';
 
       // Antes: cada página se rasterizaba en el navegador del cliente
       // (html2canvas) mutando un mismo <div> en un loop -- la promesa de
@@ -622,12 +529,11 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
   @page { size: letter; margin: 0; }
   * { box-sizing: border-box; }
   body { margin: 0; }
-  .pagina { width: 100%; font-family: Helvetica, Arial, sans-serif; background: #ffffff; page-break-after: always; }
-  .pagina:last-child { page-break-after: auto; }
 </style>
 </head>
 <body>
-  ${paginasHtml.map((html) => `<div class="pagina">${html}</div>`).join('')}
+  ${contenidoVentanasHtml}
+  ${condicionesHtml}
 </body>
 </html>`;
 
