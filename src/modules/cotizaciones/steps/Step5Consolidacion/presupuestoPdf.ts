@@ -324,12 +324,22 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
   // ancho fisico de la hoja, dejando una franja en blanco a la derecha
   // -- confirmado midiendo el PDF resultante, no a ojo. width:100% lo
   // corrige: la pagina ocupa el ancho real de la hoja carta.
+  //
+  // OJO: @page no declara margin -- el margen real lo pone SIEMPRE la
+  // opcion `margin` de page.pdf() en el relay (0 si no hay
+  // header/footer, o el margen reservado para ellos si los hay).
+  // Declarar `margin:0` acá competía con esa opción: el header/footer
+  // quedaba reservado en la banda superior/inferior (según lo que pide
+  // page.pdf()), pero el contenido del body arrancaba en la esquina
+  // física de la hoja (ignorando esa reserva) -- confirmado
+  // renderizando: el encabezado compacto quedaba superpuesto con la
+  // primera tarjeta de cada página siguiente a la portada.
   return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8" />
 <style>
-  @page { size: letter; margin: 0; }
+  @page { size: letter; }
   * { box-sizing: border-box; }
   body { margin: 0; }
 </style>
