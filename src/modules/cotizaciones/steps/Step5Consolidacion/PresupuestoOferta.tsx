@@ -478,23 +478,72 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
           <div><div style="font-size:8px;color:#94a3b8;">Total con IVA</div><div style="font-size:16px;font-weight:bold;">${escapeHtml(ufLabel(totalConIva, tasaUf))}</div></div>
         </div>`;
 
-      // Paginado fijo: cada página se piensa como 3 franjas iguales -- la
-      // primera página usa una franja para el encabezado completo (logo,
-      // título, presentación) y dos para ventanas; las siguientes, con el
-      // encabezado compacto (que ocupa mucho menos que una franja), caben
-      // 3 ventanas completas. El tamaño de la tarjeta (abajo) está calibrado
-      // -- verificado renderizando el PDF real, no a ojo -- para que 3
-      // tarjetas completas (todas sus filas) efectivamente entren en una
-      // página con encabezado compacto. page-break-inside:avoid en cada
-      // tarjeta es la red de seguridad por si una ventana con más filas de
-      // lo habitual no entra: en vez de partirla a la mitad, empuja toda la
-      // tarjeta a la página siguiente.
-      const paginasVentanas: Ventana[][] = [];
-      for (let i = 0; i < ventanas.length; ) {
-        const porPagina = paginasVentanas.length === 0 ? 2 : 3;
-        paginasVentanas.push(ventanas.slice(i, i + porPagina));
-        i += porPagina;
+      // Paginado: ni una cuenta fija ("2 y luego 3") ni una altura estimada
+      // a mano -- las dos formas que ya se probaron y las dos fallaron,
+      // porque la altura real de una tarjeta depende de cuántas filas de
+      // metadatos tiene y de la proporción del dibujo (una ventana angosta
+      // y alta no mide lo mismo que una ancha y baja), y varía de proyecto
+      // en proyecto. En vez de adivinar, se mide la altura real que el
+      // propio navegador le da a cada tarjeta -- montándolas un instante en
+      // un contenedor oculto del mismo ancho que va a tener la página
+      // impresa -- y se empaqueta con esa medida exacta. page-break-inside:
+      // avoid en cada tarjeta sigue de red de seguridad por si el navegador
+      // que genera el PDF (Chromium en el relay) mide un pixel distinto al
+      // de este navegador: en vez de partir una tarjeta a la mitad, empuja
+      // toda la tarjeta a la página siguiente.
+      const ANCHO_CONTENIDO_PT = 732; // carta (816px a 96dpi) menos 42px de margen a cada lado
+      const medidor = document.createElement('div');
+      medidor.style.position = 'absolute';
+      medidor.style.left = '-99999px';
+      medidor.style.top = '0';
+      medidor.style.width = `${ANCHO_CONTENIDO_PT}px`;
+      medidor.style.fontFamily = 'Helvetica, Arial, sans-serif';
+      document.body.appendChild(medidor);
+
+      // getBoundingClientRect() justo después de innerHTML mide el layout
+      // ANTES de que la imagen (el dibujo, un PNG en base64) termine de
+      // cargar -- la carga de <img> es asíncrona incluso para un data URI.
+      // Sin esperarla, todas las tarjetas miden lo mismo (la altura la pone
+      // solo la columna de "Valores comerciales", no el dibujo) y la
+      // medición completa pierde el sentido.
+      const medirAltura = async (html: string): Promise<number> => {
+        medidor.innerHTML = html;
+        const imgs = Array.from(medidor.querySelectorAll('img'));
+        await Promise.all(imgs.map((img) => img.complete ? Promise.resolve() : new Promise<void>((res) => {
+          img.onload = () => res();
+          img.onerror = () => res();
+        })));
+        return medidor.getBoundingClientRect().height;
+      };
+
+      const alturaCard = new Map<string, number>();
+      for (const v of ventanas) {
+        alturaCard.set(v.id, await medirAltura(cardHtml(v)));
       }
+      const alturaHeaderCompleto = await medirAltura(headerCompletoHtml);
+      const alturaHeaderCompacto = await medirAltura(headerCompactoHtml);
+      const alturaResumen = await medirAltura(resumenHtml);
+      document.body.removeChild(medidor);
+
+      const ALTURA_PAGINA_PT = 792; // carta
+      const ALTURA_PIE_PT = 12; // padding inferior de cada página de ventanas
+
+      const paginasVentanas: Ventana[][] = [];
+      let paginaActual: Ventana[] = [];
+      let alturaUsada = alturaHeaderCompleto;
+      ventanas.forEach((v, idx) => {
+        const altura = alturaCard.get(v.id) || 0;
+        const esUltimaVentana = idx === ventanas.length - 1;
+        const disponible = ALTURA_PAGINA_PT - ALTURA_PIE_PT - (esUltimaVentana ? alturaResumen : 0);
+        if (paginaActual.length > 0 && alturaUsada + altura > disponible) {
+          paginasVentanas.push(paginaActual);
+          paginaActual = [];
+          alturaUsada = alturaHeaderCompacto;
+        }
+        paginaActual.push(v);
+        alturaUsada += altura;
+      });
+      if (paginaActual.length > 0) paginasVentanas.push(paginaActual);
       if (paginasVentanas.length === 0) paginasVentanas.push([]);
 
       const paginasHtml = paginasVentanas.map((chunk, i) => {
