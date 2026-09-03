@@ -288,11 +288,27 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
       ` : ''}
     </div>`;
 
+  // Filas apiladas (etiqueta izquierda / valor derecha), NO columnas lado a
+  // lado -- calcado del documento de referencia, comparado directamente
+  // contra una captura del original: "SUBTOTAL NETO" y "IVA" son filas
+  // livianas del mismo tamaño, una línea divisoria fina, y "TOTAL CON IVA"
+  // como fila final en mayúsculas y bold, con el valor más grande.
   const resumenHtml = `
-    <div style="background:${HEX.navy};border-radius:6px;padding:8px 18px;color:#ffffff;display:flex;justify-content:space-between;margin-top:0;">
-      <div><div style="font-size:8px;color:#94a3b8;">Subtotal de venta · NETO</div><div style="font-size:13px;font-weight:bold;">${escapeHtml(ufLabel(venta, tasaUf))}</div></div>
-      <div><div style="font-size:8px;color:#94a3b8;">IVA (${ivaPct}%)</div><div style="font-size:13px;font-weight:bold;">${escapeHtml(ufLabel(iva, tasaUf))}</div></div>
-      <div><div style="font-size:8px;color:#94a3b8;">Total con IVA</div><div style="font-size:16px;font-weight:bold;">${escapeHtml(ufLabel(totalConIva, tasaUf))}</div></div>
+    <div style="background:${HEX.navy};border-radius:6px;padding:14px 18px;color:#ffffff;margin-top:0;">
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="padding:5px 0;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:.02em;">Subtotal neto</td>
+          <td style="padding:5px 0;font-size:11px;font-weight:bold;text-align:right;">${escapeHtml(ufLabel(venta, tasaUf))}</td>
+        </tr>
+        <tr>
+          <td style="padding:5px 0;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:.02em;border-bottom:1px solid #334155;">IVA (${ivaPct}%)</td>
+          <td style="padding:5px 0;font-size:11px;font-weight:bold;text-align:right;border-bottom:1px solid #334155;">${escapeHtml(ufLabel(iva, tasaUf))}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0 0 0;font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:.02em;">Total con IVA</td>
+          <td style="padding:8px 0 0 0;font-size:15px;font-weight:bold;text-align:right;">${escapeHtml(ufLabel(totalConIva, tasaUf))}</td>
+        </tr>
+      </table>
     </div>`;
 
   const contenidoVentanasHtml = `
