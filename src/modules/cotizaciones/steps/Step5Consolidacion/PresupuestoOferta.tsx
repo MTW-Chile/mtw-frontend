@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileDown, Loader2, Pencil, Check } from 'lucide-react';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import type { Proyecto, ProyectoVersion, Ventana } from '../../../../types';
 import { formatNumber } from '../../../../lib/utils';
 import { useMonedas } from '../../../../lib/monedas';
@@ -319,7 +320,6 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
       // página (comparte espacio con encabezado y texto de presentación),
       // 3 en cada página siguiente -- mismo layout que el Presupuesto de
       // referencia (Vista Monseñor, Casa La Aurora).
-      const cardHeight = 150;
       let paginaIndex = 0;
       let enPagina = 0;
       const ventanasPorPagina = () => (paginaIndex === 0 ? 2 : 3);
@@ -334,30 +334,26 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         }
         enPagina += 1;
 
-        doc.setDrawColor(...MTW_BORDE);
-        doc.setLineWidth(0.75);
-        doc.rect(margen, y, pageWidth - margen * 2, cardHeight);
-
+        const cardTop = y;
         doc.setFillColor(...pdfTableStyle.headStyles.fillColor);
         doc.rect(margen, y, pageWidth - margen * 2, 20, 'F');
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(...MTW_NAVY);
         doc.text(`${v.modelo} -`, margen + 8, y + 14);
+        const bodyTop = y + 20;
 
         const line = toWindowLine(v);
         if (line) {
           try {
             const svg = buildWindow(line, 'offer').svg;
             const png = await svgToPngDataUrl(svg, 480, 356);
-            doc.addImage(png, 'PNG', margen + 8, y + 26, 130, 96);
+            doc.addImage(png, 'PNG', margen + 8, bodyTop + 8, 130, 96);
           } catch {
             // Dibujo opcional -- si falla, la tarjeta sigue sin imagen.
           }
         }
 
-        const metaX = margen + 150;
-        const metaWidth = pageWidth - margen - metaX - 150;
         const isFrameless = Boolean(line?.dibujoSinMarco);
         const apertura = line ? core.apertureLabel(line) : '';
         // "Serie de perfiles" en el documento de referencia trae el acabado
@@ -373,54 +369,58 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
           new Set((v.materiales || []).filter((m) => !m.excluido && m.material?.familia === 'VIDRIOS').map((m) => m.material?.descripcion || ''))
         ).filter(Boolean).join(' + ');
 
-        let metaY = y + 34;
-        doc.setFontSize(8.5);
-        doc.setFont('helvetica', 'normal');
-        const campo = (label: string, value: string) => {
-          if (!value) return;
-          doc.setTextColor(...MTW_GRIS);
-          doc.text(label, metaX, metaY);
-          doc.setTextColor(...MTW_NAVY);
-          doc.setFont('helvetica', 'bold');
-          const lineas = doc.splitTextToSize(value, metaWidth - 70);
-          doc.text(lineas, metaX + 70, metaY);
-          doc.setFont('helvetica', 'normal');
-          metaY += Math.max(12, lineas.length * 10);
-        };
         // Mismo orden que el Presupuesto de referencia: Dimensiones, Serie de
         // perfiles con el acabado incluido (omitido en líneas SOLO DVH, que
         // no tienen perfil ni acabado), Apertura, Vidrios, Observación.
-        campo('Dimensiones', `${formatNumber(v.anchoMm, 0)} × ${formatNumber(v.altoMm, 0)} mm`);
-        if (!isFrameless) campo('Serie de perfiles', serieP);
-        campo('Apertura', apertura);
-        campo('Vidrios', vidrio);
-        campo('Observación', v.comentarioPresupuesto || '');
+        const metaFilas: [string, string][] = [
+          ['Dimensiones', `${formatNumber(v.anchoMm, 0)} × ${formatNumber(v.altoMm, 0)} mm`],
+          ...(!isFrameless ? [['Serie de perfiles', serieP] as [string, string]] : []),
+          ['Apertura', apertura],
+          ...(vidrio ? [['Vidrios', vidrio] as [string, string]] : []),
+          ...(v.comentarioPresupuesto ? [['Observación', v.comentarioPresupuesto] as [string, string]] : []),
+        ];
+        const metaX = margen + 150;
+        const valoresWidth = 140;
+        const valoresX = pageWidth - margen - valoresWidth;
+        autoTable(doc, {
+          theme: 'grid',
+          startY: bodyTop,
+          margin: { left: metaX, right: pageWidth - valoresX + 8 },
+          styles: { fontSize: 8, cellPadding: 4, lineColor: MTW_BORDE, lineWidth: 0.5 },
+          columnStyles: {
+            0: { cellWidth: 76, textColor: MTW_GRIS },
+            1: { fontStyle: 'bold', textColor: MTW_NAVY },
+          },
+          body: metaFilas,
+        });
+        const metaBottom = (doc as any).lastAutoTable.finalY;
 
         const precio = preciosVenta.get(v.id);
-        const valoresX = pageWidth - margen - 140;
-        doc.setDrawColor(...MTW_BORDE);
-        doc.rect(valoresX, y + 26, 132, 96);
-        doc.setFillColor(...pdfTableStyle.headStyles.fillColor);
-        doc.rect(valoresX, y + 26, 132, 16, 'F');
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...MTW_NAVY);
-        doc.text('Valores comerciales', valoresX + 6, y + 37);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8.5);
-        const filaValor = (label: string, value: string, yy: number) => {
-          doc.setTextColor(...MTW_GRIS);
-          doc.text(label, valoresX + 6, yy);
-          doc.setTextColor(...MTW_NAVY);
-          doc.setFont('helvetica', 'bold');
-          doc.text(value, valoresX + 126, yy, { align: 'right' });
-          doc.setFont('helvetica', 'normal');
-        };
-        filaValor('Precio unitario', ufLabel(precio?.precioUnitarioCLP || 0, tasaUf), y + 52);
-        filaValor('Cantidad', `${v.unidades} ud(es)`, y + 66);
-        filaValor('Total neto', ufLabel(precio?.precioVentaCLP || 0, tasaUf), y + 80);
+        autoTable(doc, {
+          ...pdfTableStyle,
+          startY: bodyTop,
+          margin: { left: valoresX, right: margen },
+          tableWidth: valoresWidth,
+          head: [['Valores comerciales', '']],
+          body: [
+            ['Precio unitario', ufLabel(precio?.precioUnitarioCLP || 0, tasaUf)],
+            ['Cantidad', `${v.unidades} ud(es)`],
+            ['Total neto', ufLabel(precio?.precioVentaCLP || 0, tasaUf)],
+          ],
+          columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+          didParseCell: (data) => {
+            if (data.row.index === 2 && data.section === 'body') data.cell.styles.fontStyle = 'bold';
+          },
+        });
+        const valoresBottom = (doc as any).lastAutoTable.finalY;
 
-        y += cardHeight + 12;
+        const drawingBottom = line ? bodyTop + 8 + 96 + 6 : bodyTop;
+        const cardBottom = Math.max(metaBottom, valoresBottom, drawingBottom) + 8;
+        doc.setDrawColor(...MTW_BORDE);
+        doc.setLineWidth(0.75);
+        doc.rect(margen, cardTop, pageWidth - margen * 2, cardBottom - cardTop);
+
+        y = cardBottom + 12;
       }
 
       if (y + 70 > pageHeight - 40) {
