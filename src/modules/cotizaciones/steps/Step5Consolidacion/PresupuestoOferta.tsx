@@ -248,12 +248,23 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
 
   const exportarPDF = async () => {
     setExportando(true);
+    // Un contenedor posicionado fuera de pantalla (left:-99999px) no se
+    // pinta en Safari/iOS -- es una optimización real del motor para
+    // elementos position:fixed muy lejos del viewport, y html2canvas
+    // termina capturando nada (PDF en blanco). Se usa en cambio un overlay
+    // a pantalla completa, genuinamente visible mientras se exporta, para
+    // que el navegador lo pinte de verdad en cualquier dispositivo.
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.inset = '0';
+    overlay.style.zIndex = '99999';
+    overlay.style.background = '#ffffff';
+    overlay.style.overflow = 'auto';
     const contenedor = document.createElement('div');
-    contenedor.style.position = 'fixed';
-    contenedor.style.top = '0';
-    contenedor.style.left = '-99999px';
     contenedor.style.width = '595px';
-    document.body.appendChild(contenedor);
+    contenedor.style.margin = '0 auto';
+    overlay.appendChild(contenedor);
+    document.body.appendChild(overlay);
     try {
       const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
 
@@ -429,6 +440,8 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         </div>`);
       }
 
+      const esperarFrame = () => new Promise<void>((res) => requestAnimationFrame(() => requestAnimationFrame(() => res())));
+
       for (let i = 0; i < paginasHtml.length; i++) {
         contenedor.innerHTML = paginasHtml[i];
         const imgs = Array.from(contenedor.querySelectorAll('img'));
@@ -436,6 +449,11 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
           img.onload = () => res();
           img.onerror = () => res();
         })));
+        // Espera a que el navegador efectivamente pinte el contenido recién
+        // insertado antes de rasterizarlo -- sin esto, algunos motores
+        // (confirmado en Safari/iOS) le entregan a html2canvas un layout
+        // todavía no pintado y el resultado sale en blanco.
+        await esperarFrame();
         if (i > 0) doc.addPage();
         await doc.html(contenedor, {
           x: 0,
@@ -447,8 +465,12 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
       }
 
       doc.save(`presupuesto-${(proyecto.codigoInterno || proyecto.obra).replace(/\s+/g, '-')}.pdf`);
+    } catch (error: any) {
+      // Antes fallaba en silencio: el usuario se llevaba un PDF en blanco
+      // sin ninguna pista de qué pasó. Mejor un error visible que adivinar.
+      window.alert(`No se pudo generar el PDF: ${error?.message || error}`);
     } finally {
-      document.body.removeChild(contenedor);
+      document.body.removeChild(overlay);
       setExportando(false);
     }
   };
