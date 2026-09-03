@@ -256,6 +256,16 @@ export async function updateVentanaPresupuesto(
   return response.data;
 }
 
+// PDF generado en el servidor con Chromium real (page.pdf()), no con una
+// captura armada en el navegador del cliente -- ver src/pdfRenderer.ts en el
+// relay. Elimina la dependencia de que el dispositivo del cliente pinte a
+// tiempo un DOM para poder rasterizarlo (causa del bug de paginas mezcladas
+// en Safari/iOS).
+export async function renderPdf(html: string, filename: string): Promise<Blob> {
+  const response = await apiClient.post('/pdf/render', { html, filename }, { responseType: 'blob' });
+  return response.data;
+}
+
 export async function getClientes(q?: string): Promise<{ data: Cliente[] }> {
   const response = await apiClient.get<{ data: Cliente[] }>('/clientes', {
     params: q ? { q } : undefined,

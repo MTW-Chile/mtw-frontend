@@ -1,11 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileDown, Loader2, Pencil, Check } from 'lucide-react';
-import jsPDF from 'jspdf';
 import type { Proyecto, ProyectoVersion, Ventana } from '../../../../types';
 import { formatNumber } from '../../../../lib/utils';
 import { useMonedas } from '../../../../lib/monedas';
-import { updatePresupuestoConfig, updateVentanaPresupuesto } from '../../../../api/client';
+import { updatePresupuestoConfig, updateVentanaPresupuesto, renderPdf } from '../../../../api/client';
 import { WindowRendererSvg } from '../../components/drawing/WindowRendererSvg';
 import { toWindowLine } from '../../components/drawing/ventanaAdapter';
 import { buildWindow } from '../../components/drawing/windowGeometryBuilder';
@@ -19,11 +18,12 @@ import { computePreciosVenta } from '../../lib/presupuesto';
 import { loadImageDataUrl } from '../../lib/pdfTheme';
 
 // Paleta en hex para el HTML del PDF -- mismos colores que pdfTheme.ts
-// (MTW_NAVY/MTW_GRIS/MTW_BORDE/MTW_ROJO/MTW_HEAD_BG), pero como CSS: este
-// PDF ya no se dibuja con primitivas de jsPDF (rect/text a mano), se
-// renderiza como HTML/CSS real vía doc.html() (html2canvas por debajo) --
-// así el resultado es literalmente lo que el navegador compone, no una
-// aproximación de coordenadas.
+// (MTW_NAVY/MTW_GRIS/MTW_BORDE/MTW_ROJO/MTW_HEAD_BG), pero como CSS: este PDF
+// no se dibuja con primitivas de jsPDF (rect/text a mano) ni se rasteriza en
+// el navegador del cliente (html2canvas) -- se arma como HTML/CSS real y el
+// relay lo imprime a PDF con Chromium (ver src/pdfRenderer.ts en
+// mtw-relay-api), así el resultado es literalmente lo que un navegador
+// compone, sin depender del dispositivo del cliente para rasterizarlo.
 const HEX = { navy: '#0f172a', gris: '#64748b', borde: '#e2e8f0', rojo: '#e34a26', headBg: '#f1f5f9', zebra: '#f8fafc' };
 
 const escapeHtml = (value: unknown) =>
@@ -248,22 +248,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
 
   const exportarPDF = async () => {
     setExportando(true);
-    // Un contenedor posicionado fuera de pantalla (left:-99999px) no se
-    // pinta en Safari/iOS -- es una optimización real del motor para
-    // elementos position:fixed muy lejos del viewport, y html2canvas
-    // termina capturando nada (PDF en blanco). Se usa en cambio un overlay
-    // a pantalla completa, genuinamente visible mientras se exporta, para
-    // que el navegador lo pinte de verdad en cualquier dispositivo.
-    const overlay = document.createElement('div');
-    overlay.style.position = 'fixed';
-    overlay.style.inset = '0';
-    overlay.style.zIndex = '99999';
-    overlay.style.background = '#ffffff';
-    overlay.style.overflow = 'auto';
-    document.body.appendChild(overlay);
     try {
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-
       const codigoLabel = `Presupuesto - ${proyecto.codigoInterno || proyecto.numeroPresupuesto}`;
       const fechaLabel = new Date().toLocaleDateString('es-CL');
       const clienteNombre = proyecto.cliente?.nombre || proyecto.clienteNombreRaw;
@@ -293,8 +278,8 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
       );
 
       // Cada tarjeta es HTML/CSS real (tabla con bordes), no coordenadas
-      // calculadas a mano -- así el resultado que renderiza html2canvas es
-      // literalmente lo que compone el navegador, igual al documento de
+      // calculadas a mano -- este HTML se manda tal cual al relay, que lo
+      // imprime a PDF con Chromium real (page.pdf()), igual al documento de
       // referencia (Vista Monseñor, Casa La Aurora), no una aproximación.
       const cardHtml = (v: Ventana): string => {
         const line = toWindowLine(v);
@@ -436,58 +421,51 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         </div>`);
       }
 
-      const esperarFrame = () => new Promise<void>((res) => requestAnimationFrame(() => requestAnimationFrame(() => res())));
+      // Antes: cada página se rasterizaba en el navegador del cliente
+      // (html2canvas) mutando un mismo <div> en un loop -- la promesa de
+      // doc.html() no siempre resolvía a tiempo (sobre todo en Safari/iOS)
+      // antes de que la siguiente vuelta reescribiera ese nodo, y el
+      // resultado terminaba con contenido de una página mezclado en otra
+      // ("Condiciones Comerciales" saliendo como página 1, con una tarjeta
+      // de ventana asomando debajo). Ahora el navegador del cliente solo
+      // arma el HTML/CSS (texto, nada que rasterizar); el PDF lo genera el
+      // relay con Chromium real via page.pdf() -- paginación por CSS
+      // estándar (page-break-after), igual que "Imprimir a PDF" desde
+      // cualquier navegador de escritorio. No hay DOM compartido entre
+      // páginas ni carrera posible: cada <div class="pagina"> es texto
+      // estático dentro de un único documento HTML.
+      const documentoHtml = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .pagina { width: 595px; font-family: Helvetica, Arial, sans-serif; background: #ffffff; page-break-after: always; }
+  .pagina:last-child { page-break-after: auto; }
+</style>
+</head>
+<body>
+  ${paginasHtml.map((html) => `<div class="pagina">${html}</div>`).join('')}
+</body>
+</html>`;
 
-      // Un solo <div> reutilizado y mutado (contenedor.innerHTML = ...) en
-      // cada vuelta del loop causaba el bug reportado en producción: doc.html()
-      // dispara html2canvas de forma asíncrona, y su promesa no siempre
-      // termina de resolver (sobre todo en Safari/iOS) antes de que la
-      // siguiente iteración reescriba el innerHTML del MISMO nodo -- el
-      // resultado es una página rasterizada con contenido de la página
-      // equivocada, o mezclado entre dos ("Condiciones Comerciales" saliendo
-      // en la página 1, con una tarjeta de ventana asomando debajo). La
-      // solución no es "esperar más": es que ninguna página comparta nodo
-      // DOM con otra. Cada página vive en su propio <div>, todos presentes
-      // en el overlay desde el inicio -- así doc.html() rasteriza un nodo
-      // que ninguna otra iteración va a tocar.
-      const contenedores = paginasHtml.map((html) => {
-        const div = document.createElement('div');
-        div.style.width = '595px';
-        div.style.margin = '0 auto';
-        div.innerHTML = html;
-        overlay.appendChild(div);
-        return div;
-      });
-
-      const imgs = Array.from(overlay.querySelectorAll('img'));
-      await Promise.all(imgs.map((img) => img.complete ? Promise.resolve() : new Promise<void>((res) => {
-        img.onload = () => res();
-        img.onerror = () => res();
-      })));
-      // Espera a que el navegador efectivamente pinte el contenido recién
-      // insertado antes de rasterizarlo -- sin esto, algunos motores
-      // (confirmado en Safari/iOS) le entregan a html2canvas un layout
-      // todavía no pintado y el resultado sale en blanco.
-      await esperarFrame();
-
-      for (let i = 0; i < contenedores.length; i++) {
-        if (i > 0) doc.addPage();
-        await doc.html(contenedores[i], {
-          x: 0,
-          y: 0,
-          width: 595.28,
-          windowWidth: 595,
-          html2canvas: { scale: 2, backgroundColor: '#ffffff' },
-        });
-      }
-
-      doc.save(`presupuesto-${(proyecto.codigoInterno || proyecto.obra).replace(/\s+/g, '-')}.pdf`);
+      const filename = `presupuesto-${(proyecto.codigoInterno || proyecto.obra).replace(/\s+/g, '-')}.pdf`;
+      const blob = await renderPdf(documentoHtml, filename);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch (error: any) {
       // Antes fallaba en silencio: el usuario se llevaba un PDF en blanco
       // sin ninguna pista de qué pasó. Mejor un error visible que adivinar.
       window.alert(`No se pudo generar el PDF: ${error?.message || error}`);
     } finally {
-      document.body.removeChild(overlay);
       setExportando(false);
     }
   };
