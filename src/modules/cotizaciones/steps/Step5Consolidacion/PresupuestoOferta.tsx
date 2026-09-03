@@ -71,11 +71,11 @@ const NombreEditable: React.FC<{ ventana: Ventana; onGuardado: (v: Partial<Venta
   congelado,
 }) => {
   const [editando, setEditando] = useState(false);
-  const [valor, setValor] = useState(ventana.descripcionCorta || ventana.modelo);
+  const [valor, setValor] = useState(ventana.modelo);
   const mutation = useMutation({
-    mutationFn: () => updateVentanaPresupuesto(ventana.id, { descripcionCorta: valor.trim() || null }),
+    mutationFn: () => updateVentanaPresupuesto(ventana.id, { modelo: valor.trim() || ventana.modelo }),
     onSuccess: (res) => {
-      onGuardado({ descripcionCorta: res.ventana.descripcionCorta });
+      onGuardado({ modelo: res.ventana.modelo });
       setEditando(false);
     },
   });
@@ -88,7 +88,7 @@ const NombreEditable: React.FC<{ ventana: Ventana; onGuardado: (v: Partial<Venta
         onClick={() => setEditando(true)}
         className="flex items-center gap-1.5 text-left group/edit disabled:cursor-default"
       >
-        <h4 className="text-sm font-black text-slate-900">{ventana.descripcionCorta || ventana.modelo}</h4>
+        <h4 className="text-sm font-black text-slate-900">{ventana.modelo}</h4>
         {!congelado && <Pencil className="w-3 h-3 text-slate-300 group-hover/edit:text-[#E34A26] shrink-0" />}
       </button>
     );
@@ -343,7 +343,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(...MTW_NAVY);
-        doc.text(`${v.descripcionCorta || v.modelo} -`, margen + 8, y + 14);
+        doc.text(`${v.modelo} -`, margen + 8, y + 14);
 
         const line = toWindowLine(v);
         if (line) {
@@ -360,7 +360,15 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         const metaWidth = pageWidth - margen - metaX - 150;
         const isFrameless = Boolean(line?.dibujoSinMarco);
         const apertura = line ? core.apertureLabel(line) : '';
-        const serieP = core.profileSeries({ modelo: v.descripcionCorta || v.modelo });
+        // "Serie de perfiles" en el documento de referencia trae el acabado
+        // pegado con un guion ("Línea Efficient - Black Matt"), no como fila
+        // aparte -- mismo formato que generate_project_budget.js del sistema
+        // anterior: `${serie_perfiles} - ${finish.description||finish.label}`.
+        const serieBase = core.profileSeries({ modelo: v.descripcionCorta || v.modelo });
+        const finishLabel = getAcabadoLabel(v.acabadoCodigo, v.acabadoDescripcion);
+        const serieP = [serieBase !== 'Línea no especificada' ? serieBase : null, finishLabel]
+          .filter(Boolean)
+          .join(' - ');
         const vidrio = Array.from(
           new Set((v.materiales || []).filter((m) => !m.excluido && m.material?.familia === 'VIDRIOS').map((m) => m.material?.descripcion || ''))
         ).filter(Boolean).join(' + ');
@@ -379,12 +387,11 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
           doc.setFont('helvetica', 'normal');
           metaY += Math.max(12, lineas.length * 10);
         };
-        // Mismo orden y campos que el Presupuesto de referencia: Dimensiones,
-        // Serie de perfiles (omitido en líneas SOLO DVH, igual que "Serie de
-        // perfiles" no aplica ahí), Apertura, Vidrios, Observación. No hay
-        // "Acabado" en el documento de referencia -- no se muestra acá.
+        // Mismo orden que el Presupuesto de referencia: Dimensiones, Serie de
+        // perfiles con el acabado incluido (omitido en líneas SOLO DVH, que
+        // no tienen perfil ni acabado), Apertura, Vidrios, Observación.
         campo('Dimensiones', `${formatNumber(v.anchoMm, 0)} × ${formatNumber(v.altoMm, 0)} mm`);
-        if (!isFrameless && serieP && serieP !== 'Línea no especificada') campo('Serie de perfiles', serieP);
+        if (!isFrameless) campo('Serie de perfiles', serieP);
         campo('Apertura', apertura);
         campo('Vidrios', vidrio);
         campo('Observación', v.comentarioPresupuesto || '');

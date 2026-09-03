@@ -247,7 +247,7 @@ export async function updatePresupuestoConfig(
 
 export async function updateVentanaPresupuesto(
   ventanaId: string,
-  payload: Partial<Pick<Ventana, 'descripcionCorta' | 'comentarioPresupuesto'>>
+  payload: Partial<Pick<Ventana, 'modelo' | 'comentarioPresupuesto'>>
 ): Promise<{ success: boolean; ventana: Ventana }> {
   const response = await apiClient.patch<{ success: boolean; ventana: Ventana }>(
     `/ventanas/${ventanaId}/presupuesto`,
