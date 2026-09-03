@@ -13,6 +13,7 @@ import {
   computeCantidadVidrios,
   computeCantidadCuadros,
 } from '../../lib/materialesConsolidados';
+import { MTW_NAVY, MTW_GRIS, MTW_BORDE, pdfTableStyle, drawPdfHeader } from '../../lib/pdfTheme';
 
 interface Step4FijacionesProps {
   proyecto: Proyecto;
@@ -43,22 +44,6 @@ const pctLabel = (monto: number, venta: number) =>
   venta > 0 ? `${new Intl.NumberFormat('es-CL', { maximumFractionDigits: 1 }).format((monto * 100) / venta)}% venta` : '—';
 
 const numeroInput = (value: unknown) => Math.max(0, Number(value) || 0);
-
-const MTW_ROJO: [number, number, number] = [227, 74, 38];
-const MTW_NAVY: [number, number, number] = [15, 23, 42];
-const MTW_HEAD_BG: [number, number, number] = [241, 245, 249];
-const MTW_BORDE: [number, number, number] = [226, 232, 240];
-
-const loadImageDataUrl = async (url: string): Promise<string> => {
-  const response = await fetch(url);
-  const blob = await response.blob();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-};
 
 export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, activeVersion, dolar, uf, euro }) => {
   const queryClient = useQueryClient();
@@ -191,37 +176,13 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
     const pageWidth = doc.internal.pageSize.getWidth();
     const margen2 = 36;
     const contentWidth = pageWidth - margen2 * 2;
-    const tableStyle = {
-      theme: 'grid' as const,
-      styles: { fontSize: 8.5, cellPadding: 5, textColor: MTW_NAVY, lineColor: MTW_BORDE, lineWidth: 0.5 },
-      headStyles: { fillColor: MTW_HEAD_BG, textColor: MTW_NAVY, fontStyle: 'bold' as const, fontSize: 8.5 },
-      alternateRowStyles: { fillColor: [248, 250, 252] as [number, number, number] },
-      columnStyles: { 1: { halign: 'right' as const, fontStyle: 'bold' as const } },
-    };
+    const tableStyle = { ...pdfTableStyle, columnStyles: { 1: { halign: 'right' as const, fontStyle: 'bold' as const } } };
 
-    // Barra superior de acento y logo -- mismo rojo de marca (#E34A26) que
-    // usa el resto de la app.
-    doc.setFillColor(...MTW_ROJO);
-    doc.rect(0, 0, pageWidth, 4, 'F');
-    try {
-      const logoDataUrl = await loadImageDataUrl('/mtw-logo.png');
-      doc.addImage(logoDataUrl, 'PNG', margen2, 18, 92, 42.1);
-    } catch {
-      // El logo es decorativo -- si falla la carga, el PDF sigue sin él.
-    }
-
-    doc.setTextColor(...MTW_NAVY);
-    doc.setFontSize(17);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Hoja de Fijación', pageWidth - margen2, 36, { align: 'right' });
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 116, 139);
     const encabezado = [
       proyecto.codigoInterno || `PRJ-${proyecto.numeroPresupuesto}`,
       activeVersion ? `HETMO v${activeVersion.versionNumero}` : '',
     ].filter(Boolean).join(' | ');
-    doc.text(encabezado, pageWidth - margen2, 50, { align: 'right' });
+    await drawPdfHeader(doc, 'Hoja de Fijación', encabezado, pageWidth);
 
     let y = 78;
     doc.setDrawColor(...MTW_BORDE);
@@ -236,7 +197,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
     y += 14;
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 116, 139);
+    doc.setTextColor(...MTW_GRIS);
     const clienteNombre = proyecto.cliente?.nombre || proyecto.clienteNombreRaw;
     if (clienteNombre) doc.text(clienteNombre, margen2, y);
     y += 22;
@@ -322,7 +283,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
     y2 = (doc as any).lastAutoTable.finalY + 8;
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 116, 139);
+    doc.setTextColor(...MTW_GRIS);
     doc.text(`Valor por m²: ${ufLabel(valorM2, tasaUf)}/m²`, pageWidth - margen2, y2, { align: 'right' });
     y2 += 18;
 
@@ -362,7 +323,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
     y2 += bannerHeight + 16;
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 116, 139);
+    doc.setTextColor(...MTW_GRIS);
     doc.text(`Valor UF utilizado en el cálculo: $ ${new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(tasaUf)} por UF`, margen2, y2);
 
     doc.save(`hoja-fijacion-${(proyecto.codigoInterno || proyecto.obra).replace(/\s+/g, '-')}.pdf`);

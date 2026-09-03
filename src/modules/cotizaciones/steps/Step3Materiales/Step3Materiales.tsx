@@ -24,6 +24,7 @@ import {
   montoConAjuste,
   type MaterialConsolidado,
 } from '../../lib/materialesConsolidados';
+import { MTW_NAVY, MTW_GRIS, MTW_BORDE, MTW_HEAD_BG, pdfTableStyle, drawPdfHeader } from '../../lib/pdfTheme';
 
 interface Step3MaterialesProps {
   proyecto: Proyecto;
@@ -277,25 +278,29 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   const costoTotalUF = tasaUf > 0 ? costoTotalCLP / tasaUf : 0;
   const cantidadExcluidos = materialesConsolidados.filter((m) => m.excluido).length;
 
-  const exportarPDF = () => {
+  const exportarPDF = async () => {
     const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
     const margen = 32;
-    let y = margen;
+    const pageBottom = 555;
 
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Analítica de Materiales — ${proyecto.obra}`, margen, y);
-    y += 18;
-
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
     const encabezado = [
       proyecto.codigoInterno || `PRJ-${proyecto.numeroPresupuesto}`,
-      activeVersion ? `Revisión ${activeVersion.versionNumero}` : '',
-      `Exportado ${new Date().toLocaleDateString('es-CL')}`,
-    ].filter(Boolean).join('  ·  ');
-    doc.text(encabezado, margen, y);
-    y += 16;
+      activeVersion ? `HETMO v${activeVersion.versionNumero}` : '',
+    ].filter(Boolean).join(' | ');
+    await drawPdfHeader(doc, 'Analítica de Materiales', encabezado, pageWidth);
+
+    let y = 78;
+    doc.setDrawColor(...MTW_BORDE);
+    doc.setLineWidth(0.75);
+    doc.line(margen, y, pageWidth - margen, y);
+    y += 20;
+
+    doc.setTextColor(...MTW_NAVY);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text(proyecto.obra, margen, y);
+    y += 22;
 
     gruposPorFamilia.forEach(([familia, materiales]) => {
       const aprobacion = aprobacionesPorFamilia.get(familia);
@@ -306,25 +311,36 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
         .filter((m) => !m.excluido)
         .reduce((acc, m) => acc + m.precioCLP * m.cantidadTotal, 0) * factorFamilia;
 
-      if (y > 520) {
+      if (y > pageBottom - 40) {
         doc.addPage();
         y = margen;
       }
 
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
+      // Banda de encabezado de familia -- nombre + cantidad de referencias a
+      // la izquierda, subtotal a la derecha, mismo estilo que las cabeceras
+      // de sección de la hoja de fijación anterior.
       const ajustes = [descuento > 0 ? `descuento ${descuento}%` : null, recargo > 0 ? `recargo ${recargo}%` : null]
         .filter(Boolean)
         .join(', ');
-      const tituloFamilia = ajustes ? `${familia}  (${ajustes})` : familia;
-      doc.text(tituloFamilia, margen, y);
-      y += 4;
+      doc.setFillColor(...MTW_HEAD_BG);
+      doc.rect(margen, y, pageWidth - margen * 2, 22, 'F');
+      doc.setTextColor(...MTW_NAVY);
+      doc.setFontSize(10.5);
+      doc.setFont('helvetica', 'bold');
+      doc.text(familia, margen + 8, y + 15);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...MTW_GRIS);
+      doc.text(`${materiales.length} referencias${ajustes ? `  ·  ${ajustes}` : ''}`, margen + 8 + doc.getTextWidth(familia) + 10, y + 15);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...MTW_NAVY);
+      doc.text(`Subtotal: $ ${formatNumber(totalFamilia, 0)}`, pageWidth - margen - 8, y + 15, { align: 'right' });
+      y += 22;
 
       autoTable(doc, {
+        ...pdfTableStyle,
         startY: y,
         margin: { left: margen, right: margen },
-        styles: { fontSize: 7.5, cellPadding: 3 },
-        headStyles: { fillColor: [30, 41, 59] },
         head: [['SKU', 'Descripción', 'Proveedor', 'Precio Unit. Origen', 'Precio Unit. CLP', 'Cantidad', 'Unidad', 'Total CLP', 'Estado']],
         body: materiales.map((m) => [
           m.skuInterno,
@@ -345,20 +361,23 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
         },
       });
 
-      y = (doc as any).lastAutoTable.finalY + 6;
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`Subtotal ${familia}: $ ${formatNumber(totalFamilia, 0)}`, margen, y);
-      y += 18;
+      y = (doc as any).lastAutoTable.finalY + 22;
     });
 
-    if (y > 520) {
+    if (y > pageBottom - 60) {
       doc.addPage();
       y = margen;
     }
-    doc.setFontSize(12);
+    doc.setFillColor(...MTW_NAVY);
+    doc.roundedRect(margen, y, pageWidth - margen * 2, 44, 6, 6, 'F');
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(148, 163, 184);
+    doc.text('TOTAL MATERIALES', margen + 14, y + 18);
+    doc.setFontSize(15);
     doc.setFont('helvetica', 'bold');
-    doc.text(`TOTAL MATERIALES: $ ${formatNumber(costoTotalCLP, 0)}  (${formatUF(costoTotalUF)} UF)`, margen, y);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`$ ${formatNumber(costoTotalCLP, 0)}  ·  ${formatUF(costoTotalUF)} UF`, margen + 14, y + 34);
 
     doc.save(`analitica-materiales-${(proyecto.codigoInterno || proyecto.obra).replace(/\s+/g, '-')}.pdf`);
   };
