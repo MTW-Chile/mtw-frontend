@@ -491,14 +491,35 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
       // que genera el PDF (Chromium en el relay) mide un pixel distinto al
       // de este navegador: en vez de partir una tarjeta a la mitad, empuja
       // toda la tarjeta a la página siguiente.
+      // Medir dentro del propio DOM de la app (un <div> más colgado del
+      // body) contamina la medida: el preflight de Tailwind fija
+      // line-height:1.5 en <html>, y ese valor se hereda hacia el
+      // contenedor -- pero el documento final que arma Chromium (sin
+      // Tailwind, solo el reset propio de documentoHtml) usa el line-height
+      // por defecto del navegador (~1.2), bastante más bajo. Medir con
+      // line-height de más hace que el paginado piense que cada tarjeta es
+      // más alta de lo que en realidad va a salir, y reserva menos tarjetas
+      // por página de las que sí caben (confirmado comparando ambos
+      // documentos: página 1 con 1 sola ventana en vez de 2-3). Un <iframe>
+      // con su propio documento, con el mismo reset que documentoHtml, mide
+      // en las condiciones reales -- no las de la app.
       const ANCHO_CONTENIDO_PT = 732; // carta (816px a 96dpi) menos 42px de margen a cada lado
-      const medidor = document.createElement('div');
-      medidor.style.position = 'absolute';
-      medidor.style.left = '-99999px';
-      medidor.style.top = '0';
-      medidor.style.width = `${ANCHO_CONTENIDO_PT}px`;
-      medidor.style.fontFamily = 'Helvetica, Arial, sans-serif';
-      document.body.appendChild(medidor);
+      const iframeMedidor = document.createElement('iframe');
+      iframeMedidor.style.position = 'absolute';
+      iframeMedidor.style.left = '-99999px';
+      iframeMedidor.style.top = '0';
+      iframeMedidor.style.width = `${ANCHO_CONTENIDO_PT}px`;
+      iframeMedidor.style.border = '0';
+      document.body.appendChild(iframeMedidor);
+      const docMedidor = iframeMedidor.contentDocument!;
+      docMedidor.open();
+      docMedidor.write(
+        '<!DOCTYPE html><html><head><meta charset="utf-8" /><style>' +
+          '* { box-sizing: border-box; } body { margin: 0; font-family: Helvetica, Arial, sans-serif; }' +
+          '</style></head><body><div id="medidor"></div></body></html>'
+      );
+      docMedidor.close();
+      const medidor = docMedidor.getElementById('medidor')!;
 
       // getBoundingClientRect() justo después de innerHTML mide el layout
       // ANTES de que la imagen (el dibujo, un PNG en base64) termine de
@@ -523,7 +544,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
       const alturaHeaderCompleto = await medirAltura(headerCompletoHtml);
       const alturaHeaderCompacto = await medirAltura(headerCompactoHtml);
       const alturaResumen = await medirAltura(resumenHtml);
-      document.body.removeChild(medidor);
+      document.body.removeChild(iframeMedidor);
 
       const ALTURA_PAGINA_PT = 792; // carta
       const ALTURA_PIE_PT = 12; // padding inferior de cada página de ventanas
