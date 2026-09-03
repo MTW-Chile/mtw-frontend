@@ -85,6 +85,65 @@ const svgToPngDataUrl = (svgRaw: string, width: number, height: number): Promise
     img.src = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
   });
 
+// buildWindow() dibuja siempre dentro de un lienzo fijo (240×178) pensado
+// para el visor en pantalla, donde ese espacio de sobra alrededor del dibujo
+// no se nota -- pero en la tarjeta del PDF, angosta y con la ventana ya
+// agrandada, ese margen fijo (hasta 30-40% del lienzo en ventanas muy
+// horizontales o verticales, confirmado renderizando el SVG real de
+// ventanas de Casa La Aurora) se veía como un vacío en blanco debajo del
+// dibujo, no como "la ventana ocupando la tarjeta". Se recorta el viewBox
+// al bounding box real de lo dibujado (marco, hojas, cotas) antes de
+// rasterizar -- solo para esta exportación, no toca el visor en pantalla.
+const cropSvgToContent = (svg: string): { svg: string; aspect: number } => {
+  const points: [number, number][] = [];
+  const push = (x: unknown, y: unknown) => {
+    const nx = Number(x), ny = Number(y);
+    if (Number.isFinite(nx) && Number.isFinite(ny)) points.push([nx, ny]);
+  };
+  const attr = (tagAttrs: string, name: string): number | undefined => {
+    const m = new RegExp(`\\s${name}="(-?[\\d.]+)"`).exec(tagAttrs);
+    return m ? parseFloat(m[1]) : undefined;
+  };
+
+  for (const m of svg.matchAll(/<rect\b([^>]*)\/?>/g)) {
+    const x = attr(m[1], 'x'), y = attr(m[1], 'y'), w = attr(m[1], 'width'), h = attr(m[1], 'height');
+    if (x !== undefined && y !== undefined && w !== undefined && h !== undefined) {
+      push(x, y);
+      push(x + w, y + h);
+    }
+  }
+  for (const m of svg.matchAll(/<text\b([^>]*)>/g)) {
+    push(attr(m[1], 'x'), attr(m[1], 'y'));
+  }
+  for (const m of svg.matchAll(/<line\b([^>]*)\/?>/g)) {
+    push(attr(m[1], 'x1'), attr(m[1], 'y1'));
+    push(attr(m[1], 'x2'), attr(m[1], 'y2'));
+  }
+  for (const m of svg.matchAll(/<path\b[^>]*\sd="([^"]+)"/g)) {
+    const tokens = m[1].match(/[MLmlHhVv]|-?[\d.]+/g) || [];
+    let cmd: string | null = null, cx = 0, cy = 0, i = 0;
+    while (i < tokens.length) {
+      const t = tokens[i];
+      if (/^[A-Za-z]$/.test(t)) { cmd = t; i++; continue; }
+      if (cmd === 'M' || cmd === 'L') { cx = parseFloat(tokens[i]); cy = parseFloat(tokens[i + 1]); push(cx, cy); i += 2; }
+      else if (cmd === 'H') { cx = parseFloat(tokens[i]); push(cx, cy); i += 1; }
+      else if (cmd === 'V') { cy = parseFloat(tokens[i]); push(cx, cy); i += 1; }
+      else { i++; }
+    }
+  }
+
+  if (!points.length) return { svg, aspect: 240 / 178 };
+  const xs = points.map((p) => p[0]), ys = points.map((p) => p[1]);
+  const PAD = 6;
+  const minX = Math.min(...xs) - PAD, minY = Math.min(...ys) - PAD;
+  const w = Math.max(...xs) - Math.min(...xs) + PAD * 2;
+  const h = Math.max(...ys) - Math.min(...ys) + PAD * 2;
+  return {
+    svg: svg.replace(/viewBox="[^"]*"/, `viewBox="${minX} ${minY} ${w} ${h}"`),
+    aspect: w / h,
+  };
+};
+
 const NombreEditable: React.FC<{ ventana: Ventana; onGuardado: (v: Partial<Ventana>) => void; congelado: boolean }> = ({
   ventana,
   onGuardado,
@@ -290,7 +349,9 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
           if (!line) { pngPorVentana.set(v.id, null); return; }
           try {
             const svg = buildWindow(line, 'offer').svg;
-            pngPorVentana.set(v.id, await svgToPngDataUrl(svg, 720, 534));
+            const { svg: svgRecortado, aspect } = cropSvgToContent(svg);
+            const alturaRaster = 480;
+            pngPorVentana.set(v.id, await svgToPngDataUrl(svgRecortado, Math.round(alturaRaster * aspect), alturaRaster));
           } catch {
             pngPorVentana.set(v.id, null);
           }
@@ -359,7 +420,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
           <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
             <tr>
               <td style="width:56%;padding:8px 10px 8px 12px;vertical-align:top;">
-                ${png ? `<img src="${png}" style="width:100%;max-width:230px;height:auto;display:block;" />` : ''}
+                ${png ? `<img src="${png}" style="max-width:230px;max-height:165px;width:auto;height:auto;display:block;" />` : ''}
               </td>
               <td style="width:44%;vertical-align:top;padding:8px 12px 8px 0;">
                 <table style="width:100%;border-collapse:collapse;border:1px solid ${HEX.borde};">
