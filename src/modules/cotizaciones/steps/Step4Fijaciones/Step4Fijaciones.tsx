@@ -44,6 +44,22 @@ const pctLabel = (monto: number, venta: number) =>
 
 const numeroInput = (value: unknown) => Math.max(0, Number(value) || 0);
 
+const MTW_ROJO: [number, number, number] = [227, 74, 38];
+const MTW_NAVY: [number, number, number] = [15, 23, 42];
+const MTW_HEAD_BG: [number, number, number] = [241, 245, 249];
+const MTW_BORDE: [number, number, number] = [226, 232, 240];
+
+const loadImageDataUrl = async (url: string): Promise<string> => {
+  const response = await fetch(url);
+  const blob = await response.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+};
+
 export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, activeVersion, dolar, uf, euro }) => {
   const queryClient = useQueryClient();
   const monedas = useMonedas();
@@ -157,9 +173,12 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
   const costoFlete = numeroInput(draft.cantidadViajes) * numeroInput(draft.valorViaje);
   const costoInstalacion = numeroInput(draft.valorInstalacionM2) * m2Ventanas;
   const costoTotal = materialesTotal + costosComplementarios + costoFlete + costoInstalacion;
-  const valorM2 = m2Ventanas > 0 ? costoTotal / m2Ventanas : 0;
   const margen = Math.min(99, Math.max(0, numeroInput(draft.margenVentaPct)));
   const venta = margen < 100 ? costoTotal / (1 - margen / 100) : costoTotal;
+  // Valor por m2 es el Valor de Venta (con margen), no el costo -- confirmado
+  // contra la hoja de fijacion anterior de Casa La Aurora (166.617 = venta /
+  // m2Ventanas, no costoTotal / m2Ventanas).
+  const valorM2 = m2Ventanas > 0 ? venta / m2Ventanas : 0;
 
   const actualizarExtra = (index: number, patch: Partial<FijacionExtra>) => {
     setExtras((prev) => prev.map((e, i) => (i === index ? { ...e, ...patch } : e)));
@@ -167,34 +186,69 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
   const agregarExtra = () => setExtras((prev) => [...prev, { glosa: '', monto: 0 }]);
   const eliminarExtra = (index: number) => setExtras((prev) => prev.filter((_, i) => i !== index));
 
-  const exportarPDF = () => {
+  const exportarPDF = async () => {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
     const margen2 = 36;
-    let y = margen2;
+    const contentWidth = pageWidth - margen2 * 2;
+    const tableStyle = {
+      theme: 'grid' as const,
+      styles: { fontSize: 8.5, cellPadding: 5, textColor: MTW_NAVY, lineColor: MTW_BORDE, lineWidth: 0.5 },
+      headStyles: { fillColor: MTW_HEAD_BG, textColor: MTW_NAVY, fontStyle: 'bold' as const, fontSize: 8.5 },
+      alternateRowStyles: { fillColor: [248, 250, 252] as [number, number, number] },
+      columnStyles: { 1: { halign: 'right' as const, fontStyle: 'bold' as const } },
+    };
 
-    doc.setFontSize(16);
+    // Barra superior de acento y logo -- mismo rojo de marca (#E34A26) que
+    // usa el resto de la app.
+    doc.setFillColor(...MTW_ROJO);
+    doc.rect(0, 0, pageWidth, 4, 'F');
+    try {
+      const logoDataUrl = await loadImageDataUrl('/mtw-logo.png');
+      doc.addImage(logoDataUrl, 'PNG', margen2, 18, 92, 42.1);
+    } catch {
+      // El logo es decorativo -- si falla la carga, el PDF sigue sin él.
+    }
+
+    doc.setTextColor(...MTW_NAVY);
+    doc.setFontSize(17);
     doc.setFont('helvetica', 'bold');
-    doc.text('Hoja de Fijación', margen2, y);
-    y += 20;
-
+    doc.text('Hoja de Fijación', pageWidth - margen2, 36, { align: 'right' });
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
     const encabezado = [
       proyecto.codigoInterno || `PRJ-${proyecto.numeroPresupuesto}`,
-      activeVersion ? `Revisión ${activeVersion.versionNumero}` : '',
-      `Exportado ${new Date().toLocaleDateString('es-CL')}`,
-    ].filter(Boolean).join('  ·  ');
-    doc.text(encabezado, margen2, y);
-    y += 14;
+      activeVersion ? `HETMO v${activeVersion.versionNumero}` : '',
+    ].filter(Boolean).join(' | ');
+    doc.text(encabezado, pageWidth - margen2, 50, { align: 'right' });
+
+    let y = 78;
+    doc.setDrawColor(...MTW_BORDE);
+    doc.setLineWidth(0.75);
+    doc.line(margen2, y, pageWidth - margen2, y);
+    y += 20;
+
+    doc.setTextColor(...MTW_NAVY);
+    doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text(proyecto.obra, margen2, y);
-    y += 18;
+    y += 14;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    const clienteNombre = proyecto.cliente?.nombre || proyecto.clienteNombreRaw;
+    if (clienteNombre) doc.text(clienteNombre, margen2, y);
+    y += 22;
 
+    // Columna izquierda: Materiales y métricas.
+    const colGap = 16;
+    const colWidth = (contentWidth - colGap) / 2;
+    const rightX = margen2 + colWidth + colGap;
     autoTable(doc, {
+      ...tableStyle,
       startY: y,
-      margin: { left: margen2, right: margen2 },
-      styles: { fontSize: 8.5, cellPadding: 4 },
-      headStyles: { fillColor: [30, 41, 59] },
+      margin: { left: margen2, right: pageWidth - margen2 - colWidth },
       head: [['Materiales y métricas', '']],
       body: [
         ...totalesPorCategoria.map((c) => [`${c.etiqueta} (${pctLabel(c.monto, venta)})`, clpLabel(c.monto)]),
@@ -204,48 +258,54 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
         ['Cantidad de vidrios', String(cantidadVidrios)],
         ['m² de vidrios', `${formatNumber(m2Vidrios, 2)} m²`],
       ],
-      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
     });
+    const leftBottom = (doc as any).lastAutoTable.finalY;
 
-    let y2 = (doc as any).lastAutoTable.finalY + 16;
+    // Columna derecha: Costos complementarios, Flete e Instalación apiladas.
     autoTable(doc, {
-      startY: y2,
-      margin: { left: margen2, right: margen2 },
-      styles: { fontSize: 8.5, cellPadding: 4 },
-      headStyles: { fillColor: [30, 41, 59] },
+      ...tableStyle,
+      startY: y,
+      margin: { left: rightX, right: margen2 },
       head: [['Costos complementarios', '']],
       body: [
-        [`Mano de obra fabricación · $${formatNumber(draft.manoObraFabricacion, 0)}/m² vent. (${pctLabel(costoManoObra, venta)})`, clpLabel(costoManoObra)],
-        [`Film protector cristales · $${formatNumber(draft.filmProtectorCristales, 0)}/m² vidrio (${pctLabel(costoFilm, venta)})`, clpLabel(costoFilm)],
-        [`Material de instalación · $${formatNumber(draft.materialInstalacion, 0)}/m² vent. (${pctLabel(costoMaterialInstalacion, venta)})`, clpLabel(costoMaterialInstalacion)],
+        [`Mano de obra fabricación · $${formatNumber(draft.manoObraFabricacion, 0)}/m² vent.`, clpLabel(costoManoObra)],
+        [`Film protector cristales · $${formatNumber(draft.filmProtectorCristales, 0)}/m² vidrio`, clpLabel(costoFilm)],
+        [`Material de instalación · $${formatNumber(draft.materialInstalacion, 0)}/m² vent.`, clpLabel(costoMaterialInstalacion)],
         ...extras.map((e) => [e.glosa, clpLabel(e.monto)]),
         ['Costo', clpLabel(costosComplementarios)],
       ],
-      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
     });
-
-    y2 = (doc as any).lastAutoTable.finalY + 16;
+    let yRight = (doc as any).lastAutoTable.finalY + 12;
     autoTable(doc, {
-      startY: y2,
-      margin: { left: margen2, right: margen2 },
-      styles: { fontSize: 8.5, cellPadding: 4 },
-      headStyles: { fillColor: [30, 41, 59] },
+      ...tableStyle,
+      startY: yRight,
+      margin: { left: rightX, right: margen2 },
+      head: [['Flete', '']],
       body: [
         ['Cantidad de viajes', String(draft.cantidadViajes)],
         ['Valor viaje', clpLabel(draft.valorViaje)],
         ['Costo flete', clpLabel(costoFlete)],
-        ['Valor instalación por m²', clpLabel(draft.valorInstalacionM2)],
+      ],
+    });
+    yRight = (doc as any).lastAutoTable.finalY + 12;
+    autoTable(doc, {
+      ...tableStyle,
+      startY: yRight,
+      margin: { left: rightX, right: margen2 },
+      head: [['Instalación', '']],
+      body: [
+        ['Valor por m²', clpLabel(draft.valorInstalacionM2)],
         ['Costo instalación', clpLabel(costoInstalacion)],
       ],
-      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
     });
+    const rightBottom = (doc as any).lastAutoTable.finalY;
 
-    y2 = (doc as any).lastAutoTable.finalY + 16;
+    let y2 = Math.max(leftBottom, rightBottom) + 16;
     autoTable(doc, {
+      ...tableStyle,
       startY: y2,
       margin: { left: margen2, right: margen2 },
-      styles: { fontSize: 9, cellPadding: 5 },
-      headStyles: { fillColor: [30, 41, 59] },
+      styles: { ...tableStyle.styles, fontSize: 9, cellPadding: 6 },
       head: [['Resumen de costos', '']],
       body: [
         [`Materiales (${pctLabel(materialesTotal, venta)})`, clpLabel(materialesTotal)],
@@ -254,31 +314,55 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
         [`Instalación (${pctLabel(costoInstalacion, venta)})`, clpLabel(costoInstalacion)],
         ['Costo total NETO', clpLabel(costoTotal)],
       ],
-      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
       didParseCell: (data) => {
         if (data.row.index === 4) data.cell.styles.fontStyle = 'bold';
       },
     });
 
-    y2 = (doc as any).lastAutoTable.finalY + 16;
+    y2 = (doc as any).lastAutoTable.finalY + 8;
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Valor por m²: ${ufLabel(valorM2, tasaUf)} | ${clpLabel(valorM2)}`, margen2, y2);
-    y2 += 20;
-
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Costo total del proyecto · NETO (sin margen)', margen2, y2);
-    doc.text(`${ufLabel(costoTotal, tasaUf)} | ${clpLabel(costoTotal)}`, margen2, y2 + 14);
-    y2 += 34;
-    doc.text(`Margen de venta: ${formatNumber(margen, 1)}%`, margen2, y2);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Valor por m²: ${ufLabel(valorM2, tasaUf)}/m²`, pageWidth - margen2, y2, { align: 'right' });
     y2 += 18;
-    doc.text('Valor de venta · NETO', margen2, y2);
-    doc.text(`${ufLabel(venta, tasaUf)} | ${clpLabel(venta)}`, margen2, y2 + 14);
-    y2 += 30;
 
+    // Banner oscuro final: costo neto, margen y valor de venta en 3 columnas
+    // -- mismo patron visual que la hoja de fijacion anterior.
+    const bannerHeight = 74;
+    doc.setFillColor(...MTW_NAVY);
+    doc.roundedRect(margen2, y2, contentWidth, bannerHeight, 6, 6, 'F');
+    const bannerColWidth = contentWidth / 3;
+    const bannerLabel = (text: string, colIndex: number, yPos: number) => {
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(148, 163, 184);
+      doc.text(text, margen2 + bannerColWidth * colIndex + 14, yPos, { maxWidth: bannerColWidth - 20 });
+    };
+    const bannerValue = (text: string, colIndex: number, yPos: number, size = 12) => {
+      doc.setFontSize(size);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text(text, margen2 + bannerColWidth * colIndex + 14, yPos);
+    };
+    bannerLabel('Costo total del proyecto · NETO', 0, y2 + 20);
+    bannerLabel('sin margen de venta', 0, y2 + 30);
+    bannerValue(ufLabel(costoTotal, tasaUf), 0, y2 + 50, 13);
+    bannerValue(clpLabel(costoTotal), 0, y2 + 63, 9.5);
+
+    bannerLabel('Margen de venta', 1, y2 + 20);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text(`${formatNumber(margen, 0)}%`, margen2 + bannerColWidth * 1 + 14, y2 + 52);
+
+    bannerLabel('Valor de venta · NETO', 2, y2 + 20);
+    bannerValue(ufLabel(venta, tasaUf), 2, y2 + 50, 13);
+    bannerValue(clpLabel(venta), 2, y2 + 63, 9.5);
+
+    y2 += bannerHeight + 16;
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
     doc.text(`Valor UF utilizado en el cálculo: $ ${new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(tasaUf)} por UF`, margen2, y2);
 
     doc.save(`hoja-fijacion-${(proyecto.codigoInterno || proyecto.obra).replace(/\s+/g, '-')}.pdf`);
@@ -532,7 +616,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
           <span className="font-mono">{clpLabel(costoTotal)}</span>
         </div>
         <div className="text-[11px] text-slate-500 text-right">
-          Valor por m²: {ufLabel(valorM2, tasaUf)} | {clpLabel(valorM2)}
+          Valor por m²: {ufLabel(valorM2, tasaUf)}/m²
         </div>
       </div>
 
