@@ -207,11 +207,11 @@ export function buildCardHtml(v: Ventana, deps: CardDeps): string {
           ${png ? `<img src="${png}" style="max-width:230px;max-height:165px;width:auto;height:auto;display:block;" />` : ''}
         </td>
         <td style="width:44%;vertical-align:top;padding:8px 12px 8px 0;">
-          <table style="width:100%;border-collapse:collapse;border:1px solid ${HEX.borde};">
-            <tr><td colspan="2" style="background:${HEX.headBg};font-weight:bold;padding:6px 10px;font-size:9px;color:${HEX.navy};">Valores comerciales</td></tr>
-            <tr><td style="padding:6px 10px;font-size:9px;color:${HEX.gris};">Precio unitario neto</td><td style="padding:6px 10px;font-size:9px;text-align:right;font-weight:bold;color:${HEX.navy};">${escapeHtml(ufLabel(precio?.precioUnitarioCLP || 0, tasaUf))}</td></tr>
-            <tr><td style="padding:6px 10px;font-size:9px;color:${HEX.gris};">Cantidad</td><td style="padding:6px 10px;font-size:9px;text-align:right;font-weight:bold;color:${HEX.navy};">${v.unidades} unidad(es)</td></tr>
-            <tr><td style="padding:6px 10px;font-size:9px;color:${HEX.gris};font-weight:bold;border-top:1px solid ${HEX.borde};">Total neto</td><td style="padding:6px 10px;font-size:9px;text-align:right;font-weight:bold;color:${HEX.navy};border-top:1px solid ${HEX.borde};">${escapeHtml(ufLabel(precio?.precioVentaCLP || 0, tasaUf))}</td></tr>
+          <table style="width:100%;border-collapse:collapse;">
+            <tr><td colspan="2" style="background:${HEX.headBg};font-weight:bold;padding:8px 10px;font-size:9px;color:${HEX.navy};">Valores comerciales</td></tr>
+            <tr><td style="padding:8px 10px;font-size:9px;color:${HEX.gris};border-bottom:1px solid ${HEX.borde};">Precio unitario neto</td><td style="padding:8px 10px;font-size:9px;text-align:right;color:${HEX.navy};border-bottom:1px solid ${HEX.borde};">${escapeHtml(ufLabel(precio?.precioUnitarioCLP || 0, tasaUf))}</td></tr>
+            <tr><td style="padding:8px 10px;font-size:9px;color:${HEX.gris};border-bottom:1px solid ${HEX.borde};">Cantidad</td><td style="padding:8px 10px;font-size:9px;text-align:right;color:${HEX.navy};border-bottom:1px solid ${HEX.borde};">${v.unidades} unidad(es)</td></tr>
+            <tr><td style="padding:8px 10px;font-size:9px;color:${HEX.navy};font-weight:bold;border-bottom:1px solid ${HEX.borde};">Total neto</td><td style="padding:8px 10px;font-size:9px;text-align:right;font-weight:bold;color:${HEX.navy};border-bottom:1px solid ${HEX.borde};">${escapeHtml(ufLabel(precio?.precioVentaCLP || 0, tasaUf))}</td></tr>
           </table>
         </td>
       </tr>
