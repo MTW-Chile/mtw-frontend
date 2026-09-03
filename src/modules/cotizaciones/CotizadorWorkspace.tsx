@@ -155,6 +155,9 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
           <Step5Consolidacion
             proyecto={proyecto}
             activeVersion={activeVersion}
+            dolar={dolar}
+            uf={uf}
+            euro={euro}
             onCambiarEstadoAprobacion={(estado) => estadoAprobacionMutation.mutate(estado)}
             isCambiandoEstadoAprobacion={estadoAprobacionMutation.isPending}
             onCrearVersionInterna={handleCrearVersionInterna}

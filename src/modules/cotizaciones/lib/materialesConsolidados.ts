@@ -207,6 +207,51 @@ export function montoConAjuste(
 }
 
 /**
+ * Costo total NETO y valor de venta de la version, leidos de la config YA
+ * GUARDADA (activeVersion.fijacionConfig) -- misma formula que
+ * Step4Fijaciones.tsx, pero contra el estado persistido, no un draft en
+ * edicion. Usado por el Presupuesto (Paso 5) para prorratear precios: no
+ * debe reflejar una edicion sin guardar de otra pestaña.
+ */
+export function computeCostoTotalYVenta(
+  activeVersion: ProyectoVersion | undefined,
+  materialesConsolidados: MaterialConsolidado[],
+  aprobacionesPorFamilia: Map<string, { descuentoPct: number | null; recargoPct: number | null } | undefined>
+): { costoTotal: number; venta: number; margen: number } {
+  const config = activeVersion?.fijacionConfig;
+  const m2Ventanas = Number(activeVersion?.totalM2Ventanas) || 0;
+  const m2Vidrios = materialesConsolidados
+    .filter((m) => !m.excluido && m.familia === 'VIDRIOS')
+    .reduce((acc, m) => acc + m.cantidadTotal, 0);
+
+  const materialesTotal = materialesConsolidados
+    .filter((m) => !m.excluido)
+    .reduce((acc, m) => acc + montoConAjuste(m, aprobacionesPorFamilia), 0);
+
+  const numero = (value: unknown, fallback: number) => (value === undefined || value === null ? fallback : Number(value) || 0);
+  const manoObraFabricacion = numero(config?.manoObraFabricacion, 8000);
+  const filmProtectorCristales = numero(config?.filmProtectorCristales, 1000);
+  const materialInstalacion = numero(config?.materialInstalacion, 3100);
+  const cantidadViajes = numero(config?.cantidadViajes, 0);
+  const valorViaje = numero(config?.valorViaje, 80000);
+  const valorInstalacionM2 = numero(config?.valorInstalacionM2, 1700);
+  const margenVentaPct = numero(config?.margenVentaPct, 0);
+  const extrasTotal = Array.isArray(config?.extras)
+    ? config!.extras.reduce((acc, e) => acc + (Number(e.monto) || 0), 0)
+    : 0;
+
+  const costosComplementarios =
+    manoObraFabricacion * m2Ventanas + filmProtectorCristales * m2Vidrios + materialInstalacion * m2Ventanas + extrasTotal;
+  const costoFlete = cantidadViajes * valorViaje;
+  const costoInstalacion = valorInstalacionM2 * m2Ventanas;
+  const costoTotal = materialesTotal + costosComplementarios + costoFlete + costoInstalacion;
+  const margen = Math.min(99, Math.max(0, margenVentaPct));
+  const venta = margen < 100 ? costoTotal / (1 - margen / 100) : costoTotal;
+
+  return { costoTotal, venta, margen };
+}
+
+/**
  * Cantidad total de paños de vidrio (conteo de piezas, NO m²) de toda la
  * version. A diferencia de cantidadTotal en MaterialConsolidado -- que para
  * Vidrios usa mv.longitudMm (m² reales) -- este cuenta mv.cantidad, el

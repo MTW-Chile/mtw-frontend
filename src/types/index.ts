@@ -141,6 +141,13 @@ export interface FijacionExtra {
   monto: number;
 }
 
+export interface PresupuestoConfig {
+  id: string;
+  versionId: string;
+  textoPresentacion: string | null;
+  condicionesComerciales: string | null;
+}
+
 export interface FijacionConfig {
   id: string;
   versionId: string;
@@ -239,6 +246,7 @@ export interface ProyectoVersion {
   familiaAprobaciones?: FamiliaMaterialAprobacion[];
   materialesResumen?: MaterialVersionResumen[];
   fijacionConfig?: FijacionConfig | null;
+  presupuestoConfig?: PresupuestoConfig | null;
 }
 
 export interface Proyecto {

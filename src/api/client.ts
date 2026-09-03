@@ -9,6 +9,7 @@ import type {
   ProyectoMaterialAjuste,
   FamiliaMaterialAprobacion,
   FijacionConfig,
+  PresupuestoConfig,
   SyncLog,
   Cliente,
   Material,
@@ -228,6 +229,28 @@ export async function updateFijacionConfig(
 ): Promise<{ success: boolean; fijacionConfig: FijacionConfig }> {
   const response = await apiClient.patch<{ success: boolean; fijacionConfig: FijacionConfig }>(
     `/versiones/${versionId}/fijacion-config`,
+    payload
+  );
+  return response.data;
+}
+
+export async function updatePresupuestoConfig(
+  versionId: string,
+  payload: Partial<Pick<PresupuestoConfig, 'textoPresentacion' | 'condicionesComerciales'>>
+): Promise<{ success: boolean; presupuestoConfig: PresupuestoConfig }> {
+  const response = await apiClient.patch<{ success: boolean; presupuestoConfig: PresupuestoConfig }>(
+    `/versiones/${versionId}/presupuesto-config`,
+    payload
+  );
+  return response.data;
+}
+
+export async function updateVentanaPresupuesto(
+  ventanaId: string,
+  payload: Partial<Pick<Ventana, 'descripcionCorta' | 'comentarioPresupuesto'>>
+): Promise<{ success: boolean; ventana: Ventana }> {
+  const response = await apiClient.patch<{ success: boolean; ventana: Ventana }>(
+    `/ventanas/${ventanaId}/presupuesto`,
     payload
   );
   return response.data;
