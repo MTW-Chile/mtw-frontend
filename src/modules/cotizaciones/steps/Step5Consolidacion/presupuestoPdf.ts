@@ -198,7 +198,7 @@ export function buildCardHtml(v: Ventana, deps: CardDeps): string {
   const png = pngPorVentana.get(v.id);
 
   return `
-  <div style="border:1px solid ${HEX.borde};margin-bottom:7px;page-break-inside:avoid;">
+  <div style="border:1px solid ${HEX.borde};margin-bottom:10px;page-break-inside:avoid;">
     <div style="background:${HEX.headBg};padding:6px 12px;font-size:12px;font-weight:bold;color:${HEX.navy};">${escapeHtml(v.modelo)} -</div>
     <table style="width:100%;border-collapse:collapse;">${metaRowsHtml}</table>
     <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
@@ -294,7 +294,7 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
   // livianas del mismo tamaño, una línea divisoria fina, y "TOTAL CON IVA"
   // como fila final en mayúsculas y bold, con el valor más grande.
   const resumenHtml = `
-    <div style="background:${HEX.navy};border-radius:6px;padding:14px 18px;color:#ffffff;margin-top:0;">
+    <div style="background:${HEX.navy};border-radius:6px;padding:14px 18px;color:#ffffff;margin-top:10px;">
       <table style="width:100%;border-collapse:collapse;">
         <tr>
           <td style="padding:5px 0;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:.02em;">Subtotal neto</td>
