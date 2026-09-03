@@ -38,8 +38,17 @@ const DEFAULT_TEXTO = 'De acuerdo a sus requerimientos y solicitud de cotizació
 const ufLabel = (valorCLP: number, tasaUf: number) =>
   tasaUf > 0 ? `${new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(valorCLP / tasaUf)} UF` : '—';
 
-const svgToPngDataUrl = (svg: string, width: number, height: number): Promise<string> =>
+// buildWindow() no declara el namespace SVG -- no hace falta para insertarlo
+// en el DOM (WindowRendererSvg lo hace vía innerHTML, donde el parser HTML5
+// ya asume xmlns en un <svg> inline), pero un <img src="data:image/svg+xml">
+// SÍ exige un documento standalone valido: sin xmlns el navegador descarta
+// la imagen en silencio (onerror), dejando la tarjeta del PDF sin dibujo.
+const ensureSvgNamespace = (svg: string) =>
+  svg.includes('xmlns=') ? svg : svg.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ');
+
+const svgToPngDataUrl = (svgRaw: string, width: number, height: number): Promise<string> =>
   new Promise((resolve, reject) => {
+    const svg = ensureSvgNamespace(svgRaw);
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
