@@ -879,6 +879,49 @@
     return base;
   }
 
+  // Cantidad de "cuadros" (marcos de PVC soldados) de una línea, para la
+  // Hoja de Fijación -- confirmado contra Casa La Aurora (Alfredo Mella,
+  // 03-09-2026): un cuadro es un marco de 4 piezas soldadas; una hoja móvil
+  // agrega otro cuadro propio (soldado aparte); una línea sin marco real
+  // (isFrameless -- SOLO DVH sobre estructura secundaria de aluminio, ver
+  // Casa La Aurora V04) no aporta ningún cuadro, sea cual sea su geometría.
+  //
+  // Una línea compuesta (compositePanels) es literalmente varias ventanas
+  // pegadas: cada paño trae su propio marco -- incluido un paño fijo, que
+  // aporta 1 cuadro aunque no tenga hoja -- más una hoja por cada apertura
+  // propia de ese paño. Si el paño es corredero, aperturaCount (una fila por
+  // apertura declarada) no basta para saber cuántas hojas trae: hay que
+  // expandir su código contra sliderLayouts igual que hace leavesFor() a
+  // nivel de línea completa, porque HETMO puede declarar una corredera de
+  // varias hojas en una sola fila. Sin datos suficientes para esa expansión,
+  // se cae de vuelta a aperturaCount como mejor esfuerzo.
+  export function cuadrosFor(line) {
+    if (isFrameless(line)) return 0;
+
+    const composite = compositePanels(line);
+    if (composite) {
+      return composite.panels.reduce((total, panel) => {
+        if (panel.aperturaCount <= 0) return total + 1;
+        const definition = apertureDefinition(line, panel.apertura);
+        if (definition.symbol === 'sliding') {
+          const pieces = slidingPieces({
+            apertura: panel.apertura,
+            raw: panel.raw,
+            width: panel.width,
+            movilLado: panel.movilLado,
+            movilAncho: panel.movilAncho,
+            materiales: line && line.materiales,
+            unidades: number(line && line.uds)
+          });
+          if (pieces) return total + 1 + pieces.length;
+        }
+        return total + 1 + panel.aperturaCount;
+      }, 0);
+    }
+
+    return 1 + leavesFor(line).length;
+  }
+
   export function apertureLabel(line) {
     const displayLabel = definition => {
       const label = String(definition && definition.label || '');

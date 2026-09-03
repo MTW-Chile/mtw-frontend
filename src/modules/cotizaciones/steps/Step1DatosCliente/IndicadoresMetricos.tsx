@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
 import type { ProyectoVersion, Ventana } from '../../../../types';
+import { toWindowLine } from '../../components/drawing/ventanaAdapter';
+import { cuadrosFor } from '../../components/drawing/geometryCore';
 
 interface IndicadoresMetricosProps {
   activeVersion?: ProyectoVersion;
@@ -31,12 +33,10 @@ export const IndicadoresMetricos: React.FC<IndicadoresMetricosProps> = ({ active
   // Estimación de m2 de vidrios (aprox. 82% de superficie o paños)
   const totalM2Vidrios = totalM2Ventanas * 0.82;
   
-  // Total de cuadros / paños / hojas
+  // Total de cuadros (marcos de PVC soldados, ver cuadrosFor en geometryCore.ts)
   const totalCuadrosHojas = ventanas.reduce((acc, v) => {
-    const geoPanels = (v.geometrias || []).filter(g => Number(g.tipoElemento) === 10000);
-    const count = geoPanels.length > 0 
-      ? geoPanels.length 
-      : (v.numeroCuadrosHojas && v.numeroCuadrosHojas > 0 ? v.numeroCuadrosHojas : 1);
+    const line = toWindowLine(v);
+    const count = line ? cuadrosFor(line) : 0;
     return acc + count * (v.unidades || 1);
   }, 0);
 

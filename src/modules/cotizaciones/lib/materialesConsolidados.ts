@@ -1,5 +1,7 @@
 import { resolverMoneda, type MonedaHetmo } from '../../../lib/monedas';
 import type { ProyectoVersion, MaterialVentana } from '../../../types';
+import { toWindowLine } from '../components/drawing/ventanaAdapter';
+import { cuadrosFor } from '../components/drawing/geometryCore';
 
 export interface MaterialConsolidado {
   id: string;
@@ -224,16 +226,18 @@ export function computeCantidadVidrios(activeVersion: ProyectoVersion | undefine
 }
 
 /**
- * Cantidad total de cuadros/paños/hojas de la version -- misma formula que
- * IndicadoresMetricos.tsx (Step1DatosCliente): paños declarados por
- * geometria (tipoElemento 10000) o, a falta de eso, numeroCuadrosHojas,
- * multiplicado por las unidades fisicas de cada linea.
+ * Cantidad total de cuadros (marcos de PVC soldados, ver cuadrosFor en
+ * geometryCore.ts) de la version, multiplicado por las unidades fisicas de
+ * cada linea. Misma formula que IndicadoresMetricos.tsx (Step1DatosCliente)
+ * -- confirmada contra Casa La Aurora: una linea SOLO DVH sin marco real no
+ * aporta cuadros, una hoja movil suma su propio marco soldado, y una linea
+ * compuesta (paños pegados) suma un marco por cada paño propio.
  */
 export function computeCantidadCuadros(activeVersion: ProyectoVersion | undefined): number {
   const ventanas = activeVersion?.ventanas || [];
   return ventanas.reduce((acc, v) => {
-    const geoPanels = (v.geometrias || []).filter((g) => Number(g.tipoElemento) === 10000);
-    const count = geoPanels.length > 0 ? geoPanels.length : (v.numeroCuadrosHojas && v.numeroCuadrosHojas > 0 ? v.numeroCuadrosHojas : 1);
+    const line = toWindowLine(v);
+    const count = line ? cuadrosFor(line) : 0;
     return acc + count * (v.unidades || 1);
   }, 0);
 }
