@@ -271,16 +271,37 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         y += lineas.length * 12 + 10;
       }
 
+      // Paginado fijo, no por altura disponible: 2 ventanas en la primera
+      // página (comparte espacio con encabezado y texto de presentación),
+      // 3 en cada página siguiente -- mismo layout que el Presupuesto de
+      // referencia (Vista Monseñor, Casa La Aurora).
+      const cardHeight = 150;
+      let paginaIndex = 0;
+      let enPagina = 0;
+      const ventanasPorPagina = () => (paginaIndex === 0 ? 2 : 3);
+
       for (const v of ventanas) {
-        const cardHeight = 150;
-        if (y + cardHeight > pageHeight - 40) {
+        if (enPagina >= ventanasPorPagina()) {
           doc.addPage();
-          y = margen;
+          paginaIndex += 1;
+          enPagina = 0;
+          y = 78;
+          doc.setTextColor(...MTW_NAVY);
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.text(proyecto.obra, margen, 36);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...MTW_GRIS);
+          doc.text(encabezado, pageWidth - margen, 36, { align: 'right' });
+          doc.setDrawColor(...MTW_BORDE);
+          doc.setLineWidth(0.75);
+          doc.line(margen, y - 14, pageWidth - margen, y - 14);
         }
+        enPagina += 1;
 
         doc.setDrawColor(...MTW_BORDE);
         doc.setLineWidth(0.75);
-        doc.roundedRect(margen, y, pageWidth - margen * 2, cardHeight, 4, 4);
+        doc.rect(margen, y, pageWidth - margen * 2, cardHeight);
 
         doc.setFillColor(...pdfTableStyle.headStyles.fillColor);
         doc.rect(margen, y, pageWidth - margen * 2, 20, 'F');
