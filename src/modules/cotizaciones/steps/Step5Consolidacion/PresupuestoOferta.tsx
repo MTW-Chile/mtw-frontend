@@ -259,12 +259,27 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
       const clienteNombre = proyecto.cliente?.nombre || proyecto.clienteNombreRaw;
 
       let logoDataUrl: string | null = null;
+      let logoMuchtekDataUrl: string | null = null;
       try {
         logoDataUrl = await loadImageDataUrl('/mtw-logo.png');
       } catch {
         // El logo es decorativo -- si falla la carga, el PDF sigue sin él.
       }
+      try {
+        logoMuchtekDataUrl = await loadImageDataUrl('/muchtek-logo.png');
+      } catch {
+        // Igual de decorativo -- Muchtek Tecnoperfiles Group, proveedor del perfil.
+      }
       const logoImg = logoDataUrl ? `<img src="${logoDataUrl}" style="width:92px;height:42px;display:block;margin-bottom:12px;" />` : '';
+      // En el documento de referencia el logo de Muchtek (Tecnoperfiles Group,
+      // el proveedor del perfil) va arriba a la derecha, a la misma altura
+      // que el logo de MTW -- solo en la primera página.
+      const logosHeaderHtml = logoMuchtekDataUrl
+        ? `<table style="width:100%;margin-bottom:12px;"><tr>
+            <td style="vertical-align:top;">${logoImg}</td>
+            <td style="vertical-align:top;text-align:right;"><img src="${logoMuchtekDataUrl}" style="width:120px;height:auto;display:inline-block;" /></td>
+          </tr></table>`
+        : logoImg;
 
       // Dibujo de cada ventana, rasterizado una sola vez antes de armar el
       // HTML (el armado de HTML es síncrono; svgToPngDataUrl no lo es).
@@ -289,7 +304,12 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
       const cardHtml = (v: Ventana): string => {
         const line = toWindowLine(v);
         const isFrameless = Boolean(line?.dibujoSinMarco);
-        const apertura = line ? core.apertureLabel(line) : '';
+        // Una ventana sin paños con apertura declarada (p.ej. sin marco, solo
+        // vidrio fijo) no debe dejar "Apertura:" en blanco -- no se abre, y
+        // eso hay que decirlo, no omitirlo. apertureLabel() ya cae a
+        // "Ventana fija" en casi todos los casos ambiguos, pero esta es la
+        // red de seguridad final para que la fila nunca salga vacía.
+        const apertura = (line ? core.apertureLabel(line) : '') || 'Ventana fija';
         // "Serie de perfiles" en el documento de referencia trae el acabado
         // pegado con un guion ("Línea Efficient - Black Matt"), no como fila
         // aparte -- mismo formato que generate_project_budget.js del sistema
@@ -320,28 +340,28 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         // alternada (zebra), no con líneas divisorias entre celdas.
         const metaRowsHtml = metaFilas.map(([label, value], i) => `
           <tr style="background:${i % 2 === 0 ? HEX.zebra : '#ffffff'};">
-            <td style="padding:5px 10px;color:${HEX.gris};width:150px;font-size:9px;">${escapeHtml(label)}:</td>
-            <td style="padding:5px 10px;color:${HEX.navy};font-weight:bold;font-size:9px;">${escapeHtml(value)}</td>
+            <td style="padding:4px 10px;color:${HEX.gris};width:150px;font-size:9px;">${escapeHtml(label)}:</td>
+            <td style="padding:4px 10px;color:${HEX.navy};font-weight:bold;font-size:9px;">${escapeHtml(value)}</td>
           </tr>`).join('');
         const observacionRowHtml = v.comentarioPresupuesto ? `
           <tr style="background:${metaFilas.length % 2 === 0 ? HEX.zebra : '#ffffff'};">
-            <td style="padding:6px 10px;color:${HEX.gris};width:150px;font-size:9px;vertical-align:top;">Observación:</td>
-            <td style="padding:6px 10px;color:${HEX.navy};font-weight:bold;font-size:9px;">${escapeHtml(v.comentarioPresupuesto)}</td>
+            <td style="padding:4px 10px;color:${HEX.gris};width:150px;font-size:9px;vertical-align:top;">Observación:</td>
+            <td style="padding:4px 10px;color:${HEX.navy};font-weight:bold;font-size:9px;">${escapeHtml(v.comentarioPresupuesto)}</td>
           </tr>` : '';
 
         const precio = preciosVenta.get(v.id);
         const png = pngPorVentana.get(v.id);
 
         return `
-        <div style="border:1px solid ${HEX.borde};margin-bottom:10px;page-break-inside:avoid;">
-          <div style="background:${HEX.headBg};padding:7px 12px;font-size:12px;font-weight:bold;color:${HEX.navy};">${escapeHtml(v.modelo)} -</div>
+        <div style="border:1px solid ${HEX.borde};margin-bottom:7px;page-break-inside:avoid;">
+          <div style="background:${HEX.headBg};padding:6px 12px;font-size:12px;font-weight:bold;color:${HEX.navy};">${escapeHtml(v.modelo)} -</div>
           <table style="width:100%;border-collapse:collapse;">${metaRowsHtml}</table>
           <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
             <tr>
-              <td style="width:56%;padding:10px 10px 10px 12px;vertical-align:top;">
-                ${png ? `<img src="${png}" style="width:100%;max-width:300px;height:auto;display:block;" />` : ''}
+              <td style="width:56%;padding:8px 10px 8px 12px;vertical-align:top;">
+                ${png ? `<img src="${png}" style="width:100%;max-width:230px;height:auto;display:block;" />` : ''}
               </td>
-              <td style="width:44%;vertical-align:top;padding:14px 12px 14px 0;">
+              <td style="width:44%;vertical-align:top;padding:8px 12px 8px 0;">
                 <table style="width:100%;border-collapse:collapse;border:1px solid ${HEX.borde};">
                   <tr><td colspan="2" style="background:${HEX.headBg};font-weight:bold;padding:6px 10px;font-size:9px;color:${HEX.navy};">Valores comerciales</td></tr>
                   <tr><td style="padding:6px 10px;font-size:9px;color:${HEX.gris};">Precio unitario neto</td><td style="padding:6px 10px;font-size:9px;text-align:right;font-weight:bold;color:${HEX.navy};">${escapeHtml(ufLabel(precio?.precioUnitarioCLP || 0, tasaUf))}</td></tr>
@@ -362,7 +382,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
       const headerCompletoHtml = `
         <div style="height:4px;background:${HEX.rojo};"></div>
         <div style="padding:20px 42px 0 42px;">
-          ${logoImg}
+          ${logosHeaderHtml}
           <div style="font-size:19px;font-weight:bold;color:${HEX.navy};margin-bottom:10px;">Oferta Cliente</div>
           <div style="border-top:1px solid ${HEX.borde};margin-bottom:16px;"></div>
           <table style="width:100%;margin-bottom:10px;"><tr>
@@ -382,74 +402,38 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
       // documento de referencia.
       const headerCompactoHtml = `
         <div style="height:4px;background:${HEX.rojo};"></div>
-        <div style="padding:14px 42px 0 42px;">
+        <div style="padding:20px 42px 0 42px;">
           <table style="width:100%;"><tr>
             <td style="font-size:9px;font-weight:bold;color:${HEX.navy};">${escapeHtml(proyecto.obra)} · ${escapeHtml(codigoLabel)}</td>
             <td style="font-size:9px;color:${HEX.gris};text-align:right;">Fecha: ${escapeHtml(fechaLabel)}</td>
           </tr></table>
-          <div style="border-top:1px solid ${HEX.borde};margin:8px 0 14px 0;"></div>
+          <div style="border-top:1px solid ${HEX.borde};margin:10px 0 16px 0;"></div>
         </div>`;
 
       const resumenHtml = `
-        <div style="background:${HEX.navy};border-radius:6px;padding:14px 18px;color:#ffffff;display:flex;justify-content:space-between;margin-top:4px;">
+        <div style="background:${HEX.navy};border-radius:6px;padding:8px 18px;color:#ffffff;display:flex;justify-content:space-between;margin-top:0;">
           <div><div style="font-size:8px;color:#94a3b8;">Subtotal de venta · NETO</div><div style="font-size:13px;font-weight:bold;">${escapeHtml(ufLabel(venta, tasaUf))}</div></div>
           <div><div style="font-size:8px;color:#94a3b8;">IVA (${ivaPct}%)</div><div style="font-size:13px;font-weight:bold;">${escapeHtml(ufLabel(iva, tasaUf))}</div></div>
           <div><div style="font-size:8px;color:#94a3b8;">Total con IVA</div><div style="font-size:16px;font-weight:bold;">${escapeHtml(ufLabel(totalConIva, tasaUf))}</div></div>
         </div>`;
 
-      // Paginado dinámico por presupuesto de altura, no una cuenta fija de
-      // ventanas por página: con el dibujo agrandado (a pedido explícito,
-      // "que se luzca") una tarjeta ya no mide lo mismo que antes, así que
-      // "2 en la primera, 3 en las siguientes" dejó de ser válido -- una
-      // tarjeta más puede no entrar, o puede entrar una de más si tiene
-      // menos filas (sin Herrajes/Vidrios/Observación). Los valores fijos de
-      // abajo salen de medir a pixel el PDF renderizado real (no a ojo):
-      // altura de fila zebra ≈21pt, resto de la tarjeta (cabecera + dibujo +
-      // "Valores comerciales" + bordes/margen) ≈180pt, alto de hoja carta
-      // 792pt. Con el dibujo agrandado, 3 tarjetas completas (todas las
-      // filas) ya no entran en una sola página -- eso es correcto, no un
-      // bug: el conteo fijo "2 y luego 3" del documento de referencia
-      // asumía un dibujo más chico: menos ventanas por página a cambio de
-      // un dibujo más grande es la contrapartida real de agrandarlo.
-      // page-break-inside:avoid en cada tarjeta es la red de
-      // seguridad si esta estimación se queda corta: en vez de partir una
-      // tarjeta a la mitad, empuja toda la tarjeta a la página siguiente.
-      const ALTURA_PAGINA_PT = 792;
-      const ALTURA_FIJA_CARD_PT = 180;
-      const ALTURA_POR_FILA_PT = 21;
-      const ALTURA_HEADER_COMPLETO_PT = 145;
-      const ALTURA_HEADER_COMPACTO_PT = 45;
-      const ALTURA_RESUMEN_PT = 80;
-      const ALTURA_PIE_PT = 15;
-
-      const contarFilasCard = (v: Ventana): number => {
-        const line = toWindowLine(v);
-        const isFrameless = Boolean(line?.dibujoSinMarco);
-        const herraje = (v.materiales || []).some((m) => !m.excluido && m.material?.familia === 'HERRAJES');
-        const vidrio = (v.materiales || []).some((m) => !m.excluido && m.material?.familia === 'VIDRIOS');
-        // Dimensiones + Apertura siempre; Serie de perfiles, Herrajes,
-        // Vidrios y Observación son condicionales -- mismas condiciones que
-        // metaFilas/observacionRowHtml dentro de cardHtml.
-        return 2 + (isFrameless ? 0 : 1) + (herraje ? 1 : 0) + (vidrio ? 1 : 0) + (v.comentarioPresupuesto ? 1 : 0);
-      };
-      const estimarAlturaCard = (v: Ventana) => ALTURA_FIJA_CARD_PT + contarFilasCard(v) * ALTURA_POR_FILA_PT;
-
+      // Paginado fijo: cada página se piensa como 3 franjas iguales -- la
+      // primera página usa una franja para el encabezado completo (logo,
+      // título, presentación) y dos para ventanas; las siguientes, con el
+      // encabezado compacto (que ocupa mucho menos que una franja), caben
+      // 3 ventanas completas. El tamaño de la tarjeta (abajo) está calibrado
+      // -- verificado renderizando el PDF real, no a ojo -- para que 3
+      // tarjetas completas (todas sus filas) efectivamente entren en una
+      // página con encabezado compacto. page-break-inside:avoid en cada
+      // tarjeta es la red de seguridad por si una ventana con más filas de
+      // lo habitual no entra: en vez de partirla a la mitad, empuja toda la
+      // tarjeta a la página siguiente.
       const paginasVentanas: Ventana[][] = [];
-      let paginaActual: Ventana[] = [];
-      let alturaUsada = ALTURA_HEADER_COMPLETO_PT;
-      ventanas.forEach((v, idx) => {
-        const alturaCard = estimarAlturaCard(v);
-        const esUltimaVentana = idx === ventanas.length - 1;
-        const alturaDisponible = ALTURA_PAGINA_PT - ALTURA_PIE_PT - (esUltimaVentana ? ALTURA_RESUMEN_PT : 0);
-        if (paginaActual.length > 0 && alturaUsada + alturaCard > alturaDisponible) {
-          paginasVentanas.push(paginaActual);
-          paginaActual = [];
-          alturaUsada = ALTURA_HEADER_COMPACTO_PT;
-        }
-        paginaActual.push(v);
-        alturaUsada += alturaCard;
-      });
-      if (paginaActual.length > 0) paginasVentanas.push(paginaActual);
+      for (let i = 0; i < ventanas.length; ) {
+        const porPagina = paginasVentanas.length === 0 ? 2 : 3;
+        paginasVentanas.push(ventanas.slice(i, i + porPagina));
+        i += porPagina;
+      }
       if (paginasVentanas.length === 0) paginasVentanas.push([]);
 
       const paginasHtml = paginasVentanas.map((chunk, i) => {
@@ -457,7 +441,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         return `
         <div style="width:100%;font-family:Helvetica,Arial,sans-serif;background:#ffffff;">
           ${i === 0 ? headerCompletoHtml : headerCompactoHtml}
-          <div style="padding:0 42px 20px 42px;">
+          <div style="padding:0 42px 6px 42px;">
             ${chunk.map(cardHtml).join('')}
             ${esUltima ? resumenHtml : ''}
           </div>
