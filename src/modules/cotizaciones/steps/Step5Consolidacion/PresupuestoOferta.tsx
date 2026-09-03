@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileDown, Loader2, Pencil, Check } from 'lucide-react';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import type { Proyecto, ProyectoVersion, Ventana } from '../../../../types';
 import { formatNumber } from '../../../../lib/utils';
 import { useMonedas } from '../../../../lib/monedas';
@@ -17,7 +16,22 @@ import {
   computeCostoTotalYVenta,
 } from '../../lib/materialesConsolidados';
 import { computePreciosVenta } from '../../lib/presupuesto';
-import { MTW_NAVY, MTW_GRIS, MTW_BORDE, MTW_ROJO, pdfTableStyle, loadImageDataUrl } from '../../lib/pdfTheme';
+import { loadImageDataUrl } from '../../lib/pdfTheme';
+
+// Paleta en hex para el HTML del PDF -- mismos colores que pdfTheme.ts
+// (MTW_NAVY/MTW_GRIS/MTW_BORDE/MTW_ROJO/MTW_HEAD_BG), pero como CSS: este
+// PDF ya no se dibuja con primitivas de jsPDF (rect/text a mano), se
+// renderiza como HTML/CSS real vía doc.html() (html2canvas por debajo) --
+// así el resultado es literalmente lo que el navegador compone, no una
+// aproximación de coordenadas.
+const HEX = { navy: '#0f172a', gris: '#64748b', borde: '#e2e8f0', rojo: '#e34a26', headBg: '#f1f5f9', zebra: '#f8fafc' };
+
+const escapeHtml = (value: unknown) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 
 interface PresupuestoOfertaProps {
   proyecto: Proyecto;
@@ -234,14 +248,17 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
 
   const exportarPDF = async () => {
     setExportando(true);
+    const contenedor = document.createElement('div');
+    contenedor.style.position = 'fixed';
+    contenedor.style.top = '0';
+    contenedor.style.left = '-99999px';
+    contenedor.style.width = '595px';
+    document.body.appendChild(contenedor);
     try {
       const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const margen = 36;
 
       const codigoLabel = `Presupuesto - ${proyecto.codigoInterno || proyecto.numeroPresupuesto}`;
-      const fechaLabel = `Fecha: ${new Date().toLocaleDateString('es-CL')}`;
+      const fechaLabel = new Date().toLocaleDateString('es-CL');
       const clienteNombre = proyecto.cliente?.nombre || proyecto.clienteNombreRaw;
 
       let logoDataUrl: string | null = null;
@@ -250,110 +267,30 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
       } catch {
         // El logo es decorativo -- si falla la carga, el PDF sigue sin él.
       }
+      const logoImg = logoDataUrl ? `<img src="${logoDataUrl}" style="width:92px;height:42px;display:block;margin-bottom:12px;" />` : '';
 
-      // Encabezado de la primera página: mismo layout que "Oferta Cliente"
-      // del sistema anterior -- logo, título "Oferta Cliente" como
-      // encabezado (no arriba a la derecha, a diferencia de la Hoja de
-      // Fijación/Analítica), línea divisoria, "Presupuesto - X / Fecha",
-      // "Cliente:", "Obra:", saludo y párrafo de presentación.
-      doc.setFillColor(...MTW_ROJO);
-      doc.rect(0, 0, pageWidth, 4, 'F');
-      if (logoDataUrl) doc.addImage(logoDataUrl, 'PNG', margen, 18, 92, 42.1);
-
-      let y = 84;
-      doc.setTextColor(...MTW_NAVY);
-      doc.setFontSize(18);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Oferta Cliente', margen, y);
-      y += 14;
-      doc.setDrawColor(...MTW_BORDE);
-      doc.setLineWidth(0.75);
-      doc.line(margen, y, pageWidth - margen, y);
-      y += 22;
-
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(...MTW_NAVY);
-      doc.text(codigoLabel, margen, y);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(...MTW_GRIS);
-      doc.text(fechaLabel, pageWidth - margen, y, { align: 'right' });
-      y += 15;
-
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(...MTW_NAVY);
-      doc.text(`Cliente: ${clienteNombre}`, margen, y);
-      y += 14;
-      doc.text(`Obra: ${proyecto.obra}`, margen, y);
-      y += 22;
-
-      if (texto.trim()) {
-        doc.setFontSize(9.5);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(...MTW_NAVY);
-        doc.text('Estimado Cliente,', margen, y);
-        y += 15;
-        const lineas = doc.splitTextToSize(texto.trim(), pageWidth - margen * 2);
-        doc.text(lineas, margen, y);
-        y += lineas.length * 12 + 12;
-      }
-
-      // Encabezado compacto de las páginas siguientes: "{Obra} · Presupuesto
-      // - X" a la izquierda, fecha a la derecha, misma línea -- igual que el
-      // documento de referencia repite en cada página nueva.
-      const drawEncabezadoPagina = () => {
-        doc.setFillColor(...MTW_ROJO);
-        doc.rect(0, 0, pageWidth, 4, 'F');
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...MTW_NAVY);
-        doc.text(`${proyecto.obra} · ${codigoLabel}`, margen, 32);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(...MTW_GRIS);
-        doc.text(fechaLabel, pageWidth - margen, 32, { align: 'right' });
-        doc.setDrawColor(...MTW_BORDE);
-        doc.setLineWidth(0.75);
-        doc.line(margen, 40, pageWidth - margen, 40);
-      };
-
-      // Paginado fijo, no por altura disponible: 2 ventanas en la primera
-      // página (comparte espacio con encabezado y texto de presentación),
-      // 3 en cada página siguiente -- mismo layout que el Presupuesto de
-      // referencia (Vista Monseñor, Casa La Aurora).
-      let paginaIndex = 0;
-      let enPagina = 0;
-      const ventanasPorPagina = () => (paginaIndex === 0 ? 2 : 3);
-
-      for (const v of ventanas) {
-        if (enPagina >= ventanasPorPagina()) {
-          doc.addPage();
-          paginaIndex += 1;
-          enPagina = 0;
-          drawEncabezadoPagina();
-          y = 62;
-        }
-        enPagina += 1;
-
-        const cardTop = y;
-        doc.setFillColor(...pdfTableStyle.headStyles.fillColor);
-        doc.rect(margen, y, pageWidth - margen * 2, 20, 'F');
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...MTW_NAVY);
-        doc.text(`${v.modelo} -`, margen + 8, y + 14);
-        const bodyTop = y + 20;
-
-        const line = toWindowLine(v);
-        if (line) {
+      // Dibujo de cada ventana, rasterizado una sola vez antes de armar el
+      // HTML (el armado de HTML es síncrono; svgToPngDataUrl no lo es).
+      const pngPorVentana = new Map<string, string | null>();
+      await Promise.all(
+        ventanas.map(async (v) => {
+          const line = toWindowLine(v);
+          if (!line) { pngPorVentana.set(v.id, null); return; }
           try {
             const svg = buildWindow(line, 'offer').svg;
-            const png = await svgToPngDataUrl(svg, 480, 356);
-            doc.addImage(png, 'PNG', margen + 8, bodyTop + 8, 130, 96);
+            pngPorVentana.set(v.id, await svgToPngDataUrl(svg, 480, 356));
           } catch {
-            // Dibujo opcional -- si falla, la tarjeta sigue sin imagen.
+            pngPorVentana.set(v.id, null);
           }
-        }
+        })
+      );
 
+      // Cada tarjeta es HTML/CSS real (tabla con bordes), no coordenadas
+      // calculadas a mano -- así el resultado que renderiza html2canvas es
+      // literalmente lo que compone el navegador, igual al documento de
+      // referencia (Vista Monseñor, Casa La Aurora), no una aproximación.
+      const cardHtml = (v: Ventana): string => {
+        const line = toWindowLine(v);
         const isFrameless = Boolean(line?.dibujoSinMarco);
         const apertura = line ? core.apertureLabel(line) : '';
         // "Serie de perfiles" en el documento de referencia trae el acabado
@@ -368,7 +305,6 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         const vidrio = Array.from(
           new Set((v.materiales || []).filter((m) => !m.excluido && m.material?.familia === 'VIDRIOS').map((m) => m.material?.descripcion || ''))
         ).filter(Boolean).join(' + ');
-
         // Mismo orden que el Presupuesto de referencia: Dimensiones, Serie de
         // perfiles con el acabado incluido (omitido en líneas SOLO DVH, que
         // no tienen perfil ni acabado), Apertura, Vidrios, Observación.
@@ -379,100 +315,140 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
           ...(vidrio ? [['Vidrios', vidrio] as [string, string]] : []),
           ...(v.comentarioPresupuesto ? [['Observación', v.comentarioPresupuesto] as [string, string]] : []),
         ];
-        const metaX = margen + 150;
-        const valoresWidth = 140;
-        const valoresX = pageWidth - margen - valoresWidth;
-        autoTable(doc, {
-          theme: 'grid',
-          startY: bodyTop,
-          margin: { left: metaX, right: pageWidth - valoresX + 8 },
-          styles: { fontSize: 8, cellPadding: 4, lineColor: MTW_BORDE, lineWidth: 0.5 },
-          columnStyles: {
-            0: { cellWidth: 76, textColor: MTW_GRIS },
-            1: { fontStyle: 'bold', textColor: MTW_NAVY },
-          },
-          body: metaFilas,
-        });
-        const metaBottom = (doc as any).lastAutoTable.finalY;
+        const metaRowsHtml = metaFilas.map(([label, value]) => `
+          <tr>
+            <td style="padding:5px 8px;border:1px solid ${HEX.borde};color:${HEX.gris};width:96px;font-size:8px;">${escapeHtml(label)}:</td>
+            <td style="padding:5px 8px;border:1px solid ${HEX.borde};color:${HEX.navy};font-weight:bold;font-size:8px;">${escapeHtml(value)}</td>
+          </tr>`).join('');
 
         const precio = preciosVenta.get(v.id);
-        autoTable(doc, {
-          ...pdfTableStyle,
-          startY: bodyTop,
-          margin: { left: valoresX, right: margen },
-          tableWidth: valoresWidth,
-          head: [['Valores comerciales', '']],
-          body: [
-            ['Precio unitario', ufLabel(precio?.precioUnitarioCLP || 0, tasaUf)],
-            ['Cantidad', `${v.unidades} ud(es)`],
-            ['Total neto', ufLabel(precio?.precioVentaCLP || 0, tasaUf)],
-          ],
-          columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
-          didParseCell: (data) => {
-            if (data.row.index === 2 && data.section === 'body') data.cell.styles.fontStyle = 'bold';
-          },
-        });
-        const valoresBottom = (doc as any).lastAutoTable.finalY;
+        const png = pngPorVentana.get(v.id);
 
-        const drawingBottom = line ? bodyTop + 8 + 96 + 6 : bodyTop;
-        const cardBottom = Math.max(metaBottom, valoresBottom, drawingBottom) + 8;
-        doc.setDrawColor(...MTW_BORDE);
-        doc.setLineWidth(0.75);
-        doc.rect(margen, cardTop, pageWidth - margen * 2, cardBottom - cardTop);
-
-        y = cardBottom + 12;
-      }
-
-      if (y + 70 > pageHeight - 40) {
-        doc.addPage();
-        y = margen;
-      }
-      doc.setFillColor(...MTW_NAVY);
-      doc.roundedRect(margen, y, pageWidth - margen * 2, 66, 6, 6, 'F');
-      const bannerFila = (label: string, value: string, yy: number, size = 10) => {
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(148, 163, 184);
-        doc.text(label, margen + 14, yy);
-        doc.setFontSize(size);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(255, 255, 255);
-        doc.text(value, pageWidth - margen - 14, yy, { align: 'right' });
+        return `
+        <div style="border:1px solid ${HEX.borde};margin-bottom:12px;page-break-inside:avoid;">
+          <div style="background:${HEX.headBg};padding:6px 10px;font-size:11px;font-weight:bold;color:${HEX.navy};">${escapeHtml(v.modelo)} -</div>
+          <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+            <tr>
+              <td style="width:146px;padding:10px;vertical-align:top;">
+                ${png ? `<img src="${png}" style="width:130px;height:96px;" />` : ''}
+              </td>
+              <td style="vertical-align:top;padding:10px 6px 10px 0;">
+                <table style="width:100%;border-collapse:collapse;">${metaRowsHtml}</table>
+              </td>
+              <td style="width:150px;vertical-align:top;padding:10px 10px 10px 0;">
+                <table style="width:100%;border-collapse:collapse;border:1px solid ${HEX.borde};">
+                  <tr><td colspan="2" style="background:${HEX.headBg};font-weight:bold;padding:5px 8px;font-size:8px;color:${HEX.navy};">Valores comerciales</td></tr>
+                  <tr><td style="padding:5px 8px;font-size:8px;color:${HEX.gris};">Precio unitario neto</td><td style="padding:5px 8px;font-size:8px;text-align:right;font-weight:bold;color:${HEX.navy};">${escapeHtml(ufLabel(precio?.precioUnitarioCLP || 0, tasaUf))}</td></tr>
+                  <tr><td style="padding:5px 8px;font-size:8px;color:${HEX.gris};">Cantidad</td><td style="padding:5px 8px;font-size:8px;text-align:right;font-weight:bold;color:${HEX.navy};">${v.unidades} ud(es)</td></tr>
+                  <tr><td style="padding:5px 8px;font-size:8px;color:${HEX.gris};font-weight:bold;border-top:1px solid ${HEX.borde};">Total neto</td><td style="padding:5px 8px;font-size:8px;text-align:right;font-weight:bold;color:${HEX.navy};border-top:1px solid ${HEX.borde};">${escapeHtml(ufLabel(precio?.precioVentaCLP || 0, tasaUf))}</td></tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </div>`;
       };
-      bannerFila('Subtotal de venta · NETO', ufLabel(venta, tasaUf), y + 22);
-      bannerFila(`IVA (${ivaPct}%)`, ufLabel(iva, tasaUf), y + 40);
-      bannerFila('Total con IVA', ufLabel(totalConIva, tasaUf), y + 58, 13);
-      y += 66 + 24;
+
+      // Encabezado completo (primera página): logo, "Oferta Cliente" como
+      // título, línea divisoria, "Presupuesto - X / Fecha", "Cliente:",
+      // "Obra:", saludo y párrafo de presentación -- igual al documento de
+      // referencia.
+      const headerCompletoHtml = `
+        <div style="height:4px;background:${HEX.rojo};"></div>
+        <div style="padding:20px 36px 0 36px;">
+          ${logoImg}
+          <div style="font-size:19px;font-weight:bold;color:${HEX.navy};margin-bottom:10px;">Oferta Cliente</div>
+          <div style="border-top:1px solid ${HEX.borde};margin-bottom:16px;"></div>
+          <table style="width:100%;margin-bottom:10px;"><tr>
+            <td style="font-size:10px;font-weight:bold;color:${HEX.navy};">${escapeHtml(codigoLabel)}</td>
+            <td style="font-size:10px;color:${HEX.gris};text-align:right;">Fecha: ${escapeHtml(fechaLabel)}</td>
+          </tr></table>
+          <div style="font-size:10px;font-weight:bold;color:${HEX.navy};margin-bottom:4px;">Cliente: ${escapeHtml(clienteNombre)}</div>
+          <div style="font-size:10px;font-weight:bold;color:${HEX.navy};margin-bottom:16px;">Obra: ${escapeHtml(proyecto.obra)}</div>
+          ${texto.trim() ? `
+            <div style="font-size:9.5px;color:${HEX.navy};margin-bottom:4px;">Estimado Cliente,</div>
+            <div style="font-size:9.5px;color:${HEX.navy};line-height:1.5;margin-bottom:16px;">${escapeHtml(texto.trim())}</div>
+          ` : ''}
+        </div>`;
+
+      // Encabezado compacto (páginas siguientes): "{Obra} · Presupuesto - X"
+      // a la izquierda, fecha a la derecha, misma línea -- igual al
+      // documento de referencia.
+      const headerCompactoHtml = `
+        <div style="height:4px;background:${HEX.rojo};"></div>
+        <div style="padding:14px 36px 0 36px;">
+          <table style="width:100%;"><tr>
+            <td style="font-size:9px;font-weight:bold;color:${HEX.navy};">${escapeHtml(proyecto.obra)} · ${escapeHtml(codigoLabel)}</td>
+            <td style="font-size:9px;color:${HEX.gris};text-align:right;">Fecha: ${escapeHtml(fechaLabel)}</td>
+          </tr></table>
+          <div style="border-top:1px solid ${HEX.borde};margin:8px 0 14px 0;"></div>
+        </div>`;
+
+      const resumenHtml = `
+        <div style="background:${HEX.navy};border-radius:6px;padding:14px 18px;color:#ffffff;display:flex;justify-content:space-between;margin-top:4px;">
+          <div><div style="font-size:8px;color:#94a3b8;">Subtotal de venta · NETO</div><div style="font-size:13px;font-weight:bold;">${escapeHtml(ufLabel(venta, tasaUf))}</div></div>
+          <div><div style="font-size:8px;color:#94a3b8;">IVA (${ivaPct}%)</div><div style="font-size:13px;font-weight:bold;">${escapeHtml(ufLabel(iva, tasaUf))}</div></div>
+          <div><div style="font-size:8px;color:#94a3b8;">Total con IVA</div><div style="font-size:16px;font-weight:bold;">${escapeHtml(ufLabel(totalConIva, tasaUf))}</div></div>
+        </div>`;
+
+      // Paginado fijo, no por altura disponible: 2 ventanas en la primera
+      // página (comparte espacio con encabezado y texto de presentación),
+      // 3 en cada página siguiente -- mismo layout que el Presupuesto de
+      // referencia (Vista Monseñor, Casa La Aurora).
+      const paginasVentanas: Ventana[][] = [];
+      for (let i = 0; i < ventanas.length; ) {
+        const porPagina = paginasVentanas.length === 0 ? 2 : 3;
+        paginasVentanas.push(ventanas.slice(i, i + porPagina));
+        i += porPagina;
+      }
+      if (paginasVentanas.length === 0) paginasVentanas.push([]);
+
+      const paginasHtml = paginasVentanas.map((chunk, i) => {
+        const esUltima = i === paginasVentanas.length - 1;
+        return `
+        <div style="width:595px;font-family:Helvetica,Arial,sans-serif;background:#ffffff;">
+          ${i === 0 ? headerCompletoHtml : headerCompactoHtml}
+          <div style="padding:0 36px 20px 36px;">
+            ${chunk.map(cardHtml).join('')}
+            ${esUltima ? resumenHtml : ''}
+          </div>
+        </div>`;
+      });
 
       if (condiciones.trim()) {
-        doc.addPage();
-        doc.setFillColor(...MTW_ROJO);
-        doc.rect(0, 0, pageWidth, 4, 'F');
-        if (logoDataUrl) doc.addImage(logoDataUrl, 'PNG', margen, 18, 92, 42.1);
-        doc.setTextColor(...MTW_NAVY);
-        doc.setFontSize(18);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Condiciones Comerciales', margen, 84);
-        doc.setDrawColor(...MTW_BORDE);
-        doc.setLineWidth(0.75);
-        doc.line(margen, 98, pageWidth - margen, 98);
-        let yc = 120;
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(...MTW_NAVY);
-        condiciones.trim().split('\n').filter(Boolean).forEach((linea) => {
-          const lineas = doc.splitTextToSize(`· ${linea.trim()}`, pageWidth - margen * 2);
-          if (yc + lineas.length * 12 > pageHeight - 40) {
-            doc.addPage();
-            yc = margen;
-          }
-          doc.text(lineas, margen, yc);
-          yc += lineas.length * 12 + 6;
+        paginasHtml.push(`
+        <div style="width:595px;font-family:Helvetica,Arial,sans-serif;background:#ffffff;">
+          <div style="height:4px;background:${HEX.rojo};"></div>
+          <div style="padding:20px 36px 0 36px;">
+            ${logoImg}
+            <div style="font-size:19px;font-weight:bold;color:${HEX.navy};margin-bottom:10px;">Condiciones Comerciales</div>
+            <div style="border-top:1px solid ${HEX.borde};margin-bottom:16px;"></div>
+            <ul style="font-size:9px;color:${HEX.navy};line-height:1.7;padding-left:16px;margin:0;">
+              ${condiciones.trim().split('\n').filter(Boolean).map((l) => `<li style="margin-bottom:4px;">${escapeHtml(l.trim())}</li>`).join('')}
+            </ul>
+          </div>
+        </div>`);
+      }
+
+      for (let i = 0; i < paginasHtml.length; i++) {
+        contenedor.innerHTML = paginasHtml[i];
+        const imgs = Array.from(contenedor.querySelectorAll('img'));
+        await Promise.all(imgs.map((img) => img.complete ? Promise.resolve() : new Promise<void>((res) => {
+          img.onload = () => res();
+          img.onerror = () => res();
+        })));
+        if (i > 0) doc.addPage();
+        await doc.html(contenedor, {
+          x: 0,
+          y: 0,
+          width: 595.28,
+          windowWidth: 595,
+          html2canvas: { scale: 2, backgroundColor: '#ffffff' },
         });
       }
 
       doc.save(`presupuesto-${(proyecto.codigoInterno || proyecto.obra).replace(/\s+/g, '-')}.pdf`);
     } finally {
+      document.body.removeChild(contenedor);
       setExportando(false);
     }
   };
