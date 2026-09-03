@@ -261,8 +261,16 @@ export async function updateVentanaPresupuesto(
 // relay. Elimina la dependencia de que el dispositivo del cliente pinte a
 // tiempo un DOM para poder rasterizarlo (causa del bug de paginas mezcladas
 // en Safari/iOS).
-export async function renderPdf(html: string, filename: string): Promise<Blob> {
-  const response = await apiClient.post('/pdf/render', { html, filename }, { responseType: 'blob' });
+export async function renderPdf(
+  html: string,
+  filename: string,
+  headerFooter?: { headerTemplate?: string; footerTemplate?: string }
+): Promise<Blob> {
+  const response = await apiClient.post(
+    '/pdf/render',
+    { html, filename, ...headerFooter },
+    { responseType: 'blob' }
+  );
   return response.data;
 }
 

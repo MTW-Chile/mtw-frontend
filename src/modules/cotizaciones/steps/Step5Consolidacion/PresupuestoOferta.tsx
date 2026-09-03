@@ -15,7 +15,7 @@ import {
 } from '../../lib/materialesConsolidados';
 import { computePreciosVenta } from '../../lib/presupuesto';
 import { loadImageDataUrl } from '../../lib/pdfTheme';
-import { ufLabel, rasterizarDibujos, buildDocumentoHtml } from './presupuestoPdf';
+import { ufLabel, rasterizarDibujos, buildDocumentoHtml, buildHeaderFooterTemplates } from './presupuestoPdf';
 
 interface PresupuestoOfertaProps {
   proyecto: Proyecto;
@@ -227,9 +227,10 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         proyecto, ventanas, texto, condiciones, venta, iva, totalConIva, ivaPct, tasaUf,
         logoDataUrl, logoMuchtekDataUrl, preciosVenta, pngPorVentana,
       });
+      const { headerTemplate, footerTemplate } = buildHeaderFooterTemplates({ proyecto, logoDataUrl });
 
       const filename = `presupuesto-${(proyecto.codigoInterno || proyecto.obra).replace(/\s+/g, '-')}.pdf`;
-      const blob = await renderPdf(documentoHtml, filename);
+      const blob = await renderPdf(documentoHtml, filename, { headerTemplate, footerTemplate });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

@@ -340,3 +340,52 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
 </body>
 </html>`;
 }
+
+export interface HeaderFooterTemplatesParams {
+  proyecto: Proyecto;
+  logoDataUrl: string | null;
+}
+
+// Encabezado compacto ("{Obra} · Presupuesto - X" + logo chico + "Fecha")
+// y pie ("Presupuesto - X") que el documento de referencia repite en cada
+// página siguiente a la portada -- NO en la portada misma. Chromium no
+// aplica headerTemplate/footerTemplate condicionalmente según la página,
+// así que estos strings se usan junto con el margin (mismo en ambos
+// renders) en renderHtmlToPdfConCabecera (relay): un primer render con
+// header/footer vacíos da la página 1, un segundo con estos da el resto,
+// y se combinan -- ver ese comentario en mtw-relay-api/src/pdfRenderer.ts
+// para el detalle de por qué hace falta ese rodeo.
+export function buildHeaderFooterTemplates(params: HeaderFooterTemplatesParams): { headerTemplate: string; footerTemplate: string } {
+  const { proyecto } = params;
+  const codigoLabel = `Presupuesto - ${proyecto.codigoInterno || proyecto.numeroPresupuesto}`;
+  const fechaLabel = new Date().toLocaleDateString('es-CL');
+
+  // Puppeteer renderiza headerTemplate/footerTemplate en un documento
+  // aislado, sin las hojas de estilo de la página -- todo el CSS va inline.
+  // "date"/"pageNumber"/"totalPages" son las únicas clases que Puppeteer
+  // completa automáticamente; el resto es texto estático (mismo en cada
+  // página, correcto acá porque Obra/Presupuesto/Fecha no cambian entre
+  // páginas). Sin logo acá -- un <img> dentro de este template hacía que
+  // el texto se superpusiera con él (confirmado renderizando: el bloque de
+  // texto no respetaba la altura de la imagen), y no vale la pena pelear
+  // con el motor de header/footer de Puppeteer -- que es aislado y mucho
+  // más limitado que el documento principal -- por un logo chico que el
+  // documento de referencia trae más como detalle que como elemento
+  // funcional.
+  const headerTemplate = `
+    <div style="width:100%;padding:0 42px;font-family:Helvetica,Arial,sans-serif;">
+      <div style="display:flex;justify-content:space-between;font-size:8px;color:${HEX.navy};font-weight:bold;">
+        <span>${escapeHtml(proyecto.obra)} · ${escapeHtml(codigoLabel)}</span>
+        <span style="color:${HEX.gris};font-weight:normal;">Fecha: ${escapeHtml(fechaLabel)}</span>
+      </div>
+      <div style="border-top:1px solid ${HEX.borde};margin-top:4px;"></div>
+    </div>`;
+
+  const footerTemplate = `
+    <div style="width:100%;padding:0 42px;font-family:Helvetica,Arial,sans-serif;">
+      <div style="border-top:1px solid ${HEX.borde};margin-bottom:4px;"></div>
+      <div style="font-size:8px;color:${HEX.gris};">${escapeHtml(codigoLabel)}</div>
+    </div>`;
+
+  return { headerTemplate, footerTemplate };
+}
