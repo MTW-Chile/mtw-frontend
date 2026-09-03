@@ -16,7 +16,7 @@ import {
   computeCostoTotalYVenta,
 } from '../../lib/materialesConsolidados';
 import { computePreciosVenta } from '../../lib/presupuesto';
-import { MTW_NAVY, MTW_GRIS, MTW_BORDE, pdfTableStyle, drawPdfHeader } from '../../lib/pdfTheme';
+import { MTW_NAVY, MTW_GRIS, MTW_BORDE, MTW_ROJO, pdfTableStyle, loadImageDataUrl } from '../../lib/pdfTheme';
 
 interface PresupuestoOfertaProps {
   proyecto: Proyecto;
@@ -239,37 +239,81 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
       const pageHeight = doc.internal.pageSize.getHeight();
       const margen = 36;
 
-      const encabezado = [
-        proyecto.codigoInterno || `PRJ-${proyecto.numeroPresupuesto}`,
-        `Fecha: ${new Date().toLocaleDateString('es-CL')}`,
-      ].join(' | ');
-      await drawPdfHeader(doc, 'Oferta Cliente', encabezado, pageWidth);
+      const codigoLabel = `Presupuesto - ${proyecto.codigoInterno || proyecto.numeroPresupuesto}`;
+      const fechaLabel = `Fecha: ${new Date().toLocaleDateString('es-CL')}`;
+      const clienteNombre = proyecto.cliente?.nombre || proyecto.clienteNombreRaw;
 
-      let y = 78;
+      let logoDataUrl: string | null = null;
+      try {
+        logoDataUrl = await loadImageDataUrl('/mtw-logo.png');
+      } catch {
+        // El logo es decorativo -- si falla la carga, el PDF sigue sin él.
+      }
+
+      // Encabezado de la primera página: mismo layout que "Oferta Cliente"
+      // del sistema anterior -- logo, título "Oferta Cliente" como
+      // encabezado (no arriba a la derecha, a diferencia de la Hoja de
+      // Fijación/Analítica), línea divisoria, "Presupuesto - X / Fecha",
+      // "Cliente:", "Obra:", saludo y párrafo de presentación.
+      doc.setFillColor(...MTW_ROJO);
+      doc.rect(0, 0, pageWidth, 4, 'F');
+      if (logoDataUrl) doc.addImage(logoDataUrl, 'PNG', margen, 18, 92, 42.1);
+
+      let y = 84;
+      doc.setTextColor(...MTW_NAVY);
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Oferta Cliente', margen, y);
+      y += 14;
       doc.setDrawColor(...MTW_BORDE);
       doc.setLineWidth(0.75);
       doc.line(margen, y, pageWidth - margen, y);
-      y += 20;
+      y += 22;
 
-      doc.setTextColor(...MTW_NAVY);
-      doc.setFontSize(12);
+      doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.text(proyecto.obra, margen, y);
-      y += 14;
-      doc.setFontSize(9);
+      doc.setTextColor(...MTW_NAVY);
+      doc.text(codigoLabel, margen, y);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(...MTW_GRIS);
-      const clienteNombre = proyecto.cliente?.nombre || proyecto.clienteNombreRaw;
-      if (clienteNombre) doc.text(clienteNombre, margen, y);
-      y += 18;
+      doc.text(fechaLabel, pageWidth - margen, y, { align: 'right' });
+      y += 15;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...MTW_NAVY);
+      doc.text(`Cliente: ${clienteNombre}`, margen, y);
+      y += 14;
+      doc.text(`Obra: ${proyecto.obra}`, margen, y);
+      y += 22;
 
       if (texto.trim()) {
-        doc.setFontSize(9);
+        doc.setFontSize(9.5);
+        doc.setFont('helvetica', 'normal');
         doc.setTextColor(...MTW_NAVY);
+        doc.text('Estimado Cliente,', margen, y);
+        y += 15;
         const lineas = doc.splitTextToSize(texto.trim(), pageWidth - margen * 2);
         doc.text(lineas, margen, y);
-        y += lineas.length * 12 + 10;
+        y += lineas.length * 12 + 12;
       }
+
+      // Encabezado compacto de las páginas siguientes: "{Obra} · Presupuesto
+      // - X" a la izquierda, fecha a la derecha, misma línea -- igual que el
+      // documento de referencia repite en cada página nueva.
+      const drawEncabezadoPagina = () => {
+        doc.setFillColor(...MTW_ROJO);
+        doc.rect(0, 0, pageWidth, 4, 'F');
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...MTW_NAVY);
+        doc.text(`${proyecto.obra} · ${codigoLabel}`, margen, 32);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...MTW_GRIS);
+        doc.text(fechaLabel, pageWidth - margen, 32, { align: 'right' });
+        doc.setDrawColor(...MTW_BORDE);
+        doc.setLineWidth(0.75);
+        doc.line(margen, 40, pageWidth - margen, 40);
+      };
 
       // Paginado fijo, no por altura disponible: 2 ventanas en la primera
       // página (comparte espacio con encabezado y texto de presentación),
@@ -285,17 +329,8 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
           doc.addPage();
           paginaIndex += 1;
           enPagina = 0;
-          y = 78;
-          doc.setTextColor(...MTW_NAVY);
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'bold');
-          doc.text(proyecto.obra, margen, 36);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(...MTW_GRIS);
-          doc.text(encabezado, pageWidth - margen, 36, { align: 'right' });
-          doc.setDrawColor(...MTW_BORDE);
-          doc.setLineWidth(0.75);
-          doc.line(margen, y - 14, pageWidth - margen, y - 14);
+          drawEncabezadoPagina();
+          y = 62;
         }
         enPagina += 1;
 
@@ -308,7 +343,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(...MTW_NAVY);
-        doc.text(v.descripcionCorta || v.modelo, margen + 8, y + 14);
+        doc.text(`${v.descripcionCorta || v.modelo} -`, margen + 8, y + 14);
 
         const line = toWindowLine(v);
         if (line) {
@@ -325,7 +360,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         const metaWidth = pageWidth - margen - metaX - 150;
         const isFrameless = Boolean(line?.dibujoSinMarco);
         const apertura = line ? core.apertureLabel(line) : '';
-        const finishLabel = getAcabadoLabel(v.acabadoCodigo, v.acabadoDescripcion);
+        const serieP = core.profileSeries({ modelo: v.descripcionCorta || v.modelo });
         const vidrio = Array.from(
           new Set((v.materiales || []).filter((m) => !m.excluido && m.material?.familia === 'VIDRIOS').map((m) => m.material?.descripcion || ''))
         ).filter(Boolean).join(' + ');
@@ -344,9 +379,13 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
           doc.setFont('helvetica', 'normal');
           metaY += Math.max(12, lineas.length * 10);
         };
+        // Mismo orden y campos que el Presupuesto de referencia: Dimensiones,
+        // Serie de perfiles (omitido en líneas SOLO DVH, igual que "Serie de
+        // perfiles" no aplica ahí), Apertura, Vidrios, Observación. No hay
+        // "Acabado" en el documento de referencia -- no se muestra acá.
         campo('Dimensiones', `${formatNumber(v.anchoMm, 0)} × ${formatNumber(v.altoMm, 0)} mm`);
+        if (!isFrameless && serieP && serieP !== 'Línea no especificada') campo('Serie de perfiles', serieP);
         campo('Apertura', apertura);
-        if (!isFrameless) campo('Acabado', finishLabel);
         campo('Vidrios', vidrio);
         campo('Observación', v.comentarioPresupuesto || '');
 
@@ -400,8 +439,17 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
 
       if (condiciones.trim()) {
         doc.addPage();
-        await drawPdfHeader(doc, 'Condiciones Comerciales', encabezado, pageWidth);
-        let yc = 90;
+        doc.setFillColor(...MTW_ROJO);
+        doc.rect(0, 0, pageWidth, 4, 'F');
+        if (logoDataUrl) doc.addImage(logoDataUrl, 'PNG', margen, 18, 92, 42.1);
+        doc.setTextColor(...MTW_NAVY);
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Condiciones Comerciales', margen, 84);
+        doc.setDrawColor(...MTW_BORDE);
+        doc.setLineWidth(0.75);
+        doc.line(margen, 98, pageWidth - margen, 98);
+        let yc = 120;
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(...MTW_NAVY);
