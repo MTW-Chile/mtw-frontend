@@ -260,10 +260,6 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
     overlay.style.zIndex = '99999';
     overlay.style.background = '#ffffff';
     overlay.style.overflow = 'auto';
-    const contenedor = document.createElement('div');
-    contenedor.style.width = '595px';
-    contenedor.style.margin = '0 auto';
-    overlay.appendChild(contenedor);
     document.body.appendChild(overlay);
     try {
       const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
@@ -442,20 +438,41 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
 
       const esperarFrame = () => new Promise<void>((res) => requestAnimationFrame(() => requestAnimationFrame(() => res())));
 
-      for (let i = 0; i < paginasHtml.length; i++) {
-        contenedor.innerHTML = paginasHtml[i];
-        const imgs = Array.from(contenedor.querySelectorAll('img'));
-        await Promise.all(imgs.map((img) => img.complete ? Promise.resolve() : new Promise<void>((res) => {
-          img.onload = () => res();
-          img.onerror = () => res();
-        })));
-        // Espera a que el navegador efectivamente pinte el contenido recién
-        // insertado antes de rasterizarlo -- sin esto, algunos motores
-        // (confirmado en Safari/iOS) le entregan a html2canvas un layout
-        // todavía no pintado y el resultado sale en blanco.
-        await esperarFrame();
+      // Un solo <div> reutilizado y mutado (contenedor.innerHTML = ...) en
+      // cada vuelta del loop causaba el bug reportado en producción: doc.html()
+      // dispara html2canvas de forma asíncrona, y su promesa no siempre
+      // termina de resolver (sobre todo en Safari/iOS) antes de que la
+      // siguiente iteración reescriba el innerHTML del MISMO nodo -- el
+      // resultado es una página rasterizada con contenido de la página
+      // equivocada, o mezclado entre dos ("Condiciones Comerciales" saliendo
+      // en la página 1, con una tarjeta de ventana asomando debajo). La
+      // solución no es "esperar más": es que ninguna página comparta nodo
+      // DOM con otra. Cada página vive en su propio <div>, todos presentes
+      // en el overlay desde el inicio -- así doc.html() rasteriza un nodo
+      // que ninguna otra iteración va a tocar.
+      const contenedores = paginasHtml.map((html) => {
+        const div = document.createElement('div');
+        div.style.width = '595px';
+        div.style.margin = '0 auto';
+        div.innerHTML = html;
+        overlay.appendChild(div);
+        return div;
+      });
+
+      const imgs = Array.from(overlay.querySelectorAll('img'));
+      await Promise.all(imgs.map((img) => img.complete ? Promise.resolve() : new Promise<void>((res) => {
+        img.onload = () => res();
+        img.onerror = () => res();
+      })));
+      // Espera a que el navegador efectivamente pinte el contenido recién
+      // insertado antes de rasterizarlo -- sin esto, algunos motores
+      // (confirmado en Safari/iOS) le entregan a html2canvas un layout
+      // todavía no pintado y el resultado sale en blanco.
+      await esperarFrame();
+
+      for (let i = 0; i < contenedores.length; i++) {
         if (i > 0) doc.addPage();
-        await doc.html(contenedor, {
+        await doc.html(contenedores[i], {
           x: 0,
           y: 0,
           width: 595.28,
