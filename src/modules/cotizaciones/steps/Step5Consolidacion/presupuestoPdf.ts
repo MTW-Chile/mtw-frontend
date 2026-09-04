@@ -145,7 +145,7 @@ interface CardDeps {
 // calculadas a mano -- este HTML se manda tal cual al relay, que lo
 // imprime a PDF con Chromium real (page.pdf()), igual al documento de
 // referencia (Vista Monseñor, Casa La Aurora), no una aproximación.
-export function buildCardHtml(v: Ventana, deps: CardDeps): string {
+export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { spacing?: boolean } = {}): string {
   const { preciosVenta, pngPorVentana, tasaUf } = deps;
   const line = toWindowLine(v);
   const isFrameless = Boolean(line?.dibujoSinMarco);
@@ -197,8 +197,17 @@ export function buildCardHtml(v: Ventana, deps: CardDeps): string {
   const precio = preciosVenta.get(v.id);
   const png = pngPorVentana.get(v.id);
 
+  // spacing:false se usa en las páginas "llenas" (3 tarjetas en la portada,
+  // 4 en las siguientes) -- ahí el espacio entre tarjetas lo pone el `gap`
+  // del contenedor flex del que la tarjeta es un item (flex:1 1 0, para
+  // ocupar el 100% del alto de la página, sin la franja de espacio en
+  // blanco al final que quedaba con el flujo natural). En la última
+  // página (con menos ventanas que el cupo) se sigue usando el flujo
+  // natural de siempre -- spacing:true -- para que esas tarjetas NO se
+  // estiren y queden del mismo tamaño que en cualquier página llena.
+  const spacing = opts.spacing !== false;
   return `
-  <div style="border:1px solid ${HEX.borde};margin-bottom:10px;page-break-inside:avoid;">
+  <div style="border:1px solid ${HEX.borde};${spacing ? 'margin-bottom:10px;' : ''}flex:1 1 0;min-height:0;overflow:hidden;page-break-inside:avoid;">
     <div style="background:${HEX.headBg};padding:6px 12px;font-size:12px;font-weight:bold;color:${HEX.navy};">${escapeHtml(v.modelo)} -</div>
     <table style="width:100%;border-collapse:collapse;">${metaRowsHtml}</table>
     <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
@@ -264,7 +273,7 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
       </tr></table>`
     : logoImg;
 
-  const cardHtml = (v: Ventana) => buildCardHtml(v, { preciosVenta, pngPorVentana, tasaUf });
+  const cardHtml = (v: Ventana, spacing?: boolean) => buildCardHtml(v, { preciosVenta, pngPorVentana, tasaUf }, { spacing });
 
   // Encabezado completo (primera página): logo, "Oferta Cliente" como
   // título, línea divisoria, "Presupuesto - X / Fecha", "Cliente:",
@@ -311,14 +320,56 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
       </table>
     </div>`;
 
-  const contenidoVentanasHtml = `
+  // Paginado manual: 3 tarjetas en la portada (comparte espacio con el
+  // encabezado completo), 4 en cada página siguiente -- pedido explícito
+  // para no dejar la franja de espacio en blanco que quedaba con el flujo
+  // natural cuando entraban menos tarjetas de las que cabían físicamente.
+  // Todas las páginas MENOS LA ÚLTIMA están garantizadas "llenas" (llegan
+  // al cupo, si no la siguiente tarjeta hubiese entrado en esta) y usan
+  // flex:1 en cada tarjeta para repartir el alto completo de la página
+  // (1006px = 1056px carta - 32px margen superior - 18px inferior, el
+  // mismo margen que aplica renderHtmlToPdfConCabecera en el relay a
+  // AMBOS renders -- portada y con cabecera -- así que este número es el
+  // real, no un valor aproximado). La ÚLTIMA página (la que puede traer
+  // menos tarjetas que el cupo) sigue el flujo natural de siempre --
+  // tarjetas a su tamaño normal, sin estirar -- para que no queden más
+  // grandes que en el resto del documento.
+  const CUPO_PORTADA = 3;
+  const CUPO_SIGUIENTE = 4;
+  const ALTO_UTIL_PAGINA = 1006;
+
+  const paginas: Ventana[][] = [];
+  paginas.push(ventanas.slice(0, CUPO_PORTADA));
+  for (let i = CUPO_PORTADA; i < ventanas.length; i += CUPO_SIGUIENTE) {
+    paginas.push(ventanas.slice(i, i + CUPO_SIGUIENTE));
+  }
+
+  const paginasLlenasHtml = paginas.slice(0, -1).map((cardsPagina, idx) => {
+    const esPortada = idx === 0;
+    const tarjetasHtml = cardsPagina.map((v) => cardHtml(v, false)).join('');
+    const cardsWrapHtml = `
+      <div style="flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:10px;padding:0 42px 6px 42px;">
+        ${tarjetasHtml}
+      </div>`;
+    return `
+      <div style="width:100%;height:${ALTO_UTIL_PAGINA}px;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;font-family:Helvetica,Arial,sans-serif;background:#ffffff;page-break-after:always;">
+        ${esPortada ? headerCompletoHtml : ''}
+        ${cardsWrapHtml}
+      </div>`;
+  }).join('');
+
+  const ultimaPagina = paginas[paginas.length - 1];
+  const ultimaEsPortada = paginas.length === 1;
+  const ultimaPaginaHtml = `
     <div style="width:100%;font-family:Helvetica,Arial,sans-serif;background:#ffffff;">
-      ${headerCompletoHtml}
+      ${ultimaEsPortada ? headerCompletoHtml : ''}
       <div style="padding:0 42px 6px 42px;">
-        ${ventanas.map(cardHtml).join('')}
+        ${ultimaPagina.map((v) => cardHtml(v, true)).join('')}
         ${resumenHtml}
       </div>
     </div>`;
+
+  const contenidoVentanasHtml = paginasLlenasHtml + ultimaPaginaHtml;
 
   const condicionesHtml = condiciones.trim() ? `
     <div style="width:100%;font-family:Helvetica,Arial,sans-serif;background:#ffffff;page-break-before:always;">
