@@ -542,11 +542,17 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
       </div>`;
   }).join('');
 
+  // Sin logo ni franja roja acá -- Condiciones Comerciales es una página
+  // más DESPUÉS de la portada, así que ya lleva el encabezado compacto de
+  // Puppeteer (Obra · Presupuesto / Fecha, con su propia línea divisoria)
+  // en la banda superior de margen. Repetir logo+franja roja acá los ponía
+  // a centímetros uno del otro -- dos encabezados distintos casi pegados
+  // -- confirmado con una captura real. Las páginas de tarjetas de ventana
+  // ya seguían este mismo criterio (sin logo propio); Condiciones ahora es
+  // consistente con ellas.
   const condicionesHtml = condiciones.trim() ? `
     <div style="width:100%;font-family:Helvetica,Arial,sans-serif;background:#ffffff;page-break-before:always;">
-      <div style="height:4px;background:${HEX.rojo};"></div>
       <div style="padding:20px 42px 0 42px;">
-        ${logoImg}
         <div style="font-size:19px;font-weight:bold;color:${HEX.navy};margin-bottom:10px;">Condiciones Comerciales</div>
         <div style="border-top:1px solid ${HEX.borde};margin-bottom:16px;"></div>
         <ul style="font-size:9px;color:${HEX.navy};line-height:1.7;padding-left:16px;margin:0;">
@@ -592,6 +598,10 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
 export interface HeaderFooterTemplatesParams {
   proyecto: Proyecto;
   logoDataUrl: string | null;
+  footerWebUrl?: string | null;
+  footerWebLabel?: string | null;
+  footerInstagramUrl?: string | null;
+  footerInstagramHandle?: string | null;
 }
 
 // Encabezado compacto ("{Obra} · Presupuesto - X" + logo chico + "Fecha")
@@ -604,7 +614,7 @@ export interface HeaderFooterTemplatesParams {
 // y se combinan -- ver ese comentario en mtw-relay-api/src/pdfRenderer.ts
 // para el detalle de por qué hace falta ese rodeo.
 export function buildHeaderFooterTemplates(params: HeaderFooterTemplatesParams): { headerTemplate: string; footerTemplate: string } {
-  const { proyecto } = params;
+  const { proyecto, footerWebUrl, footerWebLabel, footerInstagramUrl, footerInstagramHandle } = params;
   const codigoLabel = `Presupuesto - ${proyecto.codigoInterno || proyecto.numeroPresupuesto}`;
   const fechaLabel = new Date().toLocaleDateString('es-CL');
 
@@ -629,10 +639,32 @@ export function buildHeaderFooterTemplates(params: HeaderFooterTemplatesParams):
       <div style="border-top:1px solid ${HEX.borde};margin-top:4px;"></div>
     </div>`;
 
+  // Sin línea divisoria arriba -- con una tarjeta (que ya trae su propio
+  // borde inferior) justo antes del footer, la línea del footer quedaba a
+  // centímetros de esa otra, y las dos juntas se leían como una fila de
+  // tabla suelta en vez de un footer limpio -- confirmado con una captura
+  // real.
+  //
+  // RRSS a la derecha, cada una como <a href> real -- a diferencia del
+  // logo (raster, con overlap confirmado), un <svg> inline chico Y un
+  // link con texto SÍ se comportan bien en este contexto aislado
+  // (confirmado renderizando y verificando los bytes del PDF resultante:
+  // el <a href> se traduce en una anotación /Annot /URI real y
+  // clickeable, no solo texto). Cada ícono/link se omite si no hay URL
+  // cargada en Configuración -- no se muestra un link roto a "".
+  const iconoWeb = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="${HEX.gris}" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
+  const iconoInstagram = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="${HEX.gris}" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>`;
+  const linkRrss = (url: string | null | undefined, icono: string, label: string) =>
+    url ? `<a href="${escapeHtml(url)}" style="display:flex;align-items:center;gap:3px;font-size:8px;color:${HEX.gris};text-decoration:none;">${icono}${escapeHtml(label)}</a>` : '';
+  const rrssHtml = [
+    linkRrss(footerWebUrl, iconoWeb, footerWebLabel || footerWebUrl || ''),
+    linkRrss(footerInstagramUrl, iconoInstagram, footerInstagramHandle || footerInstagramUrl || ''),
+  ].filter(Boolean).join('<span style="width:10px;display:inline-block;"></span>');
+
   const footerTemplate = `
-    <div style="width:100%;padding:0 42px;font-family:Helvetica,Arial,sans-serif;">
-      <div style="border-top:1px solid ${HEX.borde};margin-bottom:4px;"></div>
+    <div style="width:100%;padding:0 42px;font-family:Helvetica,Arial,sans-serif;display:flex;justify-content:space-between;align-items:center;">
       <div style="font-size:8px;color:${HEX.gris};">${escapeHtml(codigoLabel)}</div>
+      ${rrssHtml ? `<div style="display:flex;align-items:center;">${rrssHtml}</div>` : ''}
     </div>`;
 
   return { headerTemplate, footerTemplate };

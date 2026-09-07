@@ -4,6 +4,7 @@ import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { InicioPage } from './modules/inicio/InicioPage';
 import { CotizacionesPage } from './modules/cotizaciones/CotizacionesPage';
+import { ConfiguracionPage } from './modules/configuracion/ConfiguracionPage';
 import { getProyectos } from './api/client';
 import { useCloudflareAccessSession, SessionContext } from './lib/useCloudflareAccessSession';
 
@@ -22,6 +23,7 @@ const MODULE_TITLES: Record<string, string> = {
   inicio: 'Inicio',
   cotizaciones: 'Cotizaciones',
   taller: 'Taller & Fabricación',
+  configuracion: 'Configuración',
 };
 
 const AppContent: React.FC = () => {
@@ -75,6 +77,8 @@ const AppContent: React.FC = () => {
               onSearchChange={setSearchTerm}
             />
           )}
+
+          {activeTab === 'configuracion' && <ConfiguracionPage />}
 
           {activeTab === 'taller' && (
             <div className="p-8 sm:p-16 text-center space-y-3 max-w-md mx-auto">

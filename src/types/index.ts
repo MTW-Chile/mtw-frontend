@@ -148,6 +148,16 @@ export interface PresupuestoConfig {
   condicionesComerciales: string | null;
 }
 
+export interface ConfiguracionEmpresa {
+  id: string;
+  footerWebUrl: string | null;
+  footerWebLabel: string | null;
+  footerInstagramUrl: string | null;
+  footerInstagramHandle: string | null;
+  textoPresentacionDefault: string | null;
+  condicionesComercialesDefault: string | null;
+}
+
 export interface FijacionConfig {
   id: string;
   versionId: string;

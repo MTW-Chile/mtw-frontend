@@ -1,10 +1,10 @@
-import React, { useMemo, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileDown, Loader2, Pencil, Check } from 'lucide-react';
 import type { Proyecto, ProyectoVersion, Ventana } from '../../../../types';
 import { formatNumber } from '../../../../lib/utils';
 import { useMonedas } from '../../../../lib/monedas';
-import { updatePresupuestoConfig, updateVentanaPresupuesto, renderPdf } from '../../../../api/client';
+import { updatePresupuestoConfig, updateVentanaPresupuesto, renderPdf, getConfiguracionEmpresa } from '../../../../api/client';
 import { WindowRendererSvg } from '../../components/drawing/WindowRendererSvg';
 import { toWindowLine } from '../../components/drawing/ventanaAdapter';
 import { createFinish, getAcabadoLabel } from '../../components/drawing/colorSystem';
@@ -25,14 +25,20 @@ interface PresupuestoOfertaProps {
   euro: string;
 }
 
-const DEFAULT_CONDICIONES = `Se considera provisión e instalación de ventanas de PVC y termopaneles según especificación del proyecto.
+// Piso final si NI el proyecto tiene texto propio NI Configuración tiene un
+// default cargado (p.ej. la primera vez que corre esto, antes de que un
+// administrador entre a Configuración a llenarlo). El default real y
+// editable vive en ConfiguracionEmpresa (ver getConfiguracionEmpresa más
+// abajo) -- esto ya NO es "el texto por defecto", es el fallback del
+// fallback.
+const FALLBACK_CONDICIONES = `Se considera provisión e instalación de ventanas de PVC y termopaneles según especificación del proyecto.
 Validez de la oferta 30 días.
 Valores expresados en Unidades de Fomento (UF) más IVA.
 Se considera anticipo del 10% del valor del contrato.
 No se considera ningún elemento de terminación como junquillos, tubulares, remates de estuco y otros que no estén debidamente indicados en el Presupuesto.
 Este presupuesto contiene las ventanas detalladas en el plano enviado por el cliente y que es parte integrante del proyecto; cualquier modificación de este deberá cotizarse nuevamente incorporando los cambios o adicionales al proyecto.`;
 
-const DEFAULT_TEXTO = 'De acuerdo a sus requerimientos y solicitud de cotización, presentamos propuesta de Ventanas MTW con las líneas adecuadas para su proyecto.';
+const FALLBACK_TEXTO = 'De acuerdo a sus requerimientos y solicitud de cotización, presentamos propuesta de Ventanas MTW con las líneas adecuadas para su proyecto.';
 
 const NombreEditable: React.FC<{ ventana: Ventana; onGuardado: (v: Partial<Ventana>) => void; congelado: boolean }> = ({
   ventana,
@@ -178,10 +184,30 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
   const totalConIva = venta + iva;
 
   const config = activeVersion?.presupuestoConfig;
-  const [texto, setTexto] = useState(config?.textoPresentacion ?? DEFAULT_TEXTO);
-  const [condiciones, setCondiciones] = useState(config?.condicionesComerciales ?? DEFAULT_CONDICIONES);
+  const [texto, setTexto] = useState(config?.textoPresentacion ?? FALLBACK_TEXTO);
+  const [condiciones, setCondiciones] = useState(config?.condicionesComerciales ?? FALLBACK_CONDICIONES);
   const [editandoTexto, setEditandoTexto] = useState(false);
   const [editandoCondiciones, setEditandoCondiciones] = useState(false);
+
+  // Default global editable desde Configuración -- reemplaza el fallback
+  // hardcodeado en cuanto carga, pero SOLO si este proyecto no tiene su
+  // propio texto guardado (config?.textoPresentacion) y el campo sigue
+  // exactamente en el valor de fallback (todavía nadie lo tocó a mano acá).
+  const { data: configuracionEmpresaData } = useQuery({
+    queryKey: ['configuracionEmpresa'],
+    queryFn: () => getConfiguracionEmpresa(),
+  });
+  const configuracionEmpresa = configuracionEmpresaData?.configuracionEmpresa;
+  useEffect(() => {
+    if (!configuracionEmpresa) return;
+    if (!config?.textoPresentacion && configuracionEmpresa.textoPresentacionDefault && texto === FALLBACK_TEXTO) {
+      setTexto(configuracionEmpresa.textoPresentacionDefault);
+    }
+    if (!config?.condicionesComerciales && configuracionEmpresa.condicionesComercialesDefault && condiciones === FALLBACK_CONDICIONES) {
+      setCondiciones(configuracionEmpresa.condicionesComercialesDefault);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [configuracionEmpresa]);
 
   const guardarTextoMutation = useMutation({
     mutationFn: () => updatePresupuestoConfig(versionId!, { textoPresentacion: texto }),
@@ -227,7 +253,14 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         proyecto, ventanas, texto, condiciones, venta, iva, totalConIva, ivaPct, tasaUf,
         logoDataUrl, logoMuchtekDataUrl, preciosVenta, pngPorVentana,
       });
-      const { headerTemplate, footerTemplate } = buildHeaderFooterTemplates({ proyecto, logoDataUrl });
+      const { headerTemplate, footerTemplate } = buildHeaderFooterTemplates({
+        proyecto,
+        logoDataUrl,
+        footerWebUrl: configuracionEmpresa?.footerWebUrl,
+        footerWebLabel: configuracionEmpresa?.footerWebLabel,
+        footerInstagramUrl: configuracionEmpresa?.footerInstagramUrl,
+        footerInstagramHandle: configuracionEmpresa?.footerInstagramHandle,
+      });
 
       const filename = `presupuesto-${(proyecto.codigoInterno || proyecto.obra).replace(/\s+/g, '-')}.pdf`;
       const blob = await renderPdf(documentoHtml, filename, { headerTemplate, footerTemplate });

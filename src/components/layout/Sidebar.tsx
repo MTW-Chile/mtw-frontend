@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Building2,
   Hammer,
+  Settings,
   X,
   ShieldCheck,
 } from 'lucide-react';
@@ -31,6 +32,11 @@ export const Sidebar: React.FC<{
       label: 'Taller & Fabricación',
       icon: Hammer,
       badge: 'Pronto',
+    },
+    {
+      id: 'configuracion',
+      label: 'Configuración',
+      icon: Settings,
     },
   ];
 

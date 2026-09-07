@@ -10,6 +10,7 @@ import type {
   FamiliaMaterialAprobacion,
   FijacionConfig,
   PresupuestoConfig,
+  ConfiguracionEmpresa,
   SyncLog,
   Cliente,
   Material,
@@ -240,6 +241,23 @@ export async function updatePresupuestoConfig(
 ): Promise<{ success: boolean; presupuestoConfig: PresupuestoConfig }> {
   const response = await apiClient.patch<{ success: boolean; presupuestoConfig: PresupuestoConfig }>(
     `/versiones/${versionId}/presupuesto-config`,
+    payload
+  );
+  return response.data;
+}
+
+export async function getConfiguracionEmpresa(): Promise<{ success: boolean; configuracionEmpresa: ConfiguracionEmpresa }> {
+  const response = await apiClient.get<{ success: boolean; configuracionEmpresa: ConfiguracionEmpresa }>(
+    '/configuracion-empresa'
+  );
+  return response.data;
+}
+
+export async function updateConfiguracionEmpresa(
+  payload: Partial<Omit<ConfiguracionEmpresa, 'id'>>
+): Promise<{ success: boolean; configuracionEmpresa: ConfiguracionEmpresa }> {
+  const response = await apiClient.patch<{ success: boolean; configuracionEmpresa: ConfiguracionEmpresa }>(
+    '/configuracion-empresa',
     payload
   );
   return response.data;
