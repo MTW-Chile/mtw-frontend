@@ -413,7 +413,7 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
   const fechaLabel = new Date().toLocaleDateString('es-CL');
   const clienteNombre = proyecto.cliente?.nombre || proyecto.clienteNombreRaw;
 
-  const logoImg = logoDataUrl ? `<img src="${logoDataUrl}" style="width:92px;height:42px;display:block;margin-bottom:12px;" />` : '';
+  const logoImg = logoDataUrl ? `<img src="${logoDataUrl}" style="width:101px;height:46px;display:block;margin-bottom:12px;" />` : '';
   // En el documento de referencia el logo de Muchtek (Tecnoperfiles Group,
   // el proveedor del perfil) va arriba a la derecha, a la misma altura
   // que el logo de MTW -- solo en la primera página.
@@ -496,6 +496,13 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
   const CUPO_SIGUIENTE = 3;
   const ALTO_UTIL_PAGINA = 1006;
   const GAP_TARJETAS = 10;
+  // Aire real entre la última tarjeta y el footer -- con solo 6px, el
+  // borde de la última tarjeta quedaba a centímetros del texto del
+  // footer y se leía como si el footer fuera una fila más de esa misma
+  // tabla (confirmado con una captura real). Tiene que restarse ACÁ, del
+  // presupuesto que reparte el cupo -- si no, esos 20px se los come el
+  // overflow:hidden de la página en vez de quedar como espacio visible.
+  const PADDING_INFERIOR_PAGINA = 20;
   const altoHeaderPortada = estimarAltoHeaderCompleto(texto);
 
   const calcularSlot = (cupo: number, altoDisponible: number) => (altoDisponible - GAP_TARJETAS * (cupo - 1)) / cupo;
@@ -505,7 +512,7 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
     let idx = 0;
     while (idx < ventanas.length) {
       const esPortada = paginas.length === 0;
-      const altoDisponible = ALTO_UTIL_PAGINA - (esPortada ? altoHeaderPortada : 0);
+      const altoDisponible = ALTO_UTIL_PAGINA - PADDING_INFERIOR_PAGINA - (esPortada ? altoHeaderPortada : 0);
       let cupo = esPortada ? CUPO_PORTADA : CUPO_SIGUIENTE;
       let slot = calcularSlot(cupo, altoDisponible);
       while (cupo > 1) {
@@ -518,7 +525,7 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
       paginas.push({ ventanas: ventanas.slice(idx, idx + cupo), slot });
       idx += cupo;
     }
-    if (paginas.length === 0) paginas.push({ ventanas: [], slot: calcularSlot(CUPO_PORTADA, ALTO_UTIL_PAGINA - altoHeaderPortada) });
+    if (paginas.length === 0) paginas.push({ ventanas: [], slot: calcularSlot(CUPO_PORTADA, ALTO_UTIL_PAGINA - PADDING_INFERIOR_PAGINA - altoHeaderPortada) });
   }
 
   // Todas las páginas se arman igual -- tarjetas a su slot, apiladas con
@@ -535,7 +542,7 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
     return `
       <div style="width:100%;height:${ALTO_UTIL_PAGINA}px;box-sizing:border-box;overflow:hidden;font-family:Helvetica,Arial,sans-serif;background:#ffffff;${esUltima ? '' : 'page-break-after:always;'}">
         ${esPortada ? headerCompletoHtml : ''}
-        <div style="padding:0 42px 6px 42px;">
+        <div style="padding:0 42px ${PADDING_INFERIOR_PAGINA}px 42px;">
           ${tarjetasHtml}
           ${esUltima ? resumenHtml : ''}
         </div>
