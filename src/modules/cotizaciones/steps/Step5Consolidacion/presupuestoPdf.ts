@@ -176,11 +176,10 @@ interface VentanaAnalisis {
   metaFilas: [string, string][];
 }
 
-// Centraliza qué filas de metadatos lleva cada tarjeta -- usado tanto para
-// dibujarlas (buildCardHtml) como para ESTIMAR cuánto alto va a ocupar la
-// tarjeta (estimarAltoTarjeta, para el paginado adaptativo). Antes esta
-// lógica vivía duplicada inline en buildCardHtml; separarla evita que el
-// estimador de alto se desincronice de lo que realmente se dibuja -- la
+// Centraliza qué filas de metadatos lleva cada tarjeta -- usado para
+// dibujarlas en buildCardHtml (el alto para el paginado ya NO depende de
+// esto, ver ALTO_TARJETA_ESTANDAR: es un único número fijo para cualquier
+// tarjeta). Antes esta lógica vivía duplicada inline en buildCardHtml; la
 // misma clase de bug de duplicación que ya nos costó caro con el script de
 // preview en su momento.
 function analizarVentana(v: Ventana): VentanaAnalisis {
@@ -235,37 +234,25 @@ function estimarLineasTexto(texto: string, anchoColumnaPx: number, anchoCaracter
   return texto.split('\n').reduce((acc, linea) => acc + Math.max(1, Math.ceil(linea.length / caracteresPorLinea)), 0);
 }
 
-// Constantes de estimación (px) -- SOLO para decidir cuántas tarjetas
-// entran por página en el paginado adaptativo, no dibujan nada. Un cupo
-// fijo (3 en portada, 4 en el resto) funciona para tarjetas "livianas",
-// pero una Observación larga o muchas filas de metadatos puede hacer que
-// una tarjeta no entre en el espacio que le tocaría -- como las páginas
-// llenas tienen alto fijo y overflow:hidden (para poder estirarse a
-// pantalla completa sin dejar franjas en blanco), lo que no entra se
-// recorta en vez de pasar a la página siguiente. Estos números son
-// aproximados a propósito por el lado conservador (sobrestiman el alto
-// antes que subestimarlo) -- mejor una tarjeta de más en la página
-// siguiente que contenido recortado.
+// En la práctica casi ningún comentario de presupuesto pasa de 3 líneas --
+// se estandariza ahí el tope (visualmente se recorta con "…" vía
+// -webkit-line-clamp en observacionRowHtml si el texto real es más largo).
+const LINEAS_OBSERVACION_TOPE = 3;
+
+// Un solo alto ESTÁNDAR para CUALQUIER tarjeta, calculado en el peor caso
+// posible (las 5 filas de metadatos que puede llegar a tener -- Dimensiones,
+// Serie de perfiles, Apertura, Herrajes, Vidrios -- más las 3 líneas tope
+// de Observación) -- no un alto distinto por tarjeta según cuántas filas
+// tenga cada una. A propósito: mejor un número único y predecible (y que
+// una tarjeta liviana quede con algo de aire de más al estirarse a
+// flex:1) que seguir calculando alturas variables tarjeta por tarjeta.
+const FILAS_METADATOS_MAX = 5;
 const ALTO_FILA_META = 19;
 const ALTO_HEADER_TARJETA = 26;
 const ALTO_IMAGEN_VALORES = 140;
 const ALTO_BORDE_TARJETA = 2;
-// En la práctica casi ningún comentario de presupuesto pasa de 3 líneas --
-// se estandariza ahí el tope, y se reserva SIEMPRE ese alto fijo cuando hay
-// Observación, igual en todas las tarjetas -- no una estimación variable
-// según el largo real del texto de cada una. Así el alto de una tarjeta
-// con Observación es predecible sin importar qué tan corto o largo sea el
-// comentario (el texto que sobre pasa esas 3 líneas se recorta con "…" via
-// -webkit-line-clamp en observacionRowHtml, mismo tope).
-const LINEAS_OBSERVACION_TOPE = 3;
-
-function estimarAltoTarjeta(v: Ventana, analisis: VentanaAnalisis): number {
-  let alto = ALTO_HEADER_TARJETA + analisis.metaFilas.length * ALTO_FILA_META + ALTO_IMAGEN_VALORES + ALTO_BORDE_TARJETA;
-  if (v.comentarioPresupuesto) {
-    alto += ALTO_FILA_META * LINEAS_OBSERVACION_TOPE;
-  }
-  return alto;
-}
+const ALTO_TARJETA_ESTANDAR =
+  ALTO_HEADER_TARJETA + FILAS_METADATOS_MAX * ALTO_FILA_META + ALTO_IMAGEN_VALORES + ALTO_BORDE_TARJETA + LINEAS_OBSERVACION_TOPE * ALTO_FILA_META;
 
 // Alto del encabezado completo de portada (logos + título + divisor +
 // código/fecha + Cliente + Obra + saludo + párrafo de presentación) --
@@ -298,9 +285,10 @@ export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { spacing?: bool
       <td style="padding:4px 10px;color:${HEX.navy};font-weight:bold;font-size:9px;">${escapeHtml(value)}</td>
     </tr>`).join('');
   // Tope estandarizado de 3 líneas -- en la práctica casi ningún comentario
-  // pasa de ahí, y fijar un tope predecible es lo que permite estimar el
-  // alto de la tarjeta sin variación (ver LINEAS_OBSERVACION_TOPE, usada
-  // también en estimarAltoTarjeta). -webkit-line-clamp corta con "…" en
+  // pasa de ahí, y fijar un tope predecible es lo que hace posible tener
+  // UN SOLO alto fijo para cualquier tarjeta (ver ALTO_TARJETA_ESTANDAR,
+  // que ya reserva esas 3 líneas siempre, tenga o no comentario esta
+  // tarjeta en particular). -webkit-line-clamp corta con "…" en
   // vez de recortar a la mitad de una palabra -- funciona porque el motor
   // de render es siempre Chromium (el mismo que arma el PDF), no hace
   // falta soportar otros navegadores acá. OJO: el clamp tiene que ir en un
@@ -444,22 +432,23 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
 
   // Paginado adaptativo: hasta 3 tarjetas en la portada (comparte espacio
   // con el encabezado completo), hasta 4 en cada página siguiente -- ese
-  // cupo es un TOPE, no un número fijo. Si el contenido real de las
-  // tarjetas (u, en la portada, del párrafo de presentación) no entra en
-  // el alto disponible, se cierra la página con MENOS tarjetas en vez de
-  // forzar el cupo -- si no, con cupo fijo una tarjeta pesada (muchas
-  // filas, Observación larga) o un header de portada largo (cliente/obra
-  // con texto largo) podían terminar recortados por el overflow:hidden de
-  // las páginas "llenas". Todas las páginas MENOS LA ÚLTIMA quedan
-  // garantizadas "llenas" (llegaron al tope de alto o de cupo -- si no, la
-  // siguiente tarjeta hubiese entrado en esta) y usan flex:1 en cada
-  // tarjeta para repartir el alto completo de la página (1006px = 1056px
-  // carta - 32px margen superior - 18px inferior, el mismo margen que
-  // aplica renderHtmlToPdfConCabecera en el relay a AMBOS renders --
-  // portada y con cabecera -- así que este número es el real, no un valor
-  // aproximado). La ÚLTIMA página sigue el flujo natural de siempre --
-  // tarjetas a su tamaño normal, sin estirar -- para que no queden más
-  // grandes que en el resto del documento.
+  // cupo es un TOPE, no un número fijo. Cada tarjeta cuenta con el MISMO
+  // alto estándar (ALTO_TARJETA_ESTANDAR, el peor caso -- no un cálculo
+  // distinto tarjeta por tarjeta), así que lo único que varía página a
+  // página es cuánto alto le queda libre a cada una: en la portada, el
+  // párrafo de presentación puede achicar ese disponible (altoHeaderPortada)
+  // y cerrar la página con menos de 3 -- si no, un header de portada largo
+  // (cliente/obra/texto largo) podía terminar recortado por el
+  // overflow:hidden de las páginas "llenas". Todas las páginas MENOS LA
+  // ÚLTIMA quedan garantizadas "llenas" (llegaron al tope de alto o de
+  // cupo -- si no, la siguiente tarjeta hubiese entrado en esta) y usan
+  // flex:1 en cada tarjeta para repartir el alto completo de la página
+  // (1006px = 1056px carta - 32px margen superior - 18px inferior, el
+  // mismo margen que aplica renderHtmlToPdfConCabecera en el relay a
+  // AMBOS renders -- portada y con cabecera -- así que este número es el
+  // real, no un valor aproximado). La ÚLTIMA página sigue el flujo natural
+  // de siempre -- tarjetas a su tamaño normal, sin estirar -- para que no
+  // queden más grandes que en el resto del documento.
   const CUPO_MAX_PORTADA = 3;
   const CUPO_MAX_SIGUIENTE = 4;
   const ALTO_UTIL_PAGINA = 1006;
@@ -474,15 +463,14 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
       const esPortada = paginas.length === 0;
       const cupoMax = esPortada ? CUPO_MAX_PORTADA : CUPO_MAX_SIGUIENTE;
       const altoDisponible = ALTO_UTIL_PAGINA - (esPortada ? altoHeaderPortada : 0);
-      const altoTarjeta = estimarAltoTarjeta(v, analizarVentana(v));
-      const altoConEsta = altoUsado + (paginaActual.length ? GAP_TARJETAS : 0) + altoTarjeta;
+      const altoConEsta = altoUsado + (paginaActual.length ? GAP_TARJETAS : 0) + ALTO_TARJETA_ESTANDAR;
       if (paginaActual.length > 0 && (paginaActual.length >= cupoMax || altoConEsta > altoDisponible)) {
         paginas.push(paginaActual);
         paginaActual = [];
         altoUsado = 0;
       }
       paginaActual.push(v);
-      altoUsado += (paginaActual.length > 1 ? GAP_TARJETAS : 0) + altoTarjeta;
+      altoUsado += (paginaActual.length > 1 ? GAP_TARJETAS : 0) + ALTO_TARJETA_ESTANDAR;
     }
     if (paginaActual.length > 0 || paginas.length === 0) paginas.push(paginaActual);
   }
