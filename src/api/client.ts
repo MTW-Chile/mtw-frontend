@@ -121,8 +121,12 @@ export async function updateProyectoCliente(
   id: string,
   clienteId: string | null
 ): Promise<{ success: boolean; proyecto: Omit<Proyecto, 'versiones'> }> {
-  // El relay actualiza con include: { cliente: true } solamente - la respuesta
-  // no trae "versiones" (a diferencia de GET /proyectos/:id).
+  // El relay ahora sí trae "versiones" en la respuesta (las necesita
+  // internamente para congelar la version activa al asignar cliente), pero
+  // el shape completo de ProyectoVersion no está resuelto acá -- este tipo
+  // se queda angosto a propósito; quien necesite el estado post-congelamiento
+  // ya invalida ['proyectoDetail', id] (ver useCotizadorWorkspace), que sí
+  // trae todo con el GET completo.
   const response = await apiClient.patch<{ success: boolean; proyecto: Omit<Proyecto, 'versiones'> }>(
     `/proyectos/${id}/cliente`,
     { clienteId }
