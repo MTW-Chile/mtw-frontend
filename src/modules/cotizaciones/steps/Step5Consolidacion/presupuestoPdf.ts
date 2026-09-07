@@ -172,8 +172,18 @@ interface CardDeps {
 // calculadas a mano -- este HTML se manda tal cual al relay, que lo
 // imprime a PDF con Chromium real (page.pdf()), igual al documento de
 // referencia (Vista Monseñor, Casa La Aurora), no una aproximación.
-export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { spacing?: boolean } = {}): string {
-  const { preciosVenta, pngPorVentana, tasaUf } = deps;
+interface VentanaAnalisis {
+  metaFilas: [string, string][];
+}
+
+// Centraliza qué filas de metadatos lleva cada tarjeta -- usado tanto para
+// dibujarlas (buildCardHtml) como para ESTIMAR cuánto alto va a ocupar la
+// tarjeta (estimarAltoTarjeta, para el paginado adaptativo). Antes esta
+// lógica vivía duplicada inline en buildCardHtml; separarla evita que el
+// estimador de alto se desincronice de lo que realmente se dibuja -- la
+// misma clase de bug de duplicación que ya nos costó caro con el script de
+// preview en su momento.
+function analizarVentana(v: Ventana): VentanaAnalisis {
   const line = toWindowLine(v);
   const isFrameless = Boolean(line?.dibujoSinMarco);
   // Una ventana sin paños con apertura declarada (p.ej. sin marco, solo
@@ -212,6 +222,67 @@ export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { spacing?: bool
     ...(!isFrameless && herraje ? [['Herrajes', herraje] as [string, string]] : []),
     ...(vidrio ? [['Vidrios', vidrio] as [string, string]] : []),
   ];
+  return { metaFilas };
+}
+
+// Cuántas líneas visuales va a ocupar un texto libre (Observación,
+// párrafo de presentación) dado un ancho de columna disponible -- se usa
+// tanto para estimar el alto de una tarjeta como el del encabezado de
+// portada. Cuenta los saltos de línea manuales (\n) Y estima el
+// wrap automático por ancho, no solo uno de los dos.
+function estimarLineasTexto(texto: string, anchoColumnaPx: number, anchoCaracterPx: number): number {
+  const caracteresPorLinea = Math.max(1, Math.floor(anchoColumnaPx / anchoCaracterPx));
+  return texto.split('\n').reduce((acc, linea) => acc + Math.max(1, Math.ceil(linea.length / caracteresPorLinea)), 0);
+}
+
+// Constantes de estimación (px) -- SOLO para decidir cuántas tarjetas
+// entran por página en el paginado adaptativo, no dibujan nada. Un cupo
+// fijo (3 en portada, 4 en el resto) funciona para tarjetas "livianas",
+// pero una Observación larga o muchas filas de metadatos puede hacer que
+// una tarjeta no entre en el espacio que le tocaría -- como las páginas
+// llenas tienen alto fijo y overflow:hidden (para poder estirarse a
+// pantalla completa sin dejar franjas en blanco), lo que no entra se
+// recorta en vez de pasar a la página siguiente. Estos números son
+// aproximados a propósito por el lado conservador (sobrestiman el alto
+// antes que subestimarlo) -- mejor una tarjeta de más en la página
+// siguiente que contenido recortado.
+const ALTO_FILA_META = 19;
+const ALTO_HEADER_TARJETA = 26;
+const ALTO_IMAGEN_VALORES = 140;
+const ALTO_BORDE_TARJETA = 2;
+const ANCHO_COLUMNA_OBSERVACION = 590;
+const ANCHO_CARACTER_OBSERVACION = 5.6;
+
+function estimarAltoTarjeta(v: Ventana, analisis: VentanaAnalisis): number {
+  let alto = ALTO_HEADER_TARJETA + analisis.metaFilas.length * ALTO_FILA_META + ALTO_IMAGEN_VALORES + ALTO_BORDE_TARJETA;
+  if (v.comentarioPresupuesto) {
+    alto += ALTO_FILA_META * estimarLineasTexto(v.comentarioPresupuesto, ANCHO_COLUMNA_OBSERVACION, ANCHO_CARACTER_OBSERVACION);
+  }
+  return alto;
+}
+
+// Alto del encabezado completo de portada (logos + título + divisor +
+// código/fecha + Cliente + Obra + saludo + párrafo de presentación) --
+// todo fijo salvo el párrafo, que crece con el texto real ("De acuerdo a
+// sus requerimientos..."). Si el cliente/proyecto trae datos largos ahí,
+// el header se come más alto disponible para las tarjetas de la portada
+// -- este número es lo que le resta al presupuesto de alto de esa página
+// en el paginado adaptativo.
+const ALTO_HEADER_PORTADA_BASE = 210;
+const ALTO_HEADER_PORTADA_CON_SALUDO = 30;
+const ANCHO_COLUMNA_TEXTO_PRESENTACION = 690;
+const ANCHO_CARACTER_TEXTO_PRESENTACION = 4.7;
+const ALTO_LINEA_TEXTO_PRESENTACION = 14;
+
+function estimarAltoHeaderCompleto(texto: string): number {
+  if (!texto.trim()) return ALTO_HEADER_PORTADA_BASE;
+  const lineas = estimarLineasTexto(texto.trim(), ANCHO_COLUMNA_TEXTO_PRESENTACION, ANCHO_CARACTER_TEXTO_PRESENTACION);
+  return ALTO_HEADER_PORTADA_BASE + ALTO_HEADER_PORTADA_CON_SALUDO + lineas * ALTO_LINEA_TEXTO_PRESENTACION;
+}
+
+export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { spacing?: boolean } = {}): string {
+  const { preciosVenta, pngPorVentana, tasaUf } = deps;
+  const { metaFilas } = analizarVentana(v);
   // Tabla de metadatos a todo el ancho de la tarjeta, sin grilla -- el
   // documento de referencia distingue las filas con una banda de color
   // alternada (zebra), no con líneas divisorias entre celdas.
@@ -223,7 +294,7 @@ export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { spacing?: bool
   const observacionRowHtml = v.comentarioPresupuesto ? `
     <tr style="background:${metaFilas.length % 2 === 0 ? HEX.zebra : '#ffffff'};">
       <td style="padding:4px 10px;color:${HEX.gris};width:150px;font-size:9px;vertical-align:top;">Observación:</td>
-      <td style="padding:4px 10px;color:${HEX.navy};font-weight:bold;font-size:9px;">${escapeHtml(v.comentarioPresupuesto)}</td>
+      <td style="padding:4px 10px;color:${HEX.navy};font-weight:bold;font-size:9px;white-space:pre-line;">${escapeHtml(v.comentarioPresupuesto)}</td>
     </tr>` : '';
 
   const precio = preciosVenta.get(v.id);
@@ -245,14 +316,14 @@ export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { spacing?: bool
     <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
       <tr>
         <td style="width:56%;padding:8px 10px 8px 12px;vertical-align:top;">
-          ${png ? `<img src="${png}" style="max-width:230px;max-height:165px;width:auto;height:auto;display:block;margin:0 auto;" />` : ''}
+          ${png ? `<img src="${png}" style="max-width:184px;max-height:132px;width:auto;height:auto;display:block;margin:0 auto;" />` : ''}
         </td>
         <td style="width:44%;vertical-align:top;padding:8px 12px 8px 0;">
           <table style="width:100%;border-collapse:collapse;">
-            <tr><td colspan="2" style="background:${HEX.headBg};font-weight:bold;padding:8px 10px;font-size:9px;color:${HEX.navy};">Valores comerciales</td></tr>
-            <tr><td style="padding:8px 10px;font-size:9px;color:${HEX.gris};border-bottom:1px solid ${HEX.borde};">Precio unitario neto</td><td style="padding:8px 10px;font-size:9px;text-align:right;color:${HEX.navy};border-bottom:1px solid ${HEX.borde};">${escapeHtml(ufLabel(precio?.precioUnitarioCLP || 0, tasaUf))}</td></tr>
-            <tr><td style="padding:8px 10px;font-size:9px;color:${HEX.gris};border-bottom:1px solid ${HEX.borde};">Cantidad</td><td style="padding:8px 10px;font-size:9px;text-align:right;color:${HEX.navy};border-bottom:1px solid ${HEX.borde};">${v.unidades} unidad(es)</td></tr>
-            <tr><td style="padding:8px 10px;font-size:9px;color:${HEX.navy};font-weight:bold;border-bottom:1px solid ${HEX.borde};">Total neto</td><td style="padding:8px 10px;font-size:9px;text-align:right;font-weight:bold;color:${HEX.navy};border-bottom:1px solid ${HEX.borde};">${escapeHtml(ufLabel(precio?.precioVentaCLP || 0, tasaUf))}</td></tr>
+            <tr><td colspan="2" style="background:${HEX.headBg};font-weight:bold;padding:5px 10px;font-size:9px;color:${HEX.navy};">Valores comerciales</td></tr>
+            <tr><td style="padding:5px 10px;font-size:9px;color:${HEX.gris};border-bottom:1px solid ${HEX.borde};">Precio unitario neto</td><td style="padding:5px 10px;font-size:9px;text-align:right;color:${HEX.navy};border-bottom:1px solid ${HEX.borde};">${escapeHtml(ufLabel(precio?.precioUnitarioCLP || 0, tasaUf))}</td></tr>
+            <tr><td style="padding:5px 10px;font-size:9px;color:${HEX.gris};border-bottom:1px solid ${HEX.borde};">Cantidad</td><td style="padding:5px 10px;font-size:9px;text-align:right;color:${HEX.navy};border-bottom:1px solid ${HEX.borde};">${v.unidades} unidad(es)</td></tr>
+            <tr><td style="padding:5px 10px;font-size:9px;color:${HEX.navy};font-weight:bold;border-bottom:1px solid ${HEX.borde};">Total neto</td><td style="padding:5px 10px;font-size:9px;text-align:right;font-weight:bold;color:${HEX.navy};border-bottom:1px solid ${HEX.borde};">${escapeHtml(ufLabel(precio?.precioVentaCLP || 0, tasaUf))}</td></tr>
           </table>
         </td>
       </tr>
@@ -352,28 +423,49 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
       </table>
     </div>`;
 
-  // Paginado manual: 3 tarjetas en la portada (comparte espacio con el
-  // encabezado completo), 4 en cada página siguiente -- pedido explícito
-  // para no dejar la franja de espacio en blanco que quedaba con el flujo
-  // natural cuando entraban menos tarjetas de las que cabían físicamente.
-  // Todas las páginas MENOS LA ÚLTIMA están garantizadas "llenas" (llegan
-  // al cupo, si no la siguiente tarjeta hubiese entrado en esta) y usan
-  // flex:1 en cada tarjeta para repartir el alto completo de la página
-  // (1006px = 1056px carta - 32px margen superior - 18px inferior, el
-  // mismo margen que aplica renderHtmlToPdfConCabecera en el relay a
-  // AMBOS renders -- portada y con cabecera -- así que este número es el
-  // real, no un valor aproximado). La ÚLTIMA página (la que puede traer
-  // menos tarjetas que el cupo) sigue el flujo natural de siempre --
+  // Paginado adaptativo: hasta 3 tarjetas en la portada (comparte espacio
+  // con el encabezado completo), hasta 4 en cada página siguiente -- ese
+  // cupo es un TOPE, no un número fijo. Si el contenido real de las
+  // tarjetas (u, en la portada, del párrafo de presentación) no entra en
+  // el alto disponible, se cierra la página con MENOS tarjetas en vez de
+  // forzar el cupo -- si no, con cupo fijo una tarjeta pesada (muchas
+  // filas, Observación larga) o un header de portada largo (cliente/obra
+  // con texto largo) podían terminar recortados por el overflow:hidden de
+  // las páginas "llenas". Todas las páginas MENOS LA ÚLTIMA quedan
+  // garantizadas "llenas" (llegaron al tope de alto o de cupo -- si no, la
+  // siguiente tarjeta hubiese entrado en esta) y usan flex:1 en cada
+  // tarjeta para repartir el alto completo de la página (1006px = 1056px
+  // carta - 32px margen superior - 18px inferior, el mismo margen que
+  // aplica renderHtmlToPdfConCabecera en el relay a AMBOS renders --
+  // portada y con cabecera -- así que este número es el real, no un valor
+  // aproximado). La ÚLTIMA página sigue el flujo natural de siempre --
   // tarjetas a su tamaño normal, sin estirar -- para que no queden más
   // grandes que en el resto del documento.
-  const CUPO_PORTADA = 3;
-  const CUPO_SIGUIENTE = 4;
+  const CUPO_MAX_PORTADA = 3;
+  const CUPO_MAX_SIGUIENTE = 4;
   const ALTO_UTIL_PAGINA = 1006;
+  const GAP_TARJETAS = 10;
+  const altoHeaderPortada = estimarAltoHeaderCompleto(texto);
 
   const paginas: Ventana[][] = [];
-  paginas.push(ventanas.slice(0, CUPO_PORTADA));
-  for (let i = CUPO_PORTADA; i < ventanas.length; i += CUPO_SIGUIENTE) {
-    paginas.push(ventanas.slice(i, i + CUPO_SIGUIENTE));
+  {
+    let paginaActual: Ventana[] = [];
+    let altoUsado = 0;
+    for (const v of ventanas) {
+      const esPortada = paginas.length === 0;
+      const cupoMax = esPortada ? CUPO_MAX_PORTADA : CUPO_MAX_SIGUIENTE;
+      const altoDisponible = ALTO_UTIL_PAGINA - (esPortada ? altoHeaderPortada : 0);
+      const altoTarjeta = estimarAltoTarjeta(v, analizarVentana(v));
+      const altoConEsta = altoUsado + (paginaActual.length ? GAP_TARJETAS : 0) + altoTarjeta;
+      if (paginaActual.length > 0 && (paginaActual.length >= cupoMax || altoConEsta > altoDisponible)) {
+        paginas.push(paginaActual);
+        paginaActual = [];
+        altoUsado = 0;
+      }
+      paginaActual.push(v);
+      altoUsado += (paginaActual.length > 1 ? GAP_TARJETAS : 0) + altoTarjeta;
+    }
+    if (paginaActual.length > 0 || paginas.length === 0) paginas.push(paginaActual);
   }
 
   const paginasLlenasHtml = paginas.slice(0, -1).map((cardsPagina, idx) => {
