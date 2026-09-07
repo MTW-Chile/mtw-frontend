@@ -20,7 +20,7 @@ export const WorkspaceStepper: React.FC<WorkspaceStepperProps> = ({
   onStepChange,
 }) => {
   return (
-    <div className="bg-white border-b border-slate-200/80 shadow-2xs px-3 sm:px-8 py-2.5 sm:py-3 overflow-x-auto no-scrollbar scroll-smooth">
+    <div className="px-3 sm:px-8 py-2 sm:py-2.5 overflow-x-auto no-scrollbar scroll-smooth">
       <div className="max-w-6xl mx-auto flex items-center justify-between gap-1.5 sm:gap-2 min-w-max">
         {STEPS.map((s, idx) => (
           <React.Fragment key={s.step}>

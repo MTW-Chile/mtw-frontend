@@ -26,8 +26,8 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
   onOpenReimport,
 }) => {
   return (
-    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-2xs px-3.5 sm:px-6 py-2.5 sm:py-3">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 max-w-7xl mx-auto">
+    <div className="px-3.5 sm:px-6 py-2 sm:py-2.5 border-b border-slate-100">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 max-w-7xl mx-auto">
         {/* Lado Principal / Identificación */}
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
           <button
@@ -36,8 +36,8 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
             title="Volver al listado de Obras"
           >
             <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-600" />
-            <span className="hidden xs:inline">Volver</span>
-            <span className="hidden sm:inline">a Obras</span>
+            <span className="hidden sm:inline">Volver a Obras</span>
+            <span className="sm:hidden">Volver</span>
           </button>
 
           <div className="h-5 w-px bg-slate-200 hidden sm:block" />
@@ -49,7 +49,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
 
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                <h1 className="text-xs sm:text-base font-bold tracking-tight text-slate-900 truncate max-w-[140px] xs:max-w-[200px] sm:max-w-none">
+                <h1 className="text-xs sm:text-base font-bold tracking-tight text-slate-900 truncate max-w-[160px] sm:max-w-none">
                   {proyecto.obra}
                 </h1>
 
@@ -99,6 +99,6 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
           </button>
         </div>
       </div>
-    </header>
+    </div>
   );
 };

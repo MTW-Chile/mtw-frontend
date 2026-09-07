@@ -47,7 +47,7 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
       {/* CASO A: CLIENTE YA ASIGNADO FORMALMENTE */}
       {currentClient && clientMode === 'view' && (
         <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-          <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
               <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">

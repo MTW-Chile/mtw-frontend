@@ -82,19 +82,19 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-slate-50 text-slate-900 animate-fade-in">
-      {/* HEADER SUPERIOR */}
-      <WorkspaceHeader
-        proyecto={proyecto}
-        activeVersion={activeVersion}
-        onBack={onBack}
-        onOpenReimport={() => setShowReimportModal(true)}
-      />
-
-      {/* STEPPER HORIZONTAL DE LOS 5 PASOS */}
-      <WorkspaceStepper
-        currentStep={currentStep}
-        onStepChange={setCurrentStep}
-      />
+      {/* HEADER SUPERIOR Y STEPPER UNIFICADOS */}
+      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-2xs">
+        <WorkspaceHeader
+          proyecto={proyecto}
+          activeVersion={activeVersion}
+          onBack={onBack}
+          onOpenReimport={() => setShowReimportModal(true)}
+        />
+        <WorkspaceStepper
+          currentStep={currentStep}
+          onStepChange={setCurrentStep}
+        />
+      </div>
 
       {/* CONTENIDO PRINCIPAL SEGÚN EL PASO ACTIVO */}
       <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-6xl w-full mx-auto space-y-6">
