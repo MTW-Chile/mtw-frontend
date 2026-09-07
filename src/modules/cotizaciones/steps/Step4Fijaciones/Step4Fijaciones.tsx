@@ -275,7 +275,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
         [`Instalación (${pctLabel(costoInstalacion, venta)})`, clpLabel(costoInstalacion)],
         ['Costo total NETO', clpLabel(costoTotal)],
       ],
-      didParseCell: (data) => {
+      didParseCell: (data: any) => {
         if (data.row.index === 4) data.cell.styles.fontStyle = 'bold';
       },
     });

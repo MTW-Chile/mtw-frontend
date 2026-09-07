@@ -53,7 +53,7 @@ export const Sidebar: React.FC<{
 
       {/* Drawer / Sidebar */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 w-72 max-w-[85vw] bg-white border-r border-slate-200 p-5 flex flex-col justify-between transition-transform duration-250 ease-in-out lg:static lg:translate-x-0 ${
+        className={`fixed top-0 bottom-0 left-0 z-50 w-72 max-w-[85vw] bg-white border-r border-slate-200 p-5 flex flex-col justify-between transition-transform duration-250 ease-in-out lg:static lg:h-screen lg:shrink-0 lg:translate-x-0 ${
           isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
         }`}
       >

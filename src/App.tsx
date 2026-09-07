@@ -50,7 +50,7 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex bg-slate-50 text-slate-900 font-sans">
+    <div className="h-screen overflow-hidden flex bg-slate-50 text-slate-900 font-sans">
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -59,14 +59,14 @@ const AppContent: React.FC = () => {
         totalProyectos={data?.total}
       />
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         <Header
           onOpenSidebar={() => setIsSidebarOpen(true)}
           onNavigateHome={() => handleNavigate('inicio')}
           moduleTitle={MODULE_TITLES[activeTab] || 'Inicio'}
         />
 
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto flex flex-col min-h-0">
           {activeTab === 'inicio' && (
             <InicioPage onNavigate={handleNavigate} />
           )}

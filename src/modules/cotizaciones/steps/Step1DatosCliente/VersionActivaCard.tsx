@@ -24,19 +24,19 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
   const hayVariasVersiones = proyecto.versiones.length > 1;
 
   return (
-    <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between gap-4 flex-wrap">
+    <div className="p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-[#E34A26]/10 text-[#E34A26] border border-[#E34A26]/20 flex items-center justify-center shrink-0">
-          <GitBranch className="w-5 h-5" />
+        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#E34A26]/10 text-[#E34A26] border border-[#E34A26]/20 flex items-center justify-center shrink-0">
+          <GitBranch className="w-4 h-4 sm:w-5 sm:h-5" />
         </div>
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+          <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
             Versión a Presupuestar
           </div>
-          <div className="text-sm font-bold text-slate-900">
+          <div className="text-xs sm:text-sm font-bold text-slate-900">
             Revisión {activeVersion?.versionNumero ?? '—'}
             {activeVersion?.fechaDocumento && (
-              <span className="ml-2 text-xs font-normal text-slate-500">
+              <span className="ml-2 text-[11px] sm:text-xs font-normal text-slate-500">
                 ({new Date(activeVersion.fechaDocumento).toLocaleDateString('es-CL')})
               </span>
             )}
@@ -45,16 +45,16 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
       </div>
 
       {hayVariasVersiones ? (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-start sm:self-auto">
           <div className="flex items-center rounded-xl p-1 bg-slate-100 border border-slate-200">
             {proyecto.versiones.map((v, idx) => (
               <button
                 key={v.id}
                 onClick={() => onSelectVersion(idx)}
                 disabled={isSaving}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 cursor-pointer ${
                   selectedVersionIdx === idx
-                    ? 'bg-[#E34A26] text-white font-bold shadow-sm'
+                    ? 'bg-[#E34A26] text-white font-bold shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -65,7 +65,7 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
           {isSaving && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
         </div>
       ) : (
-        <span className="text-xs text-slate-500">
+        <span className="text-[11px] sm:text-xs text-slate-500">
           Única versión sincronizada desde HETMO para esta obra.
         </span>
       )}

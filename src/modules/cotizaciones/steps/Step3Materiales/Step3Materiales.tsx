@@ -353,7 +353,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
           `$ ${formatNumber(m.precioCLP * m.cantidadTotal * factorFamilia, 0)}`,
           m.excluido ? 'Excluido' : 'Incluido',
         ]),
-        didParseCell: (data) => {
+        didParseCell: (data: any) => {
           const fila = materiales[data.row.index];
           if (fila?.excluido && data.section === 'body') {
             data.cell.styles.textColor = [148, 163, 184];

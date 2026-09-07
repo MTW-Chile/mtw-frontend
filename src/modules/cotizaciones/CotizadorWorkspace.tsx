@@ -55,7 +55,7 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-8 bg-slate-50 text-slate-700">
+      <div className="flex-1 flex items-center justify-center p-8 bg-slate-50 text-slate-700">
         <div className="text-center space-y-3">
           <div className="w-8 h-8 border-2 border-[#E34A26] border-t-transparent rounded-full animate-spin mx-auto" />
           <div className="text-xs font-mono">Cargando cotizador de la obra...</div>
@@ -66,7 +66,7 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
 
   if (isError || !proyecto) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-8 bg-slate-50 text-slate-700">
+      <div className="flex-1 flex items-center justify-center p-8 bg-slate-50 text-slate-700">
         <div className="text-center space-y-4">
           <div className="text-red-500 font-bold text-sm">Error al cargar la obra.</div>
           <button
@@ -81,7 +81,7 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 animate-fade-in">
+    <div className="flex-1 flex flex-col min-h-0 bg-slate-50 text-slate-900 animate-fade-in">
       {/* HEADER SUPERIOR */}
       <WorkspaceHeader
         proyecto={proyecto}
