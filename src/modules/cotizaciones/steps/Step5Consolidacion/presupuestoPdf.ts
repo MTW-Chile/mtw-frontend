@@ -176,11 +176,11 @@ interface VentanaAnalisis {
   metaFilas: [string, string][];
 }
 
-// Centraliza qué filas de metadatos lleva cada tarjeta -- usado para
-// dibujarlas en buildCardHtml (el alto para el paginado ya NO depende de
-// esto, ver ALTO_TARJETA_ESTANDAR: es un único número fijo para cualquier
-// tarjeta). Antes esta lógica vivía duplicada inline en buildCardHtml; la
-// misma clase de bug de duplicación que ya nos costó caro con el script de
+// Centraliza qué filas de metadatos lleva cada tarjeta -- usado tanto para
+// dibujarlas (buildCardHtml) como para ESTIMAR su alto real (estimarAltoTarjeta,
+// para el paginado adaptativo) -- las dos partes cuentan las mismas filas
+// para la misma tarjeta. Antes esta lógica vivía duplicada inline en
+// buildCardHtml; la misma clase de bug de duplicación que ya nos costó caro con el script de
 // preview en su momento.
 function analizarVentana(v: Ventana): VentanaAnalisis {
   const line = toWindowLine(v);
@@ -239,20 +239,26 @@ function estimarLineasTexto(texto: string, anchoColumnaPx: number, anchoCaracter
 // -webkit-line-clamp en observacionRowHtml si el texto real es más largo).
 const LINEAS_OBSERVACION_TOPE = 3;
 
-// Un solo alto ESTÁNDAR para CUALQUIER tarjeta, calculado en el peor caso
-// posible (las 5 filas de metadatos que puede llegar a tener -- Dimensiones,
-// Serie de perfiles, Apertura, Herrajes, Vidrios -- más las 3 líneas tope
-// de Observación) -- no un alto distinto por tarjeta según cuántas filas
-// tenga cada una. A propósito: mejor un número único y predecible (y que
-// una tarjeta liviana quede con algo de aire de más al estirarse a
-// flex:1) que seguir calculando alturas variables tarjeta por tarjeta.
-const FILAS_METADATOS_MAX = 5;
+// Alto REAL de una tarjeta (para el paginado adaptativo -- no se dibuja
+// con esto, buildCardHtml deja el alto en natural/auto) -- depende de
+// cuántas filas de metadatos tiene ESA tarjeta en particular (una sin
+// marco puede tener solo 2, Dimensiones y Vidrios; una con todo, 5) más
+// si tiene Observación (siempre 3 líneas ahí, ya que el tope visual es
+// fijo). Usar el mismo conteo real que buildCardHtml, no un peor caso
+// aplicado a todas -- eso fue lo que dejaba tarjetas livianas con un
+// bloque de aire en blanco (ver el comentario en buildCardHtml).
 const ALTO_FILA_META = 19;
 const ALTO_HEADER_TARJETA = 26;
 const ALTO_IMAGEN_VALORES = 140;
 const ALTO_BORDE_TARJETA = 2;
-const ALTO_TARJETA_ESTANDAR =
-  ALTO_HEADER_TARJETA + FILAS_METADATOS_MAX * ALTO_FILA_META + ALTO_IMAGEN_VALORES + ALTO_BORDE_TARJETA + LINEAS_OBSERVACION_TOPE * ALTO_FILA_META;
+
+function estimarAltoTarjeta(v: Ventana, analisis: VentanaAnalisis): number {
+  let alto = ALTO_HEADER_TARJETA + analisis.metaFilas.length * ALTO_FILA_META + ALTO_IMAGEN_VALORES + ALTO_BORDE_TARJETA;
+  if (v.comentarioPresupuesto) {
+    alto += ALTO_FILA_META * LINEAS_OBSERVACION_TOPE;
+  }
+  return alto;
+}
 
 // Alto del encabezado completo de portada (logos + título + divisor +
 // código/fecha + Cliente + Obra + saludo + párrafo de presentación) --
@@ -285,10 +291,10 @@ export function buildCardHtml(v: Ventana, deps: CardDeps): string {
       <td style="padding:4px 10px;color:${HEX.navy};font-weight:bold;font-size:9px;">${escapeHtml(value)}</td>
     </tr>`).join('');
   // Tope estandarizado de 3 líneas -- en la práctica casi ningún comentario
-  // pasa de ahí, y fijar un tope predecible es lo que hace posible tener
-  // UN SOLO alto fijo para cualquier tarjeta (ver ALTO_TARJETA_ESTANDAR,
-  // que ya reserva esas 3 líneas siempre, tenga o no comentario esta
-  // tarjeta en particular). -webkit-line-clamp corta con "…" en
+  // pasa de ahí, y fijar un tope predecible es lo que hace posible
+  // estimar el alto de esta fila para el paginado sin adivinar cuánto
+  // texto real trae cada comentario (siempre 3 líneas si hay Observación,
+  // ver LINEAS_OBSERVACION_TOPE en estimarAltoTarjeta). -webkit-line-clamp corta con "…" en
   // vez de recortar a la mitad de una palabra -- funciona porque el motor
   // de render es siempre Chromium (el mismo que arma el PDF), no hace
   // falta soportar otros navegadores acá. OJO: el clamp tiene que ir en un
@@ -307,16 +313,18 @@ export function buildCardHtml(v: Ventana, deps: CardDeps): string {
   const precio = preciosVenta.get(v.id);
   const png = pngPorVentana.get(v.id);
 
-  // Alto FIJO, siempre el mismo (ALTO_TARJETA_ESTANDAR), sin flex ni
-  // estiramiento -- ninguna tarjeta se agranda para "llenar" lo que sobre
-  // de una página. Estirar tarjetas livianas a flex:1 para ocupar el 100%
-  // del alto de una página con pocas tarjetas fue justamente lo que
-  // produjo tarjetas gigantes (media página) con montones de aire adentro
-  // -- confirmado con una captura real. Todas las tarjetas miden lo mismo,
-  // sin excepción; si sobra espacio al final de una página, queda en
-  // blanco ahí, no repartido adentro de cada tarjeta.
+  // Alto NATURAL -- la tarjeta mide lo que su contenido real necesita, ni
+  // más ni menos. Forzarle a TODAS un alto fijo (el peor caso -- 5 filas +
+  // 3 líneas de comentario) dejaba un bloque de aire en blanco dentro de
+  // cualquier tarjeta con menos campos que ese máximo -- confirmado con una
+  // captura real. Lo único con tope fijo es la Observación (3 líneas,
+  // -webkit-line-clamp más arriba) y el dibujo (max-width/max-height) --
+  // el resto de la tarjeta crece o encoge con su contenido real. El
+  // paginado adaptativo (buildDocumentoHtml) ya estima este mismo alto por
+  // tarjeta para decidir cuántas entran por página, así que la estimación
+  // y lo que se dibuja no se desincronizan.
   return `
-  <div style="border:1px solid ${HEX.borde};height:${ALTO_TARJETA_ESTANDAR}px;overflow:hidden;margin-bottom:10px;page-break-inside:avoid;">
+  <div style="border:1px solid ${HEX.borde};margin-bottom:10px;page-break-inside:avoid;">
     <div style="background:${HEX.headBg};padding:6px 12px;font-size:12px;font-weight:bold;color:${HEX.navy};">${escapeHtml(v.modelo)}</div>
     <table style="width:100%;border-collapse:collapse;">${metaRowsHtml}</table>
     <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
@@ -431,23 +439,20 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
 
   // Paginado adaptativo: hasta 3 tarjetas en la portada (comparte espacio
   // con el encabezado completo), hasta 4 en cada página siguiente -- ese
-  // cupo es un TOPE, no un número fijo. Cada tarjeta cuenta con el MISMO
-  // alto estándar (ALTO_TARJETA_ESTANDAR, el peor caso -- no un cálculo
-  // distinto tarjeta por tarjeta), así que lo único que varía página a
-  // página es cuánto alto le queda libre a cada una: en la portada, el
-  // párrafo de presentación puede achicar ese disponible (altoHeaderPortada)
-  // y cerrar la página con menos de 3 -- si no, un header de portada largo
-  // (cliente/obra/texto largo) podía terminar recortado por el
-  // overflow:hidden de las páginas "llenas". Todas las páginas MENOS LA
-  // ÚLTIMA quedan garantizadas "llenas" (llegaron al tope de alto o de
-  // cupo -- si no, la siguiente tarjeta hubiese entrado en esta) y usan
-  // flex:1 en cada tarjeta para repartir el alto completo de la página
-  // (1006px = 1056px carta - 32px margen superior - 18px inferior, el
-  // mismo margen que aplica renderHtmlToPdfConCabecera en el relay a
-  // AMBOS renders -- portada y con cabecera -- así que este número es el
-  // real, no un valor aproximado). La ÚLTIMA página sigue el flujo natural
-  // de siempre -- tarjetas a su tamaño normal, sin estirar -- para que no
-  // queden más grandes que en el resto del documento.
+  // cupo es un TOPE, no un número fijo. Cada tarjeta pesa lo que
+  // estimarAltoTarjeta calcule para ESA tarjeta en particular (no un
+  // número igual para todas), así que una página puede cerrar con menos
+  // del cupo si el contenido real (muchas filas de metadatos, Observación,
+  // o -- en la portada -- un párrafo de presentación largo) no entra en el
+  // alto disponible -- si no, con cupo fijo una tarjeta pesada o un header
+  // de portada largo podían terminar recortados por el overflow:hidden de
+  // la página. Todas las páginas MENOS LA ÚLTIMA quedan garantizadas
+  // "llenas" (llegaron al tope de alto o de cupo -- si no, la siguiente
+  // tarjeta hubiese entrado en esta). 1006px = 1056px carta - 32px margen
+  // superior - 18px inferior, el mismo margen que aplica
+  // renderHtmlToPdfConCabecera en el relay a AMBOS renders -- portada y
+  // con cabecera -- así que este número es el real, no un valor
+  // aproximado.
   const CUPO_MAX_PORTADA = 3;
   const CUPO_MAX_SIGUIENTE = 4;
   const ALTO_UTIL_PAGINA = 1006;
@@ -462,22 +467,24 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
       const esPortada = paginas.length === 0;
       const cupoMax = esPortada ? CUPO_MAX_PORTADA : CUPO_MAX_SIGUIENTE;
       const altoDisponible = ALTO_UTIL_PAGINA - (esPortada ? altoHeaderPortada : 0);
-      const altoConEsta = altoUsado + (paginaActual.length ? GAP_TARJETAS : 0) + ALTO_TARJETA_ESTANDAR;
+      const altoTarjeta = estimarAltoTarjeta(v, analizarVentana(v));
+      const altoConEsta = altoUsado + (paginaActual.length ? GAP_TARJETAS : 0) + altoTarjeta;
       if (paginaActual.length > 0 && (paginaActual.length >= cupoMax || altoConEsta > altoDisponible)) {
         paginas.push(paginaActual);
         paginaActual = [];
         altoUsado = 0;
       }
       paginaActual.push(v);
-      altoUsado += (paginaActual.length > 1 ? GAP_TARJETAS : 0) + ALTO_TARJETA_ESTANDAR;
+      altoUsado += (paginaActual.length > 1 ? GAP_TARJETAS : 0) + altoTarjeta;
     }
     if (paginaActual.length > 0 || paginas.length === 0) paginas.push(paginaActual);
   }
 
-  // Todas las páginas se arman igual -- tarjetas a su alto fijo, apiladas
-  // con su propio margin-bottom, sin flex ni estiramiento (ver el
-  // comentario largo en buildCardHtml). La única diferencia entre páginas
-  // es: la portada lleva headerCompletoHtml y las demás no, y la ÚLTIMA
+  // Todas las páginas se arman igual -- tarjetas a su alto natural,
+  // apiladas con su propio margin-bottom, sin flex ni estiramiento (ver
+  // el comentario largo en buildCardHtml). La única diferencia entre
+  // páginas es: la portada lleva headerCompletoHtml y las demás no, y la
+  // ÚLTIMA
   // lleva el resumen de totales al final y no fuerza salto de página
   // después (no hace falta -- si sigue Condiciones Comerciales, esa
   // sección ya trae su propio page-break-before). height+overflow:hidden
