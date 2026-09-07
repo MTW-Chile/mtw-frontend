@@ -239,21 +239,35 @@ function estimarLineasTexto(texto: string, anchoColumnaPx: number, anchoCaracter
 // -webkit-line-clamp en observacionRowHtml si el texto real es más largo).
 const LINEAS_OBSERVACION_TOPE = 3;
 
-// Alto REAL de una tarjeta (para el paginado adaptativo -- no se dibuja
-// con esto, buildCardHtml deja el alto en natural/auto) -- depende de
-// cuántas filas de metadatos tiene ESA tarjeta en particular (una sin
-// marco puede tener solo 2, Dimensiones y Vidrios; una con todo, 5) más
-// si tiene Observación (siempre 3 líneas ahí, ya que el tope visual es
-// fijo). Usar el mismo conteo real que buildCardHtml, no un peor caso
-// aplicado a todas -- eso fue lo que dejaba tarjetas livianas con un
-// bloque de aire en blanco (ver el comentario en buildCardHtml).
+// Cupo FIJO -- 3 tarjetas en la portada, 4 en cada página siguiente,
+// siempre, sin variar según el contenido. El alto de CADA tarjeta es el
+// máximo que le puede tocar dado ese cupo fijo (el alto útil de la página
+// dividido en partes iguales -- ver slotPortada/slotSiguiente en
+// buildDocumentoHtml), no un cálculo por tarjeta. Lo que sí varía por
+// tarjeta es cuánto de ese slot ocupan sus filas de texto (Dimensiones,
+// Serie, Apertura, Herrajes, Vidrios, Observación) -- el resto del slot,
+// en vez de quedar en blanco, se lo lleva el dibujo: se ESCALA para
+// ocupar exactamente el espacio sobrante (ver alturaDisponibleImagen en
+// buildCardHtml). Así ninguna tarjeta se ve "vacía" aunque tenga menos
+// campos que otra en la misma página.
 const ALTO_FILA_META = 19;
 const ALTO_HEADER_TARJETA = 26;
-const ALTO_IMAGEN_VALORES = 140;
 const ALTO_BORDE_TARJETA = 2;
+const ALTO_PADDING_FILA_IMAGEN = 16;
+const ALTO_MIN_IMAGEN = 110;
+// Tamaño "base" del dibujo (el que tenía antes de escalar) y el ancho
+// físico máximo real de la columna donde va -- 56% del ancho de tarjeta
+// (816px página - 84px de padding lateral - 12px de padding de la propia
+// celda), no un número inventado.
+const ALTO_IMAGEN_BASE = 132;
+const ANCHO_IMAGEN_BASE = 184;
+const ANCHO_MAX_COLUMNA_IMAGEN = 360;
 
-function estimarAltoTarjeta(v: Ventana, analisis: VentanaAnalisis): number {
-  let alto = ALTO_HEADER_TARJETA + analisis.metaFilas.length * ALTO_FILA_META + ALTO_IMAGEN_VALORES + ALTO_BORDE_TARJETA;
+// Cuánto de una tarjeta ocupan sus filas de texto (todo menos el dibujo),
+// dada esta ventana en particular -- lo que sobra del slot fijo que le
+// toque (portada o siguiente) se lo lleva el dibujo, escalado.
+function alturaFilasTexto(v: Ventana, analisis: VentanaAnalisis): number {
+  let alto = ALTO_HEADER_TARJETA + analisis.metaFilas.length * ALTO_FILA_META + ALTO_BORDE_TARJETA + ALTO_PADDING_FILA_IMAGEN;
   if (v.comentarioPresupuesto) {
     alto += ALTO_FILA_META * LINEAS_OBSERVACION_TOPE;
   }
@@ -279,9 +293,10 @@ function estimarAltoHeaderCompleto(texto: string): number {
   return ALTO_HEADER_PORTADA_BASE + ALTO_HEADER_PORTADA_CON_SALUDO + lineas * ALTO_LINEA_TEXTO_PRESENTACION;
 }
 
-export function buildCardHtml(v: Ventana, deps: CardDeps): string {
+export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { altoTarjeta: number }): string {
   const { preciosVenta, pngPorVentana, tasaUf } = deps;
-  const { metaFilas } = analizarVentana(v);
+  const analisis = analizarVentana(v);
+  const { metaFilas } = analisis;
   // Tabla de metadatos a todo el ancho de la tarjeta, sin grilla -- el
   // documento de referencia distingue las filas con una banda de color
   // alternada (zebra), no con líneas divisorias entre celdas.
@@ -313,24 +328,29 @@ export function buildCardHtml(v: Ventana, deps: CardDeps): string {
   const precio = preciosVenta.get(v.id);
   const png = pngPorVentana.get(v.id);
 
-  // Alto NATURAL -- la tarjeta mide lo que su contenido real necesita, ni
-  // más ni menos. Forzarle a TODAS un alto fijo (el peor caso -- 5 filas +
-  // 3 líneas de comentario) dejaba un bloque de aire en blanco dentro de
-  // cualquier tarjeta con menos campos que ese máximo -- confirmado con una
-  // captura real. Lo único con tope fijo es la Observación (3 líneas,
-  // -webkit-line-clamp más arriba) y el dibujo (max-width/max-height) --
-  // el resto de la tarjeta crece o encoge con su contenido real. El
-  // paginado adaptativo (buildDocumentoHtml) ya estima este mismo alto por
-  // tarjeta para decidir cuántas entran por página, así que la estimación
-  // y lo que se dibuja no se desincronizan.
+  // Alto de tarjeta FIJO (opts.altoTarjeta -- el slot que le toca según el
+  // cupo fijo de la página, portada o siguiente, ver buildDocumentoHtml).
+  // Lo que sobra después de las filas de texto reales de ESTA tarjeta se
+  // lo lleva el dibujo (alturaDisponibleImagen) -- se escala hacia arriba
+  // en vez de dejar aire en blanco. OJO: para una ventana ancha (la
+  // mayoría) el max-width es el límite real, no el max-height -- crecer
+  // solo el alto no mueve la aguja si el ancho sigue fijo en 184px
+  // (confirmado renderizando: el dibujo no cambiaba de tamaño). Por eso
+  // el ancho máximo también se escala, en la misma proporción que el
+  // alto, hasta el límite físico de la columna (anchoMaxColumna) -- así
+  // el dibujo realmente crece en ambos ejes, no solo en el que no importa.
+  const alturaDisponibleImagen = Math.max(ALTO_MIN_IMAGEN, opts.altoTarjeta - alturaFilasTexto(v, analisis));
+  const escalaImagen = alturaDisponibleImagen / ALTO_IMAGEN_BASE;
+  const anchoDisponibleImagen = Math.min(ANCHO_MAX_COLUMNA_IMAGEN, ANCHO_IMAGEN_BASE * escalaImagen);
+
   return `
-  <div style="border:1px solid ${HEX.borde};margin-bottom:10px;page-break-inside:avoid;">
+  <div style="border:1px solid ${HEX.borde};height:${Math.round(opts.altoTarjeta)}px;overflow:hidden;margin-bottom:10px;page-break-inside:avoid;">
     <div style="background:${HEX.headBg};padding:6px 12px;font-size:12px;font-weight:bold;color:${HEX.navy};">${escapeHtml(v.modelo)}</div>
     <table style="width:100%;border-collapse:collapse;">${metaRowsHtml}</table>
     <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
       <tr>
-        <td style="width:56%;padding:8px 10px 8px 12px;vertical-align:top;">
-          ${png ? `<img src="${png}" style="max-width:184px;max-height:132px;width:auto;height:auto;display:block;margin:0 auto;" />` : ''}
+        <td style="width:56%;height:${Math.round(alturaDisponibleImagen + ALTO_PADDING_FILA_IMAGEN)}px;padding:8px 10px 8px 12px;vertical-align:middle;">
+          ${png ? `<img src="${png}" style="max-width:${Math.round(anchoDisponibleImagen)}px;max-height:${Math.round(alturaDisponibleImagen)}px;width:auto;height:auto;display:block;margin:0 auto;" />` : ''}
         </td>
         <td style="width:44%;vertical-align:top;padding:8px 12px 8px 0;">
           <table style="width:100%;border-collapse:collapse;">
@@ -390,7 +410,7 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
       </tr></table>`
     : logoImg;
 
-  const cardHtml = (v: Ventana) => buildCardHtml(v, { preciosVenta, pngPorVentana, tasaUf });
+  const cardHtml = (v: Ventana, altoTarjeta: number) => buildCardHtml(v, { preciosVenta, pngPorVentana, tasaUf }, { altoTarjeta });
 
   // Encabezado completo (primera página): logo, "Oferta Cliente" como
   // título, línea divisoria, "Presupuesto - X / Fecha", "Cliente:",
@@ -437,65 +457,43 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
       </table>
     </div>`;
 
-  // Paginado adaptativo: hasta 3 tarjetas en la portada (comparte espacio
-  // con el encabezado completo), hasta 4 en cada página siguiente -- ese
-  // cupo es un TOPE, no un número fijo. Cada tarjeta pesa lo que
-  // estimarAltoTarjeta calcule para ESA tarjeta en particular (no un
-  // número igual para todas), así que una página puede cerrar con menos
-  // del cupo si el contenido real (muchas filas de metadatos, Observación,
-  // o -- en la portada -- un párrafo de presentación largo) no entra en el
-  // alto disponible -- si no, con cupo fijo una tarjeta pesada o un header
-  // de portada largo podían terminar recortados por el overflow:hidden de
-  // la página. Todas las páginas MENOS LA ÚLTIMA quedan garantizadas
-  // "llenas" (llegaron al tope de alto o de cupo -- si no, la siguiente
-  // tarjeta hubiese entrado en esta). 1006px = 1056px carta - 32px margen
-  // superior - 18px inferior, el mismo margen que aplica
+  // Paginado FIJO: 3 tarjetas en la portada, 4 en cada página siguiente,
+  // siempre -- no varía según el contenido. 1006px = 1056px carta - 32px
+  // margen superior - 18px inferior, el mismo margen que aplica
   // renderHtmlToPdfConCabecera en el relay a AMBOS renders -- portada y
   // con cabecera -- así que este número es el real, no un valor
-  // aproximado.
-  const CUPO_MAX_PORTADA = 3;
-  const CUPO_MAX_SIGUIENTE = 4;
+  // aproximado. El slot que le toca a cada tarjeta es ese alto útil
+  // dividido en partes iguales según el cupo de esa página (en la
+  // portada, descontando primero lo que se come el encabezado completo) --
+  // el máximo que una tarjeta puede llegar a medir ahí. Cada tarjeta usa
+  // ese mismo slot fijo (buildCardHtml) y escala su dibujo para llenar lo
+  // que sobre, en vez de dejarlo en blanco.
+  const CUPO_PORTADA = 3;
+  const CUPO_SIGUIENTE = 4;
   const ALTO_UTIL_PAGINA = 1006;
   const GAP_TARJETAS = 10;
   const altoHeaderPortada = estimarAltoHeaderCompleto(texto);
+  const slotPortada = (ALTO_UTIL_PAGINA - altoHeaderPortada - GAP_TARJETAS * (CUPO_PORTADA - 1)) / CUPO_PORTADA;
+  const slotSiguiente = (ALTO_UTIL_PAGINA - GAP_TARJETAS * (CUPO_SIGUIENTE - 1)) / CUPO_SIGUIENTE;
 
   const paginas: Ventana[][] = [];
-  {
-    let paginaActual: Ventana[] = [];
-    let altoUsado = 0;
-    for (const v of ventanas) {
-      const esPortada = paginas.length === 0;
-      const cupoMax = esPortada ? CUPO_MAX_PORTADA : CUPO_MAX_SIGUIENTE;
-      const altoDisponible = ALTO_UTIL_PAGINA - (esPortada ? altoHeaderPortada : 0);
-      const altoTarjeta = estimarAltoTarjeta(v, analizarVentana(v));
-      const altoConEsta = altoUsado + (paginaActual.length ? GAP_TARJETAS : 0) + altoTarjeta;
-      if (paginaActual.length > 0 && (paginaActual.length >= cupoMax || altoConEsta > altoDisponible)) {
-        paginas.push(paginaActual);
-        paginaActual = [];
-        altoUsado = 0;
-      }
-      paginaActual.push(v);
-      altoUsado += (paginaActual.length > 1 ? GAP_TARJETAS : 0) + altoTarjeta;
-    }
-    if (paginaActual.length > 0 || paginas.length === 0) paginas.push(paginaActual);
+  paginas.push(ventanas.slice(0, CUPO_PORTADA));
+  for (let i = CUPO_PORTADA; i < ventanas.length; i += CUPO_SIGUIENTE) {
+    paginas.push(ventanas.slice(i, i + CUPO_SIGUIENTE));
   }
 
-  // Todas las páginas se arman igual -- tarjetas a su alto natural,
-  // apiladas con su propio margin-bottom, sin flex ni estiramiento (ver
-  // el comentario largo en buildCardHtml). La única diferencia entre
-  // páginas es: la portada lleva headerCompletoHtml y las demás no, y la
-  // ÚLTIMA
-  // lleva el resumen de totales al final y no fuerza salto de página
-  // después (no hace falta -- si sigue Condiciones Comerciales, esa
-  // sección ya trae su propio page-break-before). height+overflow:hidden
-  // en cada página es un margen de seguridad, no lo que reparte el alto
-  // (eso ya lo decidió el paginado adaptativo de arriba) -- por si algún
-  // caso raro se pasa un poco de lo estimado, que se recorte ahí en vez de
-  // invadir visualmente la página siguiente.
+  // Todas las páginas se arman igual -- tarjetas a su slot fijo, apiladas
+  // con su propio margin-bottom. La única diferencia entre páginas es: la
+  // portada lleva headerCompletoHtml y las demás no, y la ÚLTIMA lleva el
+  // resumen de totales al final y no fuerza salto de página después (no
+  // hace falta -- si sigue Condiciones Comerciales, esa sección ya trae
+  // su propio page-break-before). height+overflow:hidden en cada página
+  // es un margen de seguridad, no lo que reparte el alto.
   const contenidoVentanasHtml = paginas.map((cardsPagina, idx) => {
     const esPortada = idx === 0;
     const esUltima = idx === paginas.length - 1;
-    const tarjetasHtml = cardsPagina.map((v) => cardHtml(v)).join('');
+    const slot = esPortada ? slotPortada : slotSiguiente;
+    const tarjetasHtml = cardsPagina.map((v) => cardHtml(v, slot)).join('');
     return `
       <div style="width:100%;height:${ALTO_UTIL_PAGINA}px;box-sizing:border-box;overflow:hidden;font-family:Helvetica,Arial,sans-serif;background:#ffffff;${esUltima ? '' : 'page-break-after:always;'}">
         ${esPortada ? headerCompletoHtml : ''}
