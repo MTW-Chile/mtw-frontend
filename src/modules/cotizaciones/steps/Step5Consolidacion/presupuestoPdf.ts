@@ -250,20 +250,19 @@ const ALTO_FILA_META = 19;
 const ALTO_HEADER_TARJETA = 26;
 const ALTO_IMAGEN_VALORES = 140;
 const ALTO_BORDE_TARJETA = 2;
-const ANCHO_COLUMNA_OBSERVACION = 590;
-const ANCHO_CARACTER_OBSERVACION = 5.6;
 // En la práctica casi ningún comentario de presupuesto pasa de 3 líneas --
-// estandarizamos ahí el tope, tanto para lo que se ve (-webkit-line-clamp
-// en observacionRowHtml) como para lo que se reserva de alto acá. Un tope
-// fijo hace que la estimación sea predecible en vez de crecer sin límite
-// con comentarios inusualmente largos.
+// se estandariza ahí el tope, y se reserva SIEMPRE ese alto fijo cuando hay
+// Observación, igual en todas las tarjetas -- no una estimación variable
+// según el largo real del texto de cada una. Así el alto de una tarjeta
+// con Observación es predecible sin importar qué tan corto o largo sea el
+// comentario (el texto que sobre pasa esas 3 líneas se recorta con "…" via
+// -webkit-line-clamp en observacionRowHtml, mismo tope).
 const LINEAS_OBSERVACION_TOPE = 3;
 
 function estimarAltoTarjeta(v: Ventana, analisis: VentanaAnalisis): number {
   let alto = ALTO_HEADER_TARJETA + analisis.metaFilas.length * ALTO_FILA_META + ALTO_IMAGEN_VALORES + ALTO_BORDE_TARJETA;
   if (v.comentarioPresupuesto) {
-    const lineas = Math.min(LINEAS_OBSERVACION_TOPE, estimarLineasTexto(v.comentarioPresupuesto, ANCHO_COLUMNA_OBSERVACION, ANCHO_CARACTER_OBSERVACION));
-    alto += ALTO_FILA_META * lineas;
+    alto += ALTO_FILA_META * LINEAS_OBSERVACION_TOPE;
   }
   return alto;
 }
