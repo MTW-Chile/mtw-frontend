@@ -505,8 +505,8 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
   // ESA página (una tarjeta menos, más alto disponible) hasta que entre.
   // En el 99% de los casos reales esto nunca se activa y el cupo queda en
   // 3/4 -- solo actúa como red para no perder contenido.
-  const CUPO_PORTADA = 3;
-  const CUPO_SIGUIENTE = 4;
+  const CUPO_PORTADA = 2;
+  const CUPO_SIGUIENTE = 3;
   const ALTO_UTIL_PAGINA = 1006;
   const GAP_TARJETAS = 10;
   const altoHeaderPortada = estimarAltoHeaderCompleto(texto);
