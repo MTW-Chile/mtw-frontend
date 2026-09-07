@@ -63,6 +63,7 @@ const AppContent: React.FC = () => {
         <Header
           onOpenSidebar={() => setIsSidebarOpen(true)}
           onNavigateHome={() => handleNavigate('inicio')}
+          onNavigateConfig={() => handleNavigate('configuracion')}
           moduleTitle={MODULE_TITLES[activeTab] || 'Inicio'}
         />
 
