@@ -197,14 +197,19 @@ export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { spacing?: bool
   const herraje = Array.from(
     new Set((v.materiales || []).filter((m) => !m.excluido && m.material?.familia === 'HERRAJES').map((m) => m.material?.proveedor?.nombre || m.material?.descripcion || ''))
   ).filter(Boolean).join(' + ');
-  // Mismo orden que el Presupuesto de referencia: Dimensiones, Serie de
-  // perfiles con el acabado incluido (omitido en líneas SOLO DVH, que
-  // no tienen perfil ni acabado), Apertura, Herrajes, Vidrios.
+  // Una línea "sin marco" (dibujoSinMarco/isFrameless -- exige material
+  // coincidente Y vidrio explícito, no es un simple "vacío -> sin marco",
+  // ver el comentario largo en ventanaAdapter.ts) es en los hechos solo
+  // vidrio: no tiene perfil que amerite "Serie de perfiles", no tiene
+  // hoja que "abra" (Apertura no aplica) y no lleva herrajes propios --
+  // esas tres filas se omiten. Para el resto, orden igual al Presupuesto
+  // de referencia: Dimensiones, Serie de perfiles con el acabado incluido,
+  // Apertura, Herrajes, Vidrios.
   const metaFilas: [string, string][] = [
     ['Dimensiones', `${formatNumber(v.anchoMm, 0)} × ${formatNumber(v.altoMm, 0)} mm`],
     ...(!isFrameless ? [['Serie de perfiles', serieP] as [string, string]] : []),
-    ['Apertura', apertura],
-    ...(herraje ? [['Herrajes', herraje] as [string, string]] : []),
+    ...(!isFrameless ? [['Apertura', apertura] as [string, string]] : []),
+    ...(!isFrameless && herraje ? [['Herrajes', herraje] as [string, string]] : []),
     ...(vidrio ? [['Vidrios', vidrio] as [string, string]] : []),
   ];
   // Tabla de metadatos a todo el ancho de la tarjeta, sin grilla -- el
@@ -235,7 +240,7 @@ export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { spacing?: bool
   const spacing = opts.spacing !== false;
   return `
   <div style="border:1px solid ${HEX.borde};${spacing ? 'margin-bottom:10px;' : ''}flex:1 1 0;min-height:0;overflow:hidden;page-break-inside:avoid;">
-    <div style="background:${HEX.headBg};padding:6px 12px;font-size:12px;font-weight:bold;color:${HEX.navy};">${escapeHtml(v.modelo)} -</div>
+    <div style="background:${HEX.headBg};padding:6px 12px;font-size:12px;font-weight:bold;color:${HEX.navy};">${escapeHtml(v.modelo)}</div>
     <table style="width:100%;border-collapse:collapse;">${metaRowsHtml}</table>
     <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
       <tr>
