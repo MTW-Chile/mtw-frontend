@@ -273,7 +273,7 @@ function estimarAltoHeaderCompleto(texto: string): number {
   return ALTO_HEADER_PORTADA_BASE + ALTO_HEADER_PORTADA_CON_SALUDO + lineas * ALTO_LINEA_TEXTO_PRESENTACION;
 }
 
-export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { spacing?: boolean } = {}): string {
+export function buildCardHtml(v: Ventana, deps: CardDeps): string {
   const { preciosVenta, pngPorVentana, tasaUf } = deps;
   const { metaFilas } = analizarVentana(v);
   // Tabla de metadatos a todo el ancho de la tarjeta, sin grilla -- el
@@ -307,17 +307,16 @@ export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { spacing?: bool
   const precio = preciosVenta.get(v.id);
   const png = pngPorVentana.get(v.id);
 
-  // spacing:false se usa en las páginas "llenas" (3 tarjetas en la portada,
-  // 4 en las siguientes) -- ahí el espacio entre tarjetas lo pone el `gap`
-  // del contenedor flex del que la tarjeta es un item (flex:1 1 0, para
-  // ocupar el 100% del alto de la página, sin la franja de espacio en
-  // blanco al final que quedaba con el flujo natural). En la última
-  // página (con menos ventanas que el cupo) se sigue usando el flujo
-  // natural de siempre -- spacing:true -- para que esas tarjetas NO se
-  // estiren y queden del mismo tamaño que en cualquier página llena.
-  const spacing = opts.spacing !== false;
+  // Alto FIJO, siempre el mismo (ALTO_TARJETA_ESTANDAR), sin flex ni
+  // estiramiento -- ninguna tarjeta se agranda para "llenar" lo que sobre
+  // de una página. Estirar tarjetas livianas a flex:1 para ocupar el 100%
+  // del alto de una página con pocas tarjetas fue justamente lo que
+  // produjo tarjetas gigantes (media página) con montones de aire adentro
+  // -- confirmado con una captura real. Todas las tarjetas miden lo mismo,
+  // sin excepción; si sobra espacio al final de una página, queda en
+  // blanco ahí, no repartido adentro de cada tarjeta.
   return `
-  <div style="border:1px solid ${HEX.borde};${spacing ? 'margin-bottom:10px;' : ''}flex:1 1 0;min-height:0;overflow:hidden;page-break-inside:avoid;">
+  <div style="border:1px solid ${HEX.borde};height:${ALTO_TARJETA_ESTANDAR}px;overflow:hidden;margin-bottom:10px;page-break-inside:avoid;">
     <div style="background:${HEX.headBg};padding:6px 12px;font-size:12px;font-weight:bold;color:${HEX.navy};">${escapeHtml(v.modelo)}</div>
     <table style="width:100%;border-collapse:collapse;">${metaRowsHtml}</table>
     <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
@@ -383,7 +382,7 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
       </tr></table>`
     : logoImg;
 
-  const cardHtml = (v: Ventana, spacing?: boolean) => buildCardHtml(v, { preciosVenta, pngPorVentana, tasaUf }, { spacing });
+  const cardHtml = (v: Ventana) => buildCardHtml(v, { preciosVenta, pngPorVentana, tasaUf });
 
   // Encabezado completo (primera página): logo, "Oferta Cliente" como
   // título, línea divisoria, "Presupuesto - X / Fecha", "Cliente:",
@@ -475,37 +474,30 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
     if (paginaActual.length > 0 || paginas.length === 0) paginas.push(paginaActual);
   }
 
-  const paginasLlenasHtml = paginas.slice(0, -1).map((cardsPagina, idx) => {
+  // Todas las páginas se arman igual -- tarjetas a su alto fijo, apiladas
+  // con su propio margin-bottom, sin flex ni estiramiento (ver el
+  // comentario largo en buildCardHtml). La única diferencia entre páginas
+  // es: la portada lleva headerCompletoHtml y las demás no, y la ÚLTIMA
+  // lleva el resumen de totales al final y no fuerza salto de página
+  // después (no hace falta -- si sigue Condiciones Comerciales, esa
+  // sección ya trae su propio page-break-before). height+overflow:hidden
+  // en cada página es un margen de seguridad, no lo que reparte el alto
+  // (eso ya lo decidió el paginado adaptativo de arriba) -- por si algún
+  // caso raro se pasa un poco de lo estimado, que se recorte ahí en vez de
+  // invadir visualmente la página siguiente.
+  const contenidoVentanasHtml = paginas.map((cardsPagina, idx) => {
     const esPortada = idx === 0;
-    const tarjetasHtml = cardsPagina.map((v) => cardHtml(v, false)).join('');
-    // padding-bottom 20px (no 6px) a propósito: con las tarjetas estiradas
-    // a flex:1 para ocupar el 100% del alto útil, sin este aire la última
-    // tarjeta terminaba justo en el borde del área imprimible, tocando la
-    // línea del footer compacto -- confirmado en un PDF real (no en los
-    // datos de prueba sintéticos, que no lo mostraban).
-    const cardsWrapHtml = `
-      <div style="flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:10px;padding:0 42px 20px 42px;">
-        ${tarjetasHtml}
-      </div>`;
+    const esUltima = idx === paginas.length - 1;
+    const tarjetasHtml = cardsPagina.map((v) => cardHtml(v)).join('');
     return `
-      <div style="width:100%;height:${ALTO_UTIL_PAGINA}px;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;font-family:Helvetica,Arial,sans-serif;background:#ffffff;page-break-after:always;">
+      <div style="width:100%;height:${ALTO_UTIL_PAGINA}px;box-sizing:border-box;overflow:hidden;font-family:Helvetica,Arial,sans-serif;background:#ffffff;${esUltima ? '' : 'page-break-after:always;'}">
         ${esPortada ? headerCompletoHtml : ''}
-        ${cardsWrapHtml}
+        <div style="padding:0 42px 6px 42px;">
+          ${tarjetasHtml}
+          ${esUltima ? resumenHtml : ''}
+        </div>
       </div>`;
   }).join('');
-
-  const ultimaPagina = paginas[paginas.length - 1];
-  const ultimaEsPortada = paginas.length === 1;
-  const ultimaPaginaHtml = `
-    <div style="width:100%;font-family:Helvetica,Arial,sans-serif;background:#ffffff;">
-      ${ultimaEsPortada ? headerCompletoHtml : ''}
-      <div style="padding:0 42px 6px 42px;">
-        ${ultimaPagina.map((v) => cardHtml(v, true)).join('')}
-        ${resumenHtml}
-      </div>
-    </div>`;
-
-  const contenidoVentanasHtml = paginasLlenasHtml + ultimaPaginaHtml;
 
   const condicionesHtml = condiciones.trim() ? `
     <div style="width:100%;font-family:Helvetica,Arial,sans-serif;background:#ffffff;page-break-before:always;">
