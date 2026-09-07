@@ -302,7 +302,7 @@ function estimarAltoHeaderCompleto(texto: string): number {
   return ALTO_HEADER_PORTADA_BASE + ALTO_HEADER_PORTADA_CON_SALUDO + lineas * ALTO_LINEA_TEXTO_PRESENTACION;
 }
 
-export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { altoTarjeta: number }): string {
+export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { altoTarjeta: number; esUltimaEnPagina?: boolean }): string {
   const { preciosVenta, pngPorVentana, tasaUf } = deps;
   const analisis = analizarVentana(v);
   const { metaFilas } = analisis;
@@ -356,8 +356,19 @@ export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { altoTarjeta: n
   // (centrado, vertical-align:middle), no lo absorbe el dibujo.
   const filaImagenValores = Math.max(ALTO_MIN_FILA_IMAGEN_VALORES, opts.altoTarjeta - alturaFilasTexto(v, analisis));
 
+  // margin-bottom SOLO si no es la última tarjeta de la página -- el
+  // presupuesto de alto que reparte el cupo (calcularSlot en
+  // buildDocumentoHtml) solo cuenta (cupo-1) espacios ENTRE tarjetas, no
+  // uno extra después de la última. Aplicar el margen igual ahí (como
+  // pasaba antes) sumaba un 10px que no estaba presupuestado, y el
+  // overflow:hidden de la página se comía buena parte del aire agregado
+  // para separar el footer -- confirmado con una captura real donde el
+  // footer seguía leyéndose pegado a la tarjeta pese a haber subido el
+  // padding de la página.
+  const margenInferior = opts.esUltimaEnPagina ? '' : 'margin-bottom:10px;';
+
   return `
-  <div style="border:1px solid ${HEX.borde};height:${Math.round(opts.altoTarjeta)}px;overflow:hidden;margin-bottom:10px;page-break-inside:avoid;">
+  <div style="border:1px solid ${HEX.borde};height:${Math.round(opts.altoTarjeta)}px;overflow:hidden;${margenInferior}page-break-inside:avoid;">
     <div style="background:${HEX.headBg};padding:6px 12px;font-size:12px;font-weight:bold;color:${HEX.navy};">${escapeHtml(v.modelo)}</div>
     <table style="width:100%;border-collapse:collapse;">${metaRowsHtml}</table>
     <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
@@ -423,7 +434,8 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
       </tr></table>`
     : logoImg;
 
-  const cardHtml = (v: Ventana, altoTarjeta: number) => buildCardHtml(v, { preciosVenta, pngPorVentana, tasaUf }, { altoTarjeta });
+  const cardHtml = (v: Ventana, altoTarjeta: number, esUltimaEnPagina: boolean) =>
+    buildCardHtml(v, { preciosVenta, pngPorVentana, tasaUf }, { altoTarjeta, esUltimaEnPagina });
 
   // Encabezado completo (primera página): logo, "Oferta Cliente" como
   // título, línea divisoria, "Presupuesto - X / Fecha", "Cliente:",
@@ -501,7 +513,7 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
   // tabla (confirmado con una captura real). Tiene que restarse ACÁ, del
   // presupuesto que reparte el cupo -- si no, esos 20px se los come el
   // overflow:hidden de la página en vez de quedar como espacio visible.
-  const PADDING_INFERIOR_PAGINA = 20;
+  const PADDING_INFERIOR_PAGINA = 26;
   const altoHeaderPortada = estimarAltoHeaderCompleto(texto);
 
   const calcularSlot = (cupo: number, altoDisponible: number) => (altoDisponible - GAP_TARJETAS * (cupo - 1)) / cupo;
@@ -537,7 +549,7 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
   const contenidoVentanasHtml = paginas.map(({ ventanas: cardsPagina, slot }, idx) => {
     const esPortada = idx === 0;
     const esUltima = idx === paginas.length - 1;
-    const tarjetasHtml = cardsPagina.map((v) => cardHtml(v, slot)).join('');
+    const tarjetasHtml = cardsPagina.map((v, i) => cardHtml(v, slot, i === cardsPagina.length - 1)).join('');
     return `
       <div style="width:100%;height:${ALTO_UTIL_PAGINA}px;box-sizing:border-box;overflow:hidden;font-family:Helvetica,Arial,sans-serif;background:#ffffff;${esUltima ? '' : 'page-break-after:always;'}">
         ${esPortada ? headerCompletoHtml : ''}
