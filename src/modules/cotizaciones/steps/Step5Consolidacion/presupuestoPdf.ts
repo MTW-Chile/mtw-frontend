@@ -254,7 +254,10 @@ const ALTO_FILA_META = 19;
 const ALTO_HEADER_TARJETA = 26;
 const ALTO_BORDE_TARJETA = 2;
 const ALTO_PADDING_FILA_IMAGEN = 16;
-const ALTO_MIN_IMAGEN = 110;
+// Bajo este alto el dibujo queda tan chico que no se reconoce nada -- mejor
+// omitirlo (la fila igual se reserva, con la caja de Valores comerciales
+// sola) que mostrar una miniatura ilegible.
+const UMBRAL_OCULTAR_IMAGEN = 40;
 // Tamaño "base" del dibujo (el que tenía antes de escalar) y el ancho
 // físico máximo real de la columna donde va -- 56% del ancho de tarjeta
 // (816px página - 84px de padding lateral - 12px de padding de la propia
@@ -262,16 +265,32 @@ const ALTO_MIN_IMAGEN = 110;
 const ALTO_IMAGEN_BASE = 132;
 const ANCHO_IMAGEN_BASE = 184;
 const ANCHO_MAX_COLUMNA_IMAGEN = 360;
+// Piso REAL (medido renderizando la caja de "Valores comerciales" sola,
+// con su padding) de la fila imagen/valores -- esa caja no puede achicarse
+// más, tenga o no dibujo al lado. Ignorarlo fue justamente el bug: con
+// un piso más chico (o sin piso), el cálculo de cuánto le "sobraba" al
+// dibujo daba un número optimista, pero la fila terminaba siendo más alta
+// igual (por la caja de valores) y la tarjeta entera se pasaba del slot,
+// recortando en silencio la Observación por el overflow:hidden.
+const ALTO_MIN_FILA_IMAGEN_VALORES = 99;
 
-// Cuánto de una tarjeta ocupan sus filas de texto (todo menos el dibujo),
-// dada esta ventana en particular -- lo que sobra del slot fijo que le
-// toque (portada o siguiente) se lo lleva el dibujo, escalado.
+// Cuánto de una tarjeta ocupan sus filas de texto (todo menos la fila
+// imagen/valores), dada esta ventana en particular.
 function alturaFilasTexto(v: Ventana, analisis: VentanaAnalisis): number {
-  let alto = ALTO_HEADER_TARJETA + analisis.metaFilas.length * ALTO_FILA_META + ALTO_BORDE_TARJETA + ALTO_PADDING_FILA_IMAGEN;
+  let alto = ALTO_HEADER_TARJETA + analisis.metaFilas.length * ALTO_FILA_META + ALTO_BORDE_TARJETA;
   if (v.comentarioPresupuesto) {
     alto += ALTO_FILA_META * LINEAS_OBSERVACION_TOPE;
   }
   return alto;
+}
+
+// Alto MÍNIMO absoluto que esta tarjeta puede llegar a ocupar, incluso sin
+// dibujo -- el piso real de la caja de valores ya está adentro. Si el slot
+// que le toca (portada o siguiente) es menor a esto, NO hay forma de que
+// la tarjeta entre sin cortar texto -- el paginado tiene que bajarle el
+// cupo a esa página en vez de forzarla (ver buildDocumentoHtml).
+function altoMinimoTarjeta(v: Ventana, analisis: VentanaAnalisis): number {
+  return alturaFilasTexto(v, analisis) + ALTO_MIN_FILA_IMAGEN_VALORES;
 }
 
 // Alto del encabezado completo de portada (logos + título + divisor +
@@ -331,15 +350,23 @@ export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { altoTarjeta: n
   // Alto de tarjeta FIJO (opts.altoTarjeta -- el slot que le toca según el
   // cupo fijo de la página, portada o siguiente, ver buildDocumentoHtml).
   // Lo que sobra después de las filas de texto reales de ESTA tarjeta se
-  // lo lleva el dibujo (alturaDisponibleImagen) -- se escala hacia arriba
-  // en vez de dejar aire en blanco. OJO: para una ventana ancha (la
-  // mayoría) el max-width es el límite real, no el max-height -- crecer
-  // solo el alto no mueve la aguja si el ancho sigue fijo en 184px
-  // (confirmado renderizando: el dibujo no cambiaba de tamaño). Por eso
-  // el ancho máximo también se escala, en la misma proporción que el
-  // alto, hasta el límite físico de la columna (anchoMaxColumna) -- así
-  // el dibujo realmente crece en ambos ejes, no solo en el que no importa.
-  const alturaDisponibleImagen = Math.max(ALTO_MIN_IMAGEN, opts.altoTarjeta - alturaFilasTexto(v, analisis));
+  // lo lleva la fila imagen/valores -- el dibujo se ESCALA para ocupar ese
+  // sobrante en vez de dejarlo en blanco, pero la fila nunca baja de
+  // ALTO_MIN_FILA_IMAGEN_VALORES (el piso real de la caja de "Valores
+  // comerciales", medido -- esa caja no se achica más, tenga o no dibujo
+  // al lado). buildDocumentoHtml ya garantiza -- vía altoMinimoTarjeta,
+  // que usa este mismo piso -- que opts.altoTarjeta nunca es menor a lo
+  // que esta tarjeta necesita como mínimo, así que este Math.max no
+  // debería activarse nunca en la práctica; queda como red de seguridad,
+  // no como el mecanismo real de que no se corte contenido.
+  const filaImagenValores = Math.max(ALTO_MIN_FILA_IMAGEN_VALORES, opts.altoTarjeta - alturaFilasTexto(v, analisis));
+  const alturaDisponibleImagen = Math.max(0, filaImagenValores - ALTO_PADDING_FILA_IMAGEN);
+  // Para una ventana ancha (la mayoría) el max-width es el límite real, no
+  // el max-height -- crecer solo el alto no mueve la aguja si el ancho
+  // sigue fijo en 184px (confirmado renderizando: el dibujo no cambiaba
+  // de tamaño). Por eso el ancho máximo también se escala, en la misma
+  // proporción que el alto, hasta el límite físico de la columna
+  // (anchoMaxColumna) -- así el dibujo realmente crece en ambos ejes.
   const escalaImagen = alturaDisponibleImagen / ALTO_IMAGEN_BASE;
   const anchoDisponibleImagen = Math.min(ANCHO_MAX_COLUMNA_IMAGEN, ANCHO_IMAGEN_BASE * escalaImagen);
 
@@ -349,8 +376,8 @@ export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { altoTarjeta: n
     <table style="width:100%;border-collapse:collapse;">${metaRowsHtml}</table>
     <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
       <tr>
-        <td style="width:56%;height:${Math.round(alturaDisponibleImagen + ALTO_PADDING_FILA_IMAGEN)}px;padding:8px 10px 8px 12px;vertical-align:middle;">
-          ${png ? `<img src="${png}" style="max-width:${Math.round(anchoDisponibleImagen)}px;max-height:${Math.round(alturaDisponibleImagen)}px;width:auto;height:auto;display:block;margin:0 auto;" />` : ''}
+        <td style="width:56%;height:${Math.round(filaImagenValores)}px;padding:8px 10px 8px 12px;vertical-align:middle;">
+          ${png && alturaDisponibleImagen >= UMBRAL_OCULTAR_IMAGEN ? `<img src="${png}" style="max-width:${Math.round(anchoDisponibleImagen)}px;max-height:${Math.round(alturaDisponibleImagen)}px;width:auto;height:auto;display:block;margin:0 auto;" />` : ''}
         </td>
         <td style="width:44%;vertical-align:top;padding:8px 12px 8px 0;">
           <table style="width:100%;border-collapse:collapse;">
@@ -457,42 +484,66 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
       </table>
     </div>`;
 
-  // Paginado FIJO: 3 tarjetas en la portada, 4 en cada página siguiente,
-  // siempre -- no varía según el contenido. 1006px = 1056px carta - 32px
-  // margen superior - 18px inferior, el mismo margen que aplica
-  // renderHtmlToPdfConCabecera en el relay a AMBOS renders -- portada y
-  // con cabecera -- así que este número es el real, no un valor
-  // aproximado. El slot que le toca a cada tarjeta es ese alto útil
-  // dividido en partes iguales según el cupo de esa página (en la
-  // portada, descontando primero lo que se come el encabezado completo) --
-  // el máximo que una tarjeta puede llegar a medir ahí. Cada tarjeta usa
-  // ese mismo slot fijo (buildCardHtml) y escala su dibujo para llenar lo
-  // que sobre, en vez de dejarlo en blanco.
+  // Paginado FIJO: 3 tarjetas en la portada, 4 en cada página siguiente --
+  // ese cupo se usa SIEMPRE que el contenido real quepa (la enorme mayoría
+  // de los casos reales). 1006px = 1056px carta - 32px margen superior -
+  // 18px inferior, el mismo margen que aplica renderHtmlToPdfConCabecera
+  // en el relay a AMBOS renders -- portada y con cabecera -- así que este
+  // número es el real, no un valor aproximado. El slot que le toca a cada
+  // tarjeta es ese alto útil dividido en partes iguales según el cupo de
+  // esa página (en la portada, descontando primero lo que se come el
+  // encabezado completo) -- el máximo que una tarjeta puede llegar a medir
+  // ahí. Cada tarjeta usa ese slot (buildCardHtml) y escala su dibujo para
+  // llenar lo que sobre, en vez de dejarlo en blanco.
+  //
+  // VÁLVULA DE SEGURIDAD: una línea completa (5 filas de metadatos) con
+  // Observación de 3 líneas puede, en casos extremos, no entrar ni con el
+  // dibujo oculto -- confirmado renderizando ese caso exacto (recortaba la
+  // Observación en silencio). Antes de fijar el cupo de una página, se
+  // verifica que la tarjeta más pesada de ese grupo entre al menos a su
+  // mínimo absoluto (altoMinimoTarjeta); si no entra, se le baja el cupo A
+  // ESA página (una tarjeta menos, más alto disponible) hasta que entre.
+  // En el 99% de los casos reales esto nunca se activa y el cupo queda en
+  // 3/4 -- solo actúa como red para no perder contenido.
   const CUPO_PORTADA = 3;
   const CUPO_SIGUIENTE = 4;
   const ALTO_UTIL_PAGINA = 1006;
   const GAP_TARJETAS = 10;
   const altoHeaderPortada = estimarAltoHeaderCompleto(texto);
-  const slotPortada = (ALTO_UTIL_PAGINA - altoHeaderPortada - GAP_TARJETAS * (CUPO_PORTADA - 1)) / CUPO_PORTADA;
-  const slotSiguiente = (ALTO_UTIL_PAGINA - GAP_TARJETAS * (CUPO_SIGUIENTE - 1)) / CUPO_SIGUIENTE;
 
-  const paginas: Ventana[][] = [];
-  paginas.push(ventanas.slice(0, CUPO_PORTADA));
-  for (let i = CUPO_PORTADA; i < ventanas.length; i += CUPO_SIGUIENTE) {
-    paginas.push(ventanas.slice(i, i + CUPO_SIGUIENTE));
+  const calcularSlot = (cupo: number, altoDisponible: number) => (altoDisponible - GAP_TARJETAS * (cupo - 1)) / cupo;
+
+  const paginas: { ventanas: Ventana[]; slot: number }[] = [];
+  {
+    let idx = 0;
+    while (idx < ventanas.length) {
+      const esPortada = paginas.length === 0;
+      const altoDisponible = ALTO_UTIL_PAGINA - (esPortada ? altoHeaderPortada : 0);
+      let cupo = esPortada ? CUPO_PORTADA : CUPO_SIGUIENTE;
+      let slot = calcularSlot(cupo, altoDisponible);
+      while (cupo > 1) {
+        const candidatas = ventanas.slice(idx, idx + cupo);
+        const minimoNecesario = Math.max(...candidatas.map((v) => altoMinimoTarjeta(v, analizarVentana(v))));
+        if (minimoNecesario <= slot) break;
+        cupo -= 1;
+        slot = calcularSlot(cupo, altoDisponible);
+      }
+      paginas.push({ ventanas: ventanas.slice(idx, idx + cupo), slot });
+      idx += cupo;
+    }
+    if (paginas.length === 0) paginas.push({ ventanas: [], slot: calcularSlot(CUPO_PORTADA, ALTO_UTIL_PAGINA - altoHeaderPortada) });
   }
 
-  // Todas las páginas se arman igual -- tarjetas a su slot fijo, apiladas
-  // con su propio margin-bottom. La única diferencia entre páginas es: la
+  // Todas las páginas se arman igual -- tarjetas a su slot, apiladas con
+  // su propio margin-bottom. La única diferencia entre páginas es: la
   // portada lleva headerCompletoHtml y las demás no, y la ÚLTIMA lleva el
   // resumen de totales al final y no fuerza salto de página después (no
   // hace falta -- si sigue Condiciones Comerciales, esa sección ya trae
   // su propio page-break-before). height+overflow:hidden en cada página
   // es un margen de seguridad, no lo que reparte el alto.
-  const contenidoVentanasHtml = paginas.map((cardsPagina, idx) => {
+  const contenidoVentanasHtml = paginas.map(({ ventanas: cardsPagina, slot }, idx) => {
     const esPortada = idx === 0;
     const esUltima = idx === paginas.length - 1;
-    const slot = esPortada ? slotPortada : slotSiguiente;
     const tarjetasHtml = cardsPagina.map((v) => cardHtml(v, slot)).join('');
     return `
       <div style="width:100%;height:${ALTO_UTIL_PAGINA}px;box-sizing:border-box;overflow:hidden;font-family:Helvetica,Arial,sans-serif;background:#ffffff;${esUltima ? '' : 'page-break-after:always;'}">
