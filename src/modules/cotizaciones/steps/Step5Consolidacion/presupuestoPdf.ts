@@ -251,7 +251,6 @@ const LINEAS_OBSERVACION_TOPE = 3;
 const ALTO_FILA_META = 19;
 const ALTO_HEADER_TARJETA = 26;
 const ALTO_BORDE_TARJETA = 2;
-const ALTO_PADDING_FILA_IMAGEN = 16;
 // Tamaño FIJO del dibujo -- el mismo en toda tarjeta, con o sin
 // Observación, sobre o no sobre espacio en el slot.
 const ALTO_IMAGEN_BASE = 132;
