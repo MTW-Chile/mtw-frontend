@@ -239,32 +239,23 @@ function estimarLineasTexto(texto: string, anchoColumnaPx: number, anchoCaracter
 // -webkit-line-clamp en observacionRowHtml si el texto real es más largo).
 const LINEAS_OBSERVACION_TOPE = 3;
 
-// Cupo FIJO -- 3 tarjetas en la portada, 4 en cada página siguiente,
+// Cupo FIJO -- 2 tarjetas en la portada, 3 en cada página siguiente,
 // siempre, sin variar según el contenido. El alto de CADA tarjeta es el
 // máximo que le puede tocar dado ese cupo fijo (el alto útil de la página
 // dividido en partes iguales -- ver slotPortada/slotSiguiente en
-// buildDocumentoHtml), no un cálculo por tarjeta. Lo que sí varía por
-// tarjeta es cuánto de ese slot ocupan sus filas de texto (Dimensiones,
-// Serie, Apertura, Herrajes, Vidrios, Observación) -- el resto del slot,
-// en vez de quedar en blanco, se lo lleva el dibujo: se ESCALA para
-// ocupar exactamente el espacio sobrante (ver alturaDisponibleImagen en
-// buildCardHtml). Así ninguna tarjeta se ve "vacía" aunque tenga menos
-// campos que otra en la misma página.
+// buildDocumentoHtml), no un cálculo por tarjeta. El dibujo mide siempre
+// lo mismo (ALTO_IMAGEN_BASE x ANCHO_IMAGEN_BASE, fijo) -- no se estira
+// para llenar el sobrante del slot, eso se sentía invasivo con tarjetas
+// livianas (a pedido explícito); el aire que sobra en la fila imagen/
+// valores queda como aire, centrado.
 const ALTO_FILA_META = 19;
 const ALTO_HEADER_TARJETA = 26;
 const ALTO_BORDE_TARJETA = 2;
 const ALTO_PADDING_FILA_IMAGEN = 16;
-// Bajo este alto el dibujo queda tan chico que no se reconoce nada -- mejor
-// omitirlo (la fila igual se reserva, con la caja de Valores comerciales
-// sola) que mostrar una miniatura ilegible.
-const UMBRAL_OCULTAR_IMAGEN = 40;
-// Tamaño "base" del dibujo (el que tenía antes de escalar) y el ancho
-// físico máximo real de la columna donde va -- 56% del ancho de tarjeta
-// (816px página - 84px de padding lateral - 12px de padding de la propia
-// celda), no un número inventado.
+// Tamaño FIJO del dibujo -- el mismo en toda tarjeta, con o sin
+// Observación, sobre o no sobre espacio en el slot.
 const ALTO_IMAGEN_BASE = 132;
 const ANCHO_IMAGEN_BASE = 184;
-const ANCHO_MAX_COLUMNA_IMAGEN = 360;
 // Piso REAL (medido renderizando la caja de "Valores comerciales" sola,
 // con su padding) de la fila imagen/valores -- esa caja no puede achicarse
 // más, tenga o no dibujo al lado. Ignorarlo fue justamente el bug: con
@@ -349,26 +340,22 @@ export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { altoTarjeta: n
 
   // Alto de tarjeta FIJO (opts.altoTarjeta -- el slot que le toca según el
   // cupo fijo de la página, portada o siguiente, ver buildDocumentoHtml).
-  // Lo que sobra después de las filas de texto reales de ESTA tarjeta se
-  // lo lleva la fila imagen/valores -- el dibujo se ESCALA para ocupar ese
-  // sobrante en vez de dejarlo en blanco, pero la fila nunca baja de
-  // ALTO_MIN_FILA_IMAGEN_VALORES (el piso real de la caja de "Valores
-  // comerciales", medido -- esa caja no se achica más, tenga o no dibujo
-  // al lado). buildDocumentoHtml ya garantiza -- vía altoMinimoTarjeta,
-  // que usa este mismo piso -- que opts.altoTarjeta nunca es menor a lo
-  // que esta tarjeta necesita como mínimo, así que este Math.max no
-  // debería activarse nunca en la práctica; queda como red de seguridad,
-  // no como el mecanismo real de que no se corte contenido.
+  // La fila imagen/valores se lleva lo que sobra después de las filas de
+  // texto reales de ESTA tarjeta (nunca menos de ALTO_MIN_FILA_IMAGEN_VALORES,
+  // el piso real de la caja de "Valores comerciales", medido -- esa caja
+  // no se achica más). buildDocumentoHtml ya garantiza -- vía
+  // altoMinimoTarjeta, que usa este mismo piso -- que opts.altoTarjeta
+  // nunca es menor a lo que esta tarjeta necesita como mínimo, así que
+  // este Math.max no debería activarse nunca en la práctica; queda como
+  // red de seguridad.
+  //
+  // El DIBUJO en sí ya NO se escala con ese sobrante -- mide siempre lo
+  // mismo (ANCHO_IMAGEN_BASE x ALTO_IMAGEN_BASE), tenga la tarjeta
+  // Observación o no, quede mucho o poco aire en la fila. Escalarlo hacia
+  // arriba se sentía invasivo con más espacio disponible (cupo 2/3) -- a
+  // pedido explícito, el aire sobrante en la fila queda como aire
+  // (centrado, vertical-align:middle), no lo absorbe el dibujo.
   const filaImagenValores = Math.max(ALTO_MIN_FILA_IMAGEN_VALORES, opts.altoTarjeta - alturaFilasTexto(v, analisis));
-  const alturaDisponibleImagen = Math.max(0, filaImagenValores - ALTO_PADDING_FILA_IMAGEN);
-  // Para una ventana ancha (la mayoría) el max-width es el límite real, no
-  // el max-height -- crecer solo el alto no mueve la aguja si el ancho
-  // sigue fijo en 184px (confirmado renderizando: el dibujo no cambiaba
-  // de tamaño). Por eso el ancho máximo también se escala, en la misma
-  // proporción que el alto, hasta el límite físico de la columna
-  // (anchoMaxColumna) -- así el dibujo realmente crece en ambos ejes.
-  const escalaImagen = alturaDisponibleImagen / ALTO_IMAGEN_BASE;
-  const anchoDisponibleImagen = Math.min(ANCHO_MAX_COLUMNA_IMAGEN, ANCHO_IMAGEN_BASE * escalaImagen);
 
   return `
   <div style="border:1px solid ${HEX.borde};height:${Math.round(opts.altoTarjeta)}px;overflow:hidden;margin-bottom:10px;page-break-inside:avoid;">
@@ -377,7 +364,7 @@ export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { altoTarjeta: n
     <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
       <tr>
         <td style="width:56%;height:${Math.round(filaImagenValores)}px;padding:8px 10px 8px 12px;vertical-align:middle;">
-          ${png && alturaDisponibleImagen >= UMBRAL_OCULTAR_IMAGEN ? `<img src="${png}" style="max-width:${Math.round(anchoDisponibleImagen)}px;max-height:${Math.round(alturaDisponibleImagen)}px;width:auto;height:auto;display:block;margin:0 auto;" />` : ''}
+          ${png ? `<img src="${png}" style="max-width:${ANCHO_IMAGEN_BASE}px;max-height:${ALTO_IMAGEN_BASE}px;width:auto;height:auto;display:block;margin:0 auto;" />` : ''}
         </td>
         <td style="width:44%;vertical-align:top;padding:8px 12px 8px 0;">
           <table style="width:100%;border-collapse:collapse;">
