@@ -84,8 +84,35 @@ export const cropSvgToContent = (svg: string): { svg: string; aspect: number } =
       push(x + w, y + h);
     }
   }
-  for (const m of svg.matchAll(/<text\b([^>]*)>/g)) {
-    push(attr(m[1], 'x'), attr(m[1], 'y'));
+  // Las etiquetas de cota (windowSvgMarkup.tsx: dimensionMarkup) usan
+  // text-anchor="middle" -- el texto renderizado se extiende a ambos lados
+  // del punto (x,y), no solo en ese punto. En una ventana angosta (una
+  // puerta practicable de 500-1300mm) el label "1.300 mm" es MÁS ANCHO que
+  // el propio marco dibujado, así que capturar solo (x,y) como si fuera un
+  // punto sin extensión recortaba el texto por los costados al calcular el
+  // viewBox -- confirmado comparando con el PDF real, donde las medidas de
+  // las puertas angostas salían cortadas. Se estima el ancho real del
+  // texto (largo del contenido × tamaño de fuente, con un factor fijo para
+  // fuente system-ui) y se empuja el punto izquierdo Y derecho de esa
+  // extensión, no solo el centro.
+  for (const m of svg.matchAll(/<text\b([^>]*)>([^<]*)<\/text>/g)) {
+    const tagAttrs = m[1];
+    const contenido = m[2];
+    const x = attr(tagAttrs, 'x');
+    const y = attr(tagAttrs, 'y');
+    if (x === undefined || y === undefined) continue;
+    const fontMatch = /font:[^;"]*?(\d+(?:\.\d+)?)px/.exec(tagAttrs);
+    const fontPx = fontMatch ? parseFloat(fontMatch[1]) : 9;
+    const anchoTexto = contenido.length * fontPx * 0.58;
+    const esVertical = /rotate\(-?90/.test(tagAttrs);
+    if (esVertical) {
+      // Rotado -90°: el texto se extiende en el eje Y, no en X.
+      push(x - fontPx * 0.6, y - anchoTexto / 2);
+      push(x + fontPx * 0.6, y + anchoTexto / 2);
+    } else {
+      push(x - anchoTexto / 2, y - fontPx * 0.4);
+      push(x + anchoTexto / 2, y + fontPx * 0.4);
+    }
   }
   for (const m of svg.matchAll(/<line\b([^>]*)\/?>/g)) {
     push(attr(m[1], 'x1'), attr(m[1], 'y1'));
@@ -213,7 +240,7 @@ export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { spacing?: bool
     <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
       <tr>
         <td style="width:56%;padding:8px 10px 8px 12px;vertical-align:top;">
-          ${png ? `<img src="${png}" style="max-width:230px;max-height:165px;width:auto;height:auto;display:block;" />` : ''}
+          ${png ? `<img src="${png}" style="max-width:230px;max-height:165px;width:auto;height:auto;display:block;margin:0 auto;" />` : ''}
         </td>
         <td style="width:44%;vertical-align:top;padding:8px 12px 8px 0;">
           <table style="width:100%;border-collapse:collapse;">
@@ -347,8 +374,13 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
   const paginasLlenasHtml = paginas.slice(0, -1).map((cardsPagina, idx) => {
     const esPortada = idx === 0;
     const tarjetasHtml = cardsPagina.map((v) => cardHtml(v, false)).join('');
+    // padding-bottom 20px (no 6px) a propósito: con las tarjetas estiradas
+    // a flex:1 para ocupar el 100% del alto útil, sin este aire la última
+    // tarjeta terminaba justo en el borde del área imprimible, tocando la
+    // línea del footer compacto -- confirmado en un PDF real (no en los
+    // datos de prueba sintéticos, que no lo mostraban).
     const cardsWrapHtml = `
-      <div style="flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:10px;padding:0 42px 6px 42px;">
+      <div style="flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:10px;padding:0 42px 20px 42px;">
         ${tarjetasHtml}
       </div>`;
     return `
