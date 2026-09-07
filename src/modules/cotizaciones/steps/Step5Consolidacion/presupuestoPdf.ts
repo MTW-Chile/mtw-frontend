@@ -252,11 +252,18 @@ const ALTO_IMAGEN_VALORES = 140;
 const ALTO_BORDE_TARJETA = 2;
 const ANCHO_COLUMNA_OBSERVACION = 590;
 const ANCHO_CARACTER_OBSERVACION = 5.6;
+// En la práctica casi ningún comentario de presupuesto pasa de 3 líneas --
+// estandarizamos ahí el tope, tanto para lo que se ve (-webkit-line-clamp
+// en observacionRowHtml) como para lo que se reserva de alto acá. Un tope
+// fijo hace que la estimación sea predecible en vez de crecer sin límite
+// con comentarios inusualmente largos.
+const LINEAS_OBSERVACION_TOPE = 3;
 
 function estimarAltoTarjeta(v: Ventana, analisis: VentanaAnalisis): number {
   let alto = ALTO_HEADER_TARJETA + analisis.metaFilas.length * ALTO_FILA_META + ALTO_IMAGEN_VALORES + ALTO_BORDE_TARJETA;
   if (v.comentarioPresupuesto) {
-    alto += ALTO_FILA_META * estimarLineasTexto(v.comentarioPresupuesto, ANCHO_COLUMNA_OBSERVACION, ANCHO_CARACTER_OBSERVACION);
+    const lineas = Math.min(LINEAS_OBSERVACION_TOPE, estimarLineasTexto(v.comentarioPresupuesto, ANCHO_COLUMNA_OBSERVACION, ANCHO_CARACTER_OBSERVACION));
+    alto += ALTO_FILA_META * lineas;
   }
   return alto;
 }
@@ -291,10 +298,23 @@ export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { spacing?: bool
       <td style="padding:4px 10px;color:${HEX.gris};width:150px;font-size:9px;">${escapeHtml(label)}:</td>
       <td style="padding:4px 10px;color:${HEX.navy};font-weight:bold;font-size:9px;">${escapeHtml(value)}</td>
     </tr>`).join('');
+  // Tope estandarizado de 3 líneas -- en la práctica casi ningún comentario
+  // pasa de ahí, y fijar un tope predecible es lo que permite estimar el
+  // alto de la tarjeta sin variación (ver LINEAS_OBSERVACION_TOPE, usada
+  // también en estimarAltoTarjeta). -webkit-line-clamp corta con "…" en
+  // vez de recortar a la mitad de una palabra -- funciona porque el motor
+  // de render es siempre Chromium (el mismo que arma el PDF), no hace
+  // falta soportar otros navegadores acá. OJO: el clamp tiene que ir en un
+  // <div> propio, NO directo en el <td> -- aplicado directo sobre la celda
+  // deja una 4ta línea parcial colgando (confirmado renderizando: el
+  // algoritmo de layout de la celda de tabla no combina bien con
+  // display:-webkit-box ahí).
   const observacionRowHtml = v.comentarioPresupuesto ? `
     <tr style="background:${metaFilas.length % 2 === 0 ? HEX.zebra : '#ffffff'};">
       <td style="padding:4px 10px;color:${HEX.gris};width:150px;font-size:9px;vertical-align:top;">Observación:</td>
-      <td style="padding:4px 10px;color:${HEX.navy};font-weight:bold;font-size:9px;white-space:pre-line;">${escapeHtml(v.comentarioPresupuesto)}</td>
+      <td style="padding:4px 10px;color:${HEX.navy};font-weight:bold;font-size:9px;">
+        <div style="white-space:pre-line;display:-webkit-box;-webkit-line-clamp:${LINEAS_OBSERVACION_TOPE};-webkit-box-orient:vertical;overflow:hidden;">${escapeHtml(v.comentarioPresupuesto)}</div>
+      </td>
     </tr>` : '';
 
   const precio = preciosVenta.get(v.id);
