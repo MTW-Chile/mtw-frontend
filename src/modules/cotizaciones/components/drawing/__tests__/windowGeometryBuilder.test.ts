@@ -508,6 +508,32 @@ describe('buildWindow — nivel 2 vía parametrosJson', () => {
     expect(verticalDivider).toBeDefined();
   });
 
+  it('corredera + fijo compuesto: el paño fijo con un solo corte vertical se divide en 2 vidrios', () => {
+    // Confirmado con datos reales (HETMO 11815/11816/11817 "VA01/VA02/VA03"):
+    // "Corredera 2 hojas + Ventana fija" en dos paños apilados -- corredera
+    // arriba, fijo abajo. El paño fijo (2600x500) trae UNA sola fila tipo 6
+    // (cota=1300, POSICION=1) para partirlo en 2 vidrios de 1300mm. El
+    // branch que dibuja columnas fijas exigía `verticalCuts.length > 1`
+    // (2+ cortes, es decir 3+ vidrios): con exactamente 1 corte (2 vidrios,
+    // el caso más común) nunca se activaba y el paño fijo se dibujaba
+    // entero, sin el travesaño vertical que muestra HETMO.
+    const v = ventana({
+      anchoMm: 2600,
+      altoMm: 1760,
+      dibujoTipoApertura: 32,
+      acabadoCodigo: 'BL',
+      geometrias: [
+        geometria({ ordenGeometria: 1, tipoElemento: 10000, anchoMm: 2600, altoMm: 1260 }),
+        geometria({ ordenGeometria: 2, tipoElemento: 3, tipoApertura: 32, anchoMm: 2600, altoMm: 1260 }),
+        geometria({ ordenGeometria: 3, tipoElemento: 10000, anchoMm: 2600, altoMm: 500 }),
+        geometria({ ordenGeometria: 4, tipoElemento: 6, posicion: 1, parametrosJson: { cota: 1300 } }),
+      ],
+      materiales: [materialDescrito('CARRO VENTO SIMP VE180', { cantidad: 8, piezas: 8 })],
+    });
+    const result = buildWindow(toWindowLine(v)!, 'line');
+    expect(result.svg).toContain('window-sash-divider');
+  });
+
   it('toda hoja que abre lleva bisagras aunque HETMO no declare el herraje', () => {
     const v = ventana({
       anchoMm: 900,

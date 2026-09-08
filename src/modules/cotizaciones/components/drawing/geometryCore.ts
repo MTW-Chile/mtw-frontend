@@ -342,8 +342,12 @@
     const lineHeight = firstPositive(line && line.dibujoAlto, line && line.alto);
     const widthError = lineWidth ? Math.abs(panels.reduce((sum, panel) => sum + panel.width, 0) - lineWidth) : Number.POSITIVE_INFINITY;
     const heightError = lineHeight ? Math.abs(panels.reduce((sum, panel) => sum + panel.height, 0) - lineHeight) : Number.POSITIVE_INFINITY;
+    // Sólo cuenta como corte vertical de la LÍNEA cuando POSICION lo dice --
+    // ver isVerticalCutRow. Sin ese filtro, un travesaño horizontal de un
+    // paño con cota < lineWidth (cualquier ventana más ancha que alta) se
+    // confundía con un corte vertical entre paños fijos.
     const verticalCuts = [...new Set(raw
-      .filter(item => number(item && item.tipo_elemento) === 6)
+      .filter(item => number(item && item.tipo_elemento) === 6 && isVerticalCutRow(item, lineWidth, lineHeight))
       .map(item => firstPositive(item.cota, item.cota_fija))
       .filter(cut => cut > 0 && cut < lineWidth))].sort((a, b) => a - b);
     const tolerance = value => Math.max(3, value * .006);
