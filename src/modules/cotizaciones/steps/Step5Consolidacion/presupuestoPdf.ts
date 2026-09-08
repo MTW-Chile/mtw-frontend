@@ -635,7 +635,7 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
       <div style="padding:20px 42px 0 42px;">
         <div style="font-size:19px;font-weight:bold;color:${HEX.navy};margin-bottom:10px;">Condiciones Comerciales</div>
         <div style="border-top:1px solid ${HEX.borde};margin-bottom:16px;"></div>
-        <ul style="font-size:9px;color:${HEX.navy};line-height:1.7;padding-left:16px;margin:0;">
+        <ul style="font-size:11px;color:${HEX.navy};line-height:1.8;padding-left:16px;margin:0;">
           ${condiciones.trim().split('\n').filter(Boolean).map((l) => `<li style="margin-bottom:4px;">${escapeHtml(l.trim())}</li>`).join('')}
         </ul>
       </div>
