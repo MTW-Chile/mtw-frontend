@@ -449,6 +449,65 @@ describe('buildWindow — nivel 2 vía parametrosJson', () => {
     expect((result.svg.match(/class="window-transom"/g) || []).length).toBe(2);
   });
 
+  it('un paño compuesto con dos proyectantes lado a lado dibuja dos triángulos separados, no uno estirado', () => {
+    // Confirmado con datos reales (HETMO 11834 "VL01" y 11836 "VF01"): un
+    // mismo paño (un solo marco, un solo numero_ventana) trae DOS filas
+    // tipo 3 con el mismo código 23 (proyectante) y una fila tipo 6 cuya
+    // cota es la mitad del ANCHO del paño, no del alto -- HETMO modela dos
+    // hojas proyectantes lado a lado dentro de un único marco. Antes de
+    // este fix se dibujaba una sola hoja "estirada" de borde a borde (un
+    // triángulo ancho y aplanado que a simple vista se leía como un moño
+    // en X) y sin el perfil que separa ambas hojas.
+    const v = ventana({
+      anchoMm: 1780,
+      altoMm: 2560,
+      dibujoTipoApertura: 23,
+      acabadoCodigo: 'BL',
+      geometrias: [
+        geometria({ ordenGeometria: 1, tipoElemento: 10000, anchoMm: 1780, altoMm: 853 }),
+        geometria({ ordenGeometria: 2, tipoElemento: 3, tipoApertura: 23, anchoMm: 1780, altoMm: 853 }),
+        geometria({ ordenGeometria: 3, tipoElemento: 6, parametrosJson: { cota: 890 } }),
+        geometria({ ordenGeometria: 4, tipoElemento: 3, tipoApertura: 23, anchoMm: 1780, altoMm: 853 }),
+        geometria({ ordenGeometria: 5, tipoElemento: 10000, anchoMm: 1780, altoMm: 1707 }),
+      ],
+    });
+    const result = buildWindow(toWindowLine(v)!, 'line');
+    const triangles = [...result.svg.matchAll(/data-opening-role="projecting"[^/]*d="M ([\d.]+) [\d.]+ L [\d.]+ [\d.]+ L ([\d.]+) [\d.]+"/g)]
+      .map(match => ({ start: Number(match[1]), end: Number(match[2]) }));
+    expect(triangles).toHaveLength(2);
+    // Cada triángulo vive en su propia mitad del paño, sin solaparse.
+    expect(triangles[0].end).toBeLessThanOrEqual(triangles[1].start);
+    // El perfil que separa ambas hojas se dibuja entre ellas.
+    expect(result.svg).toContain('window-sash-divider');
+  });
+
+  it('una ventana fija con corte vertical (POSICION=1) dibuja el divisor entre columnas, no un travesaño horizontal', () => {
+    // Confirmado con datos reales (HETMO 11835 "VK01") contra la propia
+    // herramienta de corrección: ventana fija de 2550x2560, grilla de 2
+    // columnas x 3 filas. La fila tipo 6 de cota=1275 (mitad del ANCHO)
+    // trae POSICION=1; las de cota=858/1702 (horizontales, tercios del
+    // alto) traen POSICION=0. Antes de leer POSICION, el paño es casi
+    // cuadrado y el corte vertical se colaba como un cuarto travesaño
+    // horizontal más -- faltaba el divisor entre columnas.
+    const v = ventana({
+      anchoMm: 2550,
+      altoMm: 2560,
+      acabadoCodigo: 'BL',
+      geometrias: [
+        geometria({ tipoElemento: 6, posicion: 1, parametrosJson: { cota: 1275 } }),
+        geometria({ tipoElemento: 6, posicion: 0, parametrosJson: { cota: 858 } }),
+        geometria({ tipoElemento: 6, posicion: 0, parametrosJson: { cota: 1702 } }),
+      ],
+    });
+    const result = buildWindow(toWindowLine(v)!, 'line');
+    // 2 travesaños horizontales (858, 1702) + 1 divisor vertical (1275).
+    expect((result.svg.match(/class="window-transom"/g) || []).length).toBe(3);
+    // El divisor vertical va de arriba a abajo del paño, no de lado a lado.
+    const verticalDivider = [...result.svg.matchAll(/class="window-transom"[\s\S]*?<line x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)" y2="([\d.]+)"/g)]
+      .find(match => Math.abs(Number(match[1]) - Number(match[3])) < 0.01 && Math.abs(Number(match[2]) - Number(match[4])) > 1);
+    expect(verticalDivider).toBeDefined();
+  });
+
   it('toda hoja que abre lleva bisagras aunque HETMO no declare el herraje', () => {
     const v = ventana({
       anchoMm: 900,
