@@ -134,6 +134,17 @@ export async function updateProyectoCliente(
   return response.data;
 }
 
+export async function updateCodigoInterno(
+  id: string,
+  codigoInterno: string | null
+): Promise<{ success: boolean; proyecto: Omit<Proyecto, 'versiones'> }> {
+  const response = await apiClient.patch<{ success: boolean; proyecto: Omit<Proyecto, 'versiones'> }>(
+    `/proyectos/${id}/codigo-interno`,
+    { codigoInterno }
+  );
+  return response.data;
+}
+
 export async function setVersionActiva(
   id: string,
   hetmoId: number

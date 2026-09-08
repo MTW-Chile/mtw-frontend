@@ -11,6 +11,9 @@ interface Step1DatosClienteProps {
   selectedVersionIdx: number;
   onSelectVersion: (index: number) => void;
   isSavingVersion: boolean;
+  numeroInterno: string;
+  onGuardarNumeroInterno: (numero: string) => void;
+  isSavingNumeroInterno: boolean;
   // Cliente
   clientMode: 'view' | 'select' | 'create';
   setClientMode: (mode: 'view' | 'select' | 'create') => void;
@@ -30,6 +33,9 @@ export const Step1DatosCliente: React.FC<Step1DatosClienteProps> = ({
   selectedVersionIdx,
   onSelectVersion,
   isSavingVersion,
+  numeroInterno,
+  onGuardarNumeroInterno,
+  isSavingNumeroInterno,
   clientMode,
   setClientMode,
   searchClientTerm,
@@ -50,6 +56,9 @@ export const Step1DatosCliente: React.FC<Step1DatosClienteProps> = ({
         selectedVersionIdx={selectedVersionIdx}
         onSelectVersion={onSelectVersion}
         isSaving={isSavingVersion}
+        numeroInterno={numeroInterno}
+        onGuardarNumeroInterno={onGuardarNumeroInterno}
+        isSavingNumeroInterno={isSavingNumeroInterno}
       />
 
       {/* 2. Indicadores Técnicos y Métricos de la Obra */}
