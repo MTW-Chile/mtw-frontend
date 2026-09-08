@@ -45,6 +45,10 @@ const pctLabel = (monto: number, venta: number) =>
 
 const numeroInput = (value: unknown) => Math.max(0, Number(value) || 0);
 
+// BORRADOR es el valor historico de la columna antes del flujo de estado
+// comercial; se trata igual que EN_COTIZACION (ver relay-api).
+const normalizarEstado = (estado: string) => (estado === 'BORRADOR' ? 'EN_COTIZACION' : estado);
+
 export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, activeVersion, dolar, uf, euro }) => {
   const queryClient = useQueryClient();
   const monedas = useMonedas();
@@ -53,7 +57,11 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
   const tasaEuro = Number(euro) || 1030;
 
   const versionId = activeVersion?.id;
-  const congelado = Boolean(activeVersion?.esCongelado);
+  const estadoActual = activeVersion ? normalizarEstado(activeVersion.estadoAprobacion) : 'EN_COTIZACION';
+  // Igual que en Step3Materiales: el read-only sigue el estado comercial,
+  // no esCongelado -- ese flag ahora se activa al asignar cliente (Paso 1)
+  // y solo bloquea el resync con HETMO.
+  const congelado = estadoActual !== 'EN_COTIZACION';
   const config = activeVersion?.fijacionConfig;
 
   // activeVersion.totalVentanas es la cantidad de LINEAS (lineas.length en
