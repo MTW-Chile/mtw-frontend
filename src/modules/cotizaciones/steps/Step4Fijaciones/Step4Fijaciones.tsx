@@ -222,7 +222,10 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
       margin: { left: margen2, right: pageWidth - margen2 - colWidth },
       head: [['Materiales y métricas', '']],
       body: [
-        ...totalesPorCategoria.map((c) => [`${c.etiqueta} (${pctLabel(c.monto, venta)})`, clpLabel(c.monto)]),
+        ...totalesPorCategoria.map((c) => [
+          mostrarAnalisis ? `${c.etiqueta} (${pctLabel(c.monto, venta)})` : c.etiqueta,
+          clpLabel(c.monto),
+        ]),
         ['Cantidad de ventanas', String(cantidadVentanas)],
         ['m² de ventanas', `${formatNumber(m2Ventanas, 2)} m²`],
         ['Cantidad de cuadros', String(cantidadCuadros)],
@@ -279,10 +282,13 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
       styles: { ...tableStyle.styles, fontSize: 9, cellPadding: 6 },
       head: [['Resumen de costos', '']],
       body: [
-        [`Materiales (${pctLabel(materialesTotal, venta)})`, clpLabel(materialesTotal)],
-        [`Costos complementarios (${pctLabel(costosComplementarios, venta)})`, clpLabel(costosComplementarios)],
-        [`Flete (${pctLabel(costoFlete, venta)})`, clpLabel(costoFlete)],
-        [`Instalación (${pctLabel(costoInstalacion, venta)})`, clpLabel(costoInstalacion)],
+        [mostrarAnalisis ? `Materiales (${pctLabel(materialesTotal, venta)})` : 'Materiales', clpLabel(materialesTotal)],
+        [
+          mostrarAnalisis ? `Costos complementarios (${pctLabel(costosComplementarios, venta)})` : 'Costos complementarios',
+          clpLabel(costosComplementarios),
+        ],
+        [mostrarAnalisis ? `Flete (${pctLabel(costoFlete, venta)})` : 'Flete', clpLabel(costoFlete)],
+        [mostrarAnalisis ? `Instalación (${pctLabel(costoInstalacion, venta)})` : 'Instalación', clpLabel(costoInstalacion)],
         ['Costo total NETO', clpLabel(costoTotal)],
       ],
       didParseCell: (data: any) => {
@@ -324,17 +330,14 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
     bannerValue(ufLabel(costoTotal, tasaUf), 0, y2 + 50, 13);
     bannerValue(clpLabel(costoTotal), 0, y2 + 63, 9.5);
 
+    // Mismo tamaño (13pt, via bannerValue) que costoTotal/venta -- antes
+    // 22pt y despues 16pt se seguian sintiendo desproporcionados al lado
+    // del resto de los montos del recuadro.
     bannerLabel('Margen de venta', 1, y2 + 20);
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...MTW_NAVY);
-    doc.text(`${formatNumber(margen, 0)}%`, margen2 + bannerColWidth * 1 + 14, y2 + 48);
+    bannerValue(`${formatNumber(margen, 0)}%`, 1, y2 + 50, 13);
 
     bannerLabel('Valor por m²', 2, y2 + 20);
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...MTW_NAVY);
-    doc.text(ufLabel(valorM2, tasaUf), margen2 + bannerColWidth * 2 + 14, y2 + 48);
+    bannerValue(ufLabel(valorM2, tasaUf), 2, y2 + 50, 13);
 
     bannerLabel('Valor de venta · NETO', 3, y2 + 20);
     bannerValue(ufLabel(venta, tasaUf), 3, y2 + 50, 13);
