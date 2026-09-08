@@ -514,6 +514,16 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
   // presupuesto que reparte el cupo -- si no, esos 20px se los come el
   // overflow:hidden de la página en vez de quedar como espacio visible.
   const PADDING_INFERIOR_PAGINA = 26;
+  // Alto REAL del resumen de totales (Subtotal/IVA/Total con IVA), medido
+  // renderizando resumenHtml solo a 732px de ancho (el ancho útil real de
+  // la columna de tarjetas). El cupo llenaba SIEMPRE el 100% del alto
+  // disponible con tarjetas (calcularSlot reparte todo el alto entre
+  // ellas, sin dejar sobrante) -- así que en la página final, el resumen
+  // se agregaba después sin ningún espacio reservado y el overflow:hidden
+  // de la página lo recortaba entero en silencio. Confirmado: pasaba
+  // SIEMPRE que la última página quedara con su cupo lleno (ej. 3
+  // ventanas completas), no solo en casos raros.
+  const ALTO_RESUMEN = 98;
   const altoHeaderPortada = estimarAltoHeaderCompleto(texto);
 
   const calcularSlot = (cupo: number, altoDisponible: number) => (altoDisponible - GAP_TARJETAS * (cupo - 1)) / cupo;
@@ -523,8 +533,17 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
     let idx = 0;
     while (idx < ventanas.length) {
       const esPortada = paginas.length === 0;
-      const altoDisponible = ALTO_UTIL_PAGINA - PADDING_INFERIOR_PAGINA - (esPortada ? altoHeaderPortada : 0);
-      let cupo = esPortada ? CUPO_PORTADA : CUPO_SIGUIENTE;
+      const cupoMax = esPortada ? CUPO_PORTADA : CUPO_SIGUIENTE;
+      // Si lo que queda entra en esta página con el cupo máximo, ES la
+      // última página de ventanas -- reservamos el alto del resumen ANTES
+      // de repartir el cupo. Si esa reserva obliga a bajar el cupo (menos
+      // tarjetas entran), sobran ventanas para una página siguiente, que
+      // vuelve a evaluar esta misma condición y reserva el resumen ahí en
+      // vez de acá -- se autocorrige sin necesitar un segundo pase.
+      const esUltimaCandidata = ventanas.length - idx <= cupoMax;
+      const altoDisponible =
+        ALTO_UTIL_PAGINA - PADDING_INFERIOR_PAGINA - (esPortada ? altoHeaderPortada : 0) - (esUltimaCandidata ? ALTO_RESUMEN : 0);
+      let cupo = cupoMax;
       let slot = calcularSlot(cupo, altoDisponible);
       while (cupo > 1) {
         const candidatas = ventanas.slice(idx, idx + cupo);
@@ -536,7 +555,10 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
       paginas.push({ ventanas: ventanas.slice(idx, idx + cupo), slot });
       idx += cupo;
     }
-    if (paginas.length === 0) paginas.push({ ventanas: [], slot: calcularSlot(CUPO_PORTADA, ALTO_UTIL_PAGINA - PADDING_INFERIOR_PAGINA - altoHeaderPortada) });
+    if (paginas.length === 0) {
+      const altoDisponible = ALTO_UTIL_PAGINA - PADDING_INFERIOR_PAGINA - altoHeaderPortada - ALTO_RESUMEN;
+      paginas.push({ ventanas: [], slot: calcularSlot(CUPO_PORTADA, altoDisponible) });
+    }
   }
 
   // Todas las páginas se arman igual -- tarjetas a su slot, apiladas con
