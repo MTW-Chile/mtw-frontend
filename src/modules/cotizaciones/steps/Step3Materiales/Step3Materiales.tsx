@@ -121,7 +121,12 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
 
   const versionId = activeVersion?.id;
   const estadoActual = activeVersion ? normalizarEstado(activeVersion.estadoAprobacion) : 'EN_COTIZACION';
-  const congelado = Boolean(activeVersion?.esCongelado);
+  // El read-only de la Analitica sigue el estado comercial (estadoAprobacion),
+  // no esCongelado -- ese flag ahora se activa apenas se asigna un cliente
+  // (Paso 1) y solo bloquea el resync con HETMO, la cotizacion se sigue
+  // editando con normalidad hasta que efectivamente se congela el
+  // presupuesto para aprobacion comercial.
+  const congelado = estadoActual !== 'EN_COTIZACION';
   // El "deshacer" global solo es valido desde ESPERANDO_APROBACION_COMERCIAL
   // (ver TRANSICIONES_PERMITIDAS en el relay-api) -- en APROBADO_GERENCIA o
   // ACEPTADO_CLIENTE el retroceso se maneja desde el Paso 5, no desde aca.
