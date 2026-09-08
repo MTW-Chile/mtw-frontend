@@ -315,22 +315,26 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
       doc.setTextColor(...MTW_NAVY);
       doc.text(text, margen2 + bannerColWidth * colIndex + 14, yPos);
     };
-    bannerLabel('Costo total del proyecto · NETO', 0, y2 + 20);
+    // "Costo total del proyecto · NETO" no entraba en una columna de 4
+    // (medido con jsPDF.getTextWidth: 112.5pt vs 110.8pt de ancho
+    // disponible) -- el wrap a una 2da linea pisaba "sin margen de venta"
+    // justo debajo. Acortado a "Costo total NETO" (62.5pt, entra comodo).
+    bannerLabel('Costo total NETO', 0, y2 + 20);
     bannerLabel('sin margen de venta', 0, y2 + 30);
     bannerValue(ufLabel(costoTotal, tasaUf), 0, y2 + 50, 13);
     bannerValue(clpLabel(costoTotal), 0, y2 + 63, 9.5);
 
     bannerLabel('Margen de venta', 1, y2 + 20);
-    doc.setFontSize(22);
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...MTW_NAVY);
-    doc.text(`${formatNumber(margen, 0)}%`, margen2 + bannerColWidth * 1 + 14, y2 + 52);
+    doc.text(`${formatNumber(margen, 0)}%`, margen2 + bannerColWidth * 1 + 14, y2 + 48);
 
     bannerLabel('Valor por m²', 2, y2 + 20);
-    doc.setFontSize(22);
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...MTW_NAVY);
-    doc.text(ufLabel(valorM2, tasaUf), margen2 + bannerColWidth * 2 + 14, y2 + 52);
+    doc.text(ufLabel(valorM2, tasaUf), margen2 + bannerColWidth * 2 + 14, y2 + 48);
 
     bannerLabel('Valor de venta · NETO', 3, y2 + 20);
     bannerValue(ufLabel(venta, tasaUf), 3, y2 + 50, 13);
@@ -340,7 +344,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...MTW_GRIS);
-    doc.text(`Valor UF utilizado en el cálculo: $ ${new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(tasaUf)} por UF`, margen2, y2);
+    doc.text(`Valor UF usado para presupuesto: $ ${new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(tasaUf)} por UF`, margen2, y2);
 
     doc.save(`hoja-fijacion-${(proyecto.codigoInterno || proyecto.obra).replace(/\s+/g, '-')}.pdf`);
   };
@@ -632,7 +636,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
           <div className="text-xs font-mono text-slate-300">{clpLabel(venta)}</div>
         </div>
         <div className="col-span-2 md:col-span-4 text-[10px] text-slate-400 text-right">
-          Valor UF utilizado en el cálculo: $ {new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(tasaUf)} por UF
+          Valor UF usado para presupuesto: $ {new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(tasaUf)} por UF
         </div>
       </div>
     </div>
