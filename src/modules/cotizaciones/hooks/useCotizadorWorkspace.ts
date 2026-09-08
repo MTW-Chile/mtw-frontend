@@ -5,6 +5,7 @@ import {
   updateVersionConfig,
   triggerManualSync,
   updateProyectoCliente,
+  updateCodigoInterno,
   getClientes,
   createCliente,
   setVersionActiva,
@@ -94,10 +95,41 @@ export function useCotizadorWorkspace(proyectoId: string) {
     },
   });
 
+  // Mutación para el numero de presupuesto INTERNO de MTW (distinto al de
+  // HETMO) -- formato "numero-version", ver codigoInternoMutation.mutate
+  // en handleGuardarNumeroInterno/handleSelectVersion.
+  const codigoInternoMutation = useMutation({
+    mutationFn: async (codigoInterno: string | null) => updateCodigoInterno(proyectoId, codigoInterno),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyectoId] });
+      queryClient.invalidateQueries({ queryKey: ['proyectos'] });
+    },
+  });
+
+  // El "numero" que la persona escribe es solo la mitad de codigoInterno --
+  // la otra mitad (versionNumero de HETMO) se recompone siempre al vuelo,
+  // nunca queda guardada aparte, así que si más adelante cambia la version
+  // activa (handleSelectVersion) el codigo sigue correcto sin que nadie
+  // tenga que volver a escribirlo.
+  const numeroInterno = (proyecto?.codigoInterno || '').split('-').slice(0, -1).join('-') || (proyecto?.codigoInterno ?? '');
+  const handleGuardarNumeroInterno = (numero: string) => {
+    const limpio = numero.trim();
+    if (!limpio) {
+      codigoInternoMutation.mutate(null);
+      return;
+    }
+    codigoInternoMutation.mutate(activeVersion ? `${limpio}-${activeVersion.versionNumero}` : limpio);
+  };
+
   const handleSelectVersion = (index: number) => {
     setSelectedVersionIdx(index);
     const version = proyecto?.versiones[index];
     if (version) setVersionActivaMutation.mutate(version.hetmoId);
+    // Si ya hay un numero interno guardado, se recompone con la version
+    // nueva para que el codigo no quede apuntando a una revision vieja.
+    if (version && numeroInterno) {
+      codigoInternoMutation.mutate(`${numeroInterno}-${version.versionNumero}`);
+    }
   };
 
   // "Crear Nueva Versión Interna" (Paso 5, solo con APROBADO_GERENCIA): a
@@ -247,6 +279,9 @@ export function useCotizadorWorkspace(proyectoId: string) {
     setSelectedVersionIdx,
     handleSelectVersion,
     setVersionActivaMutation,
+    numeroInterno,
+    handleGuardarNumeroInterno,
+    codigoInternoMutation,
     estadoAprobacionMutation,
     handleCrearVersionInterna,
     showReimportModal,

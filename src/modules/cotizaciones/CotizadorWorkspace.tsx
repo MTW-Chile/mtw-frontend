@@ -26,6 +26,9 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
     selectedVersionIdx,
     handleSelectVersion,
     setVersionActivaMutation,
+    numeroInterno,
+    handleGuardarNumeroInterno,
+    codigoInternoMutation,
     estadoAprobacionMutation,
     handleCrearVersionInterna,
     showReimportModal,
@@ -55,7 +58,7 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-8 bg-slate-50 text-slate-700">
+      <div className="flex-1 flex items-center justify-center p-8 bg-slate-50 text-slate-700">
         <div className="text-center space-y-3">
           <div className="w-8 h-8 border-2 border-[#E34A26] border-t-transparent rounded-full animate-spin mx-auto" />
           <div className="text-xs font-mono">Cargando cotizador de la obra...</div>
@@ -66,7 +69,7 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
 
   if (isError || !proyecto) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-8 bg-slate-50 text-slate-700">
+      <div className="flex-1 flex items-center justify-center p-8 bg-slate-50 text-slate-700">
         <div className="text-center space-y-4">
           <div className="text-red-500 font-bold text-sm">Error al cargar la obra.</div>
           <button
@@ -81,20 +84,20 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 animate-fade-in">
-      {/* HEADER SUPERIOR */}
-      <WorkspaceHeader
-        proyecto={proyecto}
-        activeVersion={activeVersion}
-        onBack={onBack}
-        onOpenReimport={() => setShowReimportModal(true)}
-      />
-
-      {/* STEPPER HORIZONTAL DE LOS 5 PASOS */}
-      <WorkspaceStepper
-        currentStep={currentStep}
-        onStepChange={setCurrentStep}
-      />
+    <div className="flex-1 flex flex-col min-h-0 bg-slate-50 text-slate-900 animate-fade-in">
+      {/* HEADER SUPERIOR Y STEPPER UNIFICADOS */}
+      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-2xs">
+        <WorkspaceHeader
+          proyecto={proyecto}
+          activeVersion={activeVersion}
+          onBack={onBack}
+          onOpenReimport={() => setShowReimportModal(true)}
+        />
+        <WorkspaceStepper
+          currentStep={currentStep}
+          onStepChange={setCurrentStep}
+        />
+      </div>
 
       {/* CONTENIDO PRINCIPAL SEGÚN EL PASO ACTIVO */}
       <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-6xl w-full mx-auto space-y-6">
@@ -105,6 +108,9 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
             selectedVersionIdx={selectedVersionIdx}
             onSelectVersion={handleSelectVersion}
             isSavingVersion={setVersionActivaMutation.isPending}
+            numeroInterno={numeroInterno}
+            onGuardarNumeroInterno={handleGuardarNumeroInterno}
+            isSavingNumeroInterno={codigoInternoMutation.isPending}
             clientMode={clientMode}
             setClientMode={setClientMode}
             searchClientTerm={searchClientTerm}
