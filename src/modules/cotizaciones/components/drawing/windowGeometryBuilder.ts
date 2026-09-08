@@ -583,6 +583,23 @@ function buildSimpleWindow(
     ))
     .join('');
 
+  // Corte vertical de un paño fijo sin componentes propios (VK01, HETMO
+  // 11835: grilla de 2 columnas x 3 filas) -- ver panelVerticalDivisions.
+  const verticalDivisions = core.panelVerticalDivisions({
+    raw: Array.isArray(line.geometria) ? line.geometria : [],
+    width,
+    height,
+  }) as number[];
+  const verticalDividersIn = (bx: number, by: number, bw: number, bh: number) => verticalDivisions
+    .map((cota: number) => transomMarkup(
+      bx + bw * cota / Math.max(1, width),
+      by,
+      bx + bw * cota / Math.max(1, width),
+      by + bh,
+      finish
+    ))
+    .join('');
+
   let unitCursor = x;
   const unitsMarkup = units.map(unit => {
     const unitWidth = drawingW * unit.width / totalUnitWidth;
@@ -614,6 +631,7 @@ function buildSimpleWindow(
         + unitFrame
         + glassMarkup(glassClassName, contentX, contentY, contentW, contentH, !noGlass)
         + traversesIn(contentX, contentY, contentW, contentH)
+        + verticalDividersIn(contentX, contentY, contentW, contentH)
         + glassSplitMarkup(line as unknown as Record<string, unknown>, contentX, contentY, contentW, contentH, finish, true)
         + fixedMark(contentX, contentY, contentW, contentH, color)
         + muntinMarkup(line, contentX, contentY, contentW, contentH, finish.frame)

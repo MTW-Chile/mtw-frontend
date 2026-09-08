@@ -1115,6 +1115,30 @@
     return lines;
   }
 
+  // Una fila tipo_elemento 6 ("corte") mide, según el eje, la posición de un
+  // travesaño horizontal o de un corte vertical -- HETMO no lo declara con
+  // un campo propio, pero POSICION lo distingue de forma consistente: 1 para
+  // un corte vertical, 0 (o ausente) para uno horizontal. Confirmado contra
+  // la propia herramienta de corrección con tres líneas reales:
+  //  - VL01/VF01 (HETMO 11834/11836): paño de 1780x853 con DOS filas tipo 3
+  //    código 23 (proyectante) separadas por un corte de cota=890 (mitad del
+  //    ANCHO) y POSICION=1, junto a cortes horizontales con POSICION=0.
+  //  - VK01 (HETMO 11835): ventana fija 2550x2560, grilla de 2 columnas x 3
+  //    filas -- un corte de cota=1275 (mitad del ancho) con POSICION=1 y dos
+  //    cortes horizontales (858, 1702) con POSICION=0, verificado contra la
+  //    propia herramienta de corrección.
+  // Antes de conocer POSICION se intentaba adivinar el eje comparando la
+  // cota contra el alto del paño; eso fallaba en paños casi cuadrados como
+  // VK01, donde una cota vertical cabe igual de bien como si fuera
+  // horizontal. Se mantiene ese criterio SOLO como respaldo para filas sin
+  // POSICION declarado.
+  function isVerticalCutRow(item, panelWidth, panelHeight) {
+    const posicion = item && item.posicion != null ? number(item.posicion) : null;
+    if (posicion != null) return posicion === 1;
+    const cota = firstPositive(item && item.cota, item && item.cota_fija);
+    return panelHeight > 0 && cota >= panelHeight && cota < panelWidth;
+  }
+
   // Travesaños reales de un paño (HETMO bh_*): sólo existen en paños
   // compuestos, que son los que traen esta geometría detallada por HETMO.
   // Devuelve líneas en el espacio propio del paño (0..panel.width,
@@ -1143,7 +1167,7 @@
     const panelWidth = firstPositive(panel && panel.width);
     const panelHeight = firstPositive(panel && panel.height);
     if (panelWidth > 0 && panelHeight > 0) {
-      raw.filter(item => number(item && item.tipo_elemento) === 6).forEach(item => {
+      raw.filter(item => number(item && item.tipo_elemento) === 6 && !isVerticalCutRow(item, panelWidth, panelHeight)).forEach(item => {
         const cota = firstPositive(item.cota, item.cota_fija);
         if (!(cota > 0) || cota >= panelHeight) return;
         const y = panelHeight - cota;
@@ -1156,15 +1180,10 @@
     return lines;
   }
 
-  // Corte VERTICAL entre dos hojas operables lado a lado dentro de un mismo
-  // paño (un solo marco, un solo numero_ventana). HETMO puede declarar una
-  // fila tipo_elemento 6 cuya cota no cabe como travesaño horizontal (ver
-  // panelTraverseLines: cota >= panelHeight) porque en realidad mide la
-  // posición del corte medida desde el borde izquierdo del paño, no desde
-  // arriba. Confirmado con VL01/VF01 (HETMO 11834/11836): un paño de
-  // 1780x853 con DOS filas tipo 3 código 23 (proyectante) y una fila tipo 6
-  // de cota=890 -- exactamente la mitad del ANCHO, no del alto. Devuelve las
-  // cotas (0..panel.width) ordenadas de menor a mayor.
+  // Corte VERTICAL entre dos hojas operables lado a lado, o entre dos
+  // columnas de vidrio fijo, dentro de un mismo paño (un solo marco, un
+  // solo numero_ventana) -- ver isVerticalCutRow. Devuelve las cotas
+  // (0..panel.width) ordenadas de menor a mayor.
   export function panelVerticalDivisions(panel) {
     const raw = geometryItemsOf(panel);
     const panelWidth = firstPositive(panel && panel.width);
@@ -1175,9 +1194,7 @@
     raw.filter(item => number(item && item.tipo_elemento) === 6).forEach(item => {
       const cota = firstPositive(item.cota, item.cota_fija);
       if (!(cota > 0) || cota >= panelWidth) return;
-      // Ya se interpreta como travesaño horizontal cuando cabe dentro del
-      // alto del paño -- no se cuenta dos veces.
-      if (panelHeight > 0 && cota < panelHeight) return;
+      if (!isVerticalCutRow(item, panelWidth, panelHeight)) return;
       if (seen.has(cota)) return;
       seen.add(cota);
       cuts.push(cota);

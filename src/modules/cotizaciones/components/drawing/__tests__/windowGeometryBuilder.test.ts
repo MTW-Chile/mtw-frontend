@@ -481,6 +481,33 @@ describe('buildWindow — nivel 2 vía parametrosJson', () => {
     expect(result.svg).toContain('window-sash-divider');
   });
 
+  it('una ventana fija con corte vertical (POSICION=1) dibuja el divisor entre columnas, no un travesaño horizontal', () => {
+    // Confirmado con datos reales (HETMO 11835 "VK01") contra la propia
+    // herramienta de corrección: ventana fija de 2550x2560, grilla de 2
+    // columnas x 3 filas. La fila tipo 6 de cota=1275 (mitad del ANCHO)
+    // trae POSICION=1; las de cota=858/1702 (horizontales, tercios del
+    // alto) traen POSICION=0. Antes de leer POSICION, el paño es casi
+    // cuadrado y el corte vertical se colaba como un cuarto travesaño
+    // horizontal más -- faltaba el divisor entre columnas.
+    const v = ventana({
+      anchoMm: 2550,
+      altoMm: 2560,
+      acabadoCodigo: 'BL',
+      geometrias: [
+        geometria({ tipoElemento: 6, posicion: 1, parametrosJson: { cota: 1275 } }),
+        geometria({ tipoElemento: 6, posicion: 0, parametrosJson: { cota: 858 } }),
+        geometria({ tipoElemento: 6, posicion: 0, parametrosJson: { cota: 1702 } }),
+      ],
+    });
+    const result = buildWindow(toWindowLine(v)!, 'line');
+    // 2 travesaños horizontales (858, 1702) + 1 divisor vertical (1275).
+    expect((result.svg.match(/class="window-transom"/g) || []).length).toBe(3);
+    // El divisor vertical va de arriba a abajo del paño, no de lado a lado.
+    const verticalDivider = [...result.svg.matchAll(/class="window-transom"[\s\S]*?<line x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)" y2="([\d.]+)"/g)]
+      .find(match => Math.abs(Number(match[1]) - Number(match[3])) < 0.01 && Math.abs(Number(match[2]) - Number(match[4])) > 1);
+    expect(verticalDivider).toBeDefined();
+  });
+
   it('toda hoja que abre lleva bisagras aunque HETMO no declare el herraje', () => {
     const v = ventana({
       anchoMm: 900,
