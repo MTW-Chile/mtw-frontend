@@ -392,7 +392,7 @@ function buildCompositePanel(
           )
           .map((item: { markup: string }) => item.markup)
           .join('');
-      } else if (!panel.apertura && composite.verticalCuts?.length > 1 && composite.direction === 'vertical') {
+      } else if (!panel.apertura && composite.verticalCuts?.length > 0 && composite.direction === 'vertical') {
         let fixedX = px;
         const cutWidths = [...composite.verticalCuts, composite.width].map(
           (cut: number, cutIndex: number, values: number[]) =>
