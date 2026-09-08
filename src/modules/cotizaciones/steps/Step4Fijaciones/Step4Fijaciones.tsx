@@ -78,7 +78,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
     materialInstalacion: config?.materialInstalacion ?? 3100,
     cantidadViajes: config?.cantidadViajes ?? Math.ceil(cantidadVentanas / 14),
     valorViaje: config?.valorViaje ?? 80000,
-    valorInstalacionM2: config?.valorInstalacionM2 ?? 1700,
+    valorInstalacionM2: config?.valorInstalacionM2 ?? 15000,
     margenVentaPct: config?.margenVentaPct ?? 0,
   });
 
@@ -169,11 +169,11 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
   const margen = Math.min(99, Math.max(0, numeroInput(draft.margenVentaPct)));
   const venta = margen < 100 ? costoTotal / (1 - margen / 100) : costoTotal;
   // Valor por m2 es el Valor de Venta (con margen), no el costo, dividido
-  // por m2 de VIDRIO -- no de ventana (marco+vidrio). El comentario previo
-  // acá decía haber confirmado m2Ventanas contra Casa La Aurora, pero eso
-  // dio un numero que no cuadraba con el calculo real de referencia
-  // (confirmado a mano: venta / m2Vidrios, no venta / m2Ventanas).
-  const valorM2 = m2Vidrios > 0 ? venta / m2Vidrios : 0;
+  // por m2 de VENTANA (marco+vidrio) -- confirmado a mano con datos reales
+  // (12.611,93 UF / 3.817,39 m2 = 3,30 UF/m2). Un intento anterior de
+  // cambiar esto a m2 de vidrio fue en base a un calculo que resultó estar
+  // mal hecho -- volvió a m2Ventanas, que es lo correcto.
+  const valorM2 = m2Ventanas > 0 ? venta / m2Ventanas : 0;
 
   const actualizarExtra = (index: number, patch: Partial<FijacionExtra>) => {
     setExtras((prev) => prev.map((e, i) => (i === index ? { ...e, ...patch } : e)));
@@ -290,29 +290,29 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
       },
     });
 
-    y2 = (doc as any).lastAutoTable.finalY + 8;
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...MTW_GRIS);
-    doc.text(`Valor por m²: ${ufLabel(valorM2, tasaUf)}/m²`, pageWidth - margen2, y2, { align: 'right' });
-    y2 += 18;
+    y2 = (doc as any).lastAutoTable.finalY + 16;
 
-    // Banner oscuro final: costo neto, margen y valor de venta en 3 columnas
-    // -- mismo patron visual que la hoja de fijacion anterior.
+    // Recuadro final EN NEGATIVO -- solo borde, sin relleno de color (a
+    // pedido explicito: es un documento que se imprime, un fondo solido no
+    // gasta tinta gratis). 4 columnas: Costo total / Margen de venta /
+    // Valor por m² / Valor de venta -- Margen y Valor por m² van con el
+    // mismo tamaño de fuente y quedan al centro del recuadro, mismo peso
+    // visual para las dos métricas.
     const bannerHeight = 74;
-    doc.setFillColor(...MTW_NAVY);
-    doc.roundedRect(margen2, y2, contentWidth, bannerHeight, 6, 6, 'F');
-    const bannerColWidth = contentWidth / 3;
+    doc.setDrawColor(...MTW_NAVY);
+    doc.setLineWidth(0.75);
+    doc.roundedRect(margen2, y2, contentWidth, bannerHeight, 6, 6, 'S');
+    const bannerColWidth = contentWidth / 4;
     const bannerLabel = (text: string, colIndex: number, yPos: number) => {
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(148, 163, 184);
+      doc.setTextColor(...MTW_GRIS);
       doc.text(text, margen2 + bannerColWidth * colIndex + 14, yPos, { maxWidth: bannerColWidth - 20 });
     };
     const bannerValue = (text: string, colIndex: number, yPos: number, size = 12) => {
       doc.setFontSize(size);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(255, 255, 255);
+      doc.setTextColor(...MTW_NAVY);
       doc.text(text, margen2 + bannerColWidth * colIndex + 14, yPos);
     };
     bannerLabel('Costo total del proyecto · NETO', 0, y2 + 20);
@@ -323,12 +323,18 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
     bannerLabel('Margen de venta', 1, y2 + 20);
     doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 255, 255);
+    doc.setTextColor(...MTW_NAVY);
     doc.text(`${formatNumber(margen, 0)}%`, margen2 + bannerColWidth * 1 + 14, y2 + 52);
 
-    bannerLabel('Valor de venta · NETO', 2, y2 + 20);
-    bannerValue(ufLabel(venta, tasaUf), 2, y2 + 50, 13);
-    bannerValue(clpLabel(venta), 2, y2 + 63, 9.5);
+    bannerLabel('Valor por m²', 2, y2 + 20);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...MTW_NAVY);
+    doc.text(ufLabel(valorM2, tasaUf), margen2 + bannerColWidth * 2 + 14, y2 + 52);
+
+    bannerLabel('Valor de venta · NETO', 3, y2 + 20);
+    bannerValue(ufLabel(venta, tasaUf), 3, y2 + 50, 13);
+    bannerValue(clpLabel(venta), 3, y2 + 63, 9.5);
 
     y2 += bannerHeight + 16;
     doc.setFontSize(8);
@@ -586,13 +592,13 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
           <span>Costo total NETO</span>
           <span className="font-mono">{clpLabel(costoTotal)}</span>
         </div>
-        <div className="text-[11px] text-slate-500 text-right">
-          Valor por m²: {ufLabel(valorM2, tasaUf)}/m²
-        </div>
       </div>
 
-      {/* Costo total / Margen / Venta */}
-      <div className="p-5 rounded-2xl bg-slate-900 text-white shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+      {/* Costo total / Margen + Valor por m² (centro) / Venta -- Valor por
+          m² es una metrica clave para el negocio, se le da el mismo peso
+          visual que el margen y se pone al lado para que ambas columnas
+          formen el centro del recuadro. */}
+      <div className="p-5 rounded-2xl bg-slate-900 text-white shadow-sm grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
         <div>
           <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">
             Costo total del proyecto · NETO
@@ -615,12 +621,17 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
             <span className="text-sm font-bold">%</span>
           </div>
         </div>
+        <div className="text-center">
+          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Valor por m²</div>
+          <div className="text-lg font-bold font-mono text-white">{ufLabel(valorM2, tasaUf)}</div>
+          <div className="text-xs font-mono text-slate-300">/m² de ventana</div>
+        </div>
         <div className="text-right">
           <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Valor de venta · NETO</div>
           <div className="text-lg font-bold font-mono text-[#ff8a63]">{ufLabel(venta, tasaUf)}</div>
           <div className="text-xs font-mono text-slate-300">{clpLabel(venta)}</div>
         </div>
-        <div className="md:col-span-3 text-[10px] text-slate-400 text-right">
+        <div className="col-span-2 md:col-span-4 text-[10px] text-slate-400 text-right">
           Valor UF utilizado en el cálculo: $ {new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(tasaUf)} por UF
         </div>
       </div>

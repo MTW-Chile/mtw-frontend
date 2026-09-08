@@ -669,10 +669,18 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                         {materiales.map((m) => (
                           <tr
                             key={m.id}
-                            className={`hover:bg-slate-50 transition-colors ${m.excluido ? 'opacity-40 bg-slate-50' : ''}`}
+                            title={m.precioModificado ? 'Precio modificado a mano -- distinto al original de HETMO' : undefined}
+                            className={`hover:bg-slate-50 transition-colors ${m.excluido ? 'opacity-40 bg-slate-50' : m.precioModificado ? 'bg-sky-50/60 border-l-2 border-l-sky-400' : ''}`}
                           >
                             <td className="px-3.5 py-2 font-mono font-bold text-slate-900">{m.skuInterno}</td>
-                            <td className="px-3.5 py-2 font-medium text-slate-800">{m.descripcion}</td>
+                            <td className="px-3.5 py-2 font-medium text-slate-800">
+                              {m.descripcion}
+                              {m.precioModificado && (
+                                <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-sky-100 text-sky-700 border border-sky-200">
+                                  Precio editado
+                                </span>
+                              )}
+                            </td>
                             <td className="px-3.5 py-2 text-slate-500">{m.proveedorNombre}</td>
                             <td className="px-3.5 py-2 text-right">
                               <div className="flex items-center justify-end gap-1">
