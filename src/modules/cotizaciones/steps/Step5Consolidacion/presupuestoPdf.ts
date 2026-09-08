@@ -284,22 +284,31 @@ function altoMinimoTarjeta(v: Ventana, analisis: VentanaAnalisis): number {
 }
 
 // Alto del encabezado completo de portada (logos + título + divisor +
-// código/fecha + Cliente + Obra + saludo + párrafo de presentación) --
-// todo fijo salvo el párrafo, que crece con el texto real ("De acuerdo a
-// sus requerimientos..."). Si el cliente/proyecto trae datos largos ahí,
-// el header se come más alto disponible para las tarjetas de la portada
-// -- este número es lo que le resta al presupuesto de alto de esa página
-// en el paginado adaptativo.
-const ALTO_HEADER_PORTADA_BASE = 210;
+// código/fecha + datos del cliente formato factura + saludo + párrafo de
+// presentación) -- todo fijo salvo el párrafo (crece con el texto real) y
+// el bloque de datos del cliente (crece según cuántos campos trae ese
+// cliente -- Señor(es)/R.U.T./Giro/Dirección/Comuna/Contacto/Obra, cada
+// fila se omite si no hay dato). Si cualquiera de los dos crece sin
+// avisarle al paginado, el header se come más alto del que el cupo fijo de
+// la portada tenía presupuestado -- mismo tipo de bug que el resumen de
+// totales cortado (ver ALTO_RESUMEN más abajo). ALTO_HEADER_PORTADA_BASE
+// ya NO incluye el bloque de cliente (antes eran 2 líneas fijas,
+// "Cliente:"/"Obra:", medidas en 26px) -- ese alto ahora se calcula aparte
+// con ALTO_FILA_CLIENTE, medido renderizando la tabla real: cada fila mide
+// 13px exactos, sin overhead fijo de por medio (1 fila = 13px, 7 filas =
+// 91px, lineal).
+const ALTO_HEADER_PORTADA_BASE = 210 - 26;
 const ALTO_HEADER_PORTADA_CON_SALUDO = 30;
 const ANCHO_COLUMNA_TEXTO_PRESENTACION = 690;
 const ANCHO_CARACTER_TEXTO_PRESENTACION = 4.7;
 const ALTO_LINEA_TEXTO_PRESENTACION = 14;
+const ALTO_FILA_CLIENTE = 13;
 
-function estimarAltoHeaderCompleto(texto: string): number {
-  if (!texto.trim()) return ALTO_HEADER_PORTADA_BASE;
+function estimarAltoHeaderCompleto(texto: string, filasCliente: number): number {
+  const altoCliente = filasCliente * ALTO_FILA_CLIENTE;
+  if (!texto.trim()) return ALTO_HEADER_PORTADA_BASE + altoCliente;
   const lineas = estimarLineasTexto(texto.trim(), ANCHO_COLUMNA_TEXTO_PRESENTACION, ANCHO_CARACTER_TEXTO_PRESENTACION);
-  return ALTO_HEADER_PORTADA_BASE + ALTO_HEADER_PORTADA_CON_SALUDO + lineas * ALTO_LINEA_TEXTO_PRESENTACION;
+  return ALTO_HEADER_PORTADA_BASE + altoCliente + ALTO_HEADER_PORTADA_CON_SALUDO + lineas * ALTO_LINEA_TEXTO_PRESENTACION;
 }
 
 export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { altoTarjeta: number; esUltimaEnPagina?: boolean }): string {
@@ -422,6 +431,14 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
   const codigoLabel = `Presupuesto - ${proyecto.codigoInterno || proyecto.numeroPresupuesto}`;
   const fechaLabel = new Date().toLocaleDateString('es-CL');
   const clienteNombre = proyecto.cliente?.nombre || proyecto.clienteNombreRaw;
+  // Mismo patron de fallback que clienteNombre: si el cliente esta
+  // vinculado al maestro (proyecto.cliente) se usan sus datos reales, si no
+  // caemos a los *Raw que trae directo HETMO (nunca vacio a la fuerza).
+  const clienteRut = proyecto.cliente?.rut || proyecto.clienteRutRaw;
+  const clienteGiro = proyecto.cliente?.giro || null;
+  const clienteDireccion = proyecto.cliente?.direccion || proyecto.clienteDireccionRaw;
+  const clienteComuna = proyecto.cliente?.localidad || proyecto.clienteLocalidadRaw;
+  const clienteContacto = proyecto.cliente?.contacto || null;
 
   const logoImg = logoDataUrl ? `<img src="${logoDataUrl}" style="width:101px;height:46px;display:block;margin-bottom:12px;" />` : '';
   // En el documento de referencia el logo de Muchtek (Tecnoperfiles Group,
@@ -438,9 +455,33 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
     buildCardHtml(v, { preciosVenta, pngPorVentana, tasaUf }, { altoTarjeta, esUltimaEnPagina });
 
   // Encabezado completo (primera página): logo, "Oferta Cliente" como
-  // título, línea divisoria, "Presupuesto - X / Fecha", "Cliente:",
-  // "Obra:", saludo y párrafo de presentación -- igual al documento de
-  // referencia.
+  // título, línea divisoria, "Presupuesto - X / Fecha", datos del cliente
+  // en formato factura (Señor(es)/R.U.T./Giro/Dirección/Comuna/Contacto,
+  // una fila por dato -- calcado del formato de factura de referencia para
+  // que quepa compacto), "Obra:", saludo y párrafo de presentación.
+  // Filas presentes (con dato real) -- misma lista alimenta el HTML y el
+  // conteo que usa estimarAltoHeaderCompleto para el paginado, así nunca
+  // pueden desincronizarse entre sí.
+  const filasClienteData: [string, string | null | undefined][] = [
+    ['Señor(es)', clienteNombre],
+    ['R.U.T.', clienteRut],
+    ['Giro', clienteGiro],
+    ['Dirección', clienteDireccion],
+    ['Comuna', clienteComuna],
+    ['Contacto', clienteContacto],
+    ['Obra', proyecto.obra],
+  ];
+  const filasClientePresentes = filasClienteData.filter(([, valor]) => Boolean(valor));
+  const datosClienteHtml = `
+    <table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
+      ${filasClientePresentes
+        .map(
+          ([label, valor]) =>
+            `<tr><td style="width:70px;font-size:9px;font-weight:bold;color:${HEX.navy};padding:1.5px 0;">${label}:</td><td style="font-size:9px;font-weight:bold;color:${HEX.navy};padding:1.5px 0;">${escapeHtml(valor!)}</td></tr>`
+        )
+        .join('')}
+    </table>`;
+
   const headerCompletoHtml = `
     <div style="height:4px;background:${HEX.rojo};"></div>
     <div style="padding:20px 42px 0 42px;">
@@ -451,8 +492,7 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
         <td style="font-size:10px;font-weight:bold;color:${HEX.navy};">${escapeHtml(codigoLabel)}</td>
         <td style="font-size:10px;color:${HEX.gris};text-align:right;">Fecha: ${escapeHtml(fechaLabel)}</td>
       </tr></table>
-      <div style="font-size:10px;font-weight:bold;color:${HEX.navy};margin-bottom:4px;">Cliente: ${escapeHtml(clienteNombre)}</div>
-      <div style="font-size:10px;font-weight:bold;color:${HEX.navy};margin-bottom:16px;">Obra: ${escapeHtml(proyecto.obra)}</div>
+      ${datosClienteHtml}
       ${texto.trim() ? `
         <div style="font-size:9.5px;color:${HEX.navy};margin-bottom:4px;">Estimado Cliente,</div>
         <div style="font-size:9.5px;color:${HEX.navy};line-height:1.5;margin-bottom:16px;">${escapeHtml(texto.trim())}</div>
@@ -524,7 +564,7 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
   // SIEMPRE que la última página quedara con su cupo lleno (ej. 3
   // ventanas completas), no solo en casos raros.
   const ALTO_RESUMEN = 98;
-  const altoHeaderPortada = estimarAltoHeaderCompleto(texto);
+  const altoHeaderPortada = estimarAltoHeaderCompleto(texto, filasClientePresentes.length);
 
   const calcularSlot = (cupo: number, altoDisponible: number) => (altoDisponible - GAP_TARJETAS * (cupo - 1)) / cupo;
 
