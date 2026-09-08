@@ -168,10 +168,12 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
   const costoTotal = materialesTotal + costosComplementarios + costoFlete + costoInstalacion;
   const margen = Math.min(99, Math.max(0, numeroInput(draft.margenVentaPct)));
   const venta = margen < 100 ? costoTotal / (1 - margen / 100) : costoTotal;
-  // Valor por m2 es el Valor de Venta (con margen), no el costo -- confirmado
-  // contra la hoja de fijacion anterior de Casa La Aurora (166.617 = venta /
-  // m2Ventanas, no costoTotal / m2Ventanas).
-  const valorM2 = m2Ventanas > 0 ? venta / m2Ventanas : 0;
+  // Valor por m2 es el Valor de Venta (con margen), no el costo, dividido
+  // por m2 de VIDRIO -- no de ventana (marco+vidrio). El comentario previo
+  // acá decía haber confirmado m2Ventanas contra Casa La Aurora, pero eso
+  // dio un numero que no cuadraba con el calculo real de referencia
+  // (confirmado a mano: venta / m2Vidrios, no venta / m2Ventanas).
+  const valorM2 = m2Vidrios > 0 ? venta / m2Vidrios : 0;
 
   const actualizarExtra = (index: number, patch: Partial<FijacionExtra>) => {
     setExtras((prev) => prev.map((e, i) => (i === index ? { ...e, ...patch } : e)));
