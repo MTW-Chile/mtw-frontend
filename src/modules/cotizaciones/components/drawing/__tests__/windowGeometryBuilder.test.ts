@@ -449,6 +449,38 @@ describe('buildWindow — nivel 2 vía parametrosJson', () => {
     expect((result.svg.match(/class="window-transom"/g) || []).length).toBe(2);
   });
 
+  it('un paño compuesto con dos proyectantes lado a lado dibuja dos triángulos separados, no uno estirado', () => {
+    // Confirmado con datos reales (HETMO 11834 "VL01" y 11836 "VF01"): un
+    // mismo paño (un solo marco, un solo numero_ventana) trae DOS filas
+    // tipo 3 con el mismo código 23 (proyectante) y una fila tipo 6 cuya
+    // cota es la mitad del ANCHO del paño, no del alto -- HETMO modela dos
+    // hojas proyectantes lado a lado dentro de un único marco. Antes de
+    // este fix se dibujaba una sola hoja "estirada" de borde a borde (un
+    // triángulo ancho y aplanado que a simple vista se leía como un moño
+    // en X) y sin el perfil que separa ambas hojas.
+    const v = ventana({
+      anchoMm: 1780,
+      altoMm: 2560,
+      dibujoTipoApertura: 23,
+      acabadoCodigo: 'BL',
+      geometrias: [
+        geometria({ ordenGeometria: 1, tipoElemento: 10000, anchoMm: 1780, altoMm: 853 }),
+        geometria({ ordenGeometria: 2, tipoElemento: 3, tipoApertura: 23, anchoMm: 1780, altoMm: 853 }),
+        geometria({ ordenGeometria: 3, tipoElemento: 6, parametrosJson: { cota: 890 } }),
+        geometria({ ordenGeometria: 4, tipoElemento: 3, tipoApertura: 23, anchoMm: 1780, altoMm: 853 }),
+        geometria({ ordenGeometria: 5, tipoElemento: 10000, anchoMm: 1780, altoMm: 1707 }),
+      ],
+    });
+    const result = buildWindow(toWindowLine(v)!, 'line');
+    const triangles = [...result.svg.matchAll(/data-opening-role="projecting"[^/]*d="M ([\d.]+) [\d.]+ L [\d.]+ [\d.]+ L ([\d.]+) [\d.]+"/g)]
+      .map(match => ({ start: Number(match[1]), end: Number(match[2]) }));
+    expect(triangles).toHaveLength(2);
+    // Cada triángulo vive en su propia mitad del paño, sin solaparse.
+    expect(triangles[0].end).toBeLessThanOrEqual(triangles[1].start);
+    // El perfil que separa ambas hojas se dibuja entre ellas.
+    expect(result.svg).toContain('window-sash-divider');
+  });
+
   it('toda hoja que abre lleva bisagras aunque HETMO no declare el herraje', () => {
     const v = ventana({
       anchoMm: 900,

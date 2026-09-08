@@ -1156,6 +1156,35 @@
     return lines;
   }
 
+  // Corte VERTICAL entre dos hojas operables lado a lado dentro de un mismo
+  // paño (un solo marco, un solo numero_ventana). HETMO puede declarar una
+  // fila tipo_elemento 6 cuya cota no cabe como travesaño horizontal (ver
+  // panelTraverseLines: cota >= panelHeight) porque en realidad mide la
+  // posición del corte medida desde el borde izquierdo del paño, no desde
+  // arriba. Confirmado con VL01/VF01 (HETMO 11834/11836): un paño de
+  // 1780x853 con DOS filas tipo 3 código 23 (proyectante) y una fila tipo 6
+  // de cota=890 -- exactamente la mitad del ANCHO, no del alto. Devuelve las
+  // cotas (0..panel.width) ordenadas de menor a mayor.
+  export function panelVerticalDivisions(panel) {
+    const raw = geometryItemsOf(panel);
+    const panelWidth = firstPositive(panel && panel.width);
+    const panelHeight = firstPositive(panel && panel.height);
+    if (!(panelWidth > 0)) return [];
+    const seen = new Set();
+    const cuts = [];
+    raw.filter(item => number(item && item.tipo_elemento) === 6).forEach(item => {
+      const cota = firstPositive(item.cota, item.cota_fija);
+      if (!(cota > 0) || cota >= panelWidth) return;
+      // Ya se interpreta como travesaño horizontal cuando cabe dentro del
+      // alto del paño -- no se cuenta dos veces.
+      if (panelHeight > 0 && cota < panelHeight) return;
+      if (seen.has(cota)) return;
+      seen.add(cota);
+      cuts.push(cota);
+    });
+    return cuts.sort((a, b) => a - b);
+  }
+
   // Divisiones internas de un mismo paño que HETMO NO declara como travesaño.
   // Confirmado con la puerta P6 de Vista Monseñor (linea 10332, 900x2600,
   // apertura 18): ninguna de sus 25 filas trae bh_numero_travesano y sin

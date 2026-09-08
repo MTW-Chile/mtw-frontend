@@ -212,9 +212,35 @@ function buildCompositePanel(
         && panelDefinition.leafCount === 2 && panel.aperturaCount >= 2;
       const tiltSide = panelDefinition.symbol === 'tilt-turn' ? panelDefinition.hand : '';
 
+      // Un mismo paño (un solo marco, un solo numero_ventana) puede traer
+      // más de una hoja operable lado a lado -- ver panelVerticalDivisions.
+      // Sin esto se dibujaba una sola hoja "estirada" de borde a borde del
+      // paño (un triángulo ancho y aplanado que a simple vista se lee como
+      // un moño en X) y sin el perfil que separa ambas hojas.
+      const sideBySideCuts = !isDoubleOpening && panel.apertura
+        ? (core.panelVerticalDivisions(panel) as number[])
+        : [];
+      const sideBySideSegments = sideBySideCuts.length
+        ? (() => {
+            const bounds = [0, ...sideBySideCuts, panel.width];
+            let segX = px;
+            return bounds.slice(0, -1).map((start: number, segIndex: number) => {
+              const end = bounds[segIndex + 1];
+              const segWidth = pw * (end - start) / panel.width;
+              const x = segX;
+              segX += segWidth;
+              return { x, width: segWidth, last: segIndex === bounds.length - 2 };
+            });
+          })()
+        : [];
+
       let mark = isDoubleOpening
         ? `${tiltSide === 'left' ? doubleTiltTurnMark('left', px, py, pw / 2, ph, '#2452d6') : doubleHingedMark('left', px, py, pw / 2, ph, '#2452d6', panelAxisY)}${tiltSide === 'right' ? doubleTiltTurnMark('right', px + pw / 2, py, pw / 2, ph, '#2452d6') : doubleHingedMark('right', px + pw / 2, py, pw / 2, ph, '#2452d6', panelAxisY)}`
-        : (panel.apertura ? hingedMark(panel.apertura, px, py, pw, ph, '#2452d6', panelAxisY) : fixedMark(px, py, pw, ph, '#2452d6'));
+        : sideBySideSegments.length
+          ? sideBySideSegments.map((segment: { x: number; width: number; last: boolean }) =>
+              `${hingedMark(panel.apertura, segment.x, py, segment.width, ph, '#2452d6', panelAxisY)}${segment.last ? '' : dividerMarkup(segment.x + segment.width, py + 2, py + ph - 2, finish, 2.5)}`
+            ).join('')
+          : (panel.apertura ? hingedMark(panel.apertura, px, py, pw, ph, '#2452d6', panelAxisY) : fixedMark(px, py, pw, ph, '#2452d6'));
 
       let hardwareMarkup = '';
       if (isDoubleOpening) {
@@ -240,6 +266,34 @@ function buildCompositePanel(
             hardwareMarkup += hingeMarkup('left', compositeHinges.count, px, py, pw / 2, ph, compositeHinges.reason, line);
             hardwareMarkup += hingeMarkup('right', compositeHinges.count, px + pw / 2, py, pw / 2, ph, compositeHinges.reason, line);
           }
+        }
+      } else if (sideBySideSegments.length) {
+        sash = glassOnly ? '' : sideBySideSegments.map((segment: { x: number; width: number }) => sashMarkup(segment.x, py, segment.width, ph, finish)).join('');
+        panelGlazing = sideBySideSegments.map((segment: { x: number; width: number }) => glazing(segment.x, py, segment.width, ph, true)).join('');
+        if (!glassOnly) {
+          sideBySideSegments.forEach((segment: { x: number; width: number }) => {
+            if (panelDefinition.family === 'projecting') {
+              hardwareMarkup += handleMark(
+                { role: 'handle' as const, side: 'center' as const, position: 'bottom' as const, orientation: 'up' as const, reason: 'projecting-bottom' },
+                line, { component: panel }, segment.x, py, segment.width, ph, panel.height
+              );
+              hardwareMarkup += hingeMarkup('top', compositeHinges.count, segment.x, py, segment.width, ph, compositeHinges.reason, line);
+            } else if (panelDefinition.family === 'tilt') {
+              hardwareMarkup += handleMark(
+                { role: 'handle' as const, side: 'center' as const, reason: 'center-forced' },
+                line, { component: panel }, segment.x, py, segment.width, ph, panel.height
+              );
+              hardwareMarkup += hingeMarkup('bottom', compositeHinges.count, segment.x, py, segment.width, ph, compositeHinges.reason, line);
+            } else if (['hinged', 'door', 'tilt-turn'].includes(panelDefinition.family)) {
+              hardwareMarkup += handleMark(
+                { role: 'handle' as const, side: (panelDefinition.hinge === 'right' ? 'left' : 'right') as 'left' | 'right', lock: panelLock, reason: 'opposite-hinge' },
+                line, { component: panel }, segment.x, py, segment.width, ph, panel.height
+              );
+              if (compositeHinges.count) {
+                hardwareMarkup += hingeMarkup(panelDefinition.hinge || 'left', compositeHinges.count, segment.x, py, segment.width, ph, compositeHinges.reason, line);
+              }
+            }
+          });
         }
       } else if (!glassOnly && (panelDefinition.family === 'hinged' || panelDefinition.family === 'door' || panelDefinition.family === 'tilt-turn')) {
         hardwareMarkup += handleMark(
