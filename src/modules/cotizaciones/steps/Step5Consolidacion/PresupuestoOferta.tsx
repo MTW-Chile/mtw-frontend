@@ -40,6 +40,10 @@ Este presupuesto contiene las ventanas detalladas en el plano enviado por el cli
 
 const FALLBACK_TEXTO = 'De acuerdo a sus requerimientos y solicitud de cotización, presentamos propuesta de Ventanas MTW con las líneas adecuadas para su proyecto.';
 
+// BORRADOR es el valor historico de la columna antes del flujo de estado
+// comercial; se trata igual que EN_COTIZACION (ver relay-api).
+const normalizarEstado = (estado: string) => (estado === 'BORRADOR' ? 'EN_COTIZACION' : estado);
+
 const NombreEditable: React.FC<{ ventana: Ventana; onGuardado: (v: Partial<Ventana>) => void; congelado: boolean }> = ({
   ventana,
   onGuardado,
@@ -154,7 +158,11 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
   const tasaDolar = Number(dolar) || 950;
   const tasaUf = Number(uf) || 38500;
   const tasaEuro = Number(euro) || 1030;
-  const congelado = Boolean(activeVersion?.esCongelado);
+  // Igual que en Step3Materiales/Step4Fijaciones: el read-only sigue el
+  // estado comercial, no esCongelado -- ese flag ahora se activa al asignar
+  // cliente (Paso 1) y solo bloquea el resync con HETMO.
+  const estadoActual = activeVersion ? normalizarEstado(activeVersion.estadoAprobacion) : 'EN_COTIZACION';
+  const congelado = estadoActual !== 'EN_COTIZACION';
   const versionId = activeVersion?.id;
 
   const [ventanasLocal, setVentanasLocal] = useState<Record<string, Partial<Ventana>>>({});

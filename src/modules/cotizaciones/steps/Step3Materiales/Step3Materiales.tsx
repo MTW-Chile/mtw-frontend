@@ -121,7 +121,12 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
 
   const versionId = activeVersion?.id;
   const estadoActual = activeVersion ? normalizarEstado(activeVersion.estadoAprobacion) : 'EN_COTIZACION';
-  const congelado = Boolean(activeVersion?.esCongelado);
+  // El read-only de la Analitica sigue el estado comercial (estadoAprobacion),
+  // no esCongelado -- ese flag ahora se activa apenas se asigna un cliente
+  // (Paso 1) y solo bloquea el resync con HETMO, la cotizacion se sigue
+  // editando con normalidad hasta que efectivamente se congela el
+  // presupuesto para aprobacion comercial.
+  const congelado = estadoActual !== 'EN_COTIZACION';
   // El "deshacer" global solo es valido desde ESPERANDO_APROBACION_COMERCIAL
   // (ver TRANSICIONES_PERMITIDAS en el relay-api) -- en APROBADO_GERENCIA o
   // ACEPTADO_CLIENTE el retroceso se maneja desde el Paso 5, no desde aca.
@@ -664,10 +669,18 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                         {materiales.map((m) => (
                           <tr
                             key={m.id}
-                            className={`hover:bg-slate-50 transition-colors ${m.excluido ? 'opacity-40 bg-slate-50' : ''}`}
+                            title={m.precioModificado ? 'Precio modificado a mano -- distinto al original de HETMO' : undefined}
+                            className={`hover:bg-slate-50 transition-colors ${m.excluido ? 'opacity-40 bg-slate-50' : m.precioModificado ? 'bg-sky-50/60 border-l-2 border-l-sky-400' : ''}`}
                           >
                             <td className="px-3.5 py-2 font-mono font-bold text-slate-900">{m.skuInterno}</td>
-                            <td className="px-3.5 py-2 font-medium text-slate-800">{m.descripcion}</td>
+                            <td className="px-3.5 py-2 font-medium text-slate-800">
+                              {m.descripcion}
+                              {m.precioModificado && (
+                                <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-sky-100 text-sky-700 border border-sky-200">
+                                  Precio editado
+                                </span>
+                              )}
+                            </td>
                             <td className="px-3.5 py-2 text-slate-500">{m.proveedorNombre}</td>
                             <td className="px-3.5 py-2 text-right">
                               <div className="flex items-center justify-end gap-1">

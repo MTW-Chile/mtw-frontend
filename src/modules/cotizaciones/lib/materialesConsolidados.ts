@@ -17,6 +17,10 @@ export interface MaterialConsolidado {
   monedaOrigen: string;
   precioCLP: number;
   excluido: boolean;
+  // true cuando el precio viene de un ajuste manual en la Analitica
+  // (ProyectoMaterialAjuste.precioPersonalizado), no del precio original de
+  // HETMO -- para destacar visualmente que este item fue tocado a mano.
+  precioModificado: boolean;
 }
 
 // moneda_origen_codigo de HETMO viene hardcodeado en '2' para TODO material
@@ -140,6 +144,7 @@ export function computeMaterialesConsolidados(
           monedaOrigen,
           precioCLP,
           excluido: ajuste?.excluido ?? mv.excluido ?? false,
+          precioModificado: ajuste?.precioPersonalizado != null,
         });
       }
     });
