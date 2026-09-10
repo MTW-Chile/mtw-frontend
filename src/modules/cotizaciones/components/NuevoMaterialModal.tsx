@@ -5,7 +5,7 @@ import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
 import { createMaterial, createProveedor, getProveedores } from '../../../api/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Material } from '../../../types';
+import type { Material, Proveedor } from '../../../types';
 
 const NUEVO_PROVEEDOR_VALUE = '__nuevo__';
 
@@ -91,6 +91,12 @@ export const NuevoMaterialModal: React.FC<NuevoMaterialModalProps> = ({
         if (!nombre) throw new Error('Ingresá el nombre del nuevo proveedor.');
         const proveedorCreado = await createProveedor(nombre);
         proveedorId = proveedorCreado.data.id;
+        // Reflejar el proveedor recién creado de inmediato (cache + form): si
+        // createMaterial falla más abajo y el usuario reintenta, el formulario
+        // ya apunta al proveedor real en vez de a NUEVO_PROVEEDOR_VALUE, así
+        // no se crea un proveedor duplicado en cada reintento.
+        queryClient.setQueryData<Proveedor[]>(['proveedores'], (old) => [...(old || []), proveedorCreado.data]);
+        setFormData((prev) => ({ ...prev, proveedorId: proveedorCreado.data.id, proveedorNuevoNombre: '' }));
       }
 
       const res = await createMaterial({

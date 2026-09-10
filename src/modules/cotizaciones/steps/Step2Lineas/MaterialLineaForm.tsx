@@ -13,6 +13,8 @@ export interface MaterialLineaFormPayload {
 interface MaterialLineaFormProps {
   title: string;
   initialCantidad?: number;
+  initialPiezas?: number | null;
+  initialAcabado?: string | null;
   onCancel: () => void;
   onConfirm: (payload: MaterialLineaFormPayload) => Promise<void>;
 }
@@ -24,11 +26,18 @@ interface MaterialLineaFormProps {
  * payload al confirmar (agregar vs. reemplazar son la misma UI, distinta
  * llamada a la API).
  */
-export const MaterialLineaForm: React.FC<MaterialLineaFormProps> = ({ title, initialCantidad, onCancel, onConfirm }) => {
+export const MaterialLineaForm: React.FC<MaterialLineaFormProps> = ({
+  title,
+  initialCantidad,
+  initialPiezas,
+  initialAcabado,
+  onCancel,
+  onConfirm,
+}) => {
   const [selected, setSelected] = useState<Material | null>(null);
-  const [cantidad, setCantidad] = useState(initialCantidad ? String(initialCantidad) : '1');
-  const [piezas, setPiezas] = useState('');
-  const [acabado, setAcabado] = useState('');
+  const [cantidad, setCantidad] = useState(initialCantidad !== undefined ? String(initialCantidad) : '1');
+  const [piezas, setPiezas] = useState(initialPiezas !== undefined && initialPiezas !== null ? String(initialPiezas) : '');
+  const [acabado, setAcabado] = useState(initialAcabado || '');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

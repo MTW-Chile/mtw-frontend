@@ -83,6 +83,9 @@ export const MaterialesLineaModal: React.FC<MaterialesLineaModalProps> = ({ vent
 
   const handleAdd = async (payload: MaterialLineaFormPayload) => {
     const result = await addVentanaMaterial(v.id, payload);
+    if (!result.success || !result.data) {
+      throw new Error('No se pudo agregar el material en el servidor.');
+    }
     onUpdated(result.data);
     setEditMode(null);
   };
@@ -95,6 +98,9 @@ export const MaterialesLineaModal: React.FC<MaterialesLineaModalProps> = ({ vent
       piezas: payload.piezas,
       acabado: payload.acabado,
     });
+    if (!result.success || !result.data) {
+      throw new Error('No se pudo reemplazar el material en el servidor.');
+    }
     onUpdated(result.data);
     setEditMode(null);
   };
@@ -108,6 +114,10 @@ export const MaterialesLineaModal: React.FC<MaterialesLineaModalProps> = ({ vent
     setRemovingId(row.id);
     try {
       const result = await eliminarVentanaMaterial(v.id, row.id);
+      if (!result.success || !result.data) {
+        setRemoveError('No se pudo quitar el material en el servidor.');
+        return;
+      }
       onUpdated(result.data);
     } catch (err: any) {
       setRemoveError(err?.response?.data?.error || err.message || 'Error al quitar el material.');
@@ -327,7 +337,9 @@ export const MaterialesLineaModal: React.FC<MaterialesLineaModalProps> = ({ vent
                                       <td colSpan={4} className="py-2 px-2">
                                         <MaterialLineaForm
                                           title={`Reemplazar "${m.material?.descripcion || m.material?.skuInterno}"`}
-                                          initialCantidad={Number(m.cantidad) || undefined}
+                                          initialCantidad={Number.isFinite(Number(m.cantidad)) ? Number(m.cantidad) : undefined}
+                                          initialPiezas={m.piezas}
+                                          initialAcabado={m.acabado}
                                           onCancel={() => setEditMode(null)}
                                           onConfirm={(payload) => handleReplace(m, payload)}
                                         />
