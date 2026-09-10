@@ -378,5 +378,48 @@ export async function deleteVentanaCorreccionGeometria(
   return response.data;
 }
 
+// Materiales personalizados por línea (revisión de líneas): agregar un item
+// del maestro a una línea, reemplazar un item HETMO de esa línea por otro
+// del maestro, o deshacer cualquiera de los dos. Ver comentarios junto a
+// los endpoints homónimos en mtw-api/src/index.ts.
+export async function addVentanaMaterial(
+  ventanaId: string,
+  payload: { materialId: string; cantidad: number; piezas?: number | null; longitudMm?: number | null; acabado?: string | null }
+): Promise<{ success: boolean; data: Ventana }> {
+  const response = await apiClient.post<{ success: boolean; data: Ventana }>(
+    `/ventanas/${ventanaId}/materiales`,
+    payload
+  );
+  return response.data;
+}
+
+export async function reemplazarVentanaMaterial(
+  ventanaId: string,
+  payload: {
+    materialIdOriginal: string;
+    materialIdNuevo: string;
+    cantidad: number;
+    piezas?: number | null;
+    longitudMm?: number | null;
+    acabado?: string | null;
+  }
+): Promise<{ success: boolean; data: Ventana }> {
+  const response = await apiClient.post<{ success: boolean; data: Ventana }>(
+    `/ventanas/${ventanaId}/materiales/reemplazar`,
+    payload
+  );
+  return response.data;
+}
+
+export async function eliminarVentanaMaterial(
+  ventanaId: string,
+  materialVentanaId: string
+): Promise<{ success: boolean; data: Ventana }> {
+  const response = await apiClient.post<{ success: boolean; data: Ventana }>(
+    `/ventanas/${ventanaId}/materiales/${materialVentanaId}/eliminar`
+  );
+  return response.data;
+}
+
 
 

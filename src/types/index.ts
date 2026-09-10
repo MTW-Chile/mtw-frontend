@@ -79,6 +79,7 @@ export interface MaterialVentana {
   monedaOrigen: string | null;
   origen: 'HETMO' | 'PERSONALIZADO';
   excluido: boolean;
+  reemplazaMaterialId: string | null;
   material?: Material;
 }
 
