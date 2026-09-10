@@ -366,6 +366,11 @@ export async function getProveedores(): Promise<{ data: Proveedor[] }> {
   return response.data;
 }
 
+export async function createProveedor(nombre: string): Promise<{ data: Proveedor }> {
+  const response = await apiClient.post<{ data: Proveedor }>('/proveedores', { nombre });
+  return response.data;
+}
+
 // POST, no PUT/DELETE -- son los unicos dos verbos de la API sin usar en
 // ningun otro lado del cliente, y "Network Error" en panel.mtw.cl al
 // guardar apunta a un bloqueo de metodo aguas arriba de Cloudflare Access.

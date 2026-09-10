@@ -3,9 +3,11 @@ import { X, PackagePlus, AlertCircle } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
-import { createMaterial } from '../../../api/client';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { createMaterial, createProveedor, getProveedores } from '../../../api/client';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Material } from '../../../types';
+
+const NUEVO_PROVEEDOR_VALUE = '__nuevo__';
 
 interface NuevoMaterialModalProps {
   isOpen: boolean;
@@ -57,49 +59,61 @@ export const NuevoMaterialModal: React.FC<NuevoMaterialModalProps> = ({
     unidadMedida: 'ml',
     monedaOrigen: 'CLP',
     precioOrigen: '',
+    proveedorId: '',
+    proveedorNuevoNombre: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
 
+  const proveedoresQuery = useQuery({
+    queryKey: ['proveedores'],
+    queryFn: async () => (await getProveedores()).data,
+    enabled: isOpen,
+  });
+  const proveedorOptions = [
+    { value: '', label: 'Sin proveedor asignado' },
+    ...(proveedoresQuery.data || []).map((p) => ({ value: p.id, label: p.nombre })),
+    { value: NUEVO_PROVEEDOR_VALUE, label: '+ Nuevo proveedor…' },
+  ];
+
+  // Ningún fallback local si la API falla: antes, si createMaterial()
+  // fallaba, el modal fabricaba un material falso en memoria y cerraba
+  // "con éxito" -- el usuario creía que había guardado algo que en
+  // realidad nunca llegó a la base de datos.
   const mutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const precioNum = data.precioOrigen ? parseFloat(data.precioOrigen) : null;
-      try {
-        const res = await createMaterial({
-          skuInterno: data.skuInterno.trim().toUpperCase(),
-          descripcion: data.descripcion.trim(),
-          familia: data.familia,
-          unidadMedida: data.unidadMedida,
-          monedaOrigen: data.monedaOrigen,
-          precioOrigen: isNaN(precioNum as number) ? null : precioNum,
-        });
-        const created = (res as any)?.data || res;
-        return created as Material;
-      } catch {
-        // Fallback optimista para demostración local si la API aún no está disponible
-        const fallbackMaterial: Material = {
-          id: `local-${Date.now()}`,
-          skuInterno: data.skuInterno.trim().toUpperCase(),
-          descripcion: data.descripcion.trim(),
-          familia: data.familia,
-          unidadMedida: data.unidadMedida,
-          monedaOrigen: data.monedaOrigen,
-          precioOrigen: isNaN(precioNum as number) ? null : precioNum,
-          proveedorId: null,
-          creadoEn: new Date().toISOString(),
-        };
-        return fallbackMaterial;
+
+      let proveedorId: string | null = data.proveedorId || null;
+      if (data.proveedorId === NUEVO_PROVEEDOR_VALUE) {
+        const nombre = data.proveedorNuevoNombre.trim();
+        if (!nombre) throw new Error('Ingresá el nombre del nuevo proveedor.');
+        const proveedorCreado = await createProveedor(nombre);
+        proveedorId = proveedorCreado.data.id;
       }
+
+      const res = await createMaterial({
+        skuInterno: data.skuInterno.trim().toUpperCase(),
+        descripcion: data.descripcion.trim(),
+        familia: data.familia,
+        unidadMedida: data.unidadMedida,
+        monedaOrigen: data.monedaOrigen,
+        precioOrigen: isNaN(precioNum as number) ? null : precioNum,
+        proveedorId,
+      });
+      const created = (res as any)?.data || res;
+      return created as Material;
     },
     onSuccess: (newMat) => {
       queryClient.invalidateQueries({ queryKey: ['materiales'] });
+      queryClient.invalidateQueries({ queryKey: ['proveedores'] });
       if (onSuccess) onSuccess(newMat);
       handleClose();
     },
     onError: (err: any) => {
       setGeneralError(
-        err?.response?.data?.message || 'Error al guardar el material en la base de datos.'
+        err?.response?.data?.error || err?.message || 'Error al guardar el material en la base de datos.'
       );
     },
   });
@@ -116,6 +130,9 @@ export const NuevoMaterialModal: React.FC<NuevoMaterialModalProps> = ({
     }
     if (formData.precioOrigen && isNaN(Number(formData.precioOrigen))) {
       newErrors.precioOrigen = 'El precio debe ser un número válido';
+    }
+    if (formData.proveedorId === NUEVO_PROVEEDOR_VALUE && !formData.proveedorNuevoNombre.trim()) {
+      newErrors.proveedorNuevoNombre = 'Ingresá el nombre del nuevo proveedor';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -136,6 +153,8 @@ export const NuevoMaterialModal: React.FC<NuevoMaterialModalProps> = ({
       unidadMedida: 'ml',
       monedaOrigen: 'CLP',
       precioOrigen: '',
+      proveedorId: '',
+      proveedorNuevoNombre: '',
     });
     setErrors({});
     setGeneralError(null);
@@ -241,6 +260,31 @@ export const NuevoMaterialModal: React.FC<NuevoMaterialModalProps> = ({
               }
               error={errors.precioOrigen}
             />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <Select
+              label="Proveedor"
+              options={proveedorOptions}
+              value={formData.proveedorId}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, proveedorId: e.target.value, proveedorNuevoNombre: '' }))
+              }
+              disabled={proveedoresQuery.isLoading}
+            />
+
+            {formData.proveedorId === NUEVO_PROVEEDOR_VALUE && (
+              <Input
+                label="Nombre del Nuevo Proveedor"
+                placeholder="Ej: Vidrios del Sur"
+                value={formData.proveedorNuevoNombre}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, proveedorNuevoNombre: e.target.value }))
+                }
+                error={errors.proveedorNuevoNombre}
+                required
+              />
+            )}
           </div>
 
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-500 space-y-1">
