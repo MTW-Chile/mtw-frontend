@@ -12,8 +12,6 @@ import {
   Lock,
   Loader2,
 } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { formatNumber } from '../../../../lib/utils';
 import { useMonedas, resolverMoneda, formatMonto } from '../../../../lib/monedas';
 import { saveMaterialAjuste, setFamiliaAprobacion, setFamiliaDescuento, setFamiliaRecargo, updateEstadoAprobacion } from '../../../../api/client';
@@ -132,9 +130,14 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   // ACEPTADO_CLIENTE el retroceso se maneja desde el Paso 5, no desde aca.
   const puedeDeshacerAca = estadoActual === 'ESPERANDO_APROBACION_COMERCIAL';
 
+  // Sólo invalida el detalle de este proyecto: nada de lo que se edita acá
+  // (ajustes de material, aprobación/descuento/recargo por familia) se
+  // muestra en el listado de proyectos (['proyectos'], CotizacionesPage.tsx
+  // -- ahí sólo aparecen codigoInterno, los datos crudos de cliente y el
+  // estadoGlosa de HETMO), así que invalidarlo en cada ajuste sólo generaba
+  // un refetch de red de hasta 100 proyectos que nadie estaba mirando.
   const invalidar = () => {
     queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyecto.id] });
-    queryClient.invalidateQueries({ queryKey: ['proyectos'] });
   };
 
   // Ajustes por material: exclusion, precio y familia personalizados. Se
@@ -284,6 +287,13 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   const cantidadExcluidos = materialesConsolidados.filter((m) => m.excluido).length;
 
   const exportarPDF = async () => {
+    // jsPDF + autotable pesan ~430KB: se cargan recién al exportar, no con
+    // el resto del Paso 3 (que ya es su propio chunk lazy, ver
+    // CotizadorWorkspace.tsx), para no traerlos solo por abrir la pantalla.
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
     const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
     const margen = 32;

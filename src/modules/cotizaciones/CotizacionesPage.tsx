@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { getProyectos, getSyncLogs, triggerManualSync } from '../../api/client';
 import { formatNumber } from '../../lib/utils';
+import { useMediaQuery } from '../../lib/useMediaQuery';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { TableSkeleton } from '../../components/ui/Skeleton';
@@ -40,6 +41,9 @@ export const CotizacionesPage: React.FC<{
   const [selectedProyectoId, setSelectedProyectoId] = useState<string | null>(null);
   const [cotizarProyectoId, setCotizarProyectoId] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  // Monta sólo la vista de escritorio o la de mobile, nunca las dos -- ver
+  // useMediaQuery.ts.
+  const isDesktop = useMediaQuery('(min-width: 768px)');
 
   useEffect(() => {
     if (externalSearch) {
@@ -348,7 +352,8 @@ export const CotizacionesPage: React.FC<{
           ) : (
             <>
               {/* 1. VISTA TABLA AUTOMÁTICA EN DESKTOP/TABLET (System-Wide) */}
-              <div className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+              {isDesktop && (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[850px] text-left text-xs text-slate-700">
                     <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
@@ -454,9 +459,11 @@ export const CotizacionesPage: React.FC<{
                   </table>
                 </div>
               </div>
+              )}
 
               {/* 2. VISTA TARJETAS AUTOMÁTICA EN MÓVILES (System-Wide por defecto) */}
-              <div className="block md:hidden space-y-3.5">
+              {!isDesktop && (
+              <div className="space-y-3.5">
                 {filteredProyectos.map((p) => {
                   const activeVersion = p.versiones[0];
                   const isPedido =
@@ -545,6 +552,7 @@ export const CotizacionesPage: React.FC<{
                   );
                 })}
               </div>
+              )}
             </>
           )}
         </div>

@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Calculator, Check, Loader2, Plus, Trash2, FileDown, Lock } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { formatNumber } from '../../../../lib/utils';
 import { useMonedas } from '../../../../lib/monedas';
 import { updateFijacionConfig, updateEstadoAprobacion } from '../../../../api/client';
@@ -182,6 +180,12 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
   const eliminarExtra = (index: number) => setExtras((prev) => prev.filter((_, i) => i !== index));
 
   const exportarPDF = async () => {
+    // Ver el mismo comentario en Step3Materiales.tsx: jsPDF + autotable se
+    // cargan recién al exportar, no con el resto del Paso 4.
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
     const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
     const margen2 = 36;

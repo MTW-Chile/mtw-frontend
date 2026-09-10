@@ -1,14 +1,26 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { useCotizadorWorkspace } from './hooks/useCotizadorWorkspace';
 import { WorkspaceHeader } from './components/workspace/WorkspaceHeader';
 import { WorkspaceStepper } from './components/workspace/WorkspaceStepper';
 import { WorkspaceFooter } from './components/workspace/WorkspaceFooter';
 import { ReimportModal } from './components/workspace/ReimportModal';
-import { Step1DatosCliente } from './steps/Step1DatosCliente/Step1DatosCliente';
-import { Step2Lineas } from './steps/Step2Lineas/Step2Lineas';
-import { Step3Materiales } from './steps/Step3Materiales/Step3Materiales';
-import { Step4Fijaciones } from './steps/Step4Fijaciones/Step4Fijaciones';
-import { Step5Consolidacion } from './steps/Step5Consolidacion/Step5Consolidacion';
+
+// Cada paso se carga sólo cuando el usuario lo abre, no en el primer
+// render del cotizador: Step2 arrastra todo el motor de geometría SVG
+// (geometryCore.ts + windowGeometryBuilder.ts, ~2100 líneas) y Step3/Step4
+// importan jsPDF -- nada de eso hace falta para ver, por ejemplo, sólo el
+// Paso 1 de una obra.
+const Step1DatosCliente = lazy(() => import('./steps/Step1DatosCliente/Step1DatosCliente').then((m) => ({ default: m.Step1DatosCliente })));
+const Step2Lineas = lazy(() => import('./steps/Step2Lineas/Step2Lineas').then((m) => ({ default: m.Step2Lineas })));
+const Step3Materiales = lazy(() => import('./steps/Step3Materiales/Step3Materiales').then((m) => ({ default: m.Step3Materiales })));
+const Step4Fijaciones = lazy(() => import('./steps/Step4Fijaciones/Step4Fijaciones').then((m) => ({ default: m.Step4Fijaciones })));
+const Step5Consolidacion = lazy(() => import('./steps/Step5Consolidacion/Step5Consolidacion').then((m) => ({ default: m.Step5Consolidacion })));
+
+const StepFallback: React.FC = () => (
+  <div className="flex items-center justify-center p-16">
+    <div className="w-6 h-6 border-2 border-[#E34A26] border-t-transparent rounded-full animate-spin" />
+  </div>
+);
 
 interface CotizadorWorkspaceProps {
   proyectoId: string;
@@ -101,6 +113,7 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
 
       {/* CONTENIDO PRINCIPAL SEGÚN EL PASO ACTIVO */}
       <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-6xl w-full mx-auto space-y-6">
+      <Suspense fallback={<StepFallback />}>
         {currentStep === 1 && (
           <Step1DatosCliente
             proyecto={proyecto}
@@ -170,6 +183,7 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
             isCreandoVersionInterna={setVersionActivaMutation.isPending}
           />
         )}
+      </Suspense>
       </main>
 
       {/* FOOTER INFERIOR DE NAVEGACIÓN */}

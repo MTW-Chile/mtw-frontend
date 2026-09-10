@@ -16,11 +16,16 @@ import { TableSkeleton } from '../../../components/ui/Skeleton';
 import { NuevoMaterialModal } from './NuevoMaterialModal';
 import { useMonedas, resolverMoneda, formatMonto } from '../../../lib/monedas';
 import type { Material } from '../../../types';
+import { useMediaQuery } from '../../../lib/useMediaQuery';
 
 export const MaestroProductos: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFamilia, setSelectedFamilia] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  // Monta sólo la vista de escritorio o la de mobile, nunca las dos -- el
+  // maestro puede traer hasta ~2000 materiales, así que duplicar el DOM acá
+  // pesa más que en cualquier otra lista de la app. Ver useMediaQuery.ts.
+  const isDesktop = useMediaQuery('(min-width: 768px)');
 
   const { data, isLoading, isError, refetch } = useQuery<Material[]>({
     queryKey: ['materiales'],
@@ -245,7 +250,8 @@ export const MaestroProductos: React.FC = () => {
       ) : (
         <>
           {/* 1. VISTA TABLA AUTOMÁTICA EN DESKTOP/TABLET (System-Wide) */}
-          <div className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          {isDesktop && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-left text-xs text-slate-700">
                 <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
@@ -306,9 +312,11 @@ export const MaestroProductos: React.FC = () => {
               </table>
             </div>
           </div>
+          )}
 
           {/* 2. VISTA TARJETAS AUTOMÁTICA EN MÓVILES (System-Wide por defecto) */}
-          <div className="block md:hidden space-y-3">
+          {!isDesktop && (
+          <div className="space-y-3">
             {filteredMateriales.map((mat) => {
               const badgeInfo = familiaBadges[mat.familia.toUpperCase()] || {
                 label: mat.familia,
@@ -351,6 +359,7 @@ export const MaestroProductos: React.FC = () => {
               );
             })}
           </div>
+          )}
         </>
       )}
 
