@@ -397,6 +397,56 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     doc.save(`analitica-materiales-${(proyecto.codigoInterno || proyecto.obra).replace(/\s+/g, '-')}.pdf`);
   };
 
+  // CSV, no XLSX: los paquetes que generan .xlsx real en el navegador (xlsx
+  // de SheetJS, exceljs) traen vulnerabilidades conocidas sin parche en npm
+  // (alta severidad en xlsx, moderada via su dependencia uuid en exceljs) --
+  // no vale la pena esa superficie de ataque para una exportación. Un CSV
+  // con BOM UTF-8 abre perfecto en Excel (columnas, tildes, ñ, todo bien) y
+  // no depende de ningún paquete nuevo.
+  const exportarCSV = () => {
+    const escaparCelda = (valor: string | number) => {
+      const texto = String(valor);
+      return /[",\n]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
+    };
+    const encabezados = [
+      'Familia', 'SKU', 'Descripción', 'Proveedor', 'Precio Unit. Origen', 'Moneda Origen',
+      'Precio Unit. CLP', 'Cantidad', 'Unidad', 'Descuento %', 'Recargo %', 'Total CLP', 'Estado',
+    ];
+    const filas: (string | number)[][] = [encabezados];
+    gruposPorFamilia.forEach(([familia, materiales]) => {
+      const aprobacion = aprobacionesPorFamilia.get(familia);
+      const descuento = Number(aprobacion?.descuentoPct) || 0;
+      const recargo = Number(aprobacion?.recargoPct) || 0;
+      materiales.forEach((m) => {
+        filas.push([
+          familia,
+          m.skuInterno,
+          m.descripcion,
+          m.proveedorNombre,
+          m.precioOrigen,
+          resolverMoneda(m.monedaOrigen, monedas).nombre,
+          m.precioCLP,
+          m.cantidadTotal,
+          familia === 'VIDRIOS' ? 'M²' : m.familiaCruda === 'JUNTAS' ? 'M' : m.unidadMedida,
+          descuento,
+          recargo,
+          montoConAjuste(m, aprobacionesPorFamilia),
+          m.excluido ? 'Excluido' : 'Incluido',
+        ]);
+      });
+    });
+    filas.push(['TOTAL', '', '', '', '', '', '', '', '', '', '', costoTotalCLP, '']);
+
+    const csv = filas.map((fila) => fila.map(escaparCelda).join(',')).join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `analitica-materiales-${(proyecto.codigoInterno || proyecto.obra).replace(/\s+/g, '-')}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* 1. SECCIÓN: EDITOR DE DIVISAS DE LA OBRA */}
@@ -525,12 +575,12 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
             </button>
 
             <button
-              onClick={() => alert('Generando planilla de materiales en XLSX (Excel)...')}
+              onClick={exportarCSV}
               className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm"
-              title="Exportar materiales a Excel XLSX"
+              title="Exportar materiales a CSV (se abre directo en Excel)"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span>Exportar XLSX</span>
+              <span>Exportar CSV</span>
             </button>
           </div>
         </div>

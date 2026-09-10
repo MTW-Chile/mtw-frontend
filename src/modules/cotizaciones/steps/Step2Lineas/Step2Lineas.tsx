@@ -4,13 +4,16 @@ import {
   Search,
   Layers,
   ArrowUpDown,
-  FileDown
+  FileDown,
+  Loader2
 } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
+import { renderPdf } from '../../../../api/client';
 import type { Proyecto, ProyectoVersion, Ventana } from '../../../../types';
 import { VentanaCard } from './VentanaCard';
 import { CorrectorCorrederaModal } from './CorrectorCorrederaModal';
 import { MaterialesLineaModal } from './MaterialesLineaModal';
+import { buildCatalogoHtml, rasterizarDibujos } from './catalogoPdf';
 
 interface Step2LineasProps {
   proyecto: Proyecto;
@@ -82,6 +85,37 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
     return acc + m2 * v.unidades;
   }, 0);
 
+  const [isExportingCatalogo, setIsExportingCatalogo] = useState(false);
+  const [catalogoError, setCatalogoError] = useState<string | null>(null);
+
+  const exportarCatalogoPDF = async () => {
+    if (!filteredVentanas.length) return;
+    setCatalogoError(null);
+    setIsExportingCatalogo(true);
+    try {
+      // Mismo pipeline de rasterizado que el PDF del Presupuesto (Paso 5):
+      // recorta cada SVG a su bounding box real y lo convierte a PNG antes
+      // de mandarlo al servidor, así Chromium no depende de que el dibujo
+      // haya terminado de pintar a tiempo.
+      const pngPorVentana = await rasterizarDibujos(filteredVentanas);
+      const html = buildCatalogoHtml(proyecto, filteredVentanas, pngPorVentana);
+      const filename = `catalogo-tecnico-${(proyecto.codigoInterno || proyecto.obra).replace(/\s+/g, '-')}.pdf`;
+      const blob = await renderPdf(html, filename);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setCatalogoError(err?.response?.data?.error || err.message || 'Error al generar el catálogo en PDF.');
+    } finally {
+      setIsExportingCatalogo(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Barra de Control, Búsqueda y Filtros */}
@@ -135,15 +169,26 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
 
           {/* Exportar Catálogo PDF */}
           <button
-            onClick={() => alert('La exportación de catálogo técnico en PDF se configurará con las especificaciones detalladas.')}
-            className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
+            onClick={exportarCatalogoPDF}
+            disabled={isExportingCatalogo || !filteredVentanas.length}
+            className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             title="Exportar Catálogo Técnico en PDF"
           >
-            <FileDown className="w-4 h-4 text-[#E34A26]" />
-            <span className="hidden sm:inline">Exportar PDF</span>
+            {isExportingCatalogo ? (
+              <Loader2 className="w-4 h-4 text-[#E34A26] animate-spin" />
+            ) : (
+              <FileDown className="w-4 h-4 text-[#E34A26]" />
+            )}
+            <span className="hidden sm:inline">{isExportingCatalogo ? 'Generando…' : 'Exportar PDF'}</span>
           </button>
         </div>
       </div>
+
+      {catalogoError && (
+        <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+          {catalogoError}
+        </div>
+      )}
 
       {/* Grid de Tarjetas de Ventana con Esquemas Vectoriales */}
       {filteredVentanas.length === 0 ? (
