@@ -4,7 +4,7 @@ import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { InicioPage } from './modules/inicio/InicioPage';
 import { CotizacionesPage } from './modules/cotizaciones/CotizacionesPage';
-import { MaestroProductos } from './modules/cotizaciones/components/MaestroProductos';
+import { MaestroPage } from './modules/cotizaciones/MaestroPage';
 import { ConfiguracionPage } from './modules/configuracion/ConfiguracionPage';
 import { getProyectos } from './api/client';
 import { useCloudflareAccessSession, SessionContext } from './lib/useCloudflareAccessSession';
@@ -74,11 +74,7 @@ const AppContent: React.FC = () => {
             <InicioPage onNavigate={handleNavigate} />
           )}
 
-          {activeTab === 'maestro' && (
-            <div className="p-3 sm:p-5 md:p-8 max-w-7xl mx-auto w-full animate-fade-in">
-              <MaestroProductos />
-            </div>
-          )}
+          {activeTab === 'maestro' && <MaestroPage />}
 
           {activeTab === 'cotizaciones' && (
             <CotizacionesPage

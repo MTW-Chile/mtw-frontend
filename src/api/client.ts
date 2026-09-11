@@ -371,6 +371,36 @@ export async function createProveedor(nombre: string): Promise<{ data: Proveedor
   return response.data;
 }
 
+export interface ProveedorFacturacionPayload {
+  nombre?: string;
+  rut?: string | null;
+  nombreFantasia?: string | null;
+  giroComercial?: string | null;
+  direccion?: string | null;
+  comuna?: string | null;
+  region?: string | null;
+  pais?: string | null;
+  telefono?: string | null;
+  sitioWeb?: string | null;
+  contactoNombre?: string | null;
+  email?: string | null;
+  emailFacturacion?: string | null;
+  emailPedidos?: string | null;
+  emailAvisoPago?: string | null;
+  condicionesPago?: string | null;
+  banco?: string | null;
+  tipoCuenta?: string | null;
+  numeroCuenta?: string | null;
+  monedaDefecto?: string | null;
+  categoria?: string | null;
+  ibanSwift?: string | null;
+}
+
+export async function updateProveedor(id: string, payload: ProveedorFacturacionPayload): Promise<{ data: Proveedor }> {
+  const response = await apiClient.post<{ data: Proveedor }>(`/proveedores/${id}`, payload);
+  return response.data;
+}
+
 // POST, no PUT/DELETE -- son los unicos dos verbos de la API sin usar en
 // ningun otro lado del cliente, y "Network Error" en panel.mtw.cl al
 // guardar apunta a un bloqueo de metodo aguas arriba de Cloudflare Access.

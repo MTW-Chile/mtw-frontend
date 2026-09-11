@@ -15,9 +15,31 @@ export interface Cliente {
 
 export interface Proveedor {
   id: string;
-  nombre: string;
+  nombre: string; // Razon Social
   codigoHetmo: number | null;
+  rut: string | null;
+  nombreFantasia: string | null;
+  giroComercial: string | null;
+  direccion: string | null;
+  comuna: string | null;
+  region: string | null;
+  pais: string | null;
+  telefono: string | null;
+  sitioWeb: string | null;
+  contactoNombre: string | null;
+  email: string | null;
+  emailFacturacion: string | null;
+  emailPedidos: string | null;
+  emailAvisoPago: string | null;
+  condicionesPago: string | null;
+  banco: string | null;
+  tipoCuenta: string | null;
+  numeroCuenta: string | null;
+  monedaDefecto: string | null;
+  categoria: string | null;
+  ibanSwift: string | null;
   creadoEn: string;
+  actualizadoEn: string;
 }
 
 export interface PrecioHistorial {
