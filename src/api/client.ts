@@ -20,6 +20,7 @@ import type {
   EstadoOC,
   RecepcionOC,
   SolicitudMaterial,
+  BodegaProyectoResponse,
 } from '../types';
 
 // withCredentials: true es lo que hace que el navegador mande la cookie de
@@ -437,6 +438,11 @@ export async function registrarRecepcionOC(
     `/ordenes-compra/${ordenCompraId}/recepciones`,
     payload
   );
+  return response.data;
+}
+
+export async function getBodegaProyecto(proyectoId: string): Promise<BodegaProyectoResponse> {
+  const response = await apiClient.get<BodegaProyectoResponse>(`/proyectos/${proyectoId}/bodega`);
   return response.data;
 }
 

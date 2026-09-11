@@ -397,3 +397,43 @@ export interface SolicitudMaterial {
   notas: string | null;
   items: SolicitudMaterialItem[];
 }
+
+export interface Bodega {
+  id: string;
+  proyectoId: string;
+  nombre: string;
+  activa: boolean;
+  creadoEn: string;
+  actualizadoEn: string;
+}
+
+export interface StockMaterial {
+  id: string;
+  bodegaId: string;
+  materialId: string;
+  material: Material;
+  cantidad: number;
+  actualizadoEn: string;
+}
+
+export type TipoMovimientoBodega = 'INGRESO_OC' | 'SALIDA_OBRA' | 'TRASLADO_ENTRADA' | 'TRASLADO_SALIDA' | 'AJUSTE';
+
+export interface MovimientoBodega {
+  id: string;
+  bodegaId: string;
+  bodegaDestinoId: string | null;
+  materialId: string;
+  material: Material;
+  tipo: TipoMovimientoBodega;
+  cantidad: number;
+  documentoReferencia: string | null;
+  notas: string | null;
+  creadoPor?: { id: string; nombre: string; email: string } | null;
+  creadoEn: string;
+}
+
+export interface BodegaProyectoResponse {
+  bodega: Bodega | null;
+  stock: StockMaterial[];
+  movimientos: MovimientoBodega[];
+}

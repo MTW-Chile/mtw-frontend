@@ -9,6 +9,10 @@ import { createOrdenCompra, getProyectos, getProveedores } from '../../api/clien
 interface NuevaOrdenCompraModalProps {
   isOpen: boolean;
   onClose: () => void;
+  // Cuando se abre desde la ficha de un proyecto ya sabemos el proyecto --
+  // se fija y no se puede cambiar, en vez de mostrar el selector completo.
+  proyectoIdFijo?: string;
+  proyectoLabelFijo?: string;
 }
 
 interface ItemForm {
@@ -20,10 +24,15 @@ interface ItemForm {
 
 const itemVacio = (): ItemForm => ({ descripcion: '', unidadMedida: 'UN', cantidad: '', precioUnitario: '' });
 
-export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({ isOpen, onClose }) => {
+export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
+  isOpen,
+  onClose,
+  proyectoIdFijo,
+  proyectoLabelFijo,
+}) => {
   const queryClient = useQueryClient();
 
-  const [proyectoId, setProyectoId] = useState('');
+  const [proyectoId, setProyectoId] = useState(proyectoIdFijo || '');
   const [proveedorId, setProveedorId] = useState('');
   const [requiereAprobacion, setRequiereAprobacion] = useState(false);
   const [items, setItems] = useState<ItemForm[]>([itemVacio()]);
@@ -32,7 +41,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({ is
   const { data: proyectosData } = useQuery({
     queryKey: ['proyectos', 'todos-para-oc'],
     queryFn: () => getProyectos({ limit: 200 }),
-    enabled: isOpen,
+    enabled: isOpen && !proyectoIdFijo,
   });
   const { data: proveedoresData } = useQuery({
     queryKey: ['proveedores'],
@@ -71,7 +80,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({ is
   });
 
   const handleClose = () => {
-    setProyectoId('');
+    setProyectoId(proyectoIdFijo || '');
     setProveedorId('');
     setRequiereAprobacion(false);
     setItems([itemVacio()]);
@@ -142,7 +151,16 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({ is
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <Select label="Proyecto (obra)" options={proyectoOptions} value={proyectoId} onChange={(e) => setProyectoId(e.target.value)} required />
+            {proyectoIdFijo ? (
+              <div className="space-y-1.5">
+                <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Proyecto (obra)</span>
+                <div className="w-full py-2.5 px-3.5 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-700 font-semibold">
+                  {proyectoLabelFijo || 'Proyecto actual'}
+                </div>
+              </div>
+            ) : (
+              <Select label="Proyecto (obra)" options={proyectoOptions} value={proyectoId} onChange={(e) => setProyectoId(e.target.value)} required />
+            )}
             <Select label="Proveedor" options={proveedorOptions} value={proveedorId} onChange={(e) => setProveedorId(e.target.value)} required />
           </div>
 
