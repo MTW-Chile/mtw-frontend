@@ -73,14 +73,17 @@ export const MaestroProductos: React.FC = () => {
     });
   }, [materiales, searchTerm, selectedFamilia]);
 
+  // Mismas familias que familyOrder en MaterialesLineaModal.tsx y
+  // FAMILIAS_CATALOGO en NuevoMaterialModal.tsx -- las claves van en
+  // mayúsculas porque se comparan contra mat.familia.toUpperCase() más abajo.
   const familiaBadges: Record<string, { label: string; variant: any }> = {
     PERFILERIA: { label: 'Perfilería', variant: 'brand' },
-    CRISTALES: { label: 'Cristal / DVH', variant: 'info' },
     HERRAJES: { label: 'Herrajes', variant: 'warning' },
-    SELLOS_GOMAS: { label: 'Sellos & Gomas', variant: 'success' },
-    FIJACIONES: { label: 'Fijaciones', variant: 'subtle' },
+    JUNTAS: { label: 'Juntas', variant: 'success' },
+    VIDRIOS: { label: 'Vidrios / DVH', variant: 'info' },
+    REFUERZOS: { label: 'Refuerzos', variant: 'subtle' },
+    SUPERFICIES: { label: 'Superficies', variant: 'subtle' },
     ACCESORIOS: { label: 'Accesorios', variant: 'default' },
-    QUIMICOS: { label: 'Químicos & Sellos', variant: 'info' },
     OTROS: { label: 'Otros', variant: 'outline' },
   };
 

@@ -15,15 +15,23 @@ interface NuevoMaterialModalProps {
   onSuccess?: (material: Material) => void;
 }
 
+// Mismas familias que usa el resto de la app (ver familyOrder en
+// MaterialesLineaModal.tsx): son las que trae HETMO tal cual, sin
+// normalizar (sync-service.ts). Antes este formulario usaba una taxonomia
+// propia (CRISTALES, SELLOS_GOMAS, FIJACIONES, QUIMICOS...) que no calzaba
+// con ninguna familia real -- un material creado a mano quedaba en su
+// propia isla, aparte del resto del catalogo de la misma familia real
+// (ej. "Vidrios" vs "CRISTALES"), duplicando el filtro por familia y
+// rompiendo el agrupamiento en el despiece de lineas.
 export const FAMILIAS_CATALOGO = [
-  { value: 'PERFILERIA', label: 'Perfilería de Aluminio / PVC' },
-  { value: 'CRISTALES', label: 'Cristales & Termopaneles (DVH)' },
-  { value: 'HERRAJES', label: 'Herrajes, Manillas, Cremonas & Cierres' },
-  { value: 'SELLOS_GOMAS', label: 'Sellos, Felpas & Gomas' },
-  { value: 'FIJACIONES', label: 'Fijaciones, Tornillos & Anclajes' },
-  { value: 'ACCESORIOS', label: 'Accesorios, Tapas & Escuadras' },
-  { value: 'QUIMICOS', label: 'Siliconas, Espumas & Químicos' },
-  { value: 'OTROS', label: 'Otros / Insumos Generales de Taller' },
+  { value: 'Perfileria', label: 'Perfilería' },
+  { value: 'Herrajes', label: 'Herrajes, Manillas, Cremonas & Cierres' },
+  { value: 'Juntas', label: 'Juntas, Sellos & Felpas' },
+  { value: 'Vidrios', label: 'Vidrios & Termopaneles (DVH)' },
+  { value: 'Refuerzos', label: 'Refuerzos' },
+  { value: 'Superficies', label: 'Superficies' },
+  { value: 'Accesorios', label: 'Accesorios, Tapas & Escuadras' },
+  { value: 'Otros', label: 'Otros / Insumos Generales de Taller' },
 ];
 
 export const UNIDADES_CATALOGO = [
@@ -55,7 +63,7 @@ export const NuevoMaterialModal: React.FC<NuevoMaterialModalProps> = ({
   const [formData, setFormData] = useState({
     skuInterno: '',
     descripcion: '',
-    familia: 'PERFILERIA',
+    familia: 'Perfileria',
     unidadMedida: 'ml',
     monedaOrigen: 'CLP',
     precioOrigen: '',
@@ -155,7 +163,7 @@ export const NuevoMaterialModal: React.FC<NuevoMaterialModalProps> = ({
     setFormData({
       skuInterno: '',
       descripcion: '',
-      familia: 'PERFILERIA',
+      familia: 'Perfileria',
       unidadMedida: 'ml',
       monedaOrigen: 'CLP',
       precioOrigen: '',
