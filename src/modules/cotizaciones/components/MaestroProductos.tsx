@@ -80,7 +80,7 @@ export const MaestroProductos: React.FC = () => {
     PERFILERIA: { label: 'Perfilería', variant: 'brand' },
     HERRAJES: { label: 'Herrajes', variant: 'warning' },
     JUNTAS: { label: 'Juntas', variant: 'success' },
-    VIDRIOS: { label: 'Vidrios / DVH', variant: 'info' },
+    VIDRIOS: { label: 'Vidrios', variant: 'info' },
     REFUERZOS: { label: 'Refuerzos', variant: 'subtle' },
     SUPERFICIES: { label: 'Superficies', variant: 'subtle' },
     ACCESORIOS: { label: 'Accesorios', variant: 'default' },

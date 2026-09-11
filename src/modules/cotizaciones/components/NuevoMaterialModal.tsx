@@ -25,13 +25,13 @@ interface NuevoMaterialModalProps {
 // rompiendo el agrupamiento en el despiece de lineas.
 export const FAMILIAS_CATALOGO = [
   { value: 'Perfileria', label: 'Perfilería' },
-  { value: 'Herrajes', label: 'Herrajes, Manillas, Cremonas & Cierres' },
-  { value: 'Juntas', label: 'Juntas, Sellos & Felpas' },
-  { value: 'Vidrios', label: 'Vidrios & Termopaneles (DVH)' },
+  { value: 'Herrajes', label: 'Herrajes' },
+  { value: 'Juntas', label: 'Juntas' },
+  { value: 'Vidrios', label: 'Vidrios' },
   { value: 'Refuerzos', label: 'Refuerzos' },
   { value: 'Superficies', label: 'Superficies' },
-  { value: 'Accesorios', label: 'Accesorios, Tapas & Escuadras' },
-  { value: 'Otros', label: 'Otros / Insumos Generales de Taller' },
+  { value: 'Accesorios', label: 'Accesorios' },
+  { value: 'Otros', label: 'Otros' },
 ];
 
 export const UNIDADES_CATALOGO = [

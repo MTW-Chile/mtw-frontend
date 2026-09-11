@@ -102,12 +102,14 @@ export const MaterialLineaForm: React.FC<MaterialLineaFormProps> = ({
 
           {initialCantidad !== undefined && (
             <div className="text-[10px] text-slate-500 bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1.5">
-              <span className="font-bold uppercase tracking-wide text-slate-400">Así estaba antes: </span>
+              <span className="font-bold uppercase tracking-wide text-slate-400">Pendiente por reemplazar: </span>
               {initialCantidad} un
               {initialPiezas != null && ` · ${initialPiezas} ${initialPiezas === 1 ? 'pieza' : 'piezas'}`}
               {initialAcabado && ` · acabado ${initialAcabado}`}
               <span className="block mt-0.5 text-slate-400 normal-case font-normal">
-                Los campos de abajo son los valores nuevos del material de reemplazo -- edítalos si el nuevo material lleva otra cantidad o piezas.
+                Los campos de abajo son los valores del material de reemplazo. Si esta línea necesita más de un material distinto
+                (ej. una corredera con 2 manillas diferentes), puedes reemplazar solo una parte de la cantidad pendiente y repetir
+                la operación con el resto para el otro material.
               </span>
             </div>
           )}
@@ -118,6 +120,7 @@ export const MaterialLineaForm: React.FC<MaterialLineaFormProps> = ({
               <input
                 type="number"
                 min={0}
+                max={initialCantidad}
                 step="any"
                 value={cantidad}
                 onChange={(e) => setCantidad(e.target.value)}
