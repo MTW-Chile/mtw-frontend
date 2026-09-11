@@ -15,6 +15,11 @@ import type {
   Cliente,
   Material,
   Proveedor,
+  OrdenCompra,
+  OrdenesCompraResponse,
+  EstadoOC,
+  RecepcionOC,
+  SolicitudMaterial,
 } from '../types';
 
 // withCredentials: true es lo que hace que el navegador mande la cookie de
@@ -377,6 +382,93 @@ export async function updateVentanaCorreccionGeometria(
     `/ventanas/${ventanaId}/correccion-geometria`,
     { correccion }
   );
+  return response.data;
+}
+
+// ==========================================
+// ABASTECIMIENTO: ORDENES DE COMPRA Y BODEGA
+// ==========================================
+export async function getOrdenesCompra(params?: {
+  proyectoId?: string;
+  estado?: EstadoOC;
+  proveedorId?: string;
+  limit?: number;
+  page?: number;
+}): Promise<OrdenesCompraResponse> {
+  const response = await apiClient.get<OrdenesCompraResponse>('/ordenes-compra', { params });
+  return response.data;
+}
+
+export async function getOrdenCompraById(id: string): Promise<OrdenCompra> {
+  const response = await apiClient.get<OrdenCompra>(`/ordenes-compra/${id}`);
+  return response.data;
+}
+
+export async function createOrdenCompra(payload: {
+  proyectoId: string;
+  faseId?: string | null;
+  proveedorId: string;
+  requiereAprobacion?: boolean;
+  moneda?: string;
+  fechaCalendarizada?: string | null;
+  items: { materialId?: string | null; descripcion: string; unidadMedida?: string; cantidad: number; precioUnitario: number }[];
+}): Promise<{ success: boolean; ordenCompra: OrdenCompra }> {
+  const response = await apiClient.post<{ success: boolean; ordenCompra: OrdenCompra }>('/ordenes-compra', payload);
+  return response.data;
+}
+
+export async function updateOrdenCompraEstado(
+  id: string,
+  estado: EstadoOC,
+  motivoRechazo?: string
+): Promise<{ success: boolean; ordenCompra: OrdenCompra }> {
+  const response = await apiClient.patch<{ success: boolean; ordenCompra: OrdenCompra }>(`/ordenes-compra/${id}/estado`, {
+    estado,
+    motivoRechazo,
+  });
+  return response.data;
+}
+
+export async function registrarRecepcionOC(
+  ordenCompraId: string,
+  payload: { guiaDespachoNumero?: string; notas?: string; items: { ordenCompraItemId: string; cantidadRecibida: number }[] }
+): Promise<{ success: boolean; recepcion: RecepcionOC; ordenCompra: OrdenCompra }> {
+  const response = await apiClient.post<{ success: boolean; recepcion: RecepcionOC; ordenCompra: OrdenCompra }>(
+    `/ordenes-compra/${ordenCompraId}/recepciones`,
+    payload
+  );
+  return response.data;
+}
+
+export async function getSolicitudesMaterial(params?: { faseId?: string; estado?: string }): Promise<{ data: SolicitudMaterial[] }> {
+  const response = await apiClient.get<{ data: SolicitudMaterial[] }>('/solicitudes-material', { params });
+  return response.data;
+}
+
+export async function createSolicitudMaterial(
+  faseId: string,
+  payload: { items: { materialId: string; cantidadSolicitada: number }[]; notas?: string }
+): Promise<{ success: boolean; solicitud: SolicitudMaterial }> {
+  const response = await apiClient.post<{ success: boolean; solicitud: SolicitudMaterial }>(
+    `/fases/${faseId}/solicitudes-material`,
+    payload
+  );
+  return response.data;
+}
+
+export async function entregarSolicitudMaterial(
+  id: string
+): Promise<{ success: boolean; entregada: boolean; solicitud: SolicitudMaterial; faltantes?: any[] }> {
+  const response = await apiClient.post(`/solicitudes-material/${id}/entregar`);
+  return response.data;
+}
+
+export async function aprobarGerenciaSolicitud(
+  id: string,
+  aprobado: boolean,
+  notas?: string
+): Promise<{ success: boolean; solicitud: SolicitudMaterial }> {
+  const response = await apiClient.patch(`/solicitudes-material/${id}/aprobar-gerencia`, { aprobado, notas });
   return response.data;
 }
 

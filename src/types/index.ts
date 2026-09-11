@@ -297,3 +297,103 @@ export interface SyncLog {
   detalles: string | null;
   errorMensaje: string | null;
 }
+
+// ==========================================
+// ABASTECIMIENTO: ORDENES DE COMPRA Y BODEGA
+// ==========================================
+// Ver mtw-api prisma/schema.prisma seccion 9 para el diagrama de estados.
+export type EstadoOC =
+  | 'BORRADOR'
+  | 'PENDIENTE_APROBACION'
+  | 'APROBADA'
+  | 'RECHAZADA'
+  | 'ENVIADA'
+  | 'RECIBIDA_PARCIAL'
+  | 'RECIBIDA_TOTAL'
+  | 'CONCILIADA'
+  | 'CANCELADA';
+
+export interface OrdenCompraItem {
+  id: string;
+  ordenCompraId: string;
+  materialId: string | null;
+  material?: Material | null;
+  descripcion: string;
+  unidadMedida: string;
+  cantidad: number;
+  precioUnitario: number;
+  recepciones?: RecepcionOCItem[];
+}
+
+export interface RecepcionOCItem {
+  id: string;
+  recepcionId: string;
+  ordenCompraItemId: string;
+  cantidadRecibida: number;
+}
+
+export interface RecepcionOC {
+  id: string;
+  ordenCompraId: string;
+  fechaRecepcion: string;
+  guiaDespachoNumero: string | null;
+  recibidoPorId: string | null;
+  recibidoPor?: { id: string; nombre: string; email: string } | null;
+  notas: string | null;
+  items: RecepcionOCItem[];
+}
+
+export interface OrdenCompra {
+  id: string;
+  numero: string;
+  proyectoId: string;
+  proyecto?: Pick<Proyecto, 'id' | 'obra' | 'codigoInterno'>;
+  faseId: string | null;
+  fase?: { id: string; nombre: string; numeroFase?: number } | null;
+  proveedorId: string;
+  proveedor?: Proveedor;
+  estado: EstadoOC;
+  requiereAprobacion: boolean;
+  moneda: string;
+  fechaCalendarizada: string | null;
+  fechaEnvio: string | null;
+  creadoPorId: string | null;
+  aprobadoPorId: string | null;
+  fechaAprobacion: string | null;
+  motivoRechazo: string | null;
+  items: OrdenCompraItem[];
+  recepciones?: RecepcionOC[];
+  creadoEn: string;
+  actualizadoEn: string;
+}
+
+export interface OrdenesCompraResponse {
+  total: number;
+  page: number;
+  limit: number;
+  data: OrdenCompra[];
+}
+
+export type EstadoSolicitudMaterial = 'GENERADA' | 'PENDIENTE_APROBACION_GERENCIA' | 'APROBADA' | 'RECHAZADA' | 'ENTREGADA';
+
+export interface SolicitudMaterialItem {
+  id: string;
+  solicitudId: string;
+  materialId: string;
+  material?: Material;
+  cantidadSolicitada: number;
+  cantidadEntregada: number;
+}
+
+export interface SolicitudMaterial {
+  id: string;
+  faseId: string;
+  fase?: { id: string; nombre: string; versionId: string };
+  estado: EstadoSolicitudMaterial;
+  solicitadoPorId: string | null;
+  fechaSolicitud: string;
+  revisadoPorId: string | null;
+  fechaRevision: string | null;
+  notas: string | null;
+  items: SolicitudMaterialItem[];
+}

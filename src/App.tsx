@@ -5,6 +5,7 @@ import { Header } from './components/layout/Header';
 import { InicioPage } from './modules/inicio/InicioPage';
 import { CotizacionesPage } from './modules/cotizaciones/CotizacionesPage';
 import { ConfiguracionPage } from './modules/configuracion/ConfiguracionPage';
+import { AbastecimientoPage } from './modules/abastecimiento/AbastecimientoPage';
 import { getProyectos } from './api/client';
 import { useCloudflareAccessSession, SessionContext } from './lib/useCloudflareAccessSession';
 
@@ -22,6 +23,7 @@ import { ScrollToTop } from './components/ui/ScrollToTop';
 const MODULE_TITLES: Record<string, string> = {
   inicio: 'Inicio',
   cotizaciones: 'Cotizaciones',
+  abastecimiento: 'Abastecimiento',
   taller: 'Taller & Fabricación',
   configuracion: 'Configuración',
 };
@@ -78,6 +80,8 @@ const AppContent: React.FC = () => {
               onSearchChange={setSearchTerm}
             />
           )}
+
+          {activeTab === 'abastecimiento' && <AbastecimientoPage />}
 
           {activeTab === 'configuracion' && <ConfiguracionPage />}
 

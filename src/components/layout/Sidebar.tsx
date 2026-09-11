@@ -2,6 +2,7 @@ import React from 'react';
 import {
   LayoutDashboard,
   Building2,
+  ShoppingCart,
   Hammer,
   Settings,
   X,
@@ -26,6 +27,11 @@ export const Sidebar: React.FC<{
       label: 'Cotizaciones',
       icon: Building2,
       count: totalProyectos,
+    },
+    {
+      id: 'abastecimiento',
+      label: 'Abastecimiento',
+      icon: ShoppingCart,
     },
     {
       id: 'taller',
