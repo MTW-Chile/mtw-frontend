@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   LayoutDashboard,
+  Boxes,
   Building2,
   Hammer,
   Settings,
@@ -20,6 +21,11 @@ export const Sidebar: React.FC<{
       id: 'inicio',
       label: 'Inicio',
       icon: LayoutDashboard,
+    },
+    {
+      id: 'maestro',
+      label: 'Maestro de Materiales',
+      icon: Boxes,
     },
     {
       id: 'cotizaciones',

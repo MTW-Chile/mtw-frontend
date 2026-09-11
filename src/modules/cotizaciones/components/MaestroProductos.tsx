@@ -259,6 +259,7 @@ export const MaestroProductos: React.FC = () => {
                     <th className="px-5 py-3.5 w-36">SKU / Código</th>
                     <th className="px-5 py-3.5">Descripción</th>
                     <th className="px-5 py-3.5 w-36">Familia</th>
+                    <th className="px-5 py-3.5 w-36">Proveedor</th>
                     <th className="px-5 py-3.5 text-center w-20">Unidad</th>
                     <th className="px-5 py-3.5 text-center w-24">Divisa</th>
                     <th className="px-5 py-3.5 text-right w-32">Precio Origen</th>
@@ -291,6 +292,9 @@ export const MaestroProductos: React.FC = () => {
                           <Badge variant={badgeInfo.variant} size="sm">
                             {badgeInfo.label}
                           </Badge>
+                        </td>
+                        <td className="px-5 py-4 text-slate-600 whitespace-nowrap">
+                          {mat.proveedor?.nombre || <span className="text-slate-300">—</span>}
                         </td>
                         <td className="px-5 py-4 text-center font-mono font-bold text-slate-700 whitespace-nowrap">
                           <span className="px-2 py-0.5 rounded-md bg-slate-100 text-[11px]">
@@ -341,6 +345,12 @@ export const MaestroProductos: React.FC = () => {
                   <h4 className="text-xs font-bold text-slate-900 leading-snug">
                     {mat.descripcion}
                   </h4>
+
+                  {mat.proveedor?.nombre && (
+                    <div className="text-[11px] text-slate-500">
+                      Proveedor: <span className="font-semibold text-slate-700">{mat.proveedor.nombre}</span>
+                    </div>
+                  )}
 
                   <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1.5 font-mono text-slate-600">

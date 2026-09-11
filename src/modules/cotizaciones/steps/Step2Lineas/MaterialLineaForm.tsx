@@ -100,6 +100,18 @@ export const MaterialLineaForm: React.FC<MaterialLineaFormProps> = ({
             </button>
           </div>
 
+          {initialCantidad !== undefined && (
+            <div className="text-[10px] text-slate-500 bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1.5">
+              <span className="font-bold uppercase tracking-wide text-slate-400">Así estaba antes: </span>
+              {initialCantidad} un
+              {initialPiezas != null && ` · ${initialPiezas} ${initialPiezas === 1 ? 'pieza' : 'piezas'}`}
+              {initialAcabado && ` · acabado ${initialAcabado}`}
+              <span className="block mt-0.5 text-slate-400 normal-case font-normal">
+                Los campos de abajo son los valores nuevos del material de reemplazo -- edítalos si el nuevo material lleva otra cantidad o piezas.
+              </span>
+            </div>
+          )}
+
           <div className="grid grid-cols-3 gap-2">
             <label className="text-[10px] font-bold uppercase text-slate-500 space-y-1 block">
               <span>Cantidad *</span>
