@@ -53,9 +53,17 @@ export const CotizacionesPage: React.FC<{
 
   const effectiveSearch = internalSearch;
 
+  // Filtro por estado en el SERVIDOR, no en el navegador -- el listado
+  // pagina por actualizadoEn desc (mas recientes primero), asi que si se
+  // filtrara solo del lado del cliente, un resync amplio que toque muchos
+  // proyectos de golpe puede llenar toda la pagina con proyectos de OTRO
+  // estado y dejar la pestana actual vacia aunque los proyectos reales
+  // sigan intactos en la base (confirmado en produccion).
+  const estadoServidor = statusFilter === 'TERMINADOS' ? 2 : statusFilter === 'PEDIDOS' ? 30 : undefined;
+
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['proyectos'],
-    queryFn: () => getProyectos({ limit: 100 }),
+    queryKey: ['proyectos', statusFilter],
+    queryFn: () => getProyectos({ limit: 100, estado: estadoServidor }),
     // El default global (5 min, sin refetch al volver a la pestaña) dejaba
     // esta lista mostrando el estado de HETMO desactualizado por minutos
     // despues de una resincronizacion (automatica o manual) -- incluida la
