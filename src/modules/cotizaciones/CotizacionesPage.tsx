@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   RotateCcw,
   Calculator,
@@ -7,10 +7,12 @@ import {
   Clock,
   Search,
   Building2,
+  Plus,
+  Loader2,
   X,
   ChevronDown,
 } from 'lucide-react';
-import { getProyectos, getSyncLogs, triggerManualSync } from '../../api/client';
+import { getProyectos, getSyncLogs, triggerManualSync, createProyectoManual } from '../../api/client';
 import { formatNumber } from '../../lib/utils';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { Badge } from '../../components/ui/Badge';
@@ -37,6 +39,18 @@ export const CotizacionesPage: React.FC<{
   const [selectedProyectoId, setSelectedProyectoId] = useState<string | null>(null);
   const [cotizarProyectoId, setCotizarProyectoId] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [mostrarModalManual, setMostrarModalManual] = useState(false);
+  const [obraManual, setObraManual] = useState('');
+  const [clienteManual, setClienteManual] = useState('');
+  const crearManualMutation = useMutation({
+    mutationFn: () => createProyectoManual({ obra: obraManual, clienteNombre: clienteManual }),
+    onSuccess: ({ proyecto }) => {
+      setMostrarModalManual(false);
+      setObraManual('');
+      setClienteManual('');
+      setCotizarProyectoId(proyecto.id);
+    },
+  });
   // Monta sólo la vista de escritorio o la de mobile, nunca las dos -- ver
   // useMediaQuery.ts.
   const isDesktop = useMediaQuery('(min-width: 768px)');
@@ -158,6 +172,16 @@ export const CotizacionesPage: React.FC<{
               </strong>
             </span>
           </div>
+
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setMostrarModalManual(true)}
+            leftIcon={<Plus className="w-3.5 h-3.5" />}
+          >
+            <span className="hidden sm:inline">Presupuesto Manual</span>
+            <span className="sm:hidden">Manual</span>
+          </Button>
 
           <Button
             variant="outline"
@@ -510,6 +534,66 @@ export const CotizacionesPage: React.FC<{
         proyectoId={selectedProyectoId}
         onClose={() => setSelectedProyectoId(null)}
       />
+
+      {/* Modal Presupuesto Manual -- proyecto 100% lineas manuales (Vidrio
+          DVH, Puerta Protex), sin pasar por HETMO. Crea el proyecto y salta
+          directo al cotizador para agregar lineas de inmediato. */}
+      {mostrarModalManual && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black text-slate-900">Nuevo Presupuesto Manual</h3>
+              <button
+                onClick={() => setMostrarModalManual(false)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">
+              Crea un presupuesto vacío para cotizar solo con líneas manuales (Vidrio DVH, Puerta Protex), sin obra sincronizada de HETMO.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Obra</label>
+                <input
+                  autoFocus
+                  value={obraManual}
+                  onChange={(e) => setObraManual(e.target.value)}
+                  placeholder="Nombre de la obra"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-[#E34A26]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Cliente (opcional)</label>
+                <input
+                  value={clienteManual}
+                  onChange={(e) => setClienteManual(e.target.value)}
+                  placeholder="Nombre del cliente"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-[#E34A26]"
+                />
+              </div>
+            </div>
+            {crearManualMutation.isError && (
+              <p className="text-xs text-rose-600 font-semibold">No se pudo crear el presupuesto. Intenta de nuevo.</p>
+            )}
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <Button variant="outline" size="sm" onClick={() => setMostrarModalManual(false)}>
+                Cancelar
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={!obraManual.trim() || crearManualMutation.isPending}
+                onClick={() => crearManualMutation.mutate()}
+                leftIcon={crearManualMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : undefined}
+              >
+                Crear y cotizar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -80,6 +80,14 @@ export async function getProyectos(params?: {
   return response.data;
 }
 
+export async function createProyectoManual(payload: {
+  obra: string;
+  clienteNombre?: string;
+}): Promise<{ proyecto: Proyecto }> {
+  const response = await apiClient.post<{ proyecto: Proyecto }>('/proyectos/manual', payload);
+  return response.data;
+}
+
 export async function getProyectoById(id: string): Promise<Proyecto> {
   // GET /api/proyectos/:id devuelve el proyecto directo, sin envoltorio.
   const response = await apiClient.get<Proyecto>(`/proyectos/${id}`);
