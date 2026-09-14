@@ -485,6 +485,7 @@ export async function getPlantillasLinea(): Promise<{ data: PlantillaLinea[] }> 
 export async function createPlantillaLinea(payload: {
   nombre: string;
   tipo?: string;
+  hojas?: 1 | 2;
   items: PlantillaLineaItemPayload[];
 }): Promise<{ data: PlantillaLinea }> {
   const response = await apiClient.post<{ data: PlantillaLinea }>('/plantillas-linea', payload);
@@ -493,7 +494,7 @@ export async function createPlantillaLinea(payload: {
 
 export async function updatePlantillaLinea(
   id: string,
-  payload: { nombre?: string; activa?: boolean; items?: PlantillaLineaItemPayload[] }
+  payload: { nombre?: string; activa?: boolean; hojas?: 1 | 2; items?: PlantillaLineaItemPayload[] }
 ): Promise<{ data: PlantillaLinea }> {
   const response = await apiClient.post<{ data: PlantillaLinea }>(`/plantillas-linea/${id}`, payload);
   return response.data;

@@ -30,6 +30,7 @@ export const PlantillaLineaEditModal: React.FC<PlantillaLineaEditModalProps> = (
   const esNueva = !plantilla;
 
   const [nombre, setNombre] = useState(plantilla?.nombre || '');
+  const [hojas, setHojas] = useState<1 | 2>(plantilla?.hojas || 1);
   const [items, setItems] = useState<ItemDraft[]>(
     (plantilla?.items || [])
       .slice()
@@ -43,9 +44,9 @@ export const PlantillaLineaEditModal: React.FC<PlantillaLineaEditModalProps> = (
     mutationFn: async () => {
       const payloadItems = items.map((it) => ({ materialId: it.material.id, cantidad: Number(it.cantidad) }));
       if (esNueva) {
-        return createPlantillaLinea({ nombre: nombre.trim(), items: payloadItems });
+        return createPlantillaLinea({ nombre: nombre.trim(), hojas, items: payloadItems });
       }
-      return updatePlantillaLinea(plantilla!.id, { nombre: nombre.trim(), items: payloadItems });
+      return updatePlantillaLinea(plantilla!.id, { nombre: nombre.trim(), hojas, items: payloadItems });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['plantillasLinea'] });
@@ -115,6 +116,24 @@ export const PlantillaLineaEditModal: React.FC<PlantillaLineaEditModalProps> = (
             onChange={(e) => setNombre(e.target.value)}
             required
           />
+
+          <div className="space-y-1.5">
+            <span className="text-[10px] font-bold uppercase text-slate-500">Hojas</span>
+            <div className="grid grid-cols-2 gap-2.5">
+              {([1, 2] as const).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setHojas(n)}
+                  className={`py-2 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
+                    hojas === n ? 'border-[#E34A26] bg-orange-50 text-[#E34A26]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {n} {n === 1 ? 'Hoja' : 'Hojas'}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <div className="space-y-2">
             <span className="text-[10px] font-bold uppercase text-slate-500">Materiales (cantidad por puerta)</span>

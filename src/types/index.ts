@@ -254,6 +254,7 @@ export interface PlantillaLinea {
   id: string;
   tipo: string;
   nombre: string;
+  hojas: 1 | 2;
   activa: boolean;
   items: PlantillaLineaItem[];
   creadoEn: string;

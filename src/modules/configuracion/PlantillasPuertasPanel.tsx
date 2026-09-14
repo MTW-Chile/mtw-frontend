@@ -72,7 +72,12 @@ export const PlantillasPuertasPanel: React.FC = () => {
               className="flex items-center justify-between gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50/80 transition-colors"
             >
               <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900">{p.nombre}</div>
+                <div className="flex items-center gap-2">
+                  <div className="text-xs font-bold text-slate-900">{p.nombre}</div>
+                  <span className="text-[10px] font-bold uppercase text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded-md shrink-0">
+                    {p.hojas} {p.hojas === 1 ? 'Hoja' : 'Hojas'}
+                  </span>
+                </div>
                 <div className="text-[11px] text-slate-500">
                   {p.items.length} {p.items.length === 1 ? 'material' : 'materiales'}
                 </div>

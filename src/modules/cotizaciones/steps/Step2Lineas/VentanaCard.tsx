@@ -113,11 +113,16 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
       <div className="bg-[#f8fafc] w-full p-4 flex flex-col items-center justify-center border-b border-slate-100 min-h-[180px] group-hover:bg-[#f1f5f9] transition-colors relative">
         {esProtex ? (
           // Las puertas Protex no vienen de la geometria parametrica de
-          // HETMO -- siempre son la misma silueta fija, asi que alcanza con
-          // un esquema simple en vez de forzar el motor vectorial a dibujar
-          // algo que nunca modela.
-          <div className="flex flex-col items-center gap-2 text-slate-400">
-            <DoorClosed className="w-16 h-16" strokeWidth={1.25} />
+          // HETMO -- siempre son la misma silueta fija (1 o 2 hojas, ver
+          // Ventana.numeroCuadrosHojas, reutilizado de PlantillaLinea.hojas),
+          // asi que alcanza con el esquema generico en vez de forzar el
+          // motor vectorial a dibujar algo que nunca modela.
+          <div className="flex flex-col items-center gap-1.5">
+            <img
+              src={ventana.numeroCuadrosHojas === 2 ? '/puertas/protex-2-hojas.png' : '/puertas/protex-1-hoja.png'}
+              alt={ventana.modelo}
+              className="max-h-[140px] w-auto object-contain"
+            />
             <span className="text-[11px] font-semibold text-slate-500 text-center max-w-[200px]">{ventana.modelo}</span>
           </div>
         ) : (

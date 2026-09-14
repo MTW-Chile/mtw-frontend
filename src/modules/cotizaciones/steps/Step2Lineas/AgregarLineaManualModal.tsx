@@ -35,6 +35,7 @@ export const AgregarLineaManualModal: React.FC<AgregarLineaManualModalProps> = (
   const [altoMm, setAltoMm] = useState('');
   const [unidades, setUnidades] = useState('1');
   const [vidrio, setVidrio] = useState<Material | null>(null);
+  const [hojasElegidas, setHojasElegidas] = useState<1 | 2 | null>(null);
   const [plantillaId, setPlantillaId] = useState('');
   const [generalError, setGeneralError] = useState<string | null>(null);
 
@@ -43,14 +44,27 @@ export const AgregarLineaManualModal: React.FC<AgregarLineaManualModalProps> = (
     queryFn: async () => (await getPlantillasLinea()).data,
     enabled: tipo === 'PROTEX',
   });
+  // Plantillas activas para la cantidad de hojas elegida -- si hay solo una
+  // (el caso normal, un kit fijo por cantidad de hojas), se usa directo sin
+  // pedirle al usuario que elija de nuevo.
+  const plantillasParaHojas = (plantillasQuery.data || []).filter((p) => p.activa && p.hojas === hojasElegidas);
+  React.useEffect(() => {
+    if (plantillasParaHojas.length === 1) {
+      setPlantillaId(plantillasParaHojas[0].id);
+    } else {
+      setPlantillaId('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hojasElegidas, plantillasQuery.data]);
   const plantillaOptions = [
-    { value: '', label: plantillasQuery.isLoading ? 'Cargando…' : 'Elegir plantilla…' },
-    ...(plantillasQuery.data || []).filter((p) => p.activa).map((p) => ({ value: p.id, label: p.nombre })),
+    { value: '', label: 'Elegir plantilla…' },
+    ...plantillasParaHojas.map((p) => ({ value: p.id, label: p.nombre })),
   ];
 
   const mutation = useMutation({
     mutationFn: async () => {
       if (!vidrio) throw new Error('Elegí el vidrio de esta línea.');
+      if (tipo === 'PROTEX' && !hojasElegidas) throw new Error('Elegí si la puerta es de 1 o 2 hojas.');
       if (tipo === 'PROTEX' && !plantillaId) throw new Error('Elegí la plantilla de herrajes de la puerta.');
       return crearLineaManual({
         versionId,
@@ -88,6 +102,10 @@ export const AgregarLineaManualModal: React.FC<AgregarLineaManualModalProps> = (
     }
     if (!vidrio) {
       setGeneralError('Elegí el vidrio de esta línea.');
+      return;
+    }
+    if (tipo === 'PROTEX' && !hojasElegidas) {
+      setGeneralError('Elegí si la puerta es de 1 o 2 hojas.');
       return;
     }
     if (tipo === 'PROTEX' && !plantillaId) {
@@ -188,20 +206,42 @@ export const AgregarLineaManualModal: React.FC<AgregarLineaManualModalProps> = (
             )}
           </div>
 
-          {/* Plantilla de herrajes (solo Protex) */}
+          {/* Cantidad de hojas + plantilla de herrajes (solo Protex) */}
           {tipo === 'PROTEX' && (
-            <Select
-              label="Plantilla de Herrajes"
-              options={plantillaOptions}
-              value={plantillaId}
-              onChange={(e) => setPlantillaId(e.target.value)}
-              disabled={plantillasQuery.isLoading}
-            />
-          )}
-          {tipo === 'PROTEX' && !plantillasQuery.isLoading && (plantillasQuery.data || []).length === 0 && (
-            <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
-              No hay plantillas de puerta configuradas todavía -- se arman desde Configuración → Plantillas de Puertas.
-            </p>
+            <div className="space-y-2">
+              <span className="text-[10px] font-bold uppercase text-slate-500">Cantidad de Hojas</span>
+              <div className="grid grid-cols-2 gap-2.5">
+                {([1, 2] as const).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setHojasElegidas(n)}
+                    disabled={plantillasQuery.isLoading}
+                    className={`py-2 rounded-xl border text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 ${
+                      hojasElegidas === n ? 'border-[#E34A26] bg-orange-50 text-[#E34A26]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {n} {n === 1 ? 'Hoja' : 'Hojas'}
+                  </button>
+                ))}
+              </div>
+
+              {hojasElegidas && !plantillasQuery.isLoading && plantillasParaHojas.length === 0 && (
+                <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                  No hay ninguna plantilla activa de {hojasElegidas} {hojasElegidas === 1 ? 'hoja' : 'hojas'} -- se arman desde Configuración → Plantillas de Puertas.
+                </p>
+              )}
+
+              {/* Solo se pide elegir si hay más de un kit activo para esa cantidad de hojas */}
+              {hojasElegidas && plantillasParaHojas.length > 1 && (
+                <Select
+                  label="Plantilla de Herrajes"
+                  options={plantillaOptions}
+                  value={plantillaId}
+                  onChange={(e) => setPlantillaId(e.target.value)}
+                />
+              )}
+            </div>
           )}
 
           <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
