@@ -5,14 +5,16 @@ import {
   Layers,
   ArrowUpDown,
   FileDown,
-  Loader2
+  Loader2,
+  Plus
 } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
-import { renderPdf } from '../../../../api/client';
+import { renderPdf, eliminarLineaManual } from '../../../../api/client';
 import type { Proyecto, ProyectoVersion, Ventana } from '../../../../types';
 import { VentanaCard } from './VentanaCard';
 import { CorrectorCorrederaModal } from './CorrectorCorrederaModal';
 import { MaterialesLineaModal } from './MaterialesLineaModal';
+import { AgregarLineaManualModal } from './AgregarLineaManualModal';
 import { buildCatalogoHtml, rasterizarDibujos } from './catalogoPdf';
 
 interface Step2LineasProps {
@@ -30,6 +32,8 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
   const [selectedVentanaIdForMaterials, setSelectedVentanaIdForMaterials] = useState<string | null>(null);
   const [selectedVentanaForCorrector, setSelectedVentanaForCorrector] = useState<Ventana | null>(null);
   const [ventanasOverrides, setVentanasOverrides] = useState<Record<string, Ventana>>({});
+  const [showAgregarLinea, setShowAgregarLinea] = useState(false);
+  const [eliminandoLineaId, setEliminandoLineaId] = useState<string | null>(null);
 
   const ventanas = useMemo<Ventana[]>(() => {
     const list = activeVersion?.ventanas || [];
@@ -49,6 +53,21 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
     setVentanasOverrides((prev) => ({ ...prev, [updated.id]: updated }));
     if (proyecto?.id) {
       queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyecto.id] });
+    }
+  };
+
+  const handleEliminarLineaManual = async (ventana: Ventana) => {
+    if (!window.confirm(`¿Quitar la línea "${ventana.modelo}"? Esta acción no se puede deshacer.`)) return;
+    setEliminandoLineaId(ventana.id);
+    try {
+      await eliminarLineaManual(ventana.id);
+      if (proyecto?.id) {
+        queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyecto.id] });
+      }
+    } catch (err) {
+      window.alert('No se pudo quitar la línea. Intenta de nuevo.');
+    } finally {
+      setEliminandoLineaId(null);
     }
   };
 
@@ -181,6 +200,18 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
             )}
             <span className="hidden sm:inline">{isExportingCatalogo ? 'Generando…' : 'Exportar PDF'}</span>
           </button>
+
+          {/* Agregar Línea Manual (vidrio DVH fijo, puerta Protex...) */}
+          {activeVersion && (
+            <button
+              onClick={() => setShowAgregarLinea(true)}
+              className="px-3.5 py-2 rounded-xl bg-[#E34A26] hover:bg-[#c93f1f] border border-[#E34A26] text-white font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
+              title="Agregar una línea que no viene de HETMO"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Agregar Línea</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -209,6 +240,8 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
               ventana={v}
               onOpenMaterials={(ventana) => setSelectedVentanaIdForMaterials(ventana.id)}
               onEditCorredera={(ventana) => setSelectedVentanaForCorrector(ventana)}
+              onDeleteLineaManual={handleEliminarLineaManual}
+              isDeletingLineaManual={eliminandoLineaId === v.id}
             />
           ))}
         </div>
@@ -239,6 +272,16 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
             }
             setSelectedVentanaForCorrector(null);
           }}
+        />
+      )}
+
+      {/* Modal: Agregar Línea Manual */}
+      {showAgregarLinea && activeVersion && (
+        <AgregarLineaManualModal
+          versionId={activeVersion.id}
+          proyectoId={proyecto.id}
+          onClose={() => setShowAgregarLinea(false)}
+          onCreated={() => setShowAgregarLinea(false)}
         />
       )}
     </div>

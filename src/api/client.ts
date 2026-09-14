@@ -15,6 +15,7 @@ import type {
   Cliente,
   Material,
   Proveedor,
+  PlantillaLinea,
 } from '../types';
 
 // withCredentials: true es lo que hace que el navegador mande la cookie de
@@ -464,6 +465,69 @@ export async function eliminarVentanaMaterial(
   const response = await apiClient.post<{ success: boolean; data: Ventana }>(
     `/ventanas/${ventanaId}/materiales/${materialVentanaId}/eliminar`
   );
+  return response.data;
+}
+
+// ==========================================
+// PLANTILLAS DE LINEA (recetas de puertas Protex, ver Configuracion)
+// ==========================================
+
+export interface PlantillaLineaItemPayload {
+  materialId: string;
+  cantidad: number;
+}
+
+export async function getPlantillasLinea(): Promise<{ data: PlantillaLinea[] }> {
+  const response = await apiClient.get<{ data: PlantillaLinea[] }>('/plantillas-linea');
+  return response.data;
+}
+
+export async function createPlantillaLinea(payload: {
+  nombre: string;
+  tipo?: string;
+  items: PlantillaLineaItemPayload[];
+}): Promise<{ data: PlantillaLinea }> {
+  const response = await apiClient.post<{ data: PlantillaLinea }>('/plantillas-linea', payload);
+  return response.data;
+}
+
+export async function updatePlantillaLinea(
+  id: string,
+  payload: { nombre?: string; activa?: boolean; items?: PlantillaLineaItemPayload[] }
+): Promise<{ data: PlantillaLinea }> {
+  const response = await apiClient.post<{ data: PlantillaLinea }>(`/plantillas-linea/${id}`, payload);
+  return response.data;
+}
+
+export async function eliminarPlantillaLinea(id: string): Promise<{ success: boolean }> {
+  const response = await apiClient.post<{ success: boolean }>(`/plantillas-linea/${id}/eliminar`);
+  return response.data;
+}
+
+// ==========================================
+// LINEAS MANUALES (vidrio DVH fijo, puerta Protex...)
+// ==========================================
+
+export interface LineaManualPayload {
+  versionId: string;
+  tipo: 'DVH_FIJO' | 'PROTEX';
+  anchoMm: number;
+  altoMm: number;
+  unidades: number;
+  acabadoCodigo?: string | null;
+  acabadoDescripcion?: string | null;
+  comentarioPresupuesto?: string | null;
+  materialVidrioId?: string;
+  plantillaId?: string;
+}
+
+export async function crearLineaManual(payload: LineaManualPayload): Promise<{ success: boolean; data: Ventana }> {
+  const response = await apiClient.post<{ success: boolean; data: Ventana }>('/ventanas/manual', payload);
+  return response.data;
+}
+
+export async function eliminarLineaManual(ventanaId: string): Promise<{ success: boolean }> {
+  const response = await apiClient.post<{ success: boolean }>(`/ventanas/${ventanaId}/eliminar-manual`);
   return response.data;
 }
 

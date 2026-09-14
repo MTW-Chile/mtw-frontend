@@ -234,6 +234,30 @@ export interface Ventana {
   geometrias?: VentanaGeometria[];
   materiales?: MaterialVentana[];
   ventanasFase?: VentanaFase[];
+  // HETMO (default) o PERSONALIZADO -- linea agregada a mano desde
+  // Step2Lineas (vidrio DVH fijo, puerta Protex...). Ver Ventana.origen,
+  // prisma/schema.prisma.
+  origen?: string;
+  tipoLineaManual?: 'DVH_FIJO' | 'PROTEX' | null;
+}
+
+export interface PlantillaLineaItem {
+  id: string;
+  plantillaId: string;
+  materialId: string;
+  material?: Material;
+  cantidad: number;
+  orden: number;
+}
+
+export interface PlantillaLinea {
+  id: string;
+  tipo: string;
+  nombre: string;
+  activa: boolean;
+  items: PlantillaLineaItem[];
+  creadoEn: string;
+  actualizadoEn: string;
 }
 
 export interface ProyectoVersion {

@@ -1,13 +1,15 @@
 import React, { useMemo } from 'react';
-import { 
-  Maximize2, 
-  Paintbrush, 
-  MessageSquareText, 
-  Wrench, 
+import {
+  Maximize2,
+  Paintbrush,
+  MessageSquareText,
+  Wrench,
   Boxes,
   DoorClosed,
   ChevronDown,
-  Sliders
+  Sliders,
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
 import type { Ventana } from '../../../../types';
@@ -20,14 +22,20 @@ interface VentanaCardProps {
   ventana: Ventana;
   onOpenMaterials?: (ventana: Ventana) => void;
   onEditCorredera?: (ventana: Ventana) => void;
+  onDeleteLineaManual?: (ventana: Ventana) => void;
+  isDeletingLineaManual?: boolean;
 }
 
 export const VentanaCard: React.FC<VentanaCardProps> = ({
   ventana,
   onOpenMaterials,
   onEditCorredera,
+  onDeleteLineaManual,
+  isDeletingLineaManual,
 }) => {
   const superficie = ventana.m2Ventana ?? ((ventana.anchoMm * ventana.altoMm) / 1_000_000);
+  const esManual = ventana.origen === 'PERSONALIZADO';
+  const esProtex = ventana.tipoLineaManual === 'PROTEX';
 
   // Extraemos el acabado y nombre de la apertura según el motor de HETMO
   const windowLine = useMemo(() => toWindowLine(ventana), [ventana]);
@@ -44,9 +52,14 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
     [ventana.acabadoCodigo, ventana.acabadoDescripcion]
   );
   const apertureLabel = useMemo(() => {
+    // Una puerta Protex no pasa por el motor de aperturas de HETMO (ver
+    // esProtex mas abajo, usa un esquema fijo aparte) -- "Ventana fija"
+    // ahi seria enganoso, es una puerta abatible con herrajes, no un paño
+    // sin apertura.
+    if (ventana.tipoLineaManual === 'PROTEX') return 'Puerta Protex';
     if (!windowLine) return ventana.modelo || '—';
     return core.apertureLabel(windowLine);
-  }, [windowLine, ventana.modelo]);
+  }, [windowLine, ventana.modelo, ventana.tipoLineaManual]);
   // El nombre comercial de la serie (Advance/Efficient/Prime/Jumbo) viaja en
   // descripcionCorta ("Puerta Efficient DC 55-100..."), no en modelo (que
   // trae el codigo de obra/item, ej. "CASA A - PV02") -- profileSeries lee
@@ -72,9 +85,15 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
             <h4 className="text-sm font-black text-slate-900 group-hover:text-[#E34A26] transition-colors">
               {ventana.modelo}
             </h4>
-            <span className="text-[10px] font-mono text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded-md">
-              #{ventana.lineaHetmo}
-            </span>
+            {esManual ? (
+              <span className="text-[10px] font-bold uppercase text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded-md">
+                Manual
+              </span>
+            ) : (
+              <span className="text-[10px] font-mono text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded-md">
+                #{ventana.lineaHetmo}
+              </span>
+            )}
           </div>
           {lineaProducto && lineaProducto !== 'Línea no especificada' && (
             <p className="text-[11px] text-slate-500 font-medium mt-0.5">
@@ -90,9 +109,20 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
         </div>
       </header>
 
-      {/* Contenedor del Dibujo Técnico SVG */}
+      {/* Contenedor del Dibujo Técnico SVG (o esquema simple para líneas Protex) */}
       <div className="bg-[#f8fafc] w-full p-4 flex flex-col items-center justify-center border-b border-slate-100 min-h-[180px] group-hover:bg-[#f1f5f9] transition-colors relative">
-        <WindowRendererSvg ventana={ventana} />
+        {esProtex ? (
+          // Las puertas Protex no vienen de la geometria parametrica de
+          // HETMO -- siempre son la misma silueta fija, asi que alcanza con
+          // un esquema simple en vez de forzar el motor vectorial a dibujar
+          // algo que nunca modela.
+          <div className="flex flex-col items-center gap-2 text-slate-400">
+            <DoorClosed className="w-16 h-16" strokeWidth={1.25} />
+            <span className="text-[11px] font-semibold text-slate-500 text-center max-w-[200px]">{ventana.modelo}</span>
+          </div>
+        ) : (
+          <WindowRendererSvg ventana={ventana} />
+        )}
 
         {import.meta.env.DEV && (
           <details className="absolute top-2 right-2 text-[8px] max-w-[200px] bg-white/80 p-1 opacity-20 hover:opacity-100 z-50">
@@ -193,6 +223,17 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
           {ventana.materiales?.length ? `${ventana.materiales.length} materiales` : 'Despiece estándar'}
         </span>
         <div className="flex items-center gap-1.5">
+          {esManual && (
+            <button
+              onClick={() => onDeleteLineaManual?.(ventana)}
+              disabled={isDeletingLineaManual}
+              className="text-xs font-semibold flex items-center gap-1 transition-colors px-2 py-1 rounded-lg text-slate-500 hover:text-rose-700 hover:bg-rose-50 cursor-pointer disabled:opacity-50"
+              title="Quitar esta línea manual"
+            >
+              {isDeletingLineaManual ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+              <span>Quitar</span>
+            </button>
+          )}
           {isSliding && (
             <button
               onClick={() => onEditCorredera?.(ventana)}
