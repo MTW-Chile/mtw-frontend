@@ -43,21 +43,36 @@ export interface PrecioVentaLinea {
  * de todo el proyecto (ventaTotalCLP / costoTotalProyectoCLP, ambos ya
  * calculados en Step5 via computeCostoTotalYVenta) antes de compararlo con
  * importeUnitario.
+ *
+ * importeUnitario en si tambien viene en una escala distinta a como se
+ * maneja el resto de la plata en esta app: HETMO lo entrega en UF (no en
+ * CLP como todos los demas montos internos), practica comun en cotizacion
+ * de construccion en Chile para no perder valor con la inflacion --
+ * confirmado con datos reales: una ventana con importeUnitario=5.13 vale
+ * en la practica ~2.65 UF (calculado independientemente via costo real +
+ * margen), mismo orden de magnitud que 5.13 UF, e imposible como CLP
+ * crudo ($5.13). Sin la conversion, una ventana HETMO real quedaba
+ * comparada en los pesos (millones) contra un puñado de unidades sueltas,
+ * asi que su parte de la venta se redondeaba a 0 apenas convivia con
+ * cualquier otra linea en pesos (ya fuera otra ventana HETMO con
+ * importeUnitario mas alto, o el respaldo en CLP de una linea manual).
  */
 export function computePreciosVenta(
   ventanas: Ventana[],
   sumaTotalLineas: ProyectoVersion['sumaTotalLineas'] | undefined,
   ventaTotalCLP: number,
   costoLineaManualCLP?: (v: Ventana) => number,
-  costoTotalProyectoCLP?: number
+  costoTotalProyectoCLP?: number,
+  tasaUf?: number
 ): Map<string, PrecioVentaLinea> {
   const resultado = new Map<string, PrecioVentaLinea>();
   if (!ventanas.length || !(ventaTotalCLP > 0)) return resultado;
 
   const base = Number(sumaTotalLineas) || 0;
+  const factorUf = Number(tasaUf) > 0 ? Number(tasaUf) : 1;
   const margenMultiplicador = Number(costoTotalProyectoCLP) > 0 ? ventaTotalCLP / Number(costoTotalProyectoCLP) : 1;
   const pesos = ventanas.map((v) => {
-    const importeHetmo = Math.max(0, Number(v.importeUnitario) || 0) * (v.unidades || 1);
+    const importeHetmo = Math.max(0, Number(v.importeUnitario) || 0) * factorUf * (v.unidades || 1);
     if (importeHetmo > 0) return importeHetmo;
     if (v.origen === 'PERSONALIZADO' && costoLineaManualCLP) {
       return Math.max(0, costoLineaManualCLP(v)) * margenMultiplicador;

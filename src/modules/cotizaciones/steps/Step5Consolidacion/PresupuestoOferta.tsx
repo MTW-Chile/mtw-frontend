@@ -196,7 +196,8 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         activeVersion?.sumaTotalLineas,
         venta,
         (v) => computeCostoVentanaCLP(v, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas),
-        costoTotal
+        costoTotal,
+        tasaUf
       ),
     [ventanas, activeVersion?.sumaTotalLineas, venta, costoTotal, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas]
   );
@@ -421,10 +422,6 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
                   <div className="flex justify-between"><span className="text-slate-500">Precio unitario</span><span className="font-mono font-bold text-slate-900">{ufLabel(precio?.precioUnitarioCLP || 0, tasaUf)}</span></div>
                   <div className="flex justify-between"><span className="text-slate-500">Cantidad</span><span className="font-mono font-bold text-slate-900">{v.unidades} ud(es)</span></div>
                   <div className="flex justify-between pt-1 border-t border-slate-100"><span className="text-slate-500">Total neto</span><span className="font-mono font-bold text-[#E34A26]">{ufLabel(precio?.precioVentaCLP || 0, tasaUf)}</span></div>
-                  {/* DEBUG TEMPORAL: diagnostico del peso de prorrateo, quitar despues */}
-                  <div className="pt-1 border-t border-slate-100 text-[9px] text-amber-600 font-mono">
-                    DEBUG origen={v.origen} importeUnitario={String(v.importeUnitario)}
-                  </div>
                 </div>
               </div>
             </article>
