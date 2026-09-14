@@ -175,7 +175,7 @@ export const AgregarLineaManualModal: React.FC<AgregarLineaManualModalProps> = (
 
           <div className="grid grid-cols-3 gap-3">
             <Input
-              label={tipo === 'PROTEX' ? 'Ancho por hoja (mm)' : 'Ancho (mm)'}
+              label="Ancho (mm)"
               type="number"
               min={0}
               value={anchoMm}

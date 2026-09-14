@@ -202,7 +202,17 @@ function buildCompositePanel(
         const i = insideSash ? sashInset : 0;
         return glassMarkup(glassClass, gx + i, gy + i, Math.max(1, gw - i * 2), Math.max(1, gh - i * 2));
       };
-      let panelGlazing = glazing(px, py, pw, ph, panelDefinition.family !== 'fixed');
+      // Un paño compuesto (numero_ventana propio) puede no traer NINGUN
+      // elemento de vidrio real (tipo 40000/200) -- es un tramo ciego /
+      // estructural entre dos ventanas vecinas de la misma linea HETMO, no
+      // una ventana con vidrio (confirmado contra el dibujo real de HETMO:
+      // PV08 de Edificio Matta Esmax, linea 12281, paño numero_ventana=2 de
+      // 1100mm sin ninguna fila de vidrio asociada -- se dibujaba con el
+      // mismo vidrio celeste que los paños vecinos, cuando en la ficha real
+      // ese tramo va en blanco). Sin vidrio real, no se dibuja vidrio ni la
+      // marca de "fijo" (mark, mas abajo) para ese paño.
+      const panelHasGlass = panel.raw.some((item: Record<string, unknown>) => core.glassElementTypes.indexOf(number(item && item.tipo_elemento)) >= 0);
+      let panelGlazing = panelHasGlass ? glazing(px, py, pw, ph, panelDefinition.family !== 'fixed') : '';
 
       const panelAxisY = panelDefinition?.family === 'projecting'
         ? py + ph - 3
@@ -240,7 +250,7 @@ function buildCompositePanel(
           ? sideBySideSegments.map((segment: { x: number; width: number; last: boolean }) =>
               `${hingedMark(panel.apertura, segment.x, py, segment.width, ph, '#2452d6', panelAxisY)}${segment.last ? '' : dividerMarkup(segment.x + segment.width, py + 2, py + ph - 2, finish, 2.5)}`
             ).join('')
-          : (panel.apertura ? hingedMark(panel.apertura, px, py, pw, ph, '#2452d6', panelAxisY) : fixedMark(px, py, pw, ph, '#2452d6'));
+          : (panel.apertura ? hingedMark(panel.apertura, px, py, pw, ph, '#2452d6', panelAxisY) : (panelHasGlass ? fixedMark(px, py, pw, ph, '#2452d6') : ''));
 
       let hardwareMarkup = '';
       if (isDoubleOpening) {
