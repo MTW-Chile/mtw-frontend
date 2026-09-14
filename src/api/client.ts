@@ -88,6 +88,13 @@ export async function createProyectoManual(payload: {
   return response.data;
 }
 
+export async function eliminarProyecto(id: string): Promise<{ success: boolean; obra: string }> {
+  // POST, no DELETE -- Cloudflare Access bloquea DELETE/PUT con "Network
+  // Error" en produccion (ver comentario en mtw-api junto al endpoint).
+  const response = await apiClient.post<{ success: boolean; obra: string }>(`/proyectos/${id}/eliminar`);
+  return response.data;
+}
+
 export async function getProyectoById(id: string): Promise<Proyecto> {
   // GET /api/proyectos/:id devuelve el proyecto directo, sin envoltorio.
   const response = await apiClient.get<Proyecto>(`/proyectos/${id}`);

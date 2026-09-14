@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   RotateCcw,
   Calculator,
@@ -9,10 +9,11 @@ import {
   Building2,
   Plus,
   Loader2,
+  Trash2,
   X,
   ChevronDown,
 } from 'lucide-react';
-import { getProyectos, getSyncLogs, triggerManualSync, createProyectoManual } from '../../api/client';
+import { getProyectos, getSyncLogs, triggerManualSync, createProyectoManual, eliminarProyecto } from '../../api/client';
 import { formatNumber } from '../../lib/utils';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { Badge } from '../../components/ui/Badge';
@@ -33,6 +34,7 @@ export const CotizacionesPage: React.FC<{
   searchTerm?: string;
   onSearchChange?: (val: string) => void;
 }> = ({ searchTerm: externalSearch = '', onSearchChange }) => {
+  const queryClient = useQueryClient();
   const [internalSearch, setInternalSearch] = useState(externalSearch);
   // Por defecto muestra solo proyectos con estado 2 (Presupuesto Terminado)
   const [statusFilter, setStatusFilter] = useState<EstadoFiltro>('TERMINADOS');
@@ -51,6 +53,17 @@ export const CotizacionesPage: React.FC<{
       setCotizarProyectoId(proyecto.id);
     },
   });
+  const eliminarMutation = useMutation({
+    mutationFn: (id: string) => eliminarProyecto(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['proyectos'] });
+    },
+  });
+  const handleEliminar = (id: string, obra: string) => {
+    if (window.confirm(`¿Eliminar "${obra}" y todo su presupuesto? Esta acción no se puede deshacer.`)) {
+      eliminarMutation.mutate(id);
+    }
+  };
   // Monta sólo la vista de escritorio o la de mobile, nunca las dos -- ver
   // useMediaQuery.ts.
   const isDesktop = useMediaQuery('(min-width: 768px)');
@@ -422,6 +435,15 @@ export const CotizacionesPage: React.FC<{
                                 >
                                   <Eye className="w-3.5 h-3.5 text-slate-600" />
                                 </Button>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => handleEliminar(p.id, p.obra)}
+                                  disabled={eliminarMutation.isPending}
+                                  title="Eliminar proyecto"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                                </Button>
                               </div>
                             </td>
                           </tr>
@@ -518,6 +540,15 @@ export const CotizacionesPage: React.FC<{
                           title="Ver Ficha Técnica"
                         >
                           <Eye className="w-4 h-4 text-slate-600" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleEliminar(p.id, p.obra)}
+                          disabled={eliminarMutation.isPending}
+                          title="Eliminar proyecto"
+                        >
+                          <Trash2 className="w-4 h-4 text-rose-600" />
                         </Button>
                       </div>
                     </div>
