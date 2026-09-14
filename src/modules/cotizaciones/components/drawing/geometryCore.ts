@@ -368,6 +368,39 @@
       }
       columns.push(column);
     }
+    // Una columna puede quedar mas corta que el alto de la linea sin que
+    // HETMO declare ningun paño real para el resto -- confirmado con datos
+    // reales de Edificio Matta Esmax (PV09, HETMO 7160x4800mm): la columna
+    // del medio (numero_ventana=2, 1940mm de ancho) solo trae un paño de
+    // 2400mm de alto, sin ningun paño hermano que complete los 4800mm
+    // totales -- el resto es un tramo ciego (probablemente el pilar
+    // estructural que pide la propia observacion de la linea), no vidrio.
+    // Antes esto hacia fallar packedHeightValid y compositePanels()
+    // devolvia null para TODA la linea (ninguna de las 5 columnas se
+    // dibujaba bien, ni siquiera las que si calzaban) -- ahora se rellena
+    // el faltante con un paño sintetico sin vidrio (mismo tratamiento que
+    // un paño ciego real, ver panelHasGlass en windowGeometryBuilder.ts:
+    // panel.raw vacio hace que ese chequeo de vidrio real de false solo).
+    // Una columna que se PASA del alto declarado (mas larga que lineHeight)
+    // sigue sin aceptarse -- ese es un desajuste real de datos, no un hueco
+    // legitimo, y no hay forma segura de adivinar donde recortarla.
+    columns.forEach(column => {
+      if (!lineHeight) return;
+      const columnWidth = Math.max(...column.map(panel => panel.width));
+      const columnHeight = column.reduce((sum, panel) => sum + panel.height, 0);
+      const shortfall = lineHeight - columnHeight;
+      if (shortfall > tolerance(lineHeight)) {
+        column.push({
+          number: Math.max(...column.map(panel => panel.number)) + .5,
+          order: Math.max(...column.map(panel => panel.order)) + 1,
+          width: columnWidth,
+          height: shortfall,
+          apertura: 0,
+          aperturaCount: 0,
+          raw: []
+        });
+      }
+    });
     const packedWidth = columns.reduce((sum, column) => sum + Math.max(...column.map(panel => panel.width)), 0);
     const packedHeightValid = columns.every(column => !lineHeight || Math.abs(column.reduce((sum, panel) => sum + panel.height, 0) - lineHeight) <= tolerance(lineHeight));
     if (!packedHeightValid || (lineWidth && Math.abs(packedWidth - lineWidth) > tolerance(lineWidth))) return null;
