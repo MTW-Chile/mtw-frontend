@@ -174,10 +174,22 @@ export const AgregarLineaManualModal: React.FC<AgregarLineaManualModalProps> = (
           </div>
 
           <div className="grid grid-cols-3 gap-3">
-            <Input label="Ancho (mm)" type="number" min={0} value={anchoMm} onChange={(e) => setAnchoMm(e.target.value)} required />
+            <Input
+              label={tipo === 'PROTEX' ? 'Ancho por hoja (mm)' : 'Ancho (mm)'}
+              type="number"
+              min={0}
+              value={anchoMm}
+              onChange={(e) => setAnchoMm(e.target.value)}
+              required
+            />
             <Input label="Alto (mm)" type="number" min={0} value={altoMm} onChange={(e) => setAltoMm(e.target.value)} required />
             <Input label="Unidades" type="number" min={1} value={unidades} onChange={(e) => setUnidades(e.target.value)} required />
           </div>
+          {tipo === 'PROTEX' && (
+            <p className="text-[11px] text-slate-500 -mt-2.5">
+              El ancho es el de una hoja individual -- si son 2 hojas, el ancho total de la puerta y el vidrio se calculan solos.
+            </p>
+          )}
 
           {/* Vidrio */}
           <div className="space-y-2">

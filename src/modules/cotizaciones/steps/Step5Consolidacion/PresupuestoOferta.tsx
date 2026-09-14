@@ -6,6 +6,7 @@ import { formatNumber } from '../../../../lib/utils';
 import { useMonedas } from '../../../../lib/monedas';
 import { updatePresupuestoConfig, updateVentanaPresupuesto, renderPdf, getConfiguracionEmpresa } from '../../../../api/client';
 import { WindowRendererSvg } from '../../components/drawing/WindowRendererSvg';
+import { buildProtexDoorSvg } from '../../components/drawing/protexDoorSvg';
 import { toWindowLine } from '../../components/drawing/ventanaAdapter';
 import { createFinish, getAcabadoLabel } from '../../components/drawing/colorSystem';
 import * as core from '../../components/drawing/geometryCore';
@@ -381,7 +382,16 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
               </header>
               <div className="p-4 grid grid-cols-1 md:grid-cols-[180px_1fr_180px] gap-4">
                 <div className="bg-[#f8fafc] rounded-xl flex items-center justify-center min-h-[140px]">
-                  <WindowRendererSvg ventana={v} />
+                  {v.tipoLineaManual === 'PROTEX' ? (
+                    <div
+                      className="w-full h-[140px]"
+                      dangerouslySetInnerHTML={{
+                        __html: buildProtexDoorSvg(v.numeroCuadrosHojas === 2 ? 2 : 1, v.anchoMm, v.altoMm),
+                      }}
+                    />
+                  ) : (
+                    <WindowRendererSvg ventana={v} />
+                  )}
                 </div>
                 <div className="space-y-1.5 text-xs">
                   <div><span className="text-slate-400">Dimensiones: </span><span className="font-bold text-slate-900">{formatNumber(v.anchoMm, 0)} × {formatNumber(v.altoMm, 0)} mm</span></div>
