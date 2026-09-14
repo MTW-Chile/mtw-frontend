@@ -1,5 +1,5 @@
 import { resolverMoneda, type MonedaHetmo } from '../../../lib/monedas';
-import type { ProyectoVersion, MaterialVentana } from '../../../types';
+import type { ProyectoVersion, MaterialVentana, Ventana } from '../../../types';
 import { toWindowLine } from '../components/drawing/ventanaAdapter';
 import { cuadrosFor } from '../components/drawing/geometryCore';
 
@@ -278,6 +278,50 @@ export function computeCostoTotalYVenta(
   const venta = margen < 100 ? costoTotal / (1 - margen / 100) : costoTotal;
 
   return { costoTotal, venta, margen };
+}
+
+/**
+ * Costo real (CLP) de los materiales de UNA sola ventana/línea. Usado
+ * SOLO como respaldo de peso de prorrateo para líneas PERSONALIZADO (ver
+ * computePreciosVenta en presupuesto.ts) -- esas líneas nunca traen
+ * Perfileria/Refuerzos en su receta (solo Vidrios y Herrajes), así que a
+ * diferencia de una ventana HETMO real, sumar precio*cantidad por línea sí
+ * da su costo correcto sin necesitar el resumen de barras a nivel de
+ * proyecto. NO usar esta función para una ventana de origen HETMO.
+ */
+export function computeCostoVentanaCLP(
+  ventana: Ventana,
+  ajustesPorMaterial: Map<string, { precioPersonalizado?: number | null; monedaPersonalizada?: string | null; familiaPersonalizada?: string | null }>,
+  tasaDolar: number,
+  tasaEuro: number,
+  tasaUf: number,
+  monedas: MonedaHetmo[]
+): number {
+  const mats: MaterialVentana[] = ventana.materiales || [];
+  return mats.reduce((acc, mv) => {
+    const mat = mv.material;
+    const ajuste = ajustesPorMaterial.get(mv.materialId);
+    const familiaCruda = (ajuste?.familiaPersonalizada || mat?.familia || 'ACCESORIOS').toUpperCase().trim();
+    const familia = normalizarFamilia(familiaCruda);
+    const cantidad =
+      familiaCruda === 'JUNTAS' || familiaCruda === 'VIDRIOS' ? Number(mv.longitudMm) || 0 : Number(mv.cantidad) || 0;
+    const precioOrigen = ajuste?.precioPersonalizado ?? mv.precioOrigen ?? 0;
+    const monedaBase = MONEDA_POR_FAMILIA[familia] || 'CLP';
+    const monedaOrigen =
+      familia === 'VIDRIOS'
+        ? 'CLP'
+        : ajuste?.precioPersonalizado != null
+        ? ajuste.monedaPersonalizada || monedaBase
+        : mv.origen === 'PERSONALIZADO' && mv.monedaOrigen
+        ? mv.monedaOrigen
+        : monedaBase;
+    const iso = resolverMoneda(monedaOrigen, monedas).iso;
+    let factorCLP = 1;
+    if (iso === 'USD') factorCLP = tasaDolar;
+    else if (iso === 'EUR') factorCLP = tasaEuro;
+    else if (iso === 'UF') factorCLP = tasaUf;
+    return acc + precioOrigen * factorCLP * cantidad;
+  }, 0);
 }
 
 /**

@@ -13,6 +13,7 @@ import * as core from '../../components/drawing/geometryCore';
 import {
   computeMaterialesConsolidados,
   computeCostoTotalYVenta,
+  computeCostoVentanaCLP,
 } from '../../lib/materialesConsolidados';
 import { computePreciosVenta } from '../../lib/presupuesto';
 import { loadImageDataUrl } from '../../lib/pdfTheme';
@@ -184,9 +185,16 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
     () => computeCostoTotalYVenta(activeVersion, materialesConsolidados, aprobacionesPorFamilia),
     [activeVersion, materialesConsolidados, aprobacionesPorFamilia]
   );
+  const ajustesPorMaterial = useMemo(
+    () => new Map((activeVersion?.materialAjustes || []).map((a) => [a.materialId, a])),
+    [activeVersion?.materialAjustes]
+  );
   const preciosVenta = useMemo(
-    () => computePreciosVenta(ventanas, activeVersion?.sumaTotalLineas, venta),
-    [ventanas, activeVersion?.sumaTotalLineas, venta]
+    () =>
+      computePreciosVenta(ventanas, activeVersion?.sumaTotalLineas, venta, (v) =>
+        computeCostoVentanaCLP(v, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas)
+      ),
+    [ventanas, activeVersion?.sumaTotalLineas, venta, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas]
   );
   const ivaPct = 19;
   const iva = venta * (ivaPct / 100);

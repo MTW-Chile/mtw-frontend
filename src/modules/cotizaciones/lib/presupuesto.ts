@@ -19,24 +19,35 @@ export interface PrecioVentaLinea {
  * línea con importeUnitario), se reparte por unidades como respaldo -- peor
  * que el peso real, pero nunca deja una línea sin precio.
  *
- * NOTA: se probó un respaldo por costo real de materiales para líneas sin
- * importeUnitario (manuales como Puerta Protex), pero el costo de
- * Perfileria/Refuerzos NO es atribuible a una ventana individual -- HETMO
- * lo entrega como resumen a nivel de TODO el proyecto (barras optimizadas
- * de corte), no por línea. Confirmado en producción: eso hacía que una
- * ventana real con perfilería quedara en peso ~0 y toda la venta se le
- * regalara a la Puerta Protex. Revertido hasta implementarlo bien.
+ * Una línea PERSONALIZADO (Vidrio DVH, Puerta Protex) nunca trae
+ * importeUnitario -- ese campo solo lo calcula HETMO. Sin respaldo, su peso
+ * quedaba en 0 y toda su parte de la venta se la regalaba a las demás
+ * líneas. El respaldo es el costo real de sus materiales -- SOLO para
+ * lineas PERSONALIZADO, nunca para lineas HETMO: se probo aplicarlo a
+ * todas por igual, pero el costo de Perfileria/Refuerzos NO es atribuible
+ * a una ventana individual (HETMO lo entrega como resumen a nivel de TODO
+ * el proyecto, via barras optimizadas de corte, no por linea), y eso hacia
+ * que una ventana HETMO real con perfileria quedara en peso ~0 -- una
+ * linea PERSONALIZADO en cambio nunca trae Perfileria/Refuerzos en su
+ * receta (solo Vidrios y Herrajes, ver /api/ventanas/manual), asi que el
+ * respaldo es seguro unicamente para ese caso.
  */
 export function computePreciosVenta(
   ventanas: Ventana[],
   sumaTotalLineas: ProyectoVersion['sumaTotalLineas'] | undefined,
-  ventaTotalCLP: number
+  ventaTotalCLP: number,
+  costoLineaManualCLP?: (v: Ventana) => number
 ): Map<string, PrecioVentaLinea> {
   const resultado = new Map<string, PrecioVentaLinea>();
   if (!ventanas.length || !(ventaTotalCLP > 0)) return resultado;
 
   const base = Number(sumaTotalLineas) || 0;
-  const pesos = ventanas.map((v) => Math.max(0, Number(v.importeUnitario) || 0) * (v.unidades || 1));
+  const pesos = ventanas.map((v) => {
+    const importeHetmo = Math.max(0, Number(v.importeUnitario) || 0) * (v.unidades || 1);
+    if (importeHetmo > 0) return importeHetmo;
+    if (v.origen === 'PERSONALIZADO' && costoLineaManualCLP) return Math.max(0, costoLineaManualCLP(v));
+    return 0;
+  });
   const pesoTotal = pesos.reduce((acc, p) => acc + p, 0);
 
   const usarImporteHetmo = base > 0 && pesoTotal > 0;
