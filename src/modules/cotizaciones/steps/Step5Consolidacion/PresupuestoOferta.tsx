@@ -189,17 +189,16 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
     () => new Map((activeVersion?.materialAjustes || []).map((a) => [a.materialId, a])),
     [activeVersion?.materialAjustes]
   );
+  const margenMultiplicador = costoTotal > 0 ? venta / costoTotal : 1;
   const preciosVenta = useMemo(
     () =>
       computePreciosVenta(
         ventanas,
-        activeVersion?.sumaTotalLineas,
-        venta,
         (v) => computeCostoVentanaCLP(v, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas),
-        costoTotal,
+        margenMultiplicador,
         tasaUf
       ),
-    [ventanas, activeVersion?.sumaTotalLineas, venta, costoTotal, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas]
+    [ventanas, margenMultiplicador, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas]
   );
   const ivaPct = 19;
   const iva = venta * (ivaPct / 100);

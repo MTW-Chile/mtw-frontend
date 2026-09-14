@@ -7,7 +7,6 @@ import {
   Clock,
   Search,
   Building2,
-  Package,
   X,
   ChevronDown,
 } from 'lucide-react';
@@ -19,9 +18,7 @@ import { Button } from '../../components/ui/Button';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { CotizacionDetalleModal } from './CotizacionDetalleModal';
 import { CotizadorWorkspace } from './CotizadorWorkspace';
-import { MaestroProductos } from './components/MaestroProductos';
 
-type SubTab = 'proyectos' | 'maestro';
 type EstadoFiltro = 'TERMINADOS' | 'PEDIDOS' | 'TODOS';
 
 const ESTADOS_FILTRO: { id: EstadoFiltro; label: string }[] = [
@@ -34,7 +31,6 @@ export const CotizacionesPage: React.FC<{
   searchTerm?: string;
   onSearchChange?: (val: string) => void;
 }> = ({ searchTerm: externalSearch = '', onSearchChange }) => {
-  const [activeSubTab, setActiveSubTab] = useState<SubTab>('proyectos');
   const [internalSearch, setInternalSearch] = useState(externalSearch);
   // Por defecto muestra solo proyectos con estado 2 (Presupuesto Terminado)
   const [statusFilter, setStatusFilter] = useState<EstadoFiltro>('TERMINADOS');
@@ -136,113 +132,57 @@ export const CotizacionesPage: React.FC<{
 
   return (
     <div className="p-3 sm:p-5 md:p-8 space-y-4 sm:space-y-5 max-w-7xl mx-auto animate-fade-in">
-      {/* NAVEGACIÓN DE SUB-PESTAÑAS: DESPLEGABLE EN MÓVILES / BOTONES EN DESKTOP */}
+      {/* ENCABEZADO: TITULO + SINCRONIZACIÓN RELAY / HETMO */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
-        {/* Desplegable para Móviles */}
-        <div className="block sm:hidden relative w-full">
-          <div className="relative">
-            <select
-              value={activeSubTab}
-              onChange={(e) => setActiveSubTab(e.target.value as SubTab)}
-              className="w-full py-2.5 pl-3.5 pr-10 rounded-xl bg-white border border-slate-300 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#E34A26] appearance-none cursor-pointer shadow-xs"
-            >
-              <option value="proyectos">Presupuestos & Obras HETMO ({proyectos.length})</option>
-              <option value="maestro">Maestro de Productos (Catálogo)</option>
-            </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-        </div>
-
-        {/* Botones de Tab para Desktop / Tablet */}
-        <div className="hidden sm:flex items-center gap-2">
-          <button
-            onClick={() => setActiveSubTab('proyectos')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              activeSubTab === 'proyectos'
-                ? 'bg-[#E34A26] text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            <Building2 className="w-4 h-4 shrink-0" />
-            <span>Presupuestos & Obras HETMO</span>
-            <span
-              className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono shrink-0 ${
-                activeSubTab === 'proyectos'
-                  ? 'bg-white/20 text-white'
-                  : 'bg-slate-100 text-slate-600'
-              }`}
-            >
-              {proyectos.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveSubTab('maestro')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              activeSubTab === 'maestro'
-                ? 'bg-[#E34A26] text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            <Package className="w-4 h-4 shrink-0" />
-            <span>Maestro de Productos</span>
-            <span
-              className={`px-1.5 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider shrink-0 ${
-                activeSubTab === 'maestro'
-                  ? 'bg-white/20 text-white'
-                  : 'bg-slate-100 text-slate-500'
-              }`}
-            >
-              Items
-            </span>
-          </button>
+        <div className="flex items-center gap-2">
+          <Building2 className="w-4 h-4 shrink-0 text-[#E34A26]" />
+          <span className="text-sm font-bold text-slate-900">Presupuestos & Obras HETMO</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono shrink-0 bg-slate-100 text-slate-600">
+            {proyectos.length}
+          </span>
         </div>
 
         {/* Sincronización Relay / HETMO */}
-        {activeSubTab === 'proyectos' && (
-          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs bg-white border border-slate-200 text-slate-600 shadow-xs">
-              <Clock className="w-3.5 h-3.5 text-[#E34A26]" />
-              <span>
-                Última importación:{' '}
-                <strong className="font-mono text-slate-900">
-                  {lastSync?.finalizadoEn
-                    ? new Date(lastSync.finalizadoEn).toLocaleTimeString('es-CL', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    : 'Reciente'}
-                </strong>
-              </span>
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleManualSync}
-              disabled={isSyncing}
-              leftIcon={
-                <RotateCcw
-                  className={`w-3.5 h-3.5 text-[#E34A26] ${
-                    isSyncing ? 'animate-spin' : ''
-                  }`}
-                />
-              }
-            >
-              <span className="hidden sm:inline">
-                {isSyncing ? 'Sincronizando...' : 'Sincronizar HETMO'}
-              </span>
-              <span className="sm:hidden">{isSyncing ? 'Sync...' : 'Sync'}</span>
-            </Button>
+        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs bg-white border border-slate-200 text-slate-600 shadow-xs">
+            <Clock className="w-3.5 h-3.5 text-[#E34A26]" />
+            <span>
+              Última importación:{' '}
+              <strong className="font-mono text-slate-900">
+                {lastSync?.finalizadoEn
+                  ? new Date(lastSync.finalizadoEn).toLocaleTimeString('es-CL', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  : 'Reciente'}
+              </strong>
+            </span>
           </div>
-        )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            leftIcon={
+              <RotateCcw
+                className={`w-3.5 h-3.5 text-[#E34A26] ${
+                  isSyncing ? 'animate-spin' : ''
+                }`}
+              />
+            }
+          >
+            <span className="hidden sm:inline">
+              {isSyncing ? 'Sincronizando...' : 'Sincronizar HETMO'}
+            </span>
+            <span className="sm:hidden">{isSyncing ? 'Sync...' : 'Sync'}</span>
+          </Button>
+        </div>
       </div>
 
-      {/* CONTENIDO SEGÚN SUB-PESTAÑA */}
-      {activeSubTab === 'maestro' ? (
-        <MaestroProductos />
-      ) : (
-        <div className="space-y-4">
+      {/* CONTENIDO: LISTADO DE PROYECTOS -- Maestro de Materiales vive solo en
+          el menu lateral (ver Sidebar.tsx), ya no como sub-pestana aca. */}
+      <div className="space-y-4">
           {/* BARRA DE BÚSQUEDA Y FILTROS */}
           <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
             <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
@@ -563,8 +503,7 @@ export const CotizacionesPage: React.FC<{
               )}
             </>
           )}
-        </div>
-      )}
+      </div>
 
       {/* Modal Ficha Técnica */}
       <CotizacionDetalleModal
