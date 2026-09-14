@@ -87,5 +87,10 @@ export function buildProtexDoorSvg(hojas: 1 | 2, anchoMm: number, altoMm: number
 
   const cotas = dimensionMarkup(w, h, x, y, drawW, drawH);
 
-  return `<svg viewBox="0 0 ${CANVAS_W} ${CANVAS_H}" preserveAspectRatio="xMidYMid meet">${leaves}${cotas}</svg>`;
+  // width/height=100% explicito -- sin esto el <svg> insertado via
+  // dangerouslySetInnerHTML usa su tamano intrinseco por defecto del
+  // navegador (mucho mas chico que el contenedor), a diferencia de
+  // WindowRendererSvg que le fuerza la clase manualmente por JS despues de
+  // insertarlo al DOM.
+  return `<svg viewBox="0 0 ${CANVAS_W} ${CANVAS_H}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">${leaves}${cotas}</svg>`;
 }

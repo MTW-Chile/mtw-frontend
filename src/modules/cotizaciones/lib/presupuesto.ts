@@ -18,28 +18,25 @@ export interface PrecioVentaLinea {
  * Si no hay base imponible utilizable (sumaTotalLineas ausente/0, o ninguna
  * línea con importeUnitario), se reparte por unidades como respaldo -- peor
  * que el peso real, pero nunca deja una línea sin precio.
+ *
+ * NOTA: se probó un respaldo por costo real de materiales para líneas sin
+ * importeUnitario (manuales como Puerta Protex), pero el costo de
+ * Perfileria/Refuerzos NO es atribuible a una ventana individual -- HETMO
+ * lo entrega como resumen a nivel de TODO el proyecto (barras optimizadas
+ * de corte), no por línea. Confirmado en producción: eso hacía que una
+ * ventana real con perfilería quedara en peso ~0 y toda la venta se le
+ * regalara a la Puerta Protex. Revertido hasta implementarlo bien.
  */
 export function computePreciosVenta(
   ventanas: Ventana[],
   sumaTotalLineas: ProyectoVersion['sumaTotalLineas'] | undefined,
-  ventaTotalCLP: number,
-  // Costo real (CLP) de una linea que no trae importeUnitario de HETMO --
-  // las lineas PERSONALIZADO (Vidrio DVH, Puerta Protex) nunca lo traen,
-  // ese campo solo lo calcula HETMO. Sin este respaldo pesaban 0 en el
-  // prorrateo y toda su parte del precio de venta se le regalaba a las
-  // demas lineas -- confirmado en produccion, una Puerta Protex con costo
-  // real mostraba $0 en el Presupuesto.
-  costoLineaManualCLP?: (v: Ventana) => number
+  ventaTotalCLP: number
 ): Map<string, PrecioVentaLinea> {
   const resultado = new Map<string, PrecioVentaLinea>();
   if (!ventanas.length || !(ventaTotalCLP > 0)) return resultado;
 
   const base = Number(sumaTotalLineas) || 0;
-  const pesos = ventanas.map((v) => {
-    const importeHetmo = Math.max(0, Number(v.importeUnitario) || 0) * (v.unidades || 1);
-    if (importeHetmo > 0) return importeHetmo;
-    return costoLineaManualCLP ? Math.max(0, costoLineaManualCLP(v)) : 0;
-  });
+  const pesos = ventanas.map((v) => Math.max(0, Number(v.importeUnitario) || 0) * (v.unidades || 1));
   const pesoTotal = pesos.reduce((acc, p) => acc + p, 0);
 
   const usarImporteHetmo = base > 0 && pesoTotal > 0;
