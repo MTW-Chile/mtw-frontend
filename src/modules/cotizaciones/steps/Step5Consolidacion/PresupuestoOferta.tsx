@@ -200,9 +200,16 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
       ),
     [ventanas, margenMultiplicador, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas]
   );
+  // El subtotal mostrado (y el IVA/total con IVA derivados) SIEMPRE es la
+  // suma real de lo que se muestra por linea -- no el venta calculado por
+  // separado via costo+margen (computeCostoTotalYVenta), que puede diferir
+  // del precio real por linea (importeUnitario de HETMO). Mostrar un
+  // subtotal que no cuadra con la suma de las lineas de arriba es peor que
+  // cualquier otro problema: el cliente ve un presupuesto que no suma.
+  const ventaLineas = ventanas.reduce((acc, v) => acc + (preciosVenta.get(v.id)?.precioVentaCLP || 0), 0);
   const ivaPct = 19;
-  const iva = venta * (ivaPct / 100);
-  const totalConIva = venta + iva;
+  const iva = ventaLineas * (ivaPct / 100);
+  const totalConIva = ventaLineas + iva;
 
   const config = activeVersion?.presupuestoConfig;
   const [texto, setTexto] = useState(config?.textoPresentacion ?? FALLBACK_TEXTO);
@@ -271,7 +278,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
       // sin detectar a tiempo.
       const pngPorVentana = await rasterizarDibujos(ventanas);
       const documentoHtml = buildDocumentoHtml({
-        proyecto, ventanas, texto, condiciones, venta, iva, totalConIva, ivaPct, tasaUf,
+        proyecto, ventanas, texto, condiciones, venta: ventaLineas, iva, totalConIva, ivaPct, tasaUf,
         logoDataUrl, logoMuchtekDataUrl, preciosVenta, pngPorVentana,
       });
       const { headerTemplate, footerTemplate } = buildHeaderFooterTemplates({
@@ -429,7 +436,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
       </div>
 
       <div className="p-5 rounded-2xl bg-slate-900 text-white shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div><span className="block text-[11px] text-slate-400">Subtotal de venta · NETO</span><strong className="text-lg font-mono">{ufLabel(venta, tasaUf)}</strong></div>
+        <div><span className="block text-[11px] text-slate-400">Subtotal de venta · NETO</span><strong className="text-lg font-mono">{ufLabel(ventaLineas, tasaUf)}</strong></div>
         <div><span className="block text-[11px] text-slate-400">IVA ({ivaPct}%)</span><strong className="text-lg font-mono">{ufLabel(iva, tasaUf)}</strong></div>
         <div><span className="block text-[11px] text-slate-400">Total con IVA</span><strong className="text-xl font-mono">{ufLabel(totalConIva, tasaUf)}</strong></div>
       </div>
