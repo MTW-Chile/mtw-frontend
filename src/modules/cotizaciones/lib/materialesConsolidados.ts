@@ -252,6 +252,15 @@ export function computeCostoTotalYVenta(
   const m2Vidrios = materialesConsolidados
     .filter((m) => !m.excluido && m.familia === 'VIDRIOS')
     .reduce((acc, m) => acc + m.cantidadTotal, 0);
+  // totalM2Ventanas SOLO lo actualiza el sync de HETMO -- una Puerta Protex
+  // (linea manual, nunca toca ese campo) queda en $0 de instalacion si se
+  // le aplica la misma formula. Se le da su propia tarifa (m2 real de las
+  // lineas PROTEX de la version, por valorInstalacionProtexM2) en vez de
+  // sumarla a m2Ventanas -- Vidrio DVH fijo queda afuera por ahora a
+  // proposito (puede venir dentro del propio presupuesto de HETMO).
+  const m2Protex = (activeVersion?.ventanas || [])
+    .filter((v) => v.tipoLineaManual === 'PROTEX')
+    .reduce((acc, v) => acc + (Number(v.m2Ventana) || 0), 0);
 
   const materialesTotal = materialesConsolidados
     .filter((m) => !m.excluido)
@@ -264,6 +273,7 @@ export function computeCostoTotalYVenta(
   const cantidadViajes = numero(config?.cantidadViajes, 0);
   const valorViaje = numero(config?.valorViaje, 80000);
   const valorInstalacionM2 = numero(config?.valorInstalacionM2, 1700);
+  const valorInstalacionProtexM2 = numero(config?.valorInstalacionProtexM2, 25000);
   const margenVentaPct = numero(config?.margenVentaPct, 0);
   const extrasTotal = Array.isArray(config?.extras)
     ? config!.extras.reduce((acc, e) => acc + (Number(e.monto) || 0), 0)
@@ -272,7 +282,7 @@ export function computeCostoTotalYVenta(
   const costosComplementarios =
     manoObraFabricacion * m2Ventanas + filmProtectorCristales * m2Vidrios + materialInstalacion * m2Ventanas + extrasTotal;
   const costoFlete = cantidadViajes * valorViaje;
-  const costoInstalacion = valorInstalacionM2 * m2Ventanas;
+  const costoInstalacion = valorInstalacionM2 * m2Ventanas + valorInstalacionProtexM2 * m2Protex;
   const costoTotal = materialesTotal + costosComplementarios + costoFlete + costoInstalacion;
   const margen = Math.min(99, Math.max(0, margenVentaPct));
   const venta = margen < 100 ? costoTotal / (1 - margen / 100) : costoTotal;

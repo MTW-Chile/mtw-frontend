@@ -190,6 +190,7 @@ export interface FijacionConfig {
   cantidadViajes: number;
   valorViaje: number;
   valorInstalacionM2: number;
+  valorInstalacionProtexM2: number;
   margenVentaPct: number;
   extras: FijacionExtra[];
 }
