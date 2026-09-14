@@ -32,17 +32,28 @@ const GLASS_COLOR = '#d8f2f4';
 const GLASS_EDGE = '#7595a2';
 const METAL_COLOR = '#64748b'; // slate-500
 
-function cornerPatches(x: number, y: number, width: number, height: number): string {
+function cornerPatches(x: number, y: number, width: number, height: number, mirror: boolean): string {
   const w = 9;
   const h = 6;
   const inset = 1.5;
-  // 3 abrazaderas por hoja, no 4 -- sin la de la esquina superior derecha
-  // (confirmado con el usuario contra el producto real).
-  const corners = [
-    [x + inset, y + inset], // sup. izq.
-    [x + inset, y + height - inset - h], // inf. izq.
-    [x + width - inset - w, y + height - inset - h], // inf. der.
-  ];
+  const left = x + inset;
+  const right = x + width - inset - w;
+  const bottom = y + height - inset - h;
+  // 3 abrazaderas por hoja, no 4 -- a la hoja le falta la de la esquina
+  // superior del lado de la manilla (no del lado de la bisagra), asi que
+  // una puerta de 2 hojas queda espejada: la hoja izquierda sin la
+  // superior derecha, la hoja derecha sin la superior izquierda.
+  const corners = mirror
+    ? [
+        [right, y + inset], // sup. der.
+        [left, bottom], // inf. izq.
+        [right, bottom], // inf. der.
+      ]
+    : [
+        [left, y + inset], // sup. izq.
+        [left, bottom], // inf. izq.
+        [right, bottom], // inf. der.
+      ];
   return corners
     .map(([cx, cy]) => `<rect x="${cx.toFixed(2)}" y="${cy.toFixed(2)}" width="${w}" height="${h}" rx="0.8" fill="${METAL_COLOR}" />`)
     .join('');
@@ -54,12 +65,12 @@ function verticalHandle(x: number, y: number, height: number): string {
   return `<rect x="${(x - 1.3).toFixed(2)}" y="${hy.toFixed(2)}" width="2.6" height="${barLen.toFixed(2)}" rx="1.3" fill="${METAL_COLOR}" />`;
 }
 
-function leafSvg(x: number, y: number, width: number, height: number, handleSide: 'left' | 'right'): string {
+function leafSvg(x: number, y: number, width: number, height: number, handleSide: 'left' | 'right', mirror: boolean): string {
   // Pegada al canto de vidrio mas cercano.
   const handleX = handleSide === 'left' ? x + 4.5 : x + width - 4.5;
   return (
     `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${width.toFixed(2)}" height="${height.toFixed(2)}" fill="${GLASS_COLOR}" stroke="${GLASS_EDGE}" stroke-width="1" />` +
-    cornerPatches(x, y, width, height) +
+    cornerPatches(x, y, width, height, mirror) +
     verticalHandle(handleX, y, height)
   );
 }
@@ -82,8 +93,9 @@ export function buildProtexDoorSvg(hojas: 1 | 2, anchoMm: number, altoMm: number
 
   const leaves =
     hojas === 2
-      ? leafSvg(x, y, drawW / 2 - gap / 2, drawH, 'right') + leafSvg(x + drawW / 2 + gap / 2, y, drawW / 2 - gap / 2, drawH, 'left')
-      : leafSvg(x, y, drawW, drawH, 'right');
+      ? leafSvg(x, y, drawW / 2 - gap / 2, drawH, 'right', false) +
+        leafSvg(x + drawW / 2 + gap / 2, y, drawW / 2 - gap / 2, drawH, 'left', true)
+      : leafSvg(x, y, drawW, drawH, 'right', false);
 
   const cotas = dimensionMarkup(w, h, x, y, drawW, drawH);
 

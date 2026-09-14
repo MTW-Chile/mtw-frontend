@@ -31,21 +31,37 @@ export interface PrecioVentaLinea {
  * linea PERSONALIZADO en cambio nunca trae Perfileria/Refuerzos en su
  * receta (solo Vidrios y Herrajes, ver /api/ventanas/manual), asi que el
  * respaldo es seguro unicamente para ese caso.
+ *
+ * Ese costo real, sin embargo, esta en una escala distinta a
+ * importeUnitario: importeUnitario es un PRECIO DE VENTA (HETMO ya le
+ * aplico margen), mientras que el costo de materiales de la linea manual
+ * es COSTO puro, sin margen. Mezclarlos tal cual en el mismo prorrateo
+ * hacia que el lado con el numero mas grande (cualquiera de los dos, segun
+ * el caso) se quedara con ~100% de la venta y el otro con ~0%, en vez de
+ * repartirse en proporciones razonables. Se corrige llevando el costo de
+ * la linea manual a la MISMA escala de venta con el margen promedio real
+ * de todo el proyecto (ventaTotalCLP / costoTotalProyectoCLP, ambos ya
+ * calculados en Step5 via computeCostoTotalYVenta) antes de compararlo con
+ * importeUnitario.
  */
 export function computePreciosVenta(
   ventanas: Ventana[],
   sumaTotalLineas: ProyectoVersion['sumaTotalLineas'] | undefined,
   ventaTotalCLP: number,
-  costoLineaManualCLP?: (v: Ventana) => number
+  costoLineaManualCLP?: (v: Ventana) => number,
+  costoTotalProyectoCLP?: number
 ): Map<string, PrecioVentaLinea> {
   const resultado = new Map<string, PrecioVentaLinea>();
   if (!ventanas.length || !(ventaTotalCLP > 0)) return resultado;
 
   const base = Number(sumaTotalLineas) || 0;
+  const margenMultiplicador = Number(costoTotalProyectoCLP) > 0 ? ventaTotalCLP / Number(costoTotalProyectoCLP) : 1;
   const pesos = ventanas.map((v) => {
     const importeHetmo = Math.max(0, Number(v.importeUnitario) || 0) * (v.unidades || 1);
     if (importeHetmo > 0) return importeHetmo;
-    if (v.origen === 'PERSONALIZADO' && costoLineaManualCLP) return Math.max(0, costoLineaManualCLP(v));
+    if (v.origen === 'PERSONALIZADO' && costoLineaManualCLP) {
+      return Math.max(0, costoLineaManualCLP(v)) * margenMultiplicador;
+    }
     return 0;
   });
   const pesoTotal = pesos.reduce((acc, p) => acc + p, 0);

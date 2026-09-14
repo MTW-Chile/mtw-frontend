@@ -181,7 +181,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
     () => new Map((activeVersion?.familiaAprobaciones || []).map((f) => [f.familia, f])),
     [activeVersion?.familiaAprobaciones]
   );
-  const { venta } = useMemo(
+  const { venta, costoTotal } = useMemo(
     () => computeCostoTotalYVenta(activeVersion, materialesConsolidados, aprobacionesPorFamilia),
     [activeVersion, materialesConsolidados, aprobacionesPorFamilia]
   );
@@ -191,10 +191,14 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
   );
   const preciosVenta = useMemo(
     () =>
-      computePreciosVenta(ventanas, activeVersion?.sumaTotalLineas, venta, (v) =>
-        computeCostoVentanaCLP(v, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas)
+      computePreciosVenta(
+        ventanas,
+        activeVersion?.sumaTotalLineas,
+        venta,
+        (v) => computeCostoVentanaCLP(v, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas),
+        costoTotal
       ),
-    [ventanas, activeVersion?.sumaTotalLineas, venta, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas]
+    [ventanas, activeVersion?.sumaTotalLineas, venta, costoTotal, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas]
   );
   const ivaPct = 19;
   const iva = venta * (ivaPct / 100);
