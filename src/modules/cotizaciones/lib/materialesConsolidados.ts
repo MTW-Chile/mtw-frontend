@@ -112,11 +112,25 @@ export function computeMaterialesConsolidados(
       // precioPersonalizado/monedaPersonalizada pisan el precio original de
       // HETMO cuando alguien lo edito a mano en la Analitica. Sin edicion
       // manual, la divisa la determina la familia -- moneda_origen_codigo
-      // de HETMO viene hardcodeado en '2' para todo material, nunca fue un
-      // dato real (ver MONEDA_POR_FAMILIA).
+      // de HETMO viene hardcodeado en '2' para todo material sincronizado
+      // desde HETMO, nunca fue un dato real (ver MONEDA_POR_FAMILIA).
+      //
+      // Excepcion: una fila PERSONALIZADO (agregada a mano desde Step2Lineas
+      // -- reemplazo de material, vidrio DVH fijo, puerta Protex...) SI
+      // trae una divisa real en mv.monedaOrigen -- la eligio la persona en
+      // el formulario, o se copio del precio vigente del material en el
+      // Maestro (ver POST /materiales, /materiales/reemplazar y
+      // /ventanas/manual en mtw-api). Ignorarla y adivinar por familia daba
+      // resultados absurdos: un kit de herrajes cargado en pesos ($250.000)
+      // se mostraba convertido como si fueran euros ($257.500.000).
       const precioOrigen = ajuste?.precioPersonalizado ?? mv.precioOrigen ?? 0;
       const monedaBase = MONEDA_POR_FAMILIA[familia] || 'CLP';
-      const monedaOrigen = ajuste?.precioPersonalizado != null ? ajuste.monedaPersonalizada || monedaBase : monedaBase;
+      const monedaOrigen =
+        ajuste?.precioPersonalizado != null
+          ? ajuste.monedaPersonalizada || monedaBase
+          : mv.origen === 'PERSONALIZADO' && mv.monedaOrigen
+          ? mv.monedaOrigen
+          : monedaBase;
 
       const iso = resolverMoneda(monedaOrigen, monedas).iso;
       let factorCLP = 1;

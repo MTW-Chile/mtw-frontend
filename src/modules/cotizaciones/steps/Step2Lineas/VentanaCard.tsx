@@ -121,7 +121,7 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
             <img
               src={ventana.numeroCuadrosHojas === 2 ? '/puertas/protex-2-hojas.png' : '/puertas/protex-1-hoja.png'}
               alt={ventana.modelo}
-              className="max-h-[140px] w-auto object-contain"
+              className="max-h-[172px] max-w-full w-auto object-contain"
             />
             <span className="text-[11px] font-semibold text-slate-500 text-center max-w-[200px]">{ventana.modelo}</span>
           </div>
