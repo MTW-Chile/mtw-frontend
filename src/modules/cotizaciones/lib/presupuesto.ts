@@ -22,13 +22,24 @@ export interface PrecioVentaLinea {
 export function computePreciosVenta(
   ventanas: Ventana[],
   sumaTotalLineas: ProyectoVersion['sumaTotalLineas'] | undefined,
-  ventaTotalCLP: number
+  ventaTotalCLP: number,
+  // Costo real (CLP) de una linea que no trae importeUnitario de HETMO --
+  // las lineas PERSONALIZADO (Vidrio DVH, Puerta Protex) nunca lo traen,
+  // ese campo solo lo calcula HETMO. Sin este respaldo pesaban 0 en el
+  // prorrateo y toda su parte del precio de venta se le regalaba a las
+  // demas lineas -- confirmado en produccion, una Puerta Protex con costo
+  // real mostraba $0 en el Presupuesto.
+  costoLineaManualCLP?: (v: Ventana) => number
 ): Map<string, PrecioVentaLinea> {
   const resultado = new Map<string, PrecioVentaLinea>();
   if (!ventanas.length || !(ventaTotalCLP > 0)) return resultado;
 
   const base = Number(sumaTotalLineas) || 0;
-  const pesos = ventanas.map((v) => Math.max(0, Number(v.importeUnitario) || 0) * (v.unidades || 1));
+  const pesos = ventanas.map((v) => {
+    const importeHetmo = Math.max(0, Number(v.importeUnitario) || 0) * (v.unidades || 1);
+    if (importeHetmo > 0) return importeHetmo;
+    return costoLineaManualCLP ? Math.max(0, costoLineaManualCLP(v)) : 0;
+  });
   const pesoTotal = pesos.reduce((acc, p) => acc + p, 0);
 
   const usarImporteHetmo = base > 0 && pesoTotal > 0;

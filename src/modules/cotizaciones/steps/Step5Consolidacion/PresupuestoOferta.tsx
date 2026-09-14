@@ -12,6 +12,7 @@ import * as core from '../../components/drawing/geometryCore';
 import {
   computeMaterialesConsolidados,
   computeCostoTotalYVenta,
+  computeCostoVentanaCLP,
 } from '../../lib/materialesConsolidados';
 import { computePreciosVenta } from '../../lib/presupuesto';
 import { loadImageDataUrl } from '../../lib/pdfTheme';
@@ -183,9 +184,16 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
     () => computeCostoTotalYVenta(activeVersion, materialesConsolidados, aprobacionesPorFamilia),
     [activeVersion, materialesConsolidados, aprobacionesPorFamilia]
   );
+  const ajustesPorMaterial = useMemo(
+    () => new Map((activeVersion?.materialAjustes || []).map((a) => [a.materialId, a])),
+    [activeVersion?.materialAjustes]
+  );
   const preciosVenta = useMemo(
-    () => computePreciosVenta(ventanas, activeVersion?.sumaTotalLineas, venta),
-    [ventanas, activeVersion?.sumaTotalLineas, venta]
+    () =>
+      computePreciosVenta(ventanas, activeVersion?.sumaTotalLineas, venta, (v) =>
+        computeCostoVentanaCLP(v, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas)
+      ),
+    [ventanas, activeVersion?.sumaTotalLineas, venta, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas]
   );
   const ivaPct = 19;
   const iva = venta * (ivaPct / 100);
@@ -349,7 +357,10 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
           const precio = preciosVenta.get(v.id);
           const line = toWindowLine(v);
           const isFrameless = Boolean(line?.dibujoSinMarco);
-          const apertura = line ? core.apertureLabel(line) : '—';
+          // Una puerta Protex no pasa por el motor de aperturas de HETMO
+          // (ver mismo caso en VentanaCard.tsx) -- "Ventana fija" seria
+          // enganoso, es una puerta abatible con herrajes.
+          const apertura = v.tipoLineaManual === 'PROTEX' ? 'Puerta Protex' : line ? core.apertureLabel(line) : '—';
           const finish = createFinish(line?.acabadoCodigo, line?.acabadoDescripcion, line?.acabadoPatron);
           const finishLabel = getAcabadoLabel(v.acabadoCodigo, v.acabadoDescripcion);
           const vidrio = Array.from(

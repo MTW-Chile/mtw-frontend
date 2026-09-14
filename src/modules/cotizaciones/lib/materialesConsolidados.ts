@@ -1,5 +1,5 @@
 import { resolverMoneda, type MonedaHetmo } from '../../../lib/monedas';
-import type { ProyectoVersion, MaterialVentana } from '../../../types';
+import type { ProyectoVersion, MaterialVentana, Ventana } from '../../../types';
 import { toWindowLine } from '../components/drawing/ventanaAdapter';
 import { cuadrosFor } from '../components/drawing/geometryCore';
 
@@ -125,8 +125,18 @@ export function computeMaterialesConsolidados(
       // se mostraba convertido como si fueran euros ($257.500.000).
       const precioOrigen = ajuste?.precioPersonalizado ?? mv.precioOrigen ?? 0;
       const monedaBase = MONEDA_POR_FAMILIA[familia] || 'CLP';
+      // Vidrios SIEMPRE se cotiza en pesos, sin excepcion (regla de negocio
+      // explicita) -- nunca confiar en mv.monedaOrigen para esta familia,
+      // ni siquiera en una linea PERSONALIZADO. Confirmado en produccion:
+      // una Puerta Protex copio el codigo crudo de moneda que HETMO tenia
+      // guardado para ESE presupuesto puntual (un numero como "2"), que en
+      // ese documento en particular resolvia a Dolar en el diccionario de
+      // monedas -- multiplicando el precio real del vidrio por ~950 en la
+      // Analitica pese a que el vidrio en si siempre esta en CLP.
       const monedaOrigen =
-        ajuste?.precioPersonalizado != null
+        familia === 'VIDRIOS'
+          ? 'CLP'
+          : ajuste?.precioPersonalizado != null
           ? ajuste.monedaPersonalizada || monedaBase
           : mv.origen === 'PERSONALIZADO' && mv.monedaOrigen
           ? mv.monedaOrigen
@@ -268,6 +278,53 @@ export function computeCostoTotalYVenta(
   const venta = margen < 100 ? costoTotal / (1 - margen / 100) : costoTotal;
 
   return { costoTotal, venta, margen };
+}
+
+/**
+ * Costo real (CLP) de los materiales de UNA sola ventana/línea, con las
+ * mismas reglas de moneda que computeMaterialesConsolidados (Vidrios
+ * siempre CLP, familia por defecto, ajuste manual si existe). Usado como
+ * peso de prorrateo para líneas PERSONALIZADO (Vidrio DVH, Puerta Protex)
+ * en computePreciosVenta: esas líneas nunca traen importeUnitario de HETMO
+ * (ese campo solo lo calcula HETMO), así que sin este respaldo pesaban 0 en
+ * el prorrateo y toda su parte del precio de venta terminaba regalada a las
+ * demás líneas -- confirmado en producción, una Puerta Protex con costo
+ * real mostraba $0 en el Presupuesto pese a que su costo sí se sumaba al
+ * total general.
+ */
+export function computeCostoVentanaCLP(
+  ventana: Ventana,
+  ajustesPorMaterial: Map<string, { precioPersonalizado?: number | null; monedaPersonalizada?: string | null; familiaPersonalizada?: string | null }>,
+  tasaDolar: number,
+  tasaEuro: number,
+  tasaUf: number,
+  monedas: MonedaHetmo[]
+): number {
+  const mats: MaterialVentana[] = ventana.materiales || [];
+  return mats.reduce((acc, mv) => {
+    const mat = mv.material;
+    const ajuste = ajustesPorMaterial.get(mv.materialId);
+    const familiaCruda = (ajuste?.familiaPersonalizada || mat?.familia || 'ACCESORIOS').toUpperCase().trim();
+    const familia = normalizarFamilia(familiaCruda);
+    const cantidad =
+      familiaCruda === 'JUNTAS' || familiaCruda === 'VIDRIOS' ? Number(mv.longitudMm) || 0 : Number(mv.cantidad) || 0;
+    const precioOrigen = ajuste?.precioPersonalizado ?? mv.precioOrigen ?? 0;
+    const monedaBase = MONEDA_POR_FAMILIA[familia] || 'CLP';
+    const monedaOrigen =
+      familia === 'VIDRIOS'
+        ? 'CLP'
+        : ajuste?.precioPersonalizado != null
+        ? ajuste.monedaPersonalizada || monedaBase
+        : mv.origen === 'PERSONALIZADO' && mv.monedaOrigen
+        ? mv.monedaOrigen
+        : monedaBase;
+    const iso = resolverMoneda(monedaOrigen, monedas).iso;
+    let factorCLP = 1;
+    if (iso === 'USD') factorCLP = tasaDolar;
+    else if (iso === 'EUR') factorCLP = tasaEuro;
+    else if (iso === 'UF') factorCLP = tasaUf;
+    return acc + precioOrigen * factorCLP * cantidad;
+  }, 0);
 }
 
 /**
