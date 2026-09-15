@@ -221,6 +221,7 @@ export const FINISH_MAP: Record<string, string> = {
   '7000': '#8b6e42',   // Golden Oak -- mismo hex que 'ROG' (Roble Golden)
   '7020': '#8d8f92',   // Gris Grafito -- mismo hex que 'GRA'
   '7040': '#6e4528',   // Nogal -- mismo hex que 'NO'
+  '7045': '#8f979c',   // Peltre -- gris metalico, confirmado por el usuario (faltaba en el mapa)
   '7075': '#8a5a38',   // Toffe -- mismo hex que 'NOL' (Nogal Light, tono caramelo cercano)
   '7130': '#c0c0c0',   // Gri Alum -- PALETA_EXTERIOR real de HETMO (192,192,192)
   '7279': '#18191b',   // Jet Black -- mismo hex que 'NEB' (Negro Brillante)
@@ -406,6 +407,7 @@ export const FINISH_NAMES: Record<string, string> = {
   '7000': 'Golden Oak',
   '7020': 'Gris Grafito',
   '7040': 'Nogal',
+  '7045': 'Peltre',
   '7075': 'Toffe',
   '7130': 'Gri Alum',
   '7279': 'Jet Black',
