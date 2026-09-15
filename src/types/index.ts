@@ -34,6 +34,7 @@ export interface Material {
   descripcion: string;
   familia: string;
   unidadMedida: string;
+  individualizado: boolean;
   precioOrigen?: number | null;
   monedaOrigen?: string | null;
   precios?: PrecioHistorial[];
@@ -313,6 +314,17 @@ export type EstadoOC =
   | 'CONCILIADA'
   | 'CANCELADA';
 
+export type CategoriaGasto =
+  | 'PERFILERIA'
+  | 'HERRAJES'
+  | 'VIDRIOS'
+  | 'ACCESORIOS'
+  | 'REFUERZOS'
+  | 'MANO_DE_OBRA'
+  | 'FLETE'
+  | 'INSTALACION'
+  | 'OTROS';
+
 export interface OrdenCompraItem {
   id: string;
   ordenCompraId: string;
@@ -320,6 +332,10 @@ export interface OrdenCompraItem {
   material?: Material | null;
   descripcion: string;
   unidadMedida: string;
+  // Snapshot al crear el item -- automatica desde material.familia si hay
+  // materialId, obligatoria a mano si es partida externa (ver
+  // categoriaDesdeFamiliaMaterial en mtw-api).
+  categoria: CategoriaGasto;
   cantidad: number;
   precioUnitario: number;
   recepciones?: RecepcionOCItem[];
@@ -363,6 +379,7 @@ export interface OrdenCompra {
   motivoRechazo: string | null;
   items: OrdenCompraItem[];
   recepciones?: RecepcionOC[];
+  conciliaciones?: ConciliacionFactura[];
   creadoEn: string;
   actualizadoEn: string;
 }
@@ -416,7 +433,13 @@ export interface StockMaterial {
   actualizadoEn: string;
 }
 
-export type TipoMovimientoBodega = 'INGRESO_OC' | 'SALIDA_OBRA' | 'TRASLADO_ENTRADA' | 'TRASLADO_SALIDA' | 'AJUSTE';
+export type TipoMovimientoBodega =
+  | 'INGRESO_OC'
+  | 'SALIDA_OBRA'
+  | 'TRASLADO_ENTRADA'
+  | 'TRASLADO_SALIDA'
+  | 'AJUSTE_POSITIVO'
+  | 'AJUSTE_NEGATIVO';
 
 export interface MovimientoBodega {
   id: string;
@@ -436,4 +459,76 @@ export interface BodegaProyectoResponse {
   bodega: Bodega | null;
   stock: StockMaterial[];
   movimientos: MovimientoBodega[];
+}
+
+// Material.individualizado (Perfileria/Refuerzos/Vidrios): se compra y
+// consume por unidad completa, sin cortes ni remanentes -- ver
+// docs/MODELO-DE-DATOS.md seccion 9 en mtw-api.
+export type EstadoUnidadMaterial = 'DISPONIBLE' | 'CONSUMIDA' | 'DEFECTUOSA' | 'DEVUELTA_PROVEEDOR';
+
+export interface UnidadMaterial {
+  id: string;
+  codigo: string;
+  estado: EstadoUnidadMaterial;
+  creadoEn: string;
+  ordenCompraId: string | null;
+  ordenCompraNumero: string | null;
+  solicitudId: string | null;
+}
+
+export interface UnidadesMaterialResponse {
+  material: { id: string; descripcion: string; familia: string };
+  unidades: UnidadMaterial[];
+}
+
+export type EstadoConciliacionFactura = 'PENDIENTE' | 'CUADRA' | 'DIFERENCIA';
+
+// Vinculo confirmado a una factura RECIBIDA real que vive en Clay (no en
+// mtw-api) -- ver docs/MODELO-DE-DATOS.md seccion 9 "Integracion con
+// Clay". montoFactura/pagada/montoPagado son un cache de lo que Clay
+// contestaba al vincular o al ultimo refresco (sincronizadoEn).
+export interface ConciliacionFactura {
+  id: string;
+  ordenCompraId: string;
+  clayTransactionId: string;
+  folio: string;
+  proveedorRutEmisor: string;
+  fechaFactura: string | null;
+  montoFactura: number;
+  estadoCuadre: EstadoConciliacionFactura;
+  pagada: boolean;
+  montoPagado: number;
+  sincronizadoEn: string;
+  vinculadoPorId: string | null;
+  fechaVinculacion: string | null;
+  notas: string | null;
+  creadoEn: string;
+}
+
+// Contraparte (emisor/receptor) de un documento de Clay.
+export interface ClayContraparte {
+  rut: string;
+  dv: string;
+  company_name: string;
+}
+
+// Subconjunto de un documento de GET /v2/obligations/dte que trae
+// GET /api/ordenes-compra/:id/facturas-sugeridas -- ver ClayDteItem en
+// mtw-api/src/clay-client.ts.
+export interface ClayDteItem {
+  id: string;
+  issue_date: string;
+  number: string;
+  sii_code: number;
+  issuer: ClayContraparte;
+  is_received: boolean;
+  is_paid: boolean;
+  outstanding_balance: number;
+  total: { net: number; exempt: number; vat: number; total: number };
+}
+
+export interface FacturaSugerida {
+  factura: ClayDteItem;
+  diferenciaVsOC: number;
+  cuadra: boolean;
 }

@@ -5,7 +5,7 @@ import { Header } from './components/layout/Header';
 import { InicioPage } from './modules/inicio/InicioPage';
 import { CotizacionesPage } from './modules/cotizaciones/CotizacionesPage';
 import { ConfiguracionPage } from './modules/configuracion/ConfiguracionPage';
-import { AbastecimientoPage } from './modules/abastecimiento/AbastecimientoPage';
+import { ProyectosPage } from './modules/proyectos/ProyectosPage';
 import { getProyectos } from './api/client';
 import { useCloudflareAccessSession, SessionContext } from './lib/useCloudflareAccessSession';
 
@@ -23,7 +23,7 @@ import { ScrollToTop } from './components/ui/ScrollToTop';
 const MODULE_TITLES: Record<string, string> = {
   inicio: 'Inicio',
   cotizaciones: 'Cotizaciones',
-  abastecimiento: 'Abastecimiento',
+  proyectos: 'Proyectos',
   taller: 'Taller & Fabricación',
   configuracion: 'Configuración',
 };
@@ -81,7 +81,7 @@ const AppContent: React.FC = () => {
             />
           )}
 
-          {activeTab === 'abastecimiento' && <AbastecimientoPage />}
+          {activeTab === 'proyectos' && <ProyectosPage />}
 
           {activeTab === 'configuracion' && <ConfiguracionPage />}
 

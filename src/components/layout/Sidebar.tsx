@@ -2,7 +2,7 @@ import React from 'react';
 import {
   LayoutDashboard,
   Building2,
-  ShoppingCart,
+  FolderKanban,
   Hammer,
   Settings,
   X,
@@ -29,9 +29,9 @@ export const Sidebar: React.FC<{
       count: totalProyectos,
     },
     {
-      id: 'abastecimiento',
-      label: 'Abastecimiento',
-      icon: ShoppingCart,
+      id: 'proyectos',
+      label: 'Proyectos',
+      icon: FolderKanban,
     },
     {
       id: 'taller',

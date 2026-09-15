@@ -84,6 +84,7 @@ export const NuevoMaterialModal: React.FC<NuevoMaterialModalProps> = ({
           descripcion: data.descripcion.trim(),
           familia: data.familia,
           unidadMedida: data.unidadMedida,
+          individualizado: false,
           monedaOrigen: data.monedaOrigen,
           precioOrigen: isNaN(precioNum as number) ? null : precioNum,
           proveedorId: null,

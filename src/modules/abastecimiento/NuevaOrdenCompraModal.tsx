@@ -5,6 +5,22 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { createOrdenCompra, getProyectos, getProveedores } from '../../api/client';
+import type { CategoriaGasto } from '../../types';
+
+// Mismo dominio que CategoriaGasto en mtw-api -- este formulario solo crea
+// partidas externas (sin materialId, ver ItemForm), asi que "categoria" es
+// siempre obligatoria y a mano: no hay material del que derivarla.
+const CATEGORIA_OPTIONS: { value: CategoriaGasto; label: string }[] = [
+  { value: 'PERFILERIA', label: 'Perfilería' },
+  { value: 'HERRAJES', label: 'Herrajes' },
+  { value: 'VIDRIOS', label: 'Vidrios' },
+  { value: 'ACCESORIOS', label: 'Accesorios' },
+  { value: 'REFUERZOS', label: 'Refuerzos' },
+  { value: 'MANO_DE_OBRA', label: 'Mano de obra' },
+  { value: 'FLETE', label: 'Flete' },
+  { value: 'INSTALACION', label: 'Instalación' },
+  { value: 'OTROS', label: 'Otros' },
+];
 
 interface NuevaOrdenCompraModalProps {
   isOpen: boolean;
@@ -20,9 +36,10 @@ interface ItemForm {
   unidadMedida: string;
   cantidad: string;
   precioUnitario: string;
+  categoria: CategoriaGasto | '';
 }
 
-const itemVacio = (): ItemForm => ({ descripcion: '', unidadMedida: 'UN', cantidad: '', precioUnitario: '' });
+const itemVacio = (): ItemForm => ({ descripcion: '', unidadMedida: 'UN', cantidad: '', precioUnitario: '', categoria: '' });
 
 export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   isOpen,
@@ -58,6 +75,9 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
       if (itemsValidos.length === 0) {
         throw new Error('Agrega al menos un item con descripción, cantidad y precio.');
       }
+      if (itemsValidos.some((i) => !i.categoria)) {
+        throw new Error('Elige una categoría para cada item -- sirve para el Control de Presupuesto.');
+      }
       return createOrdenCompra({
         proyectoId,
         proveedorId,
@@ -67,6 +87,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
           unidadMedida: i.unidadMedida || 'UN',
           cantidad: parseFloat(i.cantidad),
           precioUnitario: parseFloat(i.precioUnitario),
+          categoria: i.categoria as CategoriaGasto,
         })),
       });
     },
@@ -184,42 +205,45 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
 
             <div className="space-y-2">
               {items.map((item, index) => (
-                <div key={index} className="grid grid-cols-12 gap-2 items-start p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                  <div className="col-span-12 sm:col-span-5">
-                    <Input
-                      placeholder="Descripción"
-                      value={item.descripcion}
-                      onChange={(e) => setItemField(index, 'descripcion', e.target.value)}
-                    />
+                <div key={index} className="space-y-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="flex gap-2 items-start">
+                    <div className="flex-1">
+                      <Input
+                        placeholder="Descripción"
+                        value={item.descripcion}
+                        onChange={(e) => setItemField(index, 'descripcion', e.target.value)}
+                      />
+                    </div>
+                    <div className="w-44 shrink-0">
+                      <Select
+                        options={[{ value: '', label: 'Categoría...' }, ...CATEGORIA_OPTIONS]}
+                        value={item.categoria}
+                        onChange={(e) => setItemField(index, 'categoria', e.target.value as CategoriaGasto)}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => quitarItem(index)}
+                      disabled={items.length === 1}
+                      className="w-9 h-9 mt-0.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors disabled:opacity-30 disabled:pointer-events-none shrink-0"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  <div className="col-span-4 sm:col-span-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <Input placeholder="Unidad" value={item.unidadMedida} onChange={(e) => setItemField(index, 'unidadMedida', e.target.value)} />
-                  </div>
-                  <div className="col-span-4 sm:col-span-2">
                     <Input
                       type="number"
                       placeholder="Cantidad"
                       value={item.cantidad}
                       onChange={(e) => setItemField(index, 'cantidad', e.target.value)}
                     />
-                  </div>
-                  <div className="col-span-4 sm:col-span-2">
                     <Input
                       type="number"
                       placeholder="Precio unit."
                       value={item.precioUnitario}
                       onChange={(e) => setItemField(index, 'precioUnitario', e.target.value)}
                     />
-                  </div>
-                  <div className="col-span-12 sm:col-span-1 flex sm:justify-center">
-                    <button
-                      type="button"
-                      onClick={() => quitarItem(index)}
-                      disabled={items.length === 1}
-                      className="w-8 h-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors disabled:opacity-30 disabled:pointer-events-none"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
                   </div>
                 </div>
               ))}

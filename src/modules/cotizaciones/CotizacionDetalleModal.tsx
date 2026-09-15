@@ -7,26 +7,21 @@ import {
   Layers,
   DollarSign,
   Boxes,
-  FileText,
-  ShoppingCart,
-  Warehouse,
 } from 'lucide-react';
 import { getProyectoById } from '../../api/client';
 import { formatNumber } from '../../lib/utils';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import type { Ventana } from '../../types';
-import { OrdenesCompraList } from '../abastecimiento/OrdenesCompraList';
-import { BodegaProyectoTab } from '../abastecimiento/BodegaProyectoTab';
 
-type TabFicha = 'presupuesto' | 'oc' | 'bodega';
-
+// OC, Bodega y Control de Presupuesto viven en el modulo Proyectos (ver
+// modules/proyectos/ProyectoWorkspace.tsx), no aca -- esta ficha es solo
+// Cotizaciones: el despiece de ventanas y cotas de una version HETMO.
 export const CotizacionDetalleModal: React.FC<{
   proyectoId: string | null;
   onClose: () => void;
 }> = ({ proyectoId, onClose }) => {
   const [selectedVersionIdx, setSelectedVersionIdx] = useState(0);
-  const [tab, setTab] = useState<TabFicha>('presupuesto');
 
   const { data: proyecto, isLoading } = useQuery({
     queryKey: ['proyectoDetail', proyectoId],
@@ -38,12 +33,6 @@ export const CotizacionDetalleModal: React.FC<{
 
   const version = proyecto?.versiones[selectedVersionIdx] || proyecto?.versiones[0];
   const ventanas: Ventana[] = version?.ventanas || [];
-
-  const TABS: { id: TabFicha; label: string; icon: React.ReactNode }[] = [
-    { id: 'presupuesto', label: 'Presupuesto', icon: <FileText className="w-3.5 h-3.5" /> },
-    { id: 'oc', label: 'Órdenes de Compra', icon: <ShoppingCart className="w-3.5 h-3.5" /> },
-    { id: 'bodega', label: 'Bodega', icon: <Warehouse className="w-3.5 h-3.5" /> },
-  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
@@ -84,35 +73,8 @@ export const CotizacionDetalleModal: React.FC<{
           </button>
         </div>
 
-        {/* Tabs de la ficha -- el proyecto es el hub: presupuesto, OC y
-            bodega viven todos acá, no en pantallas separadas sin contexto. */}
-        <div className="px-4 sm:px-6 border-b border-slate-100 bg-white flex items-center gap-1 shrink-0 overflow-x-auto">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-3.5 py-3 text-xs font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
-                tab === t.id
-                  ? 'border-[#E34A26] text-[#E34A26]'
-                  : 'border-transparent text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              {t.icon}
-              {t.label}
-            </button>
-          ))}
-        </div>
-
         {/* Modal Body */}
-        {tab === 'oc' ? (
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-            <OrdenesCompraList proyectoId={proyectoId} proyectoLabel={proyecto?.obra} />
-          </div>
-        ) : tab === 'bodega' ? (
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-            <BodegaProyectoTab proyectoId={proyectoId} />
-          </div>
-        ) : isLoading ? (
+        {isLoading ? (
           <div className="p-12 flex flex-col items-center justify-center gap-3 text-slate-500">
             <div className="w-8 h-8 border-2 border-[#E34A26] border-t-transparent rounded-full animate-spin"></div>
             <span className="text-xs font-mono">Cargando desglose de ventanas y cotas...</span>
