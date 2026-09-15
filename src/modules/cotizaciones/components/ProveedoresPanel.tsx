@@ -6,6 +6,7 @@ import { TableSkeleton } from '../../../components/ui/Skeleton';
 import { Badge } from '../../../components/ui/Badge';
 import type { Proveedor } from '../../../types';
 import { ProveedorEditModal } from './ProveedorEditModal';
+import { useMediaQuery } from '../../../lib/useMediaQuery';
 
 /**
  * Maestro de Proveedores: quién es cada proveedor y sus datos de
@@ -17,6 +18,9 @@ import { ProveedorEditModal } from './ProveedorEditModal';
 export const ProveedoresPanel: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [editando, setEditando] = useState<Proveedor | null>(null);
+  // Monta sólo la vista de escritorio o la de mobile, nunca las dos -- ver
+  // useMediaQuery.ts (mismo patrón que MaestroProductos y CotizacionesPage).
+  const isDesktop = useMediaQuery('(min-width: 768px)');
 
   const { data, isLoading, isError, refetch } = useQuery<Proveedor[]>({
     queryKey: ['proveedores'],
@@ -79,48 +83,99 @@ export const ProveedoresPanel: React.FC = () => {
           <h3 className="text-sm font-bold text-slate-800">No se encontraron proveedores</h3>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-xs text-slate-700">
-              <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
-                <tr>
-                  <th className="px-5 py-3.5">Nombre</th>
-                  <th className="px-5 py-3.5">Origen</th>
-                  <th className="px-5 py-3.5">RUT</th>
-                  <th className="px-5 py-3.5">Email</th>
-                  <th className="px-5 py-3.5">Condiciones de Pago</th>
-                  <th className="px-5 py-3.5 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filtrados.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-5 py-3.5 font-semibold text-slate-900">{p.nombre}</td>
-                    <td className="px-5 py-3.5">
-                      {p.codigoHetmo != null ? (
-                        <Badge variant="info" size="sm">HETMO</Badge>
-                      ) : (
-                        <Badge variant="default" size="sm">Manual</Badge>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5 text-slate-600">{p.rut || <span className="text-slate-300">—</span>}</td>
-                    <td className="px-5 py-3.5 text-slate-600">{p.email || <span className="text-slate-300">—</span>}</td>
-                    <td className="px-5 py-3.5 text-slate-600">{p.condicionesPago || <span className="text-slate-300">—</span>}</td>
-                    <td className="px-5 py-3.5 text-right">
-                      <button
-                        onClick={() => setEditando(p)}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:text-[#E34A26] hover:bg-orange-50 transition-colors cursor-pointer"
-                      >
-                        <Pencil className="w-3 h-3" />
-                        <span>Editar</span>
-                      </button>
-                    </td>
+        <>
+          {/* 1. VISTA TABLA AUTOMÁTICA EN DESKTOP/TABLET (System-Wide) */}
+          {isDesktop && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-left text-xs text-slate-700">
+                <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
+                  <tr>
+                    <th className="px-5 py-3.5">Nombre</th>
+                    <th className="px-5 py-3.5">Origen</th>
+                    <th className="px-5 py-3.5">RUT</th>
+                    <th className="px-5 py-3.5">Email</th>
+                    <th className="px-5 py-3.5">Condiciones de Pago</th>
+                    <th className="px-5 py-3.5 text-right">Acciones</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filtrados.map((p) => (
+                    <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-5 py-3.5 font-semibold text-slate-900">{p.nombre}</td>
+                      <td className="px-5 py-3.5">
+                        {p.codigoHetmo != null ? (
+                          <Badge variant="info" size="sm">HETMO</Badge>
+                        ) : (
+                          <Badge variant="default" size="sm">Manual</Badge>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5 text-slate-600">{p.rut || <span className="text-slate-300">—</span>}</td>
+                      <td className="px-5 py-3.5 text-slate-600">{p.email || <span className="text-slate-300">—</span>}</td>
+                      <td className="px-5 py-3.5 text-slate-600">{p.condicionesPago || <span className="text-slate-300">—</span>}</td>
+                      <td className="px-5 py-3.5 text-right">
+                        <button
+                          onClick={() => setEditando(p)}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:text-[#E34A26] hover:bg-orange-50 transition-colors cursor-pointer"
+                        >
+                          <Pencil className="w-3 h-3" />
+                          <span>Editar</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+          )}
+
+          {/* 2. VISTA TARJETAS AUTOMÁTICA EN MÓVILES (System-Wide por defecto) */}
+          {!isDesktop && (
+          <div className="space-y-3">
+            {filtrados.map((p) => (
+              <div
+                key={p.id}
+                className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2.5"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <h4 className="text-xs font-bold text-slate-900 leading-snug">{p.nombre}</h4>
+                  {p.codigoHetmo != null ? (
+                    <Badge variant="info" size="sm">HETMO</Badge>
+                  ) : (
+                    <Badge variant="default" size="sm">Manual</Badge>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
+                  <div>
+                    <span className="text-slate-400">RUT:</span>{' '}
+                    <span className="font-semibold text-slate-700">{p.rut || '—'}</span>
+                  </div>
+                  <div className="truncate">
+                    <span className="text-slate-400">Email:</span>{' '}
+                    <span className="font-semibold text-slate-700">{p.email || '—'}</span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-slate-400">Condiciones de Pago:</span>{' '}
+                    <span className="font-semibold text-slate-700">{p.condicionesPago || '—'}</span>
+                  </div>
+                </div>
+
+                <div className="pt-2.5 border-t border-slate-100 flex justify-end">
+                  <button
+                    onClick={() => setEditando(p)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-[#E34A26] hover:bg-orange-50 transition-colors cursor-pointer"
+                  >
+                    <Pencil className="w-3 h-3" />
+                    <span>Editar</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          )}
+        </>
       )}
 
       {editando && <ProveedorEditModal proveedor={editando} onClose={() => setEditando(null)} />}
