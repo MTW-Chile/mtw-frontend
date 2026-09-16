@@ -56,6 +56,7 @@ export interface Material {
   descripcion: string;
   familia: string;
   unidadMedida: string;
+  individualizado: boolean;
   precioOrigen?: number | null;
   monedaOrigen?: string | null;
   precios?: PrecioHistorial[];
@@ -345,4 +346,238 @@ export interface SyncLog {
   versionesUpd: number;
   detalles: string | null;
   errorMensaje: string | null;
+}
+
+// ==========================================
+// ABASTECIMIENTO: ORDENES DE COMPRA Y BODEGA
+// ==========================================
+// Ver mtw-api prisma/schema.prisma seccion 9 para el diagrama de estados.
+export type EstadoOC =
+  | 'BORRADOR'
+  | 'PENDIENTE_APROBACION'
+  | 'APROBADA'
+  | 'RECHAZADA'
+  | 'ENVIADA'
+  | 'RECIBIDA_PARCIAL'
+  | 'RECIBIDA_TOTAL'
+  | 'CONCILIADA'
+  | 'CANCELADA';
+
+export type CategoriaGasto =
+  | 'PERFILERIA'
+  | 'HERRAJES'
+  | 'VIDRIOS'
+  | 'ACCESORIOS'
+  | 'REFUERZOS'
+  | 'MANO_DE_OBRA'
+  | 'FLETE'
+  | 'INSTALACION'
+  | 'OTROS';
+
+export interface OrdenCompraItem {
+  id: string;
+  ordenCompraId: string;
+  materialId: string | null;
+  material?: Material | null;
+  descripcion: string;
+  unidadMedida: string;
+  // Snapshot al crear el item -- automatica desde material.familia si hay
+  // materialId, obligatoria a mano si es partida externa (ver
+  // categoriaDesdeFamiliaMaterial en mtw-api).
+  categoria: CategoriaGasto;
+  cantidad: number;
+  precioUnitario: number;
+  recepciones?: RecepcionOCItem[];
+}
+
+export interface RecepcionOCItem {
+  id: string;
+  recepcionId: string;
+  ordenCompraItemId: string;
+  cantidadRecibida: number;
+}
+
+export interface RecepcionOC {
+  id: string;
+  ordenCompraId: string;
+  fechaRecepcion: string;
+  guiaDespachoNumero: string | null;
+  recibidoPorId: string | null;
+  recibidoPor?: { id: string; nombre: string; email: string } | null;
+  notas: string | null;
+  items: RecepcionOCItem[];
+}
+
+export interface OrdenCompra {
+  id: string;
+  numero: string;
+  proyectoId: string;
+  proyecto?: Pick<Proyecto, 'id' | 'obra' | 'codigoInterno'>;
+  faseId: string | null;
+  fase?: { id: string; nombre: string; numeroFase?: number } | null;
+  proveedorId: string;
+  proveedor?: Proveedor;
+  estado: EstadoOC;
+  requiereAprobacion: boolean;
+  moneda: string;
+  fechaCalendarizada: string | null;
+  fechaEnvio: string | null;
+  creadoPorId: string | null;
+  aprobadoPorId: string | null;
+  fechaAprobacion: string | null;
+  motivoRechazo: string | null;
+  items: OrdenCompraItem[];
+  recepciones?: RecepcionOC[];
+  conciliaciones?: ConciliacionFactura[];
+  creadoEn: string;
+  actualizadoEn: string;
+}
+
+export interface OrdenesCompraResponse {
+  total: number;
+  page: number;
+  limit: number;
+  data: OrdenCompra[];
+}
+
+export type EstadoSolicitudMaterial = 'GENERADA' | 'PENDIENTE_APROBACION_GERENCIA' | 'APROBADA' | 'RECHAZADA' | 'ENTREGADA';
+
+export interface SolicitudMaterialItem {
+  id: string;
+  solicitudId: string;
+  materialId: string;
+  material?: Material;
+  cantidadSolicitada: number;
+  cantidadEntregada: number;
+}
+
+export interface SolicitudMaterial {
+  id: string;
+  faseId: string;
+  fase?: { id: string; nombre: string; versionId: string };
+  estado: EstadoSolicitudMaterial;
+  solicitadoPorId: string | null;
+  fechaSolicitud: string;
+  revisadoPorId: string | null;
+  fechaRevision: string | null;
+  notas: string | null;
+  items: SolicitudMaterialItem[];
+}
+
+export interface Bodega {
+  id: string;
+  proyectoId: string;
+  nombre: string;
+  activa: boolean;
+  creadoEn: string;
+  actualizadoEn: string;
+}
+
+export interface StockMaterial {
+  id: string;
+  bodegaId: string;
+  materialId: string;
+  material: Material;
+  cantidad: number;
+  actualizadoEn: string;
+}
+
+export type TipoMovimientoBodega =
+  | 'INGRESO_OC'
+  | 'SALIDA_OBRA'
+  | 'TRASLADO_ENTRADA'
+  | 'TRASLADO_SALIDA'
+  | 'AJUSTE_POSITIVO'
+  | 'AJUSTE_NEGATIVO';
+
+export interface MovimientoBodega {
+  id: string;
+  bodegaId: string;
+  bodegaDestinoId: string | null;
+  materialId: string;
+  material: Material;
+  tipo: TipoMovimientoBodega;
+  cantidad: number;
+  documentoReferencia: string | null;
+  notas: string | null;
+  creadoPor?: { id: string; nombre: string; email: string } | null;
+  creadoEn: string;
+}
+
+export interface BodegaProyectoResponse {
+  bodega: Bodega | null;
+  stock: StockMaterial[];
+  movimientos: MovimientoBodega[];
+}
+
+// Material.individualizado (Perfileria/Refuerzos/Vidrios): se compra y
+// consume por unidad completa, sin cortes ni remanentes -- ver
+// docs/MODELO-DE-DATOS.md seccion 9 en mtw-api.
+export type EstadoUnidadMaterial = 'DISPONIBLE' | 'CONSUMIDA' | 'DEFECTUOSA' | 'DEVUELTA_PROVEEDOR';
+
+export interface UnidadMaterial {
+  id: string;
+  codigo: string;
+  estado: EstadoUnidadMaterial;
+  creadoEn: string;
+  ordenCompraId: string | null;
+  ordenCompraNumero: string | null;
+  solicitudId: string | null;
+}
+
+export interface UnidadesMaterialResponse {
+  material: { id: string; descripcion: string; familia: string };
+  unidades: UnidadMaterial[];
+}
+
+export type EstadoConciliacionFactura = 'PENDIENTE' | 'CUADRA' | 'DIFERENCIA';
+
+// Vinculo confirmado a una factura RECIBIDA real que vive en Clay (no en
+// mtw-api) -- ver docs/MODELO-DE-DATOS.md seccion 9 "Integracion con
+// Clay". montoFactura/pagada/montoPagado son un cache de lo que Clay
+// contestaba al vincular o al ultimo refresco (sincronizadoEn).
+export interface ConciliacionFactura {
+  id: string;
+  ordenCompraId: string;
+  clayTransactionId: string;
+  folio: string;
+  proveedorRutEmisor: string;
+  fechaFactura: string | null;
+  montoFactura: number;
+  estadoCuadre: EstadoConciliacionFactura;
+  pagada: boolean;
+  montoPagado: number;
+  sincronizadoEn: string;
+  vinculadoPorId: string | null;
+  fechaVinculacion: string | null;
+  notas: string | null;
+  creadoEn: string;
+}
+
+// Contraparte (emisor/receptor) de un documento de Clay.
+export interface ClayContraparte {
+  rut: string;
+  dv: string;
+  company_name: string;
+}
+
+// Subconjunto de un documento de GET /v2/obligations/dte que trae
+// GET /api/ordenes-compra/:id/facturas-sugeridas -- ver ClayDteItem en
+// mtw-api/src/clay-client.ts.
+export interface ClayDteItem {
+  id: string;
+  issue_date: string;
+  number: string;
+  sii_code: number;
+  issuer: ClayContraparte;
+  is_received: boolean;
+  is_paid: boolean;
+  outstanding_balance: number;
+  total: { net: number; exempt: number; vat: number; total: number };
+}
+
+export interface FacturaSugerida {
+  factura: ClayDteItem;
+  diferenciaVsOC: number;
+  cuadra: boolean;
 }

@@ -16,6 +16,16 @@ import type {
   Material,
   Proveedor,
   PlantillaLinea,
+  OrdenCompra,
+  OrdenesCompraResponse,
+  EstadoOC,
+  RecepcionOC,
+  SolicitudMaterial,
+  BodegaProyectoResponse,
+  UnidadesMaterialResponse,
+  ConciliacionFactura,
+  FacturaSugerida,
+  CategoriaGasto,
 } from '../types';
 
 // withCredentials: true es lo que hace que el navegador mande la cookie de
@@ -189,9 +199,13 @@ export async function updateEstadoAprobacion(
 export async function createFase(
   versionId: string,
   payload: {
-    numeroFase: number;
+    // Opcional: si no se manda, el backend usa el siguiente correlativo
+    // disponible (nunca 0, reservado para la Fase Base del sync).
+    numeroFase?: number;
     nombre: string;
     descripcion?: string;
+    fechaInicio?: string;
+    fechaEntrega?: string;
     ventanas: { ventanaId: string; unidades: number; notas?: string }[];
   }
 ): Promise<{ success: boolean; fase: Fase }> {
@@ -199,6 +213,29 @@ export async function createFase(
     `/versiones/${versionId}/fases`,
     payload
   );
+  return response.data;
+}
+
+// Edita nombre/estado/fechas de una fase existente y, si se manda
+// "ventanas", reemplaza por completo su reparto de unidades (no es un
+// merge -- manda la lista completa de lo que esa fase debe tener).
+export async function updateFase(
+  faseId: string,
+  payload: {
+    nombre?: string;
+    descripcion?: string;
+    estado?: Fase['estado'];
+    fechaInicio?: string | null;
+    fechaEntrega?: string | null;
+    ventanas?: { ventanaId: string; unidades: number; notas?: string }[];
+  }
+): Promise<{ success: boolean; fase: Fase }> {
+  const response = await apiClient.patch<{ success: boolean; fase: Fase }>(`/fases/${faseId}`, payload);
+  return response.data;
+}
+
+export async function deleteFase(faseId: string): Promise<{ success: boolean }> {
+  const response = await apiClient.delete<{ success: boolean }>(`/fases/${faseId}`);
   return response.data;
 }
 
@@ -428,6 +465,141 @@ export async function updateVentanaCorreccionGeometria(
     `/ventanas/${ventanaId}/correccion-geometria`,
     { correccion }
   );
+  return response.data;
+}
+
+// ==========================================
+// ABASTECIMIENTO: ORDENES DE COMPRA Y BODEGA
+// ==========================================
+export async function getOrdenesCompra(params?: {
+  proyectoId?: string;
+  estado?: EstadoOC;
+  proveedorId?: string;
+  limit?: number;
+  page?: number;
+}): Promise<OrdenesCompraResponse> {
+  const response = await apiClient.get<OrdenesCompraResponse>('/ordenes-compra', { params });
+  return response.data;
+}
+
+export async function getOrdenCompraById(id: string): Promise<OrdenCompra> {
+  const response = await apiClient.get<OrdenCompra>(`/ordenes-compra/${id}`);
+  return response.data;
+}
+
+export async function createOrdenCompra(payload: {
+  proyectoId: string;
+  faseId?: string | null;
+  proveedorId: string;
+  requiereAprobacion?: boolean;
+  moneda?: string;
+  fechaCalendarizada?: string | null;
+  items: {
+    materialId?: string | null;
+    descripcion: string;
+    unidadMedida?: string;
+    cantidad: number;
+    precioUnitario: number;
+    // Obligatoria solo cuando el item no tiene materialId (partida
+    // externa) -- con materialId, mtw-api la deriva sola de la familia.
+    categoria?: CategoriaGasto;
+  }[];
+}): Promise<{ success: boolean; ordenCompra: OrdenCompra }> {
+  const response = await apiClient.post<{ success: boolean; ordenCompra: OrdenCompra }>('/ordenes-compra', payload);
+  return response.data;
+}
+
+export async function updateOrdenCompraEstado(
+  id: string,
+  estado: EstadoOC,
+  motivoRechazo?: string
+): Promise<{ success: boolean; ordenCompra: OrdenCompra }> {
+  const response = await apiClient.patch<{ success: boolean; ordenCompra: OrdenCompra }>(`/ordenes-compra/${id}/estado`, {
+    estado,
+    motivoRechazo,
+  });
+  return response.data;
+}
+
+export async function registrarRecepcionOC(
+  ordenCompraId: string,
+  payload: { guiaDespachoNumero?: string; notas?: string; items: { ordenCompraItemId: string; cantidadRecibida: number }[] }
+): Promise<{ success: boolean; recepcion: RecepcionOC; ordenCompra: OrdenCompra }> {
+  const response = await apiClient.post<{ success: boolean; recepcion: RecepcionOC; ordenCompra: OrdenCompra }>(
+    `/ordenes-compra/${ordenCompraId}/recepciones`,
+    payload
+  );
+  return response.data;
+}
+
+export async function getBodegaProyecto(proyectoId: string): Promise<BodegaProyectoResponse> {
+  const response = await apiClient.get<BodegaProyectoResponse>(`/proyectos/${proyectoId}/bodega`);
+  return response.data;
+}
+
+export async function getUnidadesMaterial(bodegaId: string, materialId: string): Promise<UnidadesMaterialResponse> {
+  const response = await apiClient.get<UnidadesMaterialResponse>(`/bodega/${bodegaId}/materiales/${materialId}/unidades`);
+  return response.data;
+}
+
+export async function getSolicitudesMaterial(params?: {
+  faseId?: string;
+  proyectoId?: string;
+  estado?: string;
+}): Promise<{ data: SolicitudMaterial[] }> {
+  const response = await apiClient.get<{ data: SolicitudMaterial[] }>('/solicitudes-material', { params });
+  return response.data;
+}
+
+// Facturas recibidas en Clay para el proveedor de esta OC, sugeridas por
+// cercania de monto -- no un match automatico, la persona confirma cual
+// es con vincularFactura(). Falla con el error de mtw-api si el proveedor
+// no tiene RUT cargado (necesario para buscar en Clay).
+export async function getFacturasSugeridas(ordenCompraId: string): Promise<{ totalOC: number; sugeridas: FacturaSugerida[] }> {
+  const response = await apiClient.get(`/ordenes-compra/${ordenCompraId}/facturas-sugeridas`);
+  return response.data;
+}
+
+export async function vincularFactura(
+  ordenCompraId: string,
+  payload: { clayTransactionId: string; notas?: string }
+): Promise<{ success: boolean; conciliacion: ConciliacionFactura; totalOC: number }> {
+  const response = await apiClient.post(`/ordenes-compra/${ordenCompraId}/facturas`, payload);
+  return response.data;
+}
+
+// Re-consulta esa factura en Clay y actualiza pagada/montoPagado -- nada
+// dispara esto automaticamente todavia (sin cron ni webhook), es accion
+// manual.
+export async function refrescarConciliacion(conciliacionId: string): Promise<{ success: boolean; conciliacion: ConciliacionFactura }> {
+  const response = await apiClient.post(`/conciliaciones/${conciliacionId}/refrescar`);
+  return response.data;
+}
+
+export async function createSolicitudMaterial(
+  faseId: string,
+  payload: { items: { materialId: string; cantidadSolicitada: number }[]; notas?: string }
+): Promise<{ success: boolean; solicitud: SolicitudMaterial }> {
+  const response = await apiClient.post<{ success: boolean; solicitud: SolicitudMaterial }>(
+    `/fases/${faseId}/solicitudes-material`,
+    payload
+  );
+  return response.data;
+}
+
+export async function entregarSolicitudMaterial(
+  id: string
+): Promise<{ success: boolean; entregada: boolean; solicitud: SolicitudMaterial; faltantes?: any[] }> {
+  const response = await apiClient.post(`/solicitudes-material/${id}/entregar`);
+  return response.data;
+}
+
+export async function aprobarGerenciaSolicitud(
+  id: string,
+  aprobado: boolean,
+  notas?: string
+): Promise<{ success: boolean; solicitud: SolicitudMaterial }> {
+  const response = await apiClient.patch(`/solicitudes-material/${id}/aprobar-gerencia`, { aprobado, notas });
   return response.data;
 }
 

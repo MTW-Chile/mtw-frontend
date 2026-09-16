@@ -92,7 +92,6 @@ export const NuevoMaterialModal: React.FC<NuevoMaterialModalProps> = ({
   const mutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const precioNum = data.precioOrigen ? parseFloat(data.precioOrigen) : null;
-
       let proveedorId: string | null = data.proveedorId || null;
       if (data.proveedorId === NUEVO_PROVEEDOR_VALUE) {
         const nombre = data.proveedorNuevoNombre.trim();

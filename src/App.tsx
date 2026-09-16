@@ -6,6 +6,7 @@ import { InicioPage } from './modules/inicio/InicioPage';
 import { CotizacionesPage } from './modules/cotizaciones/CotizacionesPage';
 import { MaestroPage } from './modules/cotizaciones/MaestroPage';
 import { ConfiguracionPage } from './modules/configuracion/ConfiguracionPage';
+import { ProyectosPage } from './modules/proyectos/ProyectosPage';
 import { getProyectos } from './api/client';
 import { useCloudflareAccessSession, SessionContext } from './lib/useCloudflareAccessSession';
 
@@ -24,6 +25,7 @@ const MODULE_TITLES: Record<string, string> = {
   inicio: 'Inicio',
   maestro: 'Maestro de Materiales',
   cotizaciones: 'Cotizaciones',
+  proyectos: 'Proyectos',
   taller: 'Taller & Fabricación',
   configuracion: 'Configuración',
 };
@@ -82,6 +84,8 @@ const AppContent: React.FC = () => {
               onSearchChange={setSearchTerm}
             />
           )}
+
+          {activeTab === 'proyectos' && <ProyectosPage />}
 
           {activeTab === 'configuracion' && <ConfiguracionPage />}
 

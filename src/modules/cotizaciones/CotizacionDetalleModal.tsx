@@ -14,6 +14,9 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import type { Ventana } from '../../types';
 
+// OC, Bodega y Control de Presupuesto viven en el modulo Proyectos (ver
+// modules/proyectos/ProyectoWorkspace.tsx), no aca -- esta ficha es solo
+// Cotizaciones: el despiece de ventanas y cotas de una version HETMO.
 export const CotizacionDetalleModal: React.FC<{
   proyectoId: string | null;
   onClose: () => void;

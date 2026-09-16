@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Boxes,
   Building2,
+  FolderKanban,
   Hammer,
   Settings,
   X,
@@ -32,6 +33,11 @@ export const Sidebar: React.FC<{
       label: 'Cotizaciones',
       icon: Building2,
       count: totalProyectos,
+    },
+    {
+      id: 'proyectos',
+      label: 'Proyectos',
+      icon: FolderKanban,
     },
     {
       id: 'taller',

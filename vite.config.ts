@@ -13,7 +13,10 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'https://mtw-relay-api-production.up.railway.app',
+        // Dev local: apunta al mtw-api que corre en localhost:4000 (con
+        // DISABLE_CF_ACCESS_LOCAL_DEV=true). Para probar contra produccion,
+        // cambiar temporalmente a https://mtw-relay-api-production.up.railway.app
+        target: 'http://localhost:4000',
         changeOrigin: true,
         secure: false,
       },
