@@ -241,6 +241,10 @@ export interface Ventana {
   // prisma/schema.prisma.
   origen?: string;
   tipoLineaManual?: 'DVH_FIJO' | 'PROTEX' | null;
+  // Espejar el dibujo horizontalmente, de forma permanente -- ajuste
+  // manual para ventanas que HETMO entrega "al revés" sin ningún campo de
+  // posición izquierda/derecha confiable para detectarlo solo.
+  espejado?: boolean;
 }
 
 export interface PlantillaLineaItem {

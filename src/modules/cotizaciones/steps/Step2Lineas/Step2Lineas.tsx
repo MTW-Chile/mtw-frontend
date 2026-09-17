@@ -9,7 +9,7 @@ import {
   Plus
 } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
-import { renderPdf, eliminarLineaManual } from '../../../../api/client';
+import { renderPdf, eliminarLineaManual, espejarVentana } from '../../../../api/client';
 import type { Proyecto, ProyectoVersion, Ventana } from '../../../../types';
 import { VentanaCard } from './VentanaCard';
 import { CorrectorCorrederaModal } from './CorrectorCorrederaModal';
@@ -34,6 +34,7 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
   const [ventanasOverrides, setVentanasOverrides] = useState<Record<string, Ventana>>({});
   const [showAgregarLinea, setShowAgregarLinea] = useState(false);
   const [eliminandoLineaId, setEliminandoLineaId] = useState<string | null>(null);
+  const [espejandoLineaId, setEspejandoLineaId] = useState<string | null>(null);
 
   const ventanas = useMemo<Ventana[]>(() => {
     const list = activeVersion?.ventanas || [];
@@ -68,6 +69,18 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
       window.alert('No se pudo quitar la línea. Intenta de nuevo.');
     } finally {
       setEliminandoLineaId(null);
+    }
+  };
+
+  const handleEspejarVentana = async (ventana: Ventana) => {
+    setEspejandoLineaId(ventana.id);
+    try {
+      const { data } = await espejarVentana(ventana.id);
+      handleVentanaMaterialesUpdated(data);
+    } catch (err) {
+      window.alert('No se pudo espejar la ventana. Intenta de nuevo.');
+    } finally {
+      setEspejandoLineaId(null);
     }
   };
 
@@ -242,6 +255,8 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
               onEditCorredera={(ventana) => setSelectedVentanaForCorrector(ventana)}
               onDeleteLineaManual={handleEliminarLineaManual}
               isDeletingLineaManual={eliminandoLineaId === v.id}
+              onEspejar={handleEspejarVentana}
+              isEspejando={espejandoLineaId === v.id}
             />
           ))}
         </div>
