@@ -343,7 +343,16 @@ export function hingedMark(
   if (sharedSegments.length) {
     const paths = sharedSegments
       .map((segment: OpeningSymbolSegment) => {
-        const alignsWithHandle = ['hinged', 'projecting', 'tilt'].includes(sharedDefinition.symbol);
+        // 'projecting' (proyectante) se excluye a propósito: la alineación a
+        // la altura real de manilla (alturaManilla de HETMO) sólo está
+        // validada contra una ficha de fábrica real para practicables
+        // (símbolo 'hinged', ver comentario en openingSymbolSegments). En un
+        // paño proyectante chico esa altura puede no guardar relación con
+        // las proporciones del paño, empujando el vértice del triángulo
+        // casi al borde y dejando una figura aplastada/confusa en vez de
+        // una V clara -- se mantiene siempre en la posición proporcional
+        // fija (.92) con la que se diseñó el símbolo.
+        const alignsWithHandle = ['hinged', 'tilt'].includes(sharedDefinition.symbol);
         const d = segment.points
           .map(([px, py]: [number, number], index: number) => {
             const pointY = alignsWithHandle && index === 1 ? axisY : y + height * py;
