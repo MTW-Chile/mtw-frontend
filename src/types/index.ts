@@ -15,6 +15,9 @@ export interface Usuario {
   rol: Rol | null;
   activo: boolean;
   creadoEn: string;
+  // Acceso real (ver ADMIN_EMAILS en mtw-api) -- no depende de rolId/activo,
+  // asi que esta fila no es editable desde el panel de Roles de Usuario.
+  esAdmin: boolean;
 }
 
 export interface MisPermisos {
