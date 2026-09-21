@@ -14,10 +14,15 @@ interface UsuarioEditModalProps {
 export const UsuarioEditModal: React.FC<UsuarioEditModalProps> = ({ usuario, onClose }) => {
   const queryClient = useQueryClient();
   const esNuevo = !usuario;
+  // El admin del sistema (ADMIN_EMAILS en el backend) tiene acceso total sin
+  // pasar por Rol -- su correo y rol acá no tienen ningun efecto real, asi
+  // que solo se le deja editar el nombre.
+  const esAdmin = !!usuario?.esAdmin;
 
   const { data: roles } = useQuery<Rol[]>({
     queryKey: ['roles'],
     queryFn: async () => (await getRoles()).data,
+    enabled: !esAdmin,
   });
 
   const [nombre, setNombre] = useState(usuario?.nombre || '');
@@ -27,6 +32,9 @@ export const UsuarioEditModal: React.FC<UsuarioEditModalProps> = ({ usuario, onC
 
   const mutation = useMutation({
     mutationFn: async () => {
+      if (esAdmin) {
+        return updateUsuario(usuario!.id, { nombre: nombre.trim() });
+      }
       if (esNuevo) {
         return createUsuario({ nombre: nombre.trim(), email: email.trim(), rolId: rolId || null });
       }
@@ -34,6 +42,7 @@ export const UsuarioEditModal: React.FC<UsuarioEditModalProps> = ({ usuario, onC
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+      queryClient.invalidateQueries({ queryKey: ['misPermisos'] });
       onClose();
     },
     onError: (err: any) => {
@@ -44,7 +53,7 @@ export const UsuarioEditModal: React.FC<UsuarioEditModalProps> = ({ usuario, onC
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setGeneralError(null);
-    if (!nombre.trim() || !email.trim()) {
+    if (!nombre.trim() || (!esAdmin && !email.trim())) {
       setGeneralError('Nombre y correo son obligatorios.');
       return;
     }
@@ -67,7 +76,9 @@ export const UsuarioEditModal: React.FC<UsuarioEditModalProps> = ({ usuario, onC
                 {esNuevo ? 'Nuevo Usuario' : usuario!.nombre}
               </h2>
               <p className="text-[11px] text-slate-500">
-                El correo debe coincidir con el de su cuenta de Entra ID/Microsoft
+                {esAdmin
+                  ? 'Administrador del sistema -- solo el nombre es editable'
+                  : 'El correo debe coincidir con el de su cuenta de Entra ID/Microsoft'}
               </p>
             </div>
           </div>
@@ -89,30 +100,36 @@ export const UsuarioEditModal: React.FC<UsuarioEditModalProps> = ({ usuario, onC
 
           <Input label="Nombre" placeholder="Ej: Juan Pérez" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
 
-          <Input
-            label="Correo"
-            type="email"
-            placeholder="nombre@mtw.cl"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+          {esAdmin ? (
+            <Input label="Correo" value={email} disabled helperText="Fijo -- definido en ADMIN_EMAILS del backend" />
+          ) : (
+            <>
+              <Input
+                label="Correo"
+                type="email"
+                placeholder="nombre@mtw.cl"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
 
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Rol</label>
-            <select
-              value={rolId}
-              onChange={(e) => setRolId(e.target.value)}
-              className="w-full py-2.5 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-[#E34A26] focus:ring-2 focus:ring-[#E34A26]/10 transition-all"
-            >
-              <option value="">Sin rol asignado (sin acceso)</option>
-              {(roles || []).map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Rol</label>
+                <select
+                  value={rolId}
+                  onChange={(e) => setRolId(e.target.value)}
+                  className="w-full py-2.5 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-[#E34A26] focus:ring-2 focus:ring-[#E34A26]/10 transition-all"
+                >
+                  <option value="">Sin rol asignado (sin acceso)</option>
+                  {(roles || []).map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
 
           <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
             <Button type="button" variant="outline" onClick={onClose} disabled={mutation.isPending}>

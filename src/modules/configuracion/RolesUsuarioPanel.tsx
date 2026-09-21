@@ -197,8 +197,8 @@ const UsuariosSection: React.FC = () => {
 
       <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-500">
         <span className="font-bold text-slate-700">alfredo.mella.v@mtw.cl</span> es administrador del sistema:
-        tiene acceso total sin importar el rol o el estado que tenga acá. Si aparece en la lista, queda marcado
-        como "Admin del sistema" y no se puede editar -- cambiarlo no tendría ningún efecto real.
+        tiene acceso total sin importar el rol o el estado que tenga acá. Queda marcado como "Admin del sistema" y
+        solo se le puede editar el nombre -- ni el rol ni el correo tienen efecto real sobre su acceso.
       </div>
 
       {isLoading ? (
@@ -243,22 +243,25 @@ const UsuariosSection: React.FC = () => {
                 </div>
                 <div className="text-[11px] text-slate-500 truncate">{u.email}</div>
                 <div className="text-[11px] text-slate-500">
-                  {u.rol ? (
+                  {u.esAdmin ? (
+                    <span>Acceso total (fijado en el backend, no depende de un rol)</span>
+                  ) : u.rol ? (
                     <span className="font-semibold text-slate-700">{u.rol.nombre}</span>
                   ) : (
                     <span className="text-amber-600 font-semibold">Sin rol asignado -- sin acceso</span>
                   )}
                 </div>
               </div>
-              {!u.esAdmin && (
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => setEditando(u)}
-                    className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-[#E34A26] hover:bg-orange-50 transition-colors cursor-pointer"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    <span>Editar</span>
-                  </button>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => setEditando(u)}
+                  title={u.esAdmin ? 'Solo se puede editar el nombre' : 'Editar'}
+                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-[#E34A26] hover:bg-orange-50 transition-colors cursor-pointer"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  <span>Editar</span>
+                </button>
+                {!u.esAdmin && (
                   <button
                     onClick={() => toggleActivoMutation.mutate({ id: u.id, activo: !u.activo })}
                     disabled={cambiandoId === u.id}
@@ -275,8 +278,8 @@ const UsuariosSection: React.FC = () => {
                       <CheckCircle2 className="w-3.5 h-3.5" />
                     )}
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           ))}
         </div>
