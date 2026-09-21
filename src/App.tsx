@@ -80,6 +80,24 @@ const AppContent: React.FC = () => {
     setProyectoAAbrir({ id: proyectoId, seccion });
   };
 
+  // Deep-link desde el link "Ver en MTW ERP" de los correos de aprobacion
+  // pendiente (?abrir=cotizacion:<obra> o ?abrir=oc:<proyectoId>, ver
+  // notificarAprobacionGerencialPendiente en mtw-api) -- se consume una
+  // sola vez al cargar la app y se limpia de la URL para que un refresh
+  // no vuelva a navegar solo.
+  useEffect(() => {
+    const abrir = new URLSearchParams(window.location.search).get('abrir');
+    if (!abrir) return;
+    const [tipo, valor] = abrir.split(/:(.*)/s);
+    if (tipo === 'cotizacion' && valor) {
+      handleNavigate('cotizaciones', valor);
+    } else if (tipo === 'oc' && valor) {
+      abrirProyecto(valor, 'abastecimiento');
+    }
+    window.history.replaceState({}, '', window.location.pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (cargandoPermisos) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-500 text-sm">
