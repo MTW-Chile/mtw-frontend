@@ -61,6 +61,7 @@ export function buildOrdenCompraHtml(oc: OrdenCompra, logoDataUrl: string | null
   // condiciones de pago del proveedor, fecha calendarizada) -- si no hay
   // ninguno de estos datos, se muestra un guion en vez de una caja vacía.
   const comentarios = [
+    oc.comentarios?.trim() || null,
     oc.motivoRechazo ? `Motivo de rechazo: ${oc.motivoRechazo}` : null,
     proveedor?.condicionesPago ? `Condiciones de pago: ${proveedor.condicionesPago}` : null,
     oc.fechaCalendarizada ? `Fecha calendarizada de entrega: ${new Date(oc.fechaCalendarizada).toLocaleDateString('es-CL')}` : null,

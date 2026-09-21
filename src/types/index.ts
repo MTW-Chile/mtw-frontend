@@ -459,6 +459,7 @@ export interface OrdenCompra {
   moneda: string;
   fechaCalendarizada: string | null;
   fechaEnvio: string | null;
+  comentarios: string | null;
   creadoPorId: string | null;
   aprobadoPorId: string | null;
   fechaAprobacion: string | null;

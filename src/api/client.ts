@@ -497,6 +497,7 @@ export async function createOrdenCompra(payload: {
   requiereAprobacion?: boolean;
   moneda?: string;
   fechaCalendarizada?: string | null;
+  comentarios?: string;
   items: {
     materialId?: string | null;
     descripcion: string;

@@ -282,6 +282,12 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                     {expandidas.has(oc.id) && (
                       <tr className="bg-slate-50/60 border-b border-slate-100">
                         <td colSpan={colSpan} className="px-4 py-3">
+                          {oc.comentarios && (
+                            <p className="text-[11px] text-slate-600 mb-2 pb-2 border-b border-slate-200">
+                              <span className="font-bold text-slate-700">Comentarios: </span>
+                              {oc.comentarios}
+                            </p>
+                          )}
                           {oc.items.length === 0 ? (
                             <p className="text-[11px] text-slate-400">Esta OC no tiene items.</p>
                           ) : (

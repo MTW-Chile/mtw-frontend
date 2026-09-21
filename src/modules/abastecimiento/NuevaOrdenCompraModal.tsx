@@ -60,6 +60,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   const [faseId, setFaseId] = useState('');
   const [proveedorId, setProveedorId] = useState('');
   const [requiereAprobacion, setRequiereAprobacion] = useState(false);
+  const [comentarios, setComentarios] = useState('');
   const [items, setItems] = useState<ItemForm[]>([itemVacio()]);
   const [generalError, setGeneralError] = useState<string | null>(null);
 
@@ -148,6 +149,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
         faseId: faseId || null,
         proveedorId,
         requiereAprobacion,
+        comentarios: comentarios.trim() || undefined,
         items: itemsValidos.map((i) => ({
           materialId: i.materialId,
           descripcion: i.descripcion.trim(),
@@ -173,6 +175,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
     setFaseId('');
     setProveedorId('');
     setRequiereAprobacion(false);
+    setComentarios('');
     setItems([itemVacio()]);
     setGeneralError(null);
     onClose();
@@ -327,6 +330,19 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
             />
             Requiere aprobación de Gerencia antes de enviarse al proveedor
           </label>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Comentarios o instrucciones especiales
+            </label>
+            <textarea
+              value={comentarios}
+              onChange={(e) => setComentarios(e.target.value)}
+              placeholder="Ej: entregar en horario de mañana, coordinar con bodega antes de despachar..."
+              rows={3}
+              className="w-full py-2.5 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[#E34A26] focus:ring-2 focus:ring-[#E34A26]/10 transition-all resize-none"
+            />
+          </div>
 
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
