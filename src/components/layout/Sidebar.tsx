@@ -1,6 +1,13 @@
 import React from 'react';
-import { X, ShieldCheck } from 'lucide-react';
+import { X, User } from 'lucide-react';
 import { SECCIONES_FRONTEND } from '../../lib/accessControl';
+import { displayName } from '../../lib/useCloudflareAccessSession';
+
+interface UsuarioSidebar {
+  nombre: string | null;
+  email: string;
+  rol: string | null;
+}
 
 export const Sidebar: React.FC<{
   activeTab: string;
@@ -10,7 +17,8 @@ export const Sidebar: React.FC<{
   totalProyectos?: number;
   // null = administrador, ve todas las secciones sin filtrar.
   seccionesPermitidas: string[] | null;
-}> = ({ activeTab, setActiveTab, isOpen, onClose, totalProyectos = 0, seccionesPermitidas }) => {
+  usuarioActual?: UsuarioSidebar;
+}> = ({ activeTab, setActiveTab, isOpen, onClose, totalProyectos = 0, seccionesPermitidas, usuarioActual }) => {
   const menuItems = SECCIONES_FRONTEND.filter(
     (s) => seccionesPermitidas === null || seccionesPermitidas.includes(s.id)
   ).map((s) => ({
@@ -113,22 +121,25 @@ export const Sidebar: React.FC<{
           </div>
         </div>
 
-        {/* Estado del Sistema en Footer */}
-        <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-600 font-medium flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              Relay API
-            </span>
-            <span className="flex items-center gap-1.5 text-[11px] text-emerald-700 font-mono font-bold">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              En línea
-            </span>
+        {/* Usuario actual */}
+        {usuarioActual && (
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-[#E34A26]/10 border border-[#E34A26]/20 flex items-center justify-center text-[#E34A26] shrink-0">
+                <User className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 truncate">
+                  {displayName({ nombre: usuarioActual.nombre ?? undefined, email: usuarioActual.email })}
+                </div>
+                <div className="text-[10px] text-slate-400 font-mono truncate">{usuarioActual.email}</div>
+              </div>
+            </div>
+            <div className="text-[10px] text-slate-500 font-semibold truncate pl-[42px]">
+              {usuarioActual.rol ?? 'Sin rol asignado'}
+            </div>
           </div>
-          <div className="text-[10px] text-slate-400 font-mono truncate">
-            PostgreSQL Railway · MTW
-          </div>
-        </div>
+        )}
       </aside>
     </>
   );
