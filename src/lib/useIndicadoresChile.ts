@@ -18,31 +18,30 @@ export interface FeriadoChile {
 export function useIndicadoresChile() {
   const currentYear = new Date().getFullYear();
 
-  // Indicadores Económicos (UF, Dolar, Euro, UTM)
+  // Indicadores Económicos (UF, Dolar, Euro, UTM). Antes, cualquier falla
+  // (timeout, mindicador.cl caido, respuesta parcial) se tragaba en el
+  // catch y devolvia numeros de relleno fijos -- se veian como un valor
+  // real (mismo formato, mismo color) pero quedaban desactualizados apenas
+  // pasaba un dia, y como el catch nunca dejaba propagar el error,
+  // tampoco se disparaban los reintentos automaticos de react-query. Ahora
+  // el queryFn deja fallar de verdad (incluye validar que la API haya
+  // mandado los 4 numeros, no una respuesta parcial) para que react-query
+  // reintente solo y, si a la tercera sigue sin poder, el consumidor lo
+  // vea por isError en vez de mostrar un numero inventado.
   const indicadoresQuery = useQuery({
     queryKey: ['indicadoresEconomicosChile'],
     queryFn: async (): Promise<IndicadoresChile> => {
-      try {
-        const res = await axios.get('https://mindicador.cl/api', {
-          timeout: 4000,
-        });
-        return {
-          uf: res.data?.uf?.valor || 39850,
-          dolar: res.data?.dolar?.valor || 945,
-          euro: res.data?.euro?.valor || 1025,
-          utm: res.data?.utm?.valor || 68450,
-          fecha: res.data?.fecha || new Date().toISOString(),
-        };
-      } catch {
-        // Fallback referencial realista si falla la conexión externa
-        return {
-          uf: 39850,
-          dolar: 945.5,
-          euro: 1025.8,
-          utm: 68450,
-          fecha: new Date().toISOString(),
-        };
+      const res = await axios.get('https://mindicador.cl/api', { timeout: 4000 });
+      const uf = res.data?.uf?.valor;
+      const dolar = res.data?.dolar?.valor;
+      const euro = res.data?.euro?.valor;
+      const utm = res.data?.utm?.valor;
+      const valores = { uf, dolar, euro, utm };
+      const incompleta = Object.values(valores).some((v) => typeof v !== 'number' || !Number.isFinite(v) || v <= 0);
+      if (incompleta) {
+        throw new Error('mindicador.cl devolvió una respuesta incompleta.');
       }
+      return { ...valores, fecha: res.data?.fecha || new Date().toISOString() };
     },
     staleTime: 1000 * 60 * 60, // 1 hora
   });
@@ -90,6 +89,7 @@ export function useIndicadoresChile() {
   return {
     indicadores: indicadoresQuery.data,
     isLoadingIndicadores: indicadoresQuery.isLoading,
+    isErrorIndicadores: indicadoresQuery.isError,
     feriadoInfo: feriadosQuery.data,
   };
 }
