@@ -1,3 +1,31 @@
+export interface Rol {
+  id: string;
+  nombre: string;
+  secciones: string[];
+  configTabs: string[];
+  // Presente solo en GET /api/roles (include: { _count: { select: { usuarios: true } } }).
+  _count?: { usuarios: number };
+}
+
+export interface Usuario {
+  id: string;
+  nombre: string;
+  email: string;
+  rolId: string | null;
+  rol: Rol | null;
+  activo: boolean;
+  creadoEn: string;
+}
+
+export interface MisPermisos {
+  email: string;
+  nombre: string | null;
+  esAdmin: boolean;
+  rol: string | null;
+  secciones: string[];
+  configTabs: string[];
+}
+
 export interface Cliente {
   id: string;
   rut?: string | null;

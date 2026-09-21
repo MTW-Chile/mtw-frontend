@@ -123,10 +123,29 @@ export const EstadoComercialCard: React.FC<EstadoComercialCardProps> = ({
         )}
 
         {estado === 'ACEPTADO_CLIENTE' && (
-          <p className="text-xs text-slate-500">
-            Proyecto aceptado por el cliente. Queda visible pero bloqueado para edición
-            (pasa al módulo de Taller y Fabricación cuando exista).
-          </p>
+          <>
+            <p className="text-xs text-slate-500">
+              Proyecto aceptado por el cliente. Queda bloqueado para edición y pasa al
+              módulo de Proyectos para su ejecución (presupuesto, OC, documentos y bodega).
+            </p>
+            <button
+              onClick={() => {
+                if (
+                  window.confirm(
+                    'Este proyecto vuelve a "Aprobado Gerencia", a la espera de ser aceptado por el cliente de nuevo. ' +
+                      'Sale de "Proyectos en curso", pero lo ya obrado en el proyecto (bodega, órdenes de compra, etc.) no se elimina automáticamente. ¿Continuar?'
+                  )
+                ) {
+                  onCambiarEstado('APROBADO_GERENCIA');
+                }
+              }}
+              disabled={isCambiandoEstado}
+              className="px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-slate-600 text-xs font-semibold flex items-center gap-1.5 hover:bg-slate-50 transition-colors disabled:opacity-50"
+            >
+              {isCambiandoEstado ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowLeft className="w-3.5 h-3.5" />}
+              Revertir Aceptación de Cliente
+            </button>
+          </>
         )}
       </div>
 

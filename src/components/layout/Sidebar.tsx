@@ -1,14 +1,6 @@
 import React from 'react';
-import {
-  LayoutDashboard,
-  Boxes,
-  Building2,
-  FolderKanban,
-  Hammer,
-  Settings,
-  X,
-  ShieldCheck,
-} from 'lucide-react';
+import { X, ShieldCheck } from 'lucide-react';
+import { SECCIONES_FRONTEND } from '../../lib/accessControl';
 
 export const Sidebar: React.FC<{
   activeTab: string;
@@ -16,41 +8,15 @@ export const Sidebar: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   totalProyectos?: number;
-}> = ({ activeTab, setActiveTab, isOpen, onClose, totalProyectos = 0 }) => {
-  const menuItems = [
-    {
-      id: 'inicio',
-      label: 'Inicio',
-      icon: LayoutDashboard,
-    },
-    {
-      id: 'maestro',
-      label: 'Maestro de Materiales',
-      icon: Boxes,
-    },
-    {
-      id: 'cotizaciones',
-      label: 'Cotizaciones',
-      icon: Building2,
-      count: totalProyectos,
-    },
-    {
-      id: 'proyectos',
-      label: 'Proyectos',
-      icon: FolderKanban,
-    },
-    {
-      id: 'taller',
-      label: 'Taller & Fabricación',
-      icon: Hammer,
-      badge: 'Pronto',
-    },
-    {
-      id: 'configuracion',
-      label: 'Configuración',
-      icon: Settings,
-    },
-  ];
+  // null = administrador, ve todas las secciones sin filtrar.
+  seccionesPermitidas: string[] | null;
+}> = ({ activeTab, setActiveTab, isOpen, onClose, totalProyectos = 0, seccionesPermitidas }) => {
+  const menuItems = SECCIONES_FRONTEND.filter(
+    (s) => seccionesPermitidas === null || seccionesPermitidas.includes(s.id)
+  ).map((s) => ({
+    ...s,
+    count: s.id === 'cotizaciones' ? totalProyectos : undefined,
+  }));
 
   return (
     <>
@@ -138,12 +104,6 @@ export const Sidebar: React.FC<{
                     {item.count !== undefined && item.count > 0 && (
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-[#E34A26]/10 text-[#E34A26]">
                         {item.count}
-                      </span>
-                    )}
-
-                    {item.badge && (
-                      <span className="px-2 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider bg-slate-100 text-slate-500">
-                        {item.badge}
                       </span>
                     )}
                   </button>

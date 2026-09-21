@@ -7,8 +7,9 @@ import { CotizacionesPage } from './modules/cotizaciones/CotizacionesPage';
 import { MaestroPage } from './modules/cotizaciones/MaestroPage';
 import { ConfiguracionPage } from './modules/configuracion/ConfiguracionPage';
 import { ProyectosPage } from './modules/proyectos/ProyectosPage';
-import { getProyectos } from './api/client';
+import { getProyectos, getMisPermisos } from './api/client';
 import { useCloudflareAccessSession, SessionContext } from './lib/useCloudflareAccessSession';
+import { SECCIONES_FRONTEND } from './lib/accessControl';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,19 +22,35 @@ const queryClient = new QueryClient({
 
 import { ScrollToTop } from './components/ui/ScrollToTop';
 
-const MODULE_TITLES: Record<string, string> = {
-  inicio: 'Inicio',
-  maestro: 'Maestro de Materiales',
-  cotizaciones: 'Cotizaciones',
-  proyectos: 'Proyectos',
-  taller: 'Taller & Fabricación',
-  configuracion: 'Configuración',
-};
+// Generado desde SECCIONES_FRONTEND (lib/accessControl.ts) -- una seccion
+// nueva agrega su titulo de pestaña del navegador sola, sin tocar este archivo.
+const MODULE_TITLES: Record<string, string> = Object.fromEntries(
+  SECCIONES_FRONTEND.map((s) => [s.id, s.label])
+);
 
 const AppContent: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('inicio');
+  const [activeTab, setActiveTabState] = useState('inicio');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  const { data: permisos, isLoading: cargandoPermisos } = useQuery({
+    queryKey: ['misPermisos'],
+    queryFn: getMisPermisos,
+  });
+
+  // null = administrador, ve todo sin filtrar.
+  const seccionesPermitidas = permisos ? (permisos.esAdmin ? null : permisos.secciones) : [];
+  const puedeVer = (id: string) => seccionesPermitidas === null || seccionesPermitidas.includes(id);
+
+  // Si el usuario no tiene acceso a la pestaña activa (recien resueltos
+  // los permisos, o un rol le quito acceso a lo que estaba viendo), cae a
+  // la primera seccion permitida en vez de mostrar una pantalla vacia.
+  useEffect(() => {
+    if (!permisos || puedeVer(activeTab)) return;
+    const primeraPermitida = SECCIONES_FRONTEND.find((s) => puedeVer(s.id));
+    setActiveTabState(primeraPermitida?.id ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [permisos, activeTab]);
 
   // Título dinámico del navegador según el módulo activo
   useEffect(() => {
@@ -44,23 +61,47 @@ const AppContent: React.FC = () => {
   const { data } = useQuery({
     queryKey: ['proyectosCount'],
     queryFn: () => getProyectos({ limit: 1 }),
+    enabled: puedeVer('cotizaciones'),
   });
 
   const handleNavigate = (tab: string, query?: string) => {
-    setActiveTab(tab);
+    setActiveTabState(tab);
     if (query !== undefined) {
       setSearchTerm(query);
     }
   };
 
+  if (cargandoPermisos) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-500 text-sm">
+        Verificando permisos...
+      </div>
+    );
+  }
+
+  if (seccionesPermitidas !== null && seccionesPermitidas.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-8">
+        <div className="max-w-sm text-center space-y-2">
+          <h1 className="text-sm font-black text-slate-900">Sin acceso asignado</h1>
+          <p className="text-xs text-slate-500">
+            Tu cuenta ({permisos?.email}) todavía no tiene un rol asignado en MTW ERP. Pídele a un administrador que
+            te asigne uno en Configuración &gt; Roles de Usuario.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen overflow-hidden flex bg-slate-50 text-slate-900 font-sans">
       <Sidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleNavigate}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         totalProyectos={data?.total}
+        seccionesPermitidas={seccionesPermitidas}
       />
 
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
@@ -87,20 +128,8 @@ const AppContent: React.FC = () => {
 
           {activeTab === 'proyectos' && <ProyectosPage />}
 
-          {activeTab === 'configuracion' && <ConfiguracionPage />}
-
-          {activeTab === 'taller' && (
-            <div className="p-8 sm:p-16 text-center space-y-3 max-w-md mx-auto">
-              <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-500 font-bold">
-                🛠️
-              </div>
-              <h3 className="text-sm font-bold text-slate-900">
-                Módulo de Taller & Fabricación
-              </h3>
-              <p className="text-xs text-slate-500">
-                Este módulo estará disponible en las próximas etapas para la gestión de corte, ensamble y despacho.
-              </p>
-            </div>
+          {activeTab === 'configuracion' && (
+            <ConfiguracionPage tabsPermitidas={permisos?.esAdmin ? null : permisos?.configTabs ?? []} />
           )}
         </main>
       </div>

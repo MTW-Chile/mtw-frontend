@@ -1,23 +1,34 @@
 import React, { useState } from 'react';
-import { Settings, FileText, DoorClosed } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { PresupuestoConfigPanel } from './PresupuestoConfigPanel';
 import { PlantillasPuertasPanel } from './PlantillasPuertasPanel';
+import { RolesUsuarioPanel } from './RolesUsuarioPanel';
+import { CONFIG_TABS } from '../../lib/accessControl';
 
-type Categoria = 'presupuesto' | 'plantillas-puertas';
+const PANELES: Record<string, React.ComponentType> = {
+  presupuesto: PresupuestoConfigPanel,
+  'plantillas-puertas': PlantillasPuertasPanel,
+  'roles-usuario': RolesUsuarioPanel,
+};
 
-const CATEGORIAS: { id: Categoria; label: string; icon: React.ElementType }[] = [
-  { id: 'presupuesto', label: 'Presupuesto', icon: FileText },
-  { id: 'plantillas-puertas', label: 'Plantillas de Puertas', icon: DoorClosed },
-];
+interface ConfiguracionPageProps {
+  // null = administrador, ve todas las pestañas sin filtrar.
+  tabsPermitidas: string[] | null;
+}
 
 /**
  * Configuración global de MTW ERP, organizada en categorías -- arranca con
- * Presupuesto (branding/textos, ya existía) y Plantillas de Puertas
- * (recetas de herrajes Protex, ver PlantillasPuertasPanel). Pensado para
- * seguir creciendo con más categorías sin reestructurar de nuevo.
+ * Presupuesto (branding/textos, ya existía), Plantillas de Puertas (recetas
+ * de herrajes Protex) y Roles de Usuario (control de acceso). Las
+ * categorías salen de CONFIG_TABS (lib/accessControl.ts), asi que agregar
+ * una nueva es tocar esa lista + agregar su panel a PANELES arriba.
  */
-export const ConfiguracionPage: React.FC = () => {
-  const [categoria, setCategoria] = useState<Categoria>('presupuesto');
+export const ConfiguracionPage: React.FC<ConfiguracionPageProps> = ({ tabsPermitidas }) => {
+  const categorias = CONFIG_TABS.filter((c) => tabsPermitidas === null || tabsPermitidas.includes(c.id));
+  const [categoria, setCategoria] = useState<string>(categorias[0]?.id ?? '');
+
+  const categoriaActiva = categorias.some((c) => c.id === categoria) ? categoria : categorias[0]?.id;
+  const PanelActivo = categoriaActiva ? PANELES[categoriaActiva] : null;
 
   return (
     <div className="p-5 sm:p-8 max-w-3xl mx-auto space-y-6">
@@ -31,29 +42,36 @@ export const ConfiguracionPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex items-center gap-1.5 border-b border-slate-200 pb-3">
-        {CATEGORIAS.map((cat) => {
-          const Icon = cat.icon;
-          const isActive = categoria === cat.id;
-          return (
-            <button
-              key={cat.id}
-              onClick={() => setCategoria(cat.id)}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-                isActive
-                  ? 'bg-[#E34A26]/10 text-[#E34A26] border border-[#E34A26]/20'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-transparent'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{cat.label}</span>
-            </button>
-          );
-        })}
-      </div>
+      {categorias.length > 0 && (
+        <div className="flex items-center gap-1.5 border-b border-slate-200 pb-3">
+          {categorias.map((cat) => {
+            const Icon = cat.icon;
+            const isActive = categoriaActiva === cat.id;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setCategoria(cat.id)}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                  isActive
+                    ? 'bg-[#E34A26]/10 text-[#E34A26] border border-[#E34A26]/20'
+                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-transparent'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{cat.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-      {categoria === 'presupuesto' && <PresupuestoConfigPanel />}
-      {categoria === 'plantillas-puertas' && <PlantillasPuertasPanel />}
+      {PanelActivo ? (
+        <PanelActivo />
+      ) : (
+        <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
+          No tienes pestañas de Configuración asignadas. Pídele a un administrador que te asigne un rol con acceso.
+        </div>
+      )}
     </div>
   );
 };

@@ -26,6 +26,9 @@ import type {
   ConciliacionFactura,
   FacturaSugerida,
   CategoriaGasto,
+  Rol,
+  Usuario,
+  MisPermisos,
 } from '../types';
 
 // withCredentials: true es lo que hace que el navegador mande la cookie de
@@ -716,6 +719,65 @@ export async function crearLineaManual(payload: LineaManualPayload): Promise<{ s
 
 export async function eliminarLineaManual(ventanaId: string): Promise<{ success: boolean }> {
   const response = await apiClient.post<{ success: boolean }>(`/ventanas/${ventanaId}/eliminar-manual`);
+  return response.data;
+}
+
+// ==========================================
+// ROLES Y USUARIOS (control de acceso, ver Configuración > Roles de Usuario)
+// ==========================================
+
+export async function getMisPermisos(): Promise<MisPermisos> {
+  const response = await apiClient.get<MisPermisos>('/mi-permisos');
+  return response.data;
+}
+
+export async function getRoles(): Promise<{ data: Rol[] }> {
+  const response = await apiClient.get<{ data: Rol[] }>('/roles');
+  return response.data;
+}
+
+export async function createRol(payload: {
+  nombre: string;
+  secciones: string[];
+  configTabs: string[];
+}): Promise<{ data: Rol }> {
+  const response = await apiClient.post<{ data: Rol }>('/roles', payload);
+  return response.data;
+}
+
+export async function updateRol(
+  id: string,
+  payload: Partial<{ nombre: string; secciones: string[]; configTabs: string[] }>
+): Promise<{ data: Rol }> {
+  const response = await apiClient.patch<{ data: Rol }>(`/roles/${id}`, payload);
+  return response.data;
+}
+
+// POST, no DELETE -- ver comentario junto a eliminarProyecto sobre Cloudflare Access.
+export async function eliminarRol(id: string): Promise<{ success: boolean }> {
+  const response = await apiClient.post<{ success: boolean }>(`/roles/${id}/eliminar`);
+  return response.data;
+}
+
+export async function getUsuarios(): Promise<{ data: Usuario[] }> {
+  const response = await apiClient.get<{ data: Usuario[] }>('/usuarios');
+  return response.data;
+}
+
+export async function createUsuario(payload: {
+  nombre: string;
+  email: string;
+  rolId?: string | null;
+}): Promise<{ data: Usuario }> {
+  const response = await apiClient.post<{ data: Usuario }>('/usuarios', payload);
+  return response.data;
+}
+
+export async function updateUsuario(
+  id: string,
+  payload: Partial<{ nombre: string; email: string; rolId: string | null; activo: boolean }>
+): Promise<{ data: Usuario }> {
+  const response = await apiClient.patch<{ data: Usuario }>(`/usuarios/${id}`, payload);
   return response.data;
 }
 
