@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Menu, User, Settings, LogOut, ChevronDown, Bell, Landmark, ShoppingCart } from 'lucide-react';
+import { Menu, User, Settings, LogOut, ChevronDown, Bell, Landmark, ShoppingCart, ChevronRight } from 'lucide-react';
 import { useSession, displayName } from '../../lib/useCloudflareAccessSession';
 import { getMisPermisos, getMisAprobacionesPendientes } from '../../api/client';
 
@@ -145,7 +145,20 @@ export const Header: React.FC<HeaderProps> = ({
 
             {isNotifOpen && (
               <div className="absolute right-0 top-full mt-2 w-80 rounded-2xl bg-white border border-slate-200 shadow-xl p-1.5 z-50 animate-fade-in max-h-[70vh] overflow-y-auto">
-                <div className="px-3 py-2.5">
+                <button
+                  onClick={() => {
+                    setIsNotifOpen(false);
+                    onNavigate?.('centro-notificaciones');
+                  }}
+                  className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-left hover:bg-slate-100 transition-colors cursor-pointer mb-1"
+                >
+                  <div>
+                    <div className="text-xs font-bold text-slate-800">Centro de Notificaciones</div>
+                    <div className="text-[10px] text-slate-400">Ver todo, aprobar desde ahí</div>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                </button>
+                <div className="border-t border-slate-100 pt-1.5 px-3 py-1">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     Pendientes de aprobación
                   </div>

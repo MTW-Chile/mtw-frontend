@@ -7,9 +7,15 @@ import { CotizacionesPage } from './modules/cotizaciones/CotizacionesPage';
 import { MaestroPage } from './modules/cotizaciones/MaestroPage';
 import { ConfiguracionPage } from './modules/configuracion/ConfiguracionPage';
 import { ProyectosPage } from './modules/proyectos/ProyectosPage';
+import { CentroNotificacionesPage } from './modules/notificaciones/CentroNotificacionesPage';
 import { getProyectos, getMisPermisos } from './api/client';
 import { useCloudflareAccessSession, SessionContext } from './lib/useCloudflareAccessSession';
 import { SECCIONES_FRONTEND } from './lib/accessControl';
+
+// Tab especial, fuera de SECCIONES_FRONTEND a proposito (no va en el
+// Sidebar -- solo se llega ahi desde la campanita del Header o el link de
+// un correo de aprobacion pendiente, ver puedeVerCentro mas abajo).
+const TAB_CENTRO_NOTIFICACIONES = 'centro-notificaciones';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,9 +30,10 @@ import { ScrollToTop } from './components/ui/ScrollToTop';
 
 // Generado desde SECCIONES_FRONTEND (lib/accessControl.ts) -- una seccion
 // nueva agrega su titulo de pestaña del navegador sola, sin tocar este archivo.
-const MODULE_TITLES: Record<string, string> = Object.fromEntries(
-  SECCIONES_FRONTEND.map((s) => [s.id, s.label])
-);
+const MODULE_TITLES: Record<string, string> = {
+  ...Object.fromEntries(SECCIONES_FRONTEND.map((s) => [s.id, s.label])),
+  [TAB_CENTRO_NOTIFICACIONES]: 'Centro de Notificaciones',
+};
 
 const AppContent: React.FC = () => {
   const [activeTab, setActiveTabState] = useState('inicio');
@@ -44,7 +51,14 @@ const AppContent: React.FC = () => {
 
   // null = administrador, ve todo sin filtrar.
   const seccionesPermitidas = permisos ? (permisos.esAdmin ? null : permisos.secciones) : [];
-  const puedeVer = (id: string) => seccionesPermitidas === null || seccionesPermitidas.includes(id);
+  // El Centro de Notificaciones no es una seccion real (no vive en
+  // SECCIONES_FRONTEND/Sidebar) -- su acceso depende de poder aprobar
+  // gerencial, no de secciones habilitadas.
+  const puedeVerCentroNotificaciones = !!permisos && (permisos.esAdmin || permisos.aprobaciones.includes('gerencial'));
+  const puedeVer = (id: string) =>
+    id === TAB_CENTRO_NOTIFICACIONES
+      ? puedeVerCentroNotificaciones
+      : seccionesPermitidas === null || seccionesPermitidas.includes(id);
 
   // Si el usuario no tiene acceso a la pestaña activa (recien resueltos
   // los permisos, o un rol le quito acceso a lo que estaba viendo), cae a
@@ -80,19 +94,25 @@ const AppContent: React.FC = () => {
     setProyectoAAbrir({ id: proyectoId, seccion });
   };
 
-  // Deep-link desde el link "Ver en MTW ERP" de los correos de aprobacion
-  // pendiente (?abrir=cotizacion:<obra> o ?abrir=oc:<proyectoId>, ver
-  // notificarAprobacionGerencialPendiente en mtw-api) -- se consume una
-  // sola vez al cargar la app y se limpia de la URL para que un refresh
-  // no vuelva a navegar solo.
+  // Deep-link desde el link "Ver Centro de Notificaciones" de los correos
+  // de aprobacion pendiente (?abrir=centro, ver
+  // notificarAprobacionGerencialPendiente en mtw-api) -- tambien soporta
+  // ?abrir=cotizacion:<obra> / ?abrir=oc:<proyectoId> para ir directo a un
+  // item puntual (usado por la campanita del Header). Se consume una sola
+  // vez al cargar la app y se limpia de la URL para que un refresh no
+  // vuelva a navegar solo.
   useEffect(() => {
     const abrir = new URLSearchParams(window.location.search).get('abrir');
     if (!abrir) return;
-    const [tipo, valor] = abrir.split(/:(.*)/s);
-    if (tipo === 'cotizacion' && valor) {
-      handleNavigate('cotizaciones', valor);
-    } else if (tipo === 'oc' && valor) {
-      abrirProyecto(valor, 'abastecimiento');
+    if (abrir === 'centro') {
+      handleNavigate(TAB_CENTRO_NOTIFICACIONES);
+    } else {
+      const [tipo, valor] = abrir.split(/:(.*)/s);
+      if (tipo === 'cotizacion' && valor) {
+        handleNavigate('cotizaciones', valor);
+      } else if (tipo === 'oc' && valor) {
+        abrirProyecto(valor, 'abastecimiento');
+      }
     }
     window.history.replaceState({}, '', window.location.pathname);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -163,6 +183,8 @@ const AppContent: React.FC = () => {
           {activeTab === 'configuracion' && (
             <ConfiguracionPage tabsPermitidas={permisos?.esAdmin ? null : permisos?.configTabs ?? []} />
           )}
+
+          {activeTab === TAB_CENTRO_NOTIFICACIONES && <CentroNotificacionesPage />}
         </main>
       </div>
 
