@@ -32,15 +32,6 @@ export interface MisPermisos {
   aprobaciones: string[];
 }
 
-export interface AprobacionPendienteAnalitica {
-  tipo: 'analitica_materiales';
-  proyectoId: string;
-  obra: string;
-  codigoInterno: string | null;
-  versionId: string;
-  familiasPendientes: string[];
-}
-
 export interface AprobacionPendienteCotizacion {
   tipo: 'aprobacion_gerencial_cotizacion';
   proyectoId: string;
@@ -61,7 +52,6 @@ export interface AprobacionPendienteOC {
 }
 
 export interface AprobacionesPendientes {
-  tecnico: AprobacionPendienteAnalitica[];
   gerencial: (AprobacionPendienteCotizacion | AprobacionPendienteOC)[];
   total: number;
 }

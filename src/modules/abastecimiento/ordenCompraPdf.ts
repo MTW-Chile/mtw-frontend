@@ -112,6 +112,7 @@ export function buildOrdenCompraHtml(oc: OrdenCompra, logoDataUrl: string | null
           <td style="padding:10px 12px;vertical-align:top;">
             <div style="font-size:10.5px;font-weight:bold;color:${HEX.navy};margin-bottom:3px;">${escapeHtml(proveedor?.nombre || '—')}</div>
             <table style="border-collapse:collapse;">
+              ${filaDato('R.U.T.', proveedor?.rut)}
               ${filaDato('Dirección', [proveedor?.direccion, proveedor?.comuna].filter(Boolean).join(', ') || null)}
               ${filaDato('Teléfono', proveedor?.telefono)}
               ${filaDato('Correo', proveedor?.emailPedidos || proveedor?.email)}

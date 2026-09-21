@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Menu, User, Settings, LogOut, ChevronDown, Bell, Wrench, Landmark, ShoppingCart } from 'lucide-react';
+import { Menu, User, Settings, LogOut, ChevronDown, Bell, Landmark, ShoppingCart } from 'lucide-react';
 import { useSession, displayName } from '../../lib/useCloudflareAccessSession';
 import { getMisPermisos, getMisAprobacionesPendientes } from '../../api/client';
 
@@ -35,7 +35,10 @@ export const Header: React.FC<HeaderProps> = ({
   // mismo queryKey que App.tsx -- sale del cache de react-query, no pega
   // de nuevo al backend.
   const { data: permisos } = useQuery({ queryKey: ['misPermisos'], queryFn: getMisPermisos });
-  const puedeAprobar = !!permisos && (permisos.esAdmin || permisos.aprobaciones.length > 0);
+  // La campanita hoy solo lista pendientes gerenciales (Cotizaciones + OC)
+  // -- "tecnico" no aporta nada a esta lista (ver GET /mis-aprobaciones-pendientes),
+  // asi que no tiene sentido mostrarla a un rol que solo tiene ese permiso.
+  const puedeAprobar = !!permisos && (permisos.esAdmin || permisos.aprobaciones.includes('gerencial'));
 
   const { data: pendientes } = useQuery({
     queryKey: ['misAprobacionesPendientes'],
@@ -152,26 +155,6 @@ export const Header: React.FC<HeaderProps> = ({
                   <div className="px-3 py-6 text-center text-xs text-slate-400">Sin pendientes por ahora.</div>
                 ) : (
                   <div className="space-y-2 pb-1.5">
-                    {pendientes.tecnico.map((item) => (
-                      <button
-                        key={`tecnico-${item.versionId}`}
-                        onClick={() => {
-                          setIsNotifOpen(false);
-                          onNavigate?.('cotizaciones', item.obra);
-                        }}
-                        className="w-full flex items-start gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-slate-100 transition-colors cursor-pointer"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-sky-100 flex items-center justify-center text-sky-600 shrink-0 mt-0.5">
-                          <Wrench className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-800 truncate">{item.obra}</div>
-                          <div className="text-[10px] text-slate-500 truncate">
-                            Analítica: falta aprobar {item.familiasPendientes.join(', ')}
-                          </div>
-                        </div>
-                      </button>
-                    ))}
                     {pendientes.gerencial.map((item) =>
                       item.tipo === 'aprobacion_gerencial_cotizacion' ? (
                         <button
