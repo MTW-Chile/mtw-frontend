@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Building2,
-  Hammer,
+  FolderKanban,
   Package,
   ArrowRight,
   Clock,
@@ -426,27 +426,31 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
             </div>
           </div>
 
-          {/* Tarjeta Taller */}
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between space-y-4 opacity-80">
+          {/* Tarjeta Proyectos */}
+          <div
+            onClick={() => onNavigate('proyectos')}
+            className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between space-y-4"
+          >
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600">
-                  <Hammer className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700">
+                  <FolderKanban className="w-5 h-5" />
                 </div>
-                <Badge variant="subtle" size="sm">
-                  Pronto
+                <Badge variant="default" size="sm">
+                  Activo
                 </Badge>
               </div>
-              <h3 className="font-bold text-sm text-slate-900">
-                Taller & Fabricación
+              <h3 className="font-bold text-sm text-slate-900 group-hover:text-[#E34A26] transition-colors">
+                Proyectos
               </h3>
               <p className="text-xs text-slate-500 leading-relaxed">
-                Optimización de cortes, hojas de fabricación, ensamblaje y control de calidad en piso de planta.
+                Obras ya aceptadas por el cliente: presupuesto, órdenes de compra, documentos y bodega.
               </p>
             </div>
 
-            <div className="pt-3 border-t border-slate-100 text-xs font-semibold text-slate-400">
-              En desarrollo
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-700">
+              <span>Ingresar a Proyectos</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>
 
