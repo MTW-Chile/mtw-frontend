@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Loader2, Check, Send, X as XIcon, Ban } from 'lucide-react';
+import { Plus, Loader2, Check, Send, X as XIcon, Ban, ChevronDown, ChevronRight, Package } from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { getOrdenesCompra, updateOrdenCompraEstado } from '../../api/client';
 import type { EstadoOC, OrdenCompra } from '../../types';
 import { NuevaOrdenCompraModal } from './NuevaOrdenCompraModal';
+import { CATEGORIA_GASTO_LABEL } from './categoriaGasto';
 
 export const ESTADO_OC_LABEL: Record<EstadoOC, string> = {
   BORRADOR: 'Borrador',
@@ -51,6 +52,15 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
   const [filtroEstado, setFiltroEstado] = useState<EstadoOC | ''>('');
   const [rechazandoId, setRechazandoId] = useState<string | null>(null);
   const [motivoRechazo, setMotivoRechazo] = useState('');
+  const [expandidas, setExpandidas] = useState<Set<string>>(new Set());
+
+  const toggleExpandida = (id: string) =>
+    setExpandidas((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const { data, isLoading } = useQuery({
     queryKey: ['ordenesCompra', { proyectoId, estado: filtroEstado }],
@@ -127,7 +137,20 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                 {ordenes.map((oc) => (
                   <React.Fragment key={oc.id}>
                     <tr className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                      <td className="px-4 py-3 font-mono font-bold text-slate-900">{oc.numero}</td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => toggleExpandida(oc.id)}
+                          className="flex items-center gap-1.5 font-mono font-bold text-slate-900 hover:text-[#E34A26] transition-colors cursor-pointer"
+                        >
+                          {expandidas.has(oc.id) ? (
+                            <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          ) : (
+                            <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          )}
+                          {oc.numero}
+                        </button>
+                      </td>
                       {!proyectoId && <td className="px-4 py-3 text-slate-700">{oc.proyecto?.obra || '—'}</td>}
                       <td className="px-4 py-3 text-slate-700">{oc.proveedor?.nombre || '—'}</td>
                       <td className="px-4 py-3">
@@ -198,6 +221,54 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                         </div>
                       </td>
                     </tr>
+                    {expandidas.has(oc.id) && (
+                      <tr className="bg-slate-50/60 border-b border-slate-100">
+                        <td colSpan={colSpan} className="px-4 py-3">
+                          {oc.items.length === 0 ? (
+                            <p className="text-[11px] text-slate-400">Esta OC no tiene items.</p>
+                          ) : (
+                            <table className="w-full text-[11px]">
+                              <thead>
+                                <tr className="text-left text-slate-400 uppercase tracking-wider">
+                                  <th className="pb-1.5 font-bold">Item</th>
+                                  <th className="pb-1.5 font-bold">Categoría</th>
+                                  <th className="pb-1.5 font-bold text-right">Cantidad</th>
+                                  <th className="pb-1.5 font-bold text-right">Precio unit.</th>
+                                  <th className="pb-1.5 font-bold text-right">Subtotal</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {oc.items.map((item) => (
+                                  <tr key={item.id} className="border-t border-slate-100/80">
+                                    <td className="py-1.5 pr-2 text-slate-700">
+                                      <span className="flex items-center gap-1.5">
+                                        {item.materialId && <Package className="w-3 h-3 text-sky-500 shrink-0" />}
+                                        {item.descripcion}
+                                      </span>
+                                    </td>
+                                    <td className="py-1.5 pr-2 text-slate-500">{CATEGORIA_GASTO_LABEL[item.categoria] || item.categoria}</td>
+                                    <td className="py-1.5 text-right font-mono text-slate-700">
+                                      {Number(item.cantidad).toLocaleString('es-CL', { maximumFractionDigits: 2 })} {item.unidadMedida}
+                                      {item.cantidadCalculada != null && (
+                                        <span className="block text-[10px] text-slate-400 font-normal">
+                                          cálculo: {Number(item.cantidadCalculada).toLocaleString('es-CL', { maximumFractionDigits: 2 })}
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="py-1.5 text-right font-mono text-slate-700">
+                                      {formatoMoneda(Number(item.precioUnitario), oc.moneda)}
+                                    </td>
+                                    <td className="py-1.5 text-right font-mono font-semibold text-slate-900">
+                                      {formatoMoneda(Number(item.cantidad) * Number(item.precioUnitario), oc.moneda)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+                        </td>
+                      </tr>
+                    )}
                     {rechazandoId === oc.id && (
                       <tr className="bg-rose-50/50 border-b border-rose-100">
                         <td colSpan={colSpan} className="px-4 py-3">

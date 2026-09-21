@@ -7,22 +7,8 @@ import { Select } from '../../components/ui/Select';
 import { createOrdenCompra, getProyectos, getProveedores, getProyectoById } from '../../api/client';
 import { useMonedas } from '../../lib/monedas';
 import { computeMaterialesFasePorProveedor, type GrupoFaseProveedor } from '../cotizaciones/lib/materialesConsolidados';
+import { CATEGORIA_GASTO_OPTIONS } from './categoriaGasto';
 import type { CategoriaGasto, Fase } from '../../types';
-
-// Mismo dominio que CategoriaGasto en mtw-api -- solo hace falta para items
-// SIN materialId (partidas externas tipo flete/mano de obra): con
-// materialId, mtw-api deriva la categoria sola de la familia del material.
-const CATEGORIA_OPTIONS: { value: CategoriaGasto; label: string }[] = [
-  { value: 'PERFILERIA', label: 'Perfilería' },
-  { value: 'HERRAJES', label: 'Herrajes' },
-  { value: 'VIDRIOS', label: 'Vidrios' },
-  { value: 'ACCESORIOS', label: 'Accesorios' },
-  { value: 'REFUERZOS', label: 'Refuerzos' },
-  { value: 'MANO_DE_OBRA', label: 'Mano de obra' },
-  { value: 'FLETE', label: 'Flete' },
-  { value: 'INSTALACION', label: 'Instalación' },
-  { value: 'OTROS', label: 'Otros' },
-];
 
 interface NuevaOrdenCompraModalProps {
   isOpen: boolean;
@@ -369,7 +355,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
                         </div>
                       ) : (
                         <Select
-                          options={[{ value: '', label: 'Categoría...' }, ...CATEGORIA_OPTIONS]}
+                          options={[{ value: '', label: 'Categoría...' }, ...CATEGORIA_GASTO_OPTIONS]}
                           value={item.categoria}
                           onChange={(e) => setItemField(index, 'categoria', e.target.value as CategoriaGasto)}
                         />
