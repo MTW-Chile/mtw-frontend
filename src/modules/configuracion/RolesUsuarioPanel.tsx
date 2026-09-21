@@ -196,8 +196,9 @@ const UsuariosSection: React.FC = () => {
       </div>
 
       <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-500">
-        <span className="font-bold text-slate-700">alfredo.mella.v@mtw.cl</span> es administrador del sistema con
-        acceso total -- no necesita rol y no aparece en esta lista.
+        <span className="font-bold text-slate-700">alfredo.mella.v@mtw.cl</span> es administrador del sistema:
+        tiene acceso total sin importar el rol o el estado que tenga acá. Si aparece en la lista, queda marcado
+        como "Admin del sistema" y no se puede editar -- cambiarlo no tendría ningún efecto real.
       </div>
 
       {isLoading ? (
@@ -228,10 +229,16 @@ const UsuariosSection: React.FC = () => {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <div className="text-xs font-bold text-slate-900 truncate">{u.nombre}</div>
-                  {!u.activo && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-200 text-slate-600 font-bold shrink-0">
-                      Desactivado
+                  {u.esAdmin ? (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-[#E34A26]/10 text-[#E34A26] font-bold shrink-0">
+                      Admin del sistema
                     </span>
+                  ) : (
+                    !u.activo && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-200 text-slate-600 font-bold shrink-0">
+                        Desactivado
+                      </span>
+                    )
                   )}
                 </div>
                 <div className="text-[11px] text-slate-500 truncate">{u.email}</div>
@@ -243,31 +250,33 @@ const UsuariosSection: React.FC = () => {
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => setEditando(u)}
-                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-[#E34A26] hover:bg-orange-50 transition-colors cursor-pointer"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  <span>Editar</span>
-                </button>
-                <button
-                  onClick={() => toggleActivoMutation.mutate({ id: u.id, activo: !u.activo })}
-                  disabled={cambiandoId === u.id}
-                  title={u.activo ? 'Desactivar acceso' : 'Reactivar acceso'}
-                  className={`p-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50 ${
-                    u.activo ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'
-                  }`}
-                >
-                  {cambiandoId === u.id ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : u.activo ? (
-                    <Ban className="w-3.5 h-3.5" />
-                  ) : (
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                  )}
-                </button>
-              </div>
+              {!u.esAdmin && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => setEditando(u)}
+                    className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-[#E34A26] hover:bg-orange-50 transition-colors cursor-pointer"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    <span>Editar</span>
+                  </button>
+                  <button
+                    onClick={() => toggleActivoMutation.mutate({ id: u.id, activo: !u.activo })}
+                    disabled={cambiandoId === u.id}
+                    title={u.activo ? 'Desactivar acceso' : 'Reactivar acceso'}
+                    className={`p-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50 ${
+                      u.activo ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'
+                    }`}
+                  >
+                    {cambiandoId === u.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : u.activo ? (
+                      <Ban className="w-3.5 h-3.5" />
+                    ) : (
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
