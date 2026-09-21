@@ -502,6 +502,9 @@ export async function createOrdenCompra(payload: {
     descripcion: string;
     unidadMedida?: string;
     cantidad: number;
+    // Valor teorico antes de redondear a la unidad de compra (ver
+    // OrdenCompraItem.cantidadCalculada) -- puramente informativo.
+    cantidadCalculada?: number | null;
     precioUnitario: number;
     // Obligatoria solo cuando el item no tiene materialId (partida
     // externa) -- con materialId, mtw-api la deriva sola de la familia.

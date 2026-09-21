@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
-import { X, ShoppingCart, AlertCircle, Plus, Trash2 } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { X, ShoppingCart, AlertCircle, Plus, Trash2, Package } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
-import { createOrdenCompra, getProyectos, getProveedores } from '../../api/client';
-import type { CategoriaGasto } from '../../types';
+import { createOrdenCompra, getProyectos, getProveedores, getProyectoById } from '../../api/client';
+import { useMonedas } from '../../lib/monedas';
+import { computeMaterialesFasePorProveedor, type GrupoFaseProveedor } from '../cotizaciones/lib/materialesConsolidados';
+import type { CategoriaGasto, Fase } from '../../types';
 
-// Mismo dominio que CategoriaGasto en mtw-api -- este formulario solo crea
-// partidas externas (sin materialId, ver ItemForm), asi que "categoria" es
-// siempre obligatoria y a mano: no hay material del que derivarla.
+// Mismo dominio que CategoriaGasto en mtw-api -- solo hace falta para items
+// SIN materialId (partidas externas tipo flete/mano de obra): con
+// materialId, mtw-api deriva la categoria sola de la familia del material.
 const CATEGORIA_OPTIONS: { value: CategoriaGasto; label: string }[] = [
   { value: 'PERFILERIA', label: 'Perfilería' },
   { value: 'HERRAJES', label: 'Herrajes' },
@@ -32,14 +34,32 @@ interface NuevaOrdenCompraModalProps {
 }
 
 interface ItemForm {
+  // Presente cuando el item vino de los materiales calculados de una fase
+  // (ver gruposPorProveedor) -- mtw-api deriva la categoria sola de la
+  // familia del material, asi que estos items no piden categoria.
+  materialId?: string;
   descripcion: string;
   unidadMedida: string;
   cantidad: string;
+  // Valor teorico antes de redondear a la unidad de compra (solo
+  // Perfileria/Refuerzos, que se compran por barra entera) -- puramente
+  // informativo, se guarda tal cual en OrdenCompraItem.cantidadCalculada.
+  cantidadCalculada?: number | null;
   precioUnitario: string;
   categoria: CategoriaGasto | '';
 }
 
 const itemVacio = (): ItemForm => ({ descripcion: '', unidadMedida: 'UN', cantidad: '', precioUnitario: '', categoria: '' });
+
+const itemFormDesdeCalculo = (item: GrupoFaseProveedor['items'][number]): ItemForm => ({
+  materialId: item.materialId,
+  descripcion: item.descripcion,
+  unidadMedida: item.unidadMedida,
+  cantidad: String(item.cantidad),
+  cantidadCalculada: item.cantidadCalculada,
+  precioUnitario: item.precioUnitario ? String(item.precioUnitario) : '',
+  categoria: '',
+});
 
 export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   isOpen,
@@ -48,8 +68,10 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   proyectoLabelFijo,
 }) => {
   const queryClient = useQueryClient();
+  const monedas = useMonedas();
 
   const [proyectoId, setProyectoId] = useState(proyectoIdFijo || '');
+  const [faseId, setFaseId] = useState('');
   const [proveedorId, setProveedorId] = useState('');
   const [requiereAprobacion, setRequiereAprobacion] = useState(false);
   const [items, setItems] = useState<ItemForm[]>([itemVacio()]);
@@ -65,6 +87,63 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
     queryFn: () => getProveedores(),
     enabled: isOpen,
   });
+  // Detalle completo del proyecto (ventanas + materiales + fases) para poder
+  // calcular que se necesita comprar por fase -- mismo queryKey que usa
+  // ProyectoWorkspace, asi que si se abre esta modal desde ahí, sale del
+  // cache de react-query sin pegarle de nuevo al backend.
+  const { data: proyectoDetalle, isLoading: cargandoDetalle } = useQuery({
+    queryKey: ['proyectoDetail', proyectoId],
+    queryFn: () => getProyectoById(proyectoId),
+    enabled: isOpen && !!proyectoId,
+  });
+
+  // La ejecucion real de la obra sigue la version activa, igual que en
+  // ProyectoWorkspace/Cotizaciones -- no siempre la de versionNumero mas alto.
+  const activeVersion = useMemo(() => {
+    if (!proyectoDetalle) return undefined;
+    return (
+      proyectoDetalle.versiones.find((v) => v.hetmoId === proyectoDetalle.versionActivaHetmoId) ||
+      proyectoDetalle.versiones[0]
+    );
+  }, [proyectoDetalle]);
+
+  // Si ya hay fases reales planificadas (Paso "Fases"), se compra por esas
+  // -- Fase 0 (el 100% del proyecto tal como llego de HETMO) solo se ofrece
+  // cuando todavia no se planifico ninguna fase real.
+  const fasesReales = (activeVersion?.fases || []).filter((f) => f.numeroFase > 0).sort((a, b) => a.numeroFase - b.numeroFase);
+  const opcionesFase: Fase[] = fasesReales.length > 0 ? fasesReales : (activeVersion?.fases || []).filter((f) => f.numeroFase === 0);
+
+  // Materiales necesarios para fabricar la fase elegida, agrupados por
+  // proveedor -- reusa EXACTAMENTE la misma logica de precio/cantidad que
+  // la Analitica de Materiales (conversion de moneda, ajustes manuales,
+  // descuento/recargo por familia, barras para Perfileria/Refuerzos) para
+  // no mostrar un precio distinto al ya aprobado en el proyecto. Ver
+  // comentario de computeMaterialesFasePorProveedor.
+  const tasaDolar = Number(activeVersion?.tipoCambioDolar) || 950;
+  const tasaUf = Number(activeVersion?.tipoCambioUF) || 38500;
+  const tasaEuro = Number(activeVersion?.tipoCambioEuro) || 1030;
+  const gruposPorProveedor: GrupoFaseProveedor[] = useMemo(() => {
+    const fase = (activeVersion?.fases || []).find((f) => f.id === faseId);
+    return computeMaterialesFasePorProveedor(activeVersion, fase, tasaDolar, tasaEuro, tasaUf, monedas);
+  }, [activeVersion, faseId, tasaDolar, tasaEuro, tasaUf, monedas]);
+
+  // Cambiar de proyecto o de fase invalida cualquier proveedor/items que ya
+  // se hubieran elegido -- evita mezclar items de una fase con el proveedor
+  // armado para otra.
+  useEffect(() => {
+    setFaseId('');
+  }, [proyectoId]);
+
+  useEffect(() => {
+    setProveedorId('');
+    setItems([itemVacio()]);
+  }, [faseId]);
+
+  const elegirGrupoProveedor = (grupo: GrupoFaseProveedor) => {
+    if (!grupo.proveedorId) return; // sin proveedor asignado: no se puede generar OC para este grupo
+    setProveedorId(grupo.proveedorId);
+    setItems(grupo.items.length ? grupo.items.map(itemFormDesdeCalculo) : [itemVacio()]);
+  };
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -75,19 +154,22 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
       if (itemsValidos.length === 0) {
         throw new Error('Agrega al menos un item con descripción, cantidad y precio.');
       }
-      if (itemsValidos.some((i) => !i.categoria)) {
-        throw new Error('Elige una categoría para cada item -- sirve para el Control de Presupuesto.');
+      if (itemsValidos.some((i) => !i.materialId && !i.categoria)) {
+        throw new Error('Elige una categoría para cada item sin material del catálogo -- sirve para el Control de Presupuesto.');
       }
       return createOrdenCompra({
         proyectoId,
+        faseId: faseId || null,
         proveedorId,
         requiereAprobacion,
         items: itemsValidos.map((i) => ({
+          materialId: i.materialId,
           descripcion: i.descripcion.trim(),
           unidadMedida: i.unidadMedida || 'UN',
           cantidad: parseFloat(i.cantidad),
+          cantidadCalculada: i.cantidadCalculada ?? undefined,
           precioUnitario: parseFloat(i.precioUnitario),
-          categoria: i.categoria as CategoriaGasto,
+          categoria: i.materialId ? undefined : (i.categoria as CategoriaGasto),
         })),
       });
     },
@@ -102,6 +184,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
 
   const handleClose = () => {
     setProyectoId(proyectoIdFijo || '');
+    setFaseId('');
     setProveedorId('');
     setRequiereAprobacion(false);
     setItems([itemVacio()]);
@@ -126,6 +209,10 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
       value: p.id,
       label: `${p.codigoInterno || `#${p.numeroPresupuesto}`} - ${p.obra}`,
     })) || []),
+  ];
+  const faseOptions = [
+    { value: '', label: proyectoId ? 'Selecciona una fase...' : 'Elige primero un proyecto' },
+    ...opcionesFase.map((f) => ({ value: f.id, label: f.numeroFase === 0 ? `Fase 0 - ${f.nombre}` : `Fase ${f.numeroFase} - ${f.nombre}` })),
   ];
   const proveedorOptions = [
     { value: '', label: 'Selecciona un proveedor...' },
@@ -182,8 +269,68 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
             ) : (
               <Select label="Proyecto (obra)" options={proyectoOptions} value={proyectoId} onChange={(e) => setProyectoId(e.target.value)} required />
             )}
-            <Select label="Proveedor" options={proveedorOptions} value={proveedorId} onChange={(e) => setProveedorId(e.target.value)} required />
+            <Select
+              label="Fase"
+              options={faseOptions}
+              value={faseId}
+              onChange={(e) => setFaseId(e.target.value)}
+              disabled={!proyectoId || cargandoDetalle}
+              helperText={cargandoDetalle ? 'Cargando fases del proyecto...' : undefined}
+              required
+            />
           </div>
+
+          {faseId && (
+            <div className="space-y-1.5">
+              <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Proveedores con materiales en esta fase
+              </span>
+              {gruposPorProveedor.length === 0 ? (
+                <p className="text-[11px] text-slate-500">
+                  Esta fase no tiene materiales calculados (¿tiene líneas de ventana asignadas en la pestaña Fases?). Elige un
+                  proveedor manualmente abajo para una compra externa (flete, mano de obra, etc.).
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {gruposPorProveedor.map((g) => {
+                    const activo = !!g.proveedorId && proveedorId === g.proveedorId;
+                    const sinProveedor = !g.proveedorId;
+                    return (
+                      <button
+                        key={g.proveedorId || 'sin-proveedor'}
+                        type="button"
+                        disabled={sinProveedor}
+                        onClick={() => elegirGrupoProveedor(g)}
+                        title={sinProveedor ? 'Asígnale un proveedor a estos materiales en el Maestro para poder generar una OC' : undefined}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-colors ${
+                          activo
+                            ? 'bg-[#E34A26]/10 text-[#E34A26] border-[#E34A26]/30'
+                            : sinProveedor
+                              ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed'
+                              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50 cursor-pointer'
+                        }`}
+                      >
+                        <Package className="w-3.5 h-3.5" />
+                        {g.proveedorNombre}
+                        <span className="font-mono font-normal opacity-70">
+                          · {g.items.length} {g.items.length === 1 ? 'item' : 'items'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          <Select
+            label="Proveedor"
+            options={proveedorOptions}
+            value={proveedorId}
+            onChange={(e) => setProveedorId(e.target.value)}
+            helperText="Se llena solo al elegir un proveedor arriba -- se puede cambiar a mano para una compra externa"
+            required
+          />
 
           <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
             <input
@@ -215,11 +362,18 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
                       />
                     </div>
                     <div className="w-44 shrink-0">
-                      <Select
-                        options={[{ value: '', label: 'Categoría...' }, ...CATEGORIA_OPTIONS]}
-                        value={item.categoria}
-                        onChange={(e) => setItemField(index, 'categoria', e.target.value as CategoriaGasto)}
-                      />
+                      {item.materialId ? (
+                        <div className="h-[38px] flex items-center justify-center gap-1 px-3 rounded-xl bg-sky-50 border border-sky-200 text-[11px] font-bold text-sky-700">
+                          <Package className="w-3.5 h-3.5" />
+                          Del catálogo
+                        </div>
+                      ) : (
+                        <Select
+                          options={[{ value: '', label: 'Categoría...' }, ...CATEGORIA_OPTIONS]}
+                          value={item.categoria}
+                          onChange={(e) => setItemField(index, 'categoria', e.target.value as CategoriaGasto)}
+                        />
+                      )}
                     </div>
                     <button
                       type="button"
@@ -237,6 +391,11 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
                       placeholder="Cantidad"
                       value={item.cantidad}
                       onChange={(e) => setItemField(index, 'cantidad', e.target.value)}
+                      helperText={
+                        item.cantidadCalculada != null
+                          ? `Cálculo exacto: ${item.cantidadCalculada.toLocaleString('es-CL', { maximumFractionDigits: 2 })} (redondeado a entero por barra)`
+                          : undefined
+                      }
                     />
                     <Input
                       type="number"

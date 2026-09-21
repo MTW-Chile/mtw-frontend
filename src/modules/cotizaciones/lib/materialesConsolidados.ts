@@ -1,5 +1,5 @@
 import { resolverMoneda, type MonedaHetmo } from '../../../lib/monedas';
-import type { ProyectoVersion, MaterialVentana, Ventana } from '../../../types';
+import type { ProyectoVersion, MaterialVentana, Ventana, Fase } from '../../../types';
 import { toWindowLine } from '../components/drawing/ventanaAdapter';
 import { cuadrosFor } from '../components/drawing/geometryCore';
 
@@ -368,4 +368,136 @@ export function computeCantidadCuadros(activeVersion: ProyectoVersion | undefine
     const count = line ? cuadrosFor(line) : 0;
     return acc + count * (v.unidades || 1);
   }, 0);
+}
+
+export interface ItemFaseProveedor {
+  materialId: string;
+  descripcion: string;
+  unidadMedida: string;
+  cantidad: number;
+  // Valor teorico antes de redondear a la unidad de compra -- solo se
+  // completa para Perfileria/Refuerzos (se compran por barra entera).
+  // Puramente informativo: no se usa en ningun otro calculo, ver
+  // OrdenCompraItem.cantidadCalculada en mtw-api.
+  cantidadCalculada: number | null;
+  precioUnitario: number;
+}
+
+export interface GrupoFaseProveedor {
+  proveedorId: string | null; // null = material sin proveedor asignado en el Maestro
+  proveedorNombre: string;
+  items: ItemFaseProveedor[];
+}
+
+const FAMILIAS_BARRA = new Set(['PERFILERIA', 'REFUERZOS']);
+
+/**
+ * Materiales necesarios para fabricar UNA fase (subconjunto de ventanas de
+ * la version), agrupados por proveedor -- para armar una Orden de Compra
+ * por proveedor desde Abastecimiento (ver NuevaOrdenCompraModal). Reusa
+ * computeMaterialesConsolidados para que el precio unitario (conversion de
+ * moneda, ajustes manuales, descuento/recargo por familia) y la cantidad
+ * total de la version (barras para Perfileria/Refuerzos, m² reales para
+ * Vidrios/Juntas) sean EXACTAMENTE los mismos que ve la Analítica de
+ * Materiales -- no se reinventa un segundo calculo que podria desviarse
+ * del oficial.
+ *
+ * La cantidad de cada material se prorratea por fase usando la MISMA base
+ * que separa piezas de m² reales (longitudMm para Vidrios/Juntas, cantidad
+ * para el resto): proporcion = base_de_la_fase / base_de_toda_la_version,
+ * aplicada sobre cantidadTotal (que ya viene en la unidad de compra
+ * correcta). Para Perfileria/Refuerzos esa cantidadTotal esta en BARRAS --
+ * el numero real que HETMO optimizo para TODA la version, no algo que se
+ * pueda recalcular por fase (la optimizacion de corte no es lineal:
+ * sumar los metros de la fase y dividir por el largo de barra da un
+ * numero MENOR y equivocado, ver conversacion en la tarea). Prorratear ese
+ * total y redondear hacia arriba es una ESTIMACION deliberadamente
+ * generosa (nunca deja corta a la fase), no una optimizacion de corte real
+ * para ese subconjunto -- cantidadCalculada guarda el valor sin redondear
+ * para poder auditar despues cuanto "de mas" se compro.
+ */
+export function computeMaterialesFasePorProveedor(
+  activeVersion: ProyectoVersion | undefined,
+  fase: Fase | undefined,
+  tasaDolar: number,
+  tasaEuro: number,
+  tasaUf: number,
+  monedas: MonedaHetmo[]
+): GrupoFaseProveedor[] {
+  if (!activeVersion || !fase) return [];
+
+  const consolidados = computeMaterialesConsolidados(activeVersion, tasaDolar, tasaEuro, tasaUf, monedas);
+  const consolidadoPorMaterial = new Map(consolidados.filter((m) => !m.excluido).map((m) => [m.materialId, m]));
+  const aprobacionesPorFamilia = new Map((activeVersion.familiaAprobaciones || []).map((f) => [f.familia, f]));
+
+  const baseDeVentana = (mv: MaterialVentana, familiaCruda: string) =>
+    familiaCruda === 'JUNTAS' || familiaCruda === 'VIDRIOS' ? Number(mv.longitudMm) || 0 : Number(mv.cantidad) || 0;
+
+  // Proveedor de cada material y base de cantidad (piezas o m² reales,
+  // segun familia) sumada para TODA la version -- denominador para sacar
+  // que proporcion de esa base cae en la fase elegida.
+  const proveedorPorMaterial = new Map<string, { id: string | null; nombre: string }>();
+  const baseVersionPorMaterial = new Map<string, number>();
+  (activeVersion.ventanas || []).forEach((v) => {
+    (v.materiales || []).forEach((mv) => {
+      if (!mv.material) return;
+      if (!proveedorPorMaterial.has(mv.materialId)) {
+        proveedorPorMaterial.set(mv.materialId, {
+          id: mv.material.proveedorId,
+          nombre: mv.material.proveedor?.nombre || 'Sin proveedor asignado',
+        });
+      }
+      const familiaCruda = consolidadoPorMaterial.get(mv.materialId)?.familiaCruda || (mv.material.familia || 'ACCESORIOS').toUpperCase().trim();
+      baseVersionPorMaterial.set(mv.materialId, (baseVersionPorMaterial.get(mv.materialId) || 0) + baseDeVentana(mv, familiaCruda));
+    });
+  });
+
+  // Misma base, pero solo para las ventanas/unidades asignadas a esta fase.
+  const baseFasePorMaterial = new Map<string, number>();
+  (fase.ventanasFase || []).forEach((vf) => {
+    if (vf.unidades <= 0) return;
+    const ventana = (activeVersion.ventanas || []).find((v) => v.id === vf.ventanaId);
+    if (!ventana || !ventana.unidades) return;
+    const factor = vf.unidades / ventana.unidades;
+    (ventana.materiales || []).forEach((mv) => {
+      if (!mv.material) return;
+      const familiaCruda = consolidadoPorMaterial.get(mv.materialId)?.familiaCruda || (mv.material.familia || 'ACCESORIOS').toUpperCase().trim();
+      baseFasePorMaterial.set(mv.materialId, (baseFasePorMaterial.get(mv.materialId) || 0) + baseDeVentana(mv, familiaCruda) * factor);
+    });
+  });
+
+  const porProveedor = new Map<string, GrupoFaseProveedor>();
+  baseFasePorMaterial.forEach((baseFase, materialId) => {
+    if (baseFase <= 0) return;
+    const consolidado = consolidadoPorMaterial.get(materialId);
+    if (!consolidado) return; // excluido en la Analitica -- no se sugiere comprar
+    const baseVersion = baseVersionPorMaterial.get(materialId) || 0;
+    if (baseVersion <= 0) return;
+    const proporcion = Math.min(1, baseFase / baseVersion);
+
+    const cantidadTeorica = consolidado.cantidadTotal * proporcion;
+    const esBarra = FAMILIAS_BARRA.has(consolidado.familiaCruda);
+    const cantidad = esBarra ? Math.ceil(cantidadTeorica - 0.0001) : Math.round(cantidadTeorica * 100) / 100;
+
+    const aprobacion = aprobacionesPorFamilia.get(consolidado.familia);
+    const descuento = Number(aprobacion?.descuentoPct) || 0;
+    const recargo = Number(aprobacion?.recargoPct) || 0;
+    const precioUnitario = consolidado.precioCLP * (1 - descuento / 100) * (1 + recargo / 100);
+
+    const proveedor = proveedorPorMaterial.get(materialId) || { id: null, nombre: 'Sin proveedor asignado' };
+    const key = proveedor.id || '__sin_proveedor__';
+    if (!porProveedor.has(key)) {
+      porProveedor.set(key, { proveedorId: proveedor.id, proveedorNombre: proveedor.nombre, items: [] });
+    }
+    porProveedor.get(key)!.items.push({
+      materialId,
+      descripcion: `${consolidado.skuInterno} · ${consolidado.descripcion}`,
+      unidadMedida: esBarra ? 'BARRA' : consolidado.unidadMedida,
+      cantidad,
+      cantidadCalculada: esBarra && Math.abs(cantidad - cantidadTeorica) > 0.0001 ? Math.round(cantidadTeorica * 1000) / 1000 : null,
+      precioUnitario: Math.round(precioUnitario),
+    });
+  });
+
+  return [...porProveedor.values()].sort((a, b) => a.proveedorNombre.localeCompare(b.proveedorNombre));
 }

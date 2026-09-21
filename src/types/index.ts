@@ -417,6 +417,12 @@ export interface OrdenCompraItem {
   // categoriaDesdeFamiliaMaterial en mtw-api).
   categoria: CategoriaGasto;
   cantidad: number;
+  // Valor teorico antes de redondear a la unidad de compra (ej. barras
+  // enteras de Perfileria/Refuerzos) -- solo referencia para poder
+  // consultar despues cuanto "de mas" se compro por el redondeo, nunca se
+  // usa en ningun calculo de stock/presupuesto. null cuando no hubo
+  // redondeo (cantidad ya es el valor exacto).
+  cantidadCalculada: number | null;
   precioUnitario: number;
   recepciones?: RecepcionOCItem[];
 }
