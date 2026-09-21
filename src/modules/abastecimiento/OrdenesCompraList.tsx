@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Loader2, Check, Send, X as XIcon, Ban, ChevronDown, ChevronRight, Package, Undo2 } from 'lucide-react';
+import { Plus, Loader2, Check, Send, X as XIcon, Ban, ChevronDown, ChevronRight, Package, Undo2, FileDown } from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { getOrdenesCompra, updateOrdenCompraEstado } from '../../api/client';
+import { getOrdenesCompra, updateOrdenCompraEstado, renderPdf } from '../../api/client';
+import { loadImageDataUrl } from '../cotizaciones/lib/pdfTheme';
 import type { EstadoOC, OrdenCompra } from '../../types';
 import { NuevaOrdenCompraModal } from './NuevaOrdenCompraModal';
 import { CATEGORIA_GASTO_LABEL } from './categoriaGasto';
+import { buildOrdenCompraHtml } from './ordenCompraPdf';
 
 export const ESTADO_OC_LABEL: Record<EstadoOC, string> = {
   BORRADOR: 'Borrador',
@@ -53,6 +55,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
   const [rechazandoId, setRechazandoId] = useState<string | null>(null);
   const [motivoRechazo, setMotivoRechazo] = useState('');
   const [expandidas, setExpandidas] = useState<Set<string>>(new Set());
+  const [generandoPdfId, setGenerandoPdfId] = useState<string | null>(null);
 
   const toggleExpandida = (id: string) =>
     setExpandidas((prev) => {
@@ -61,6 +64,37 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
       else next.add(id);
       return next;
     });
+
+  // Mismo documento que se le manda al proveedor al marcarla "Enviada" --
+  // no hay un archivo guardado aparte, se arma al vuelo con los datos
+  // actuales de la OC cada vez que se pide (igual patron que el PDF de
+  // Presupuesto, ver PresupuestoOferta.tsx).
+  const descargarPdf = async (oc: OrdenCompra) => {
+    setGenerandoPdfId(oc.id);
+    try {
+      let logoDataUrl: string | null = null;
+      try {
+        logoDataUrl = await loadImageDataUrl('/mtw-logo.png');
+      } catch {
+        // Decorativo -- si falla la carga, el PDF sigue sin el logo.
+      }
+      const html = buildOrdenCompraHtml(oc, logoDataUrl);
+      const filename = `${oc.numero}.pdf`;
+      const blob = await renderPdf(html, filename);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      window.alert(`No se pudo generar el PDF: ${error?.message || error}`);
+    } finally {
+      setGenerandoPdfId(null);
+    }
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ['ordenesCompra', { proyectoId, estado: filtroEstado }],
@@ -162,6 +196,15 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                       <td className="px-4 py-3 text-slate-500">{new Date(oc.creadoEn).toLocaleDateString('es-CL')}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            leftIcon={<FileDown className="w-3.5 h-3.5" />}
+                            isLoading={generandoPdfId === oc.id}
+                            onClick={() => descargarPdf(oc)}
+                          >
+                            PDF
+                          </Button>
                           {oc.estado === 'BORRADOR' && oc.requiereAprobacion && (
                             <Button
                               size="sm"
