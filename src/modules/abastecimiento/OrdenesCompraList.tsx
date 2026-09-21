@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Loader2, Check, Send, X as XIcon, Ban, ChevronDown, ChevronRight, Package } from 'lucide-react';
+import { Plus, Loader2, Check, Send, X as XIcon, Ban, ChevronDown, ChevronRight, Package, Undo2 } from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { getOrdenesCompra, updateOrdenCompraEstado } from '../../api/client';
@@ -205,6 +205,21 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                               onClick={() => transicion.mutate({ id: oc.id, estado: 'ENVIADA' })}
                             >
                               Enviar
+                            </Button>
+                          )}
+                          {oc.estado === 'ENVIADA' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              leftIcon={<Undo2 className="w-3.5 h-3.5" />}
+                              isLoading={transicion.isPending && transicion.variables?.id === oc.id}
+                              onClick={() => {
+                                if (window.confirm(`¿Revertir el envío de la OC ${oc.numero}? Vuelve a Borrador para poder editarla y reenviarla.`)) {
+                                  transicion.mutate({ id: oc.id, estado: 'BORRADOR' });
+                                }
+                              }}
+                            >
+                              Revertir envío
                             </Button>
                           )}
                           {['BORRADOR', 'PENDIENTE_APROBACION', 'APROBADA'].includes(oc.estado) && (
