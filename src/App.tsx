@@ -32,6 +32,10 @@ const AppContent: React.FC = () => {
   const [activeTab, setActiveTabState] = useState('inicio');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  // Deep-link desde la campanita de notificaciones (Header) hacia un
+  // proyecto puntual (ej. una OC pendiente de aprobación) -- ProyectosPage
+  // lo consume y avisa por onProyectoAbierto para que no se reabra solo.
+  const [proyectoAAbrir, setProyectoAAbrir] = useState<{ id: string; seccion?: string } | null>(null);
 
   const { data: permisos, isLoading: cargandoPermisos } = useQuery({
     queryKey: ['misPermisos'],
@@ -69,6 +73,11 @@ const AppContent: React.FC = () => {
     if (query !== undefined) {
       setSearchTerm(query);
     }
+  };
+
+  const abrirProyecto = (proyectoId: string, seccion?: string) => {
+    setActiveTabState('proyectos');
+    setProyectoAAbrir({ id: proyectoId, seccion });
   };
 
   if (cargandoPermisos) {
@@ -111,6 +120,8 @@ const AppContent: React.FC = () => {
           onNavigateHome={() => handleNavigate('inicio')}
           onNavigateConfig={() => handleNavigate('configuracion')}
           moduleTitle={MODULE_TITLES[activeTab] || 'Inicio'}
+          onNavigate={handleNavigate}
+          onAbrirProyecto={abrirProyecto}
         />
 
         <main className="flex-1 overflow-y-auto flex flex-col min-h-0">
@@ -127,7 +138,9 @@ const AppContent: React.FC = () => {
             />
           )}
 
-          {activeTab === 'proyectos' && <ProyectosPage />}
+          {activeTab === 'proyectos' && (
+            <ProyectosPage proyectoAAbrir={proyectoAAbrir} onProyectoAbierto={() => setProyectoAAbrir(null)} />
+          )}
 
           {activeTab === 'configuracion' && (
             <ConfiguracionPage tabsPermitidas={permisos?.esAdmin ? null : permisos?.configTabs ?? []} />

@@ -116,6 +116,14 @@ const RolesSection: React.FC = () => {
                   {r.secciones.length} {r.secciones.length === 1 ? 'sección' : 'secciones'} ·{' '}
                   {r.configTabs.length} {r.configTabs.length === 1 ? 'pestaña de config.' : 'pestañas de config.'} ·{' '}
                   {r._count?.usuarios ?? 0} {r._count?.usuarios === 1 ? 'usuario' : 'usuarios'}
+                  {r.aprobaciones.length > 0 && (
+                    <>
+                      {' · '}
+                      <span className="font-semibold text-[#E34A26]">
+                        aprueba {r.aprobaciones.join(' + ')}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-1 shrink-0">

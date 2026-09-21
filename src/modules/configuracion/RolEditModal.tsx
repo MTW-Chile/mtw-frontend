@@ -4,7 +4,7 @@ import { X, ShieldCheck, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { createRol, updateRol } from '../../api/client';
-import { SECCIONES_FRONTEND, CONFIG_TABS } from '../../lib/accessControl';
+import { SECCIONES_FRONTEND, CONFIG_TABS, ROLES_APROBACION } from '../../lib/accessControl';
 import type { Rol } from '../../types';
 
 interface RolEditModalProps {
@@ -25,6 +25,7 @@ export const RolEditModal: React.FC<RolEditModalProps> = ({ rol, onClose }) => {
   const [nombre, setNombre] = useState(rol?.nombre || '');
   const [secciones, setSecciones] = useState<string[]>(rol?.secciones || []);
   const [configTabs, setConfigTabs] = useState<string[]>(rol?.configTabs || []);
+  const [aprobaciones, setAprobaciones] = useState<string[]>(rol?.aprobaciones || []);
   const [generalError, setGeneralError] = useState<string | null>(null);
 
   const toggle = (lista: string[], setLista: (v: string[]) => void, id: string) => {
@@ -34,9 +35,9 @@ export const RolEditModal: React.FC<RolEditModalProps> = ({ rol, onClose }) => {
   const mutation = useMutation({
     mutationFn: async () => {
       if (esNuevo) {
-        return createRol({ nombre: nombre.trim(), secciones, configTabs });
+        return createRol({ nombre: nombre.trim(), secciones, configTabs, aprobaciones });
       }
-      return updateRol(rol!.id, { nombre: nombre.trim(), secciones, configTabs });
+      return updateRol(rol!.id, { nombre: nombre.trim(), secciones, configTabs, aprobaciones });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['roles'] });
@@ -158,6 +159,39 @@ export const RolEditModal: React.FC<RolEditModalProps> = ({ rol, onClose }) => {
                     />
                     <Icon className="w-3.5 h-3.5 shrink-0" />
                     <span>{t.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Puede aprobar</label>
+            <p className="text-[11px] text-slate-500">
+              Permisos separados a propósito: marcar uno no habilita el otro. Un usuario necesita el permiso exacto
+              para poder aprobar familias de materiales, la cotización, o una Orden de Compra.
+            </p>
+            <div className="grid grid-cols-1 gap-1.5">
+              {ROLES_APROBACION.map((a) => {
+                const Icon = a.icon;
+                const checked = aprobaciones.includes(a.id);
+                return (
+                  <label
+                    key={a.id}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold cursor-pointer transition-colors ${
+                      checked
+                        ? 'bg-[#E34A26]/10 text-[#E34A26] border-[#E34A26]/20'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggle(aprobaciones, setAprobaciones, a.id)}
+                      className="accent-[#E34A26]"
+                    />
+                    <Icon className="w-3.5 h-3.5 shrink-0" />
+                    <span>{a.label}</span>
                   </label>
                 );
               })}

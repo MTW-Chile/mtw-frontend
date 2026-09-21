@@ -1,12 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Menu, User, Settings, LogOut, ChevronDown } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Menu, User, Settings, LogOut, ChevronDown, Bell, Wrench, Landmark, ShoppingCart } from 'lucide-react';
 import { useSession, displayName } from '../../lib/useCloudflareAccessSession';
+import { getMisPermisos, getMisAprobacionesPendientes } from '../../api/client';
 
 interface HeaderProps {
   onOpenSidebar: () => void;
   onNavigateHome: () => void;
   onNavigateConfig?: () => void;
   moduleTitle?: string;
+  // Para la campanita de notificaciones: ir a una cotizacion pendiente
+  // (busca por obra, mismo mecanismo que el buscador de Inicio) o abrir
+  // directo un proyecto en una seccion puntual (ej. Abastecimiento, para
+  // una OC pendiente).
+  onNavigate?: (tab: string, search?: string) => void;
+  onAbrirProyecto?: (proyectoId: string, seccion?: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -14,11 +22,27 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateHome,
   onNavigateConfig,
   moduleTitle = 'Inicio',
+  onNavigate,
+  onAbrirProyecto,
 }) => {
   const { usuario } = useSession();
   const nombreUsuario = displayName(usuario);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  // mismo queryKey que App.tsx -- sale del cache de react-query, no pega
+  // de nuevo al backend.
+  const { data: permisos } = useQuery({ queryKey: ['misPermisos'], queryFn: getMisPermisos });
+  const puedeAprobar = !!permisos && (permisos.esAdmin || permisos.aprobaciones.length > 0);
+
+  const { data: pendientes } = useQuery({
+    queryKey: ['misAprobacionesPendientes'],
+    queryFn: getMisAprobacionesPendientes,
+    enabled: puedeAprobar,
+    refetchInterval: 1000 * 60 * 2,
+  });
 
   // Cerrar menú al hacer clic afuera o con Escape
   useEffect(() => {
@@ -26,14 +50,18 @@ export const Header: React.FC<HeaderProps> = ({
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setIsMenuOpen(false);
       }
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setIsNotifOpen(false);
+      }
     };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsMenuOpen(false);
+        setIsNotifOpen(false);
       }
     };
 
-    if (isMenuOpen) {
+    if (isMenuOpen || isNotifOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('keydown', handleKeyDown);
     }
@@ -41,7 +69,7 @@ export const Header: React.FC<HeaderProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isMenuOpen]);
+  }, [isMenuOpen, isNotifOpen]);
 
   const handleLogout = () => {
     setIsMenuOpen(false);
@@ -88,8 +116,108 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Lado Derecho: Menú de Usuario con Dropdown */}
-      <div className="relative shrink-0" ref={menuRef}>
+      {/* Lado Derecho */}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* Campanita de aprobaciones pendientes -- solo si el rol (o admin) puede aprobar algo */}
+        {puedeAprobar && (
+          <div className="relative shrink-0" ref={notifRef}>
+            <button
+              onClick={() => setIsNotifOpen((prev) => !prev)}
+              className={`relative flex items-center justify-center w-9 h-9 rounded-xl border transition-all cursor-pointer focus:outline-none ${
+                isNotifOpen
+                  ? 'bg-slate-100 border-slate-300 shadow-xs ring-2 ring-[#E34A26]/20'
+                  : 'bg-slate-50 hover:bg-slate-100/80 border-slate-200/80 shadow-2xs'
+              }`}
+              aria-expanded={isNotifOpen}
+              aria-haspopup="true"
+              title="Documentos pendientes de aprobación"
+            >
+              <Bell className="w-4 h-4 text-slate-600" />
+              {!!pendientes?.total && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#E34A26] text-white text-[9px] font-bold flex items-center justify-center">
+                  {pendientes.total > 9 ? '9+' : pendientes.total}
+                </span>
+              )}
+            </button>
+
+            {isNotifOpen && (
+              <div className="absolute right-0 top-full mt-2 w-80 rounded-2xl bg-white border border-slate-200 shadow-xl p-1.5 z-50 animate-fade-in max-h-[70vh] overflow-y-auto">
+                <div className="px-3 py-2.5">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Pendientes de aprobación
+                  </div>
+                </div>
+
+                {!pendientes || pendientes.total === 0 ? (
+                  <div className="px-3 py-6 text-center text-xs text-slate-400">Sin pendientes por ahora.</div>
+                ) : (
+                  <div className="space-y-2 pb-1.5">
+                    {pendientes.tecnico.map((item) => (
+                      <button
+                        key={`tecnico-${item.versionId}`}
+                        onClick={() => {
+                          setIsNotifOpen(false);
+                          onNavigate?.('cotizaciones', item.obra);
+                        }}
+                        className="w-full flex items-start gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-slate-100 transition-colors cursor-pointer"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-sky-100 flex items-center justify-center text-sky-600 shrink-0 mt-0.5">
+                          <Wrench className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-800 truncate">{item.obra}</div>
+                          <div className="text-[10px] text-slate-500 truncate">
+                            Analítica: falta aprobar {item.familiasPendientes.join(', ')}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                    {pendientes.gerencial.map((item) =>
+                      item.tipo === 'aprobacion_gerencial_cotizacion' ? (
+                        <button
+                          key={`ger-cot-${item.versionId}`}
+                          onClick={() => {
+                            setIsNotifOpen(false);
+                            onNavigate?.('cotizaciones', item.obra);
+                          }}
+                          className="w-full flex items-start gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-slate-100 transition-colors cursor-pointer"
+                        >
+                          <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600 shrink-0 mt-0.5">
+                            <Landmark className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-slate-800 truncate">{item.obra}</div>
+                            <div className="text-[10px] text-slate-500 truncate">Esperando aprobación gerencial</div>
+                          </div>
+                        </button>
+                      ) : (
+                        <button
+                          key={`ger-oc-${item.ordenCompraId}`}
+                          onClick={() => {
+                            setIsNotifOpen(false);
+                            onAbrirProyecto?.(item.proyectoId, 'abastecimiento');
+                          }}
+                          className="w-full flex items-start gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-slate-100 transition-colors cursor-pointer"
+                        >
+                          <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600 shrink-0 mt-0.5">
+                            <ShoppingCart className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-slate-800 truncate">{item.numero} · {item.proveedorNombre}</div>
+                            <div className="text-[10px] text-slate-500 truncate">{item.obra}</div>
+                          </div>
+                        </button>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Menú de Usuario con Dropdown */}
+        <div className="relative shrink-0" ref={menuRef}>
         <button
           onClick={() => setIsMenuOpen((prev) => !prev)}
           className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border transition-all cursor-pointer focus:outline-none max-w-[150px] sm:max-w-none ${
@@ -168,6 +296,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
         )}
+        </div>
       </div>
     </header>
   );

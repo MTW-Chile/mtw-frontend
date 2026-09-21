@@ -1,16 +1,34 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, FolderKanban, ChevronRight } from 'lucide-react';
 import { getProyectos } from '../../api/client';
 import { ProyectoWorkspace } from './ProyectoWorkspace';
+
+interface ProyectosPageProps {
+  // Deep-link desde la campanita de notificaciones (Header) -- abre este
+  // proyecto directo en la seccion indicada. Se limpia con
+  // onProyectoAbierto una vez consumido, para no re-abrirlo si el usuario
+  // vuelve a este tab despues de haberlo cerrado a mano.
+  proyectoAAbrir?: { id: string; seccion?: string } | null;
+  onProyectoAbierto?: () => void;
+}
 
 // El ERP funciona "desde el proyecto": esta pantalla lista los proyectos
 // ya ganados (version mas reciente en ACEPTADO_CLIENTE -- ahi recien
 // arranca la ejecucion real: comprar, guardar en bodega, controlar el
 // gasto contra el presupuesto). Cotizaciones sigue siendo el modulo
 // aparte para lo que todavia se esta negociando.
-export const ProyectosPage: React.FC = () => {
+export const ProyectosPage: React.FC<ProyectosPageProps> = ({ proyectoAAbrir, onProyectoAbierto }) => {
   const [proyectoId, setProyectoId] = useState<string | null>(null);
+  const [seccionInicial, setSeccionInicial] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!proyectoAAbrir) return;
+    setProyectoId(proyectoAAbrir.id);
+    setSeccionInicial(proyectoAAbrir.seccion);
+    onProyectoAbierto?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proyectoAAbrir]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['proyectos', 'en-curso'],
@@ -20,7 +38,16 @@ export const ProyectosPage: React.FC = () => {
   const proyectosEnCurso = (data?.data || []).filter((p) => p.versiones[0]?.estadoAprobacion === 'ACEPTADO_CLIENTE');
 
   if (proyectoId) {
-    return <ProyectoWorkspace proyectoId={proyectoId} onVolver={() => setProyectoId(null)} />;
+    return (
+      <ProyectoWorkspace
+        proyectoId={proyectoId}
+        seccionInicial={seccionInicial}
+        onVolver={() => {
+          setProyectoId(null);
+          setSeccionInicial(undefined);
+        }}
+      />
+    );
   }
 
   return (

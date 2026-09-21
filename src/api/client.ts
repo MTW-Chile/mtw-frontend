@@ -29,6 +29,7 @@ import type {
   Rol,
   Usuario,
   MisPermisos,
+  AprobacionesPendientes,
 } from '../types';
 
 // withCredentials: true es lo que hace que el navegador mande la cookie de
@@ -744,6 +745,7 @@ export async function createRol(payload: {
   nombre: string;
   secciones: string[];
   configTabs: string[];
+  aprobaciones: string[];
 }): Promise<{ data: Rol }> {
   const response = await apiClient.post<{ data: Rol }>('/roles', payload);
   return response.data;
@@ -751,9 +753,14 @@ export async function createRol(payload: {
 
 export async function updateRol(
   id: string,
-  payload: Partial<{ nombre: string; secciones: string[]; configTabs: string[] }>
+  payload: Partial<{ nombre: string; secciones: string[]; configTabs: string[]; aprobaciones: string[] }>
 ): Promise<{ data: Rol }> {
   const response = await apiClient.patch<{ data: Rol }>(`/roles/${id}`, payload);
+  return response.data;
+}
+
+export async function getMisAprobacionesPendientes(): Promise<AprobacionesPendientes> {
+  const response = await apiClient.get<AprobacionesPendientes>('/mis-aprobaciones-pendientes');
   return response.data;
 }
 

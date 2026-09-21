@@ -1,5 +1,5 @@
 import type { ElementType } from 'react';
-import { LayoutDashboard, Boxes, Building2, FolderKanban, Settings, FileText, DoorClosed, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Boxes, Building2, FolderKanban, Settings, FileText, DoorClosed, ShieldCheck, Wrench, Landmark } from 'lucide-react';
 
 export interface EntradaAcceso {
   id: string;
@@ -29,4 +29,13 @@ export const CONFIG_TABS: EntradaAcceso[] = [
   { id: 'presupuesto', label: 'Presupuesto', icon: FileText },
   { id: 'plantillas-puertas', label: 'Plantillas de Puertas', icon: DoorClosed },
   { id: 'roles-usuario', label: 'Roles de Usuario', icon: ShieldCheck },
+];
+
+// Que puede aprobar un rol -- permisos ESTRICTAMENTE separados (decisión
+// explícita): 'tecnico' no habilita 'gerencial' ni viceversa. El
+// administrador del sistema (ADMIN_EMAILS en mtw-api) siempre puede las
+// dos, sin pasar por esto. Ver requireAprobador en mtw-api/src/index.ts.
+export const ROLES_APROBACION: EntradaAcceso[] = [
+  { id: 'tecnico', label: 'Aprobación Técnica (Analítica de Materiales y Cotizaciones)', icon: Wrench },
+  { id: 'gerencial', label: 'Aprobación Gerencial (paso final de Cotizaciones y OC)', icon: Landmark },
 ];

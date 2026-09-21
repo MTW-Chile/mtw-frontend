@@ -19,8 +19,13 @@ const SECCIONES: { id: Seccion; label: string; hint: string; icon: React.ReactNo
   { id: 'bodega', label: 'Bodega', hint: 'Requisiciones, stock y movimientos', icon: <Warehouse className="w-4 h-4" /> },
 ];
 
-export const ProyectoWorkspace: React.FC<{ proyectoId: string; onVolver: () => void }> = ({ proyectoId, onVolver }) => {
-  const [seccion, setSeccion] = useState<Seccion>('presupuesto');
+export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: string; onVolver: () => void }> = ({
+  proyectoId,
+  seccionInicial,
+  onVolver,
+}) => {
+  const seccionValida = (s: string | undefined): s is Seccion => SECCIONES.some((sec) => sec.id === s);
+  const [seccion, setSeccion] = useState<Seccion>(seccionValida(seccionInicial) ? seccionInicial : 'presupuesto');
 
   const { data: proyecto, isLoading } = useQuery({
     queryKey: ['proyectoDetail', proyectoId],

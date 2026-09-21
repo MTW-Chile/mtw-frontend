@@ -3,6 +3,8 @@ export interface Rol {
   nombre: string;
   secciones: string[];
   configTabs: string[];
+  // 'tecnico' y/o 'gerencial' -- ver ROLES_APROBACION en accessControl.ts.
+  aprobaciones: string[];
   // Presente solo en GET /api/roles (include: { _count: { select: { usuarios: true } } }).
   _count?: { usuarios: number };
 }
@@ -27,6 +29,41 @@ export interface MisPermisos {
   rol: string | null;
   secciones: string[];
   configTabs: string[];
+  aprobaciones: string[];
+}
+
+export interface AprobacionPendienteAnalitica {
+  tipo: 'analitica_materiales';
+  proyectoId: string;
+  obra: string;
+  codigoInterno: string | null;
+  versionId: string;
+  familiasPendientes: string[];
+}
+
+export interface AprobacionPendienteCotizacion {
+  tipo: 'aprobacion_gerencial_cotizacion';
+  proyectoId: string;
+  obra: string;
+  codigoInterno: string | null;
+  versionId: string;
+}
+
+export interface AprobacionPendienteOC {
+  tipo: 'orden_compra';
+  ordenCompraId: string;
+  numero: string;
+  proveedorNombre: string;
+  proyectoId: string;
+  obra: string;
+  codigoInterno: string | null;
+  total: number;
+}
+
+export interface AprobacionesPendientes {
+  tecnico: AprobacionPendienteAnalitica[];
+  gerencial: (AprobacionPendienteCotizacion | AprobacionPendienteOC)[];
+  total: number;
 }
 
 export interface Cliente {
