@@ -18,10 +18,18 @@ import { useMonedas, resolverMoneda, formatMonto } from '../../../lib/monedas';
 import type { Material } from '../../../types';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
 
+// El catálogo trae hasta ~2000 materiales -- volcar esa cantidad de filas al
+// DOM de una sola vez (tabla + cards, sin virtualizar) es lo que hacía que
+// abrir esta pantalla colgara/crasheara el tab. Se renderiza de a tandas y
+// se agranda con "Mostrar más" en vez de todo junto.
+const TANDA_INICIAL = 150;
+const TANDA_INCREMENTO = 150;
+
 export const MaestroProductos: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFamilia, setSelectedFamilia] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [cantidadVisible, setCantidadVisible] = useState(TANDA_INICIAL);
   // Monta sólo la vista de escritorio o la de mobile, nunca las dos -- el
   // maestro puede traer hasta ~2000 materiales, así que duplicar el DOM acá
   // pesa más que en cualquier otra lista de la app. Ver useMediaQuery.ts.
@@ -72,6 +80,18 @@ export const MaestroProductos: React.FC = () => {
       return matchSearch && matchFamilia;
     });
   }, [materiales, searchTerm, selectedFamilia]);
+
+  // Al cambiar el filtro se vuelve a arrancar desde la primera tanda --
+  // si no, "Mostrar más" quedaría pedido sobre un filtro que ya no aplica.
+  React.useEffect(() => {
+    setCantidadVisible(TANDA_INICIAL);
+  }, [searchTerm, selectedFamilia]);
+
+  const materialesVisibles = useMemo(
+    () => filteredMateriales.slice(0, cantidadVisible),
+    [filteredMateriales, cantidadVisible]
+  );
+  const hayMasPorMostrar = cantidadVisible < filteredMateriales.length;
 
   // Mismas familias que familyOrder en MaterialesLineaModal.tsx y
   // FAMILIAS_CATALOGO en NuevoMaterialModal.tsx -- las claves van en
@@ -269,7 +289,7 @@ export const MaestroProductos: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredMateriales.map((mat) => {
+                  {materialesVisibles.map((mat) => {
                     const badgeInfo = familiaBadges[mat.familia.toUpperCase()] || {
                       label: mat.familia,
                       variant: 'default',
@@ -324,7 +344,7 @@ export const MaestroProductos: React.FC = () => {
           {/* 2. VISTA TARJETAS AUTOMÁTICA EN MÓVILES (System-Wide por defecto) */}
           {!isDesktop && (
           <div className="space-y-3">
-            {filteredMateriales.map((mat) => {
+            {materialesVisibles.map((mat) => {
               const badgeInfo = familiaBadges[mat.familia.toUpperCase()] || {
                 label: mat.familia,
                 variant: 'default',
@@ -372,6 +392,18 @@ export const MaestroProductos: React.FC = () => {
               );
             })}
           </div>
+          )}
+
+          {/* Renderizado por tandas -- ver TANDA_INICIAL más arriba */}
+          {hayMasPorMostrar && (
+            <div className="flex flex-col items-center gap-2 pt-1 pb-2">
+              <p className="text-[11px] text-slate-400">
+                Mostrando {materialesVisibles.length} de {filteredMateriales.length} materiales
+              </p>
+              <Button variant="outline" size="sm" onClick={() => setCantidadVisible((n) => n + TANDA_INCREMENTO)}>
+                Mostrar más
+              </Button>
+            </div>
           )}
         </>
       )}

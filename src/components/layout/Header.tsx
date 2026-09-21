@@ -161,10 +161,7 @@ export const Header: React.FC<HeaderProps> = ({
                   }}
                   className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-left hover:bg-slate-100 transition-colors cursor-pointer mb-1"
                 >
-                  <div>
-                    <div className="text-xs font-bold text-slate-800">Centro de Notificaciones</div>
-                    <div className="text-[10px] text-slate-400">Ver todo, aprobar desde ahí</div>
-                  </div>
+                  <div className="text-xs font-bold text-slate-800">Centro de Notificaciones</div>
                   <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                 </button>
                 <div className="border-t border-slate-100 pt-1.5 px-3 py-1">
@@ -270,6 +267,23 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Opciones */}
             <div className="py-1 space-y-0.5">
+              {puedeAprobar && (
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onNavigate?.('centro-notificaciones');
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer text-left group"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-slate-100 group-hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors shrink-0">
+                    <Bell className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-slate-800">Centro de Notificaciones</div>
+                    <div className="text-[10px] text-slate-400">Aprobaciones pendientes</div>
+                  </div>
+                </button>
+              )}
               <button
                 onClick={handleConfig}
                 className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer text-left group"
