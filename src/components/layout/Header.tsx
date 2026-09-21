@@ -129,10 +129,15 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Lado Derecho */}
-      <div className="flex items-center gap-2 shrink-0">
+      {/* relative aqui (y no en el wrapper de la campanita) para que el
+          dropdown de notificaciones ancle su right-0 al borde derecho real
+          del header -- la campanita no es el ultimo elemento (el menu de
+          usuario va despues), asi que ancladdo a su propio wrapper el
+          dropdown (w-80) se salia de la pantalla en mobile. */}
+      <div className="relative flex items-center gap-2 shrink-0">
         {/* Campanita de aprobaciones pendientes -- solo si el rol (o admin) puede aprobar algo */}
         {puedeAprobar && (
-          <div className="relative shrink-0" ref={notifRef}>
+          <div className="shrink-0" ref={notifRef}>
             <button
               onClick={() => setIsNotifOpen((prev) => !prev)}
               className={`relative flex items-center justify-center w-9 h-9 rounded-xl border transition-all cursor-pointer focus:outline-none ${
@@ -153,7 +158,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             {isNotifOpen && (
-              <div className="absolute right-0 top-full mt-2 w-80 rounded-2xl bg-white border border-slate-200 shadow-xl p-1.5 z-50 animate-fade-in max-h-[70vh] overflow-y-auto">
+              <div className="absolute right-0 top-full mt-2 w-[min(20rem,calc(100vw-1.75rem))] rounded-2xl bg-white border border-slate-200 shadow-xl p-1.5 z-50 animate-fade-in max-h-[70vh] overflow-y-auto">
                 <button
                   onClick={() => {
                     setIsNotifOpen(false);

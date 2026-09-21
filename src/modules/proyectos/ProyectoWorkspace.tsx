@@ -64,7 +64,7 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
         </div>
       </div>
 
-      <div className="flex-1 flex min-h-0 overflow-hidden">
+      <div className="flex-1 flex flex-col sm:flex-row min-h-0 overflow-hidden">
         {/* Sub-nav lateral: solo existe una vez adentro de un proyecto */}
         <aside className="w-56 shrink-0 border-r border-slate-200 bg-slate-50/50 p-3 space-y-1 overflow-y-auto hidden sm:block">
           {SECCIONES.map((s) => (
