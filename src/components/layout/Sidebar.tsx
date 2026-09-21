@@ -15,15 +15,25 @@ export const Sidebar: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   totalProyectos?: number;
+  totalProyectosEnCurso?: number;
   // null = administrador, ve todas las secciones sin filtrar.
   seccionesPermitidas: string[] | null;
   usuarioActual?: UsuarioSidebar;
-}> = ({ activeTab, setActiveTab, isOpen, onClose, totalProyectos = 0, seccionesPermitidas, usuarioActual }) => {
+}> = ({
+  activeTab,
+  setActiveTab,
+  isOpen,
+  onClose,
+  totalProyectos = 0,
+  totalProyectosEnCurso = 0,
+  seccionesPermitidas,
+  usuarioActual,
+}) => {
   const menuItems = SECCIONES_FRONTEND.filter(
     (s) => seccionesPermitidas === null || seccionesPermitidas.includes(s.id)
   ).map((s) => ({
     ...s,
-    count: s.id === 'cotizaciones' ? totalProyectos : undefined,
+    count: s.id === 'cotizaciones' ? totalProyectos : s.id === 'proyectos' ? totalProyectosEnCurso : undefined,
   }));
 
   return (

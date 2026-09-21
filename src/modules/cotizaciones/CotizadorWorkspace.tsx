@@ -25,9 +25,14 @@ const StepFallback: React.FC = () => (
 interface CotizadorWorkspaceProps {
   proyectoId: string;
   onBack: () => void;
+  // Deep-link (ej. desde el Centro de Notificaciones o el link de un
+  // correo de aprobacion pendiente) -- salta directo al Paso 5
+  // (Consolidación), donde está el botón "Aprobar (Gerencia)", en vez de
+  // arrancar siempre en el Paso 1.
+  pasoInicial?: 1 | 2 | 3 | 4 | 5;
 }
 
-export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyectoId, onBack }) => {
+export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyectoId, onBack, pasoInicial }) => {
   const {
     proyecto,
     isLoading,
@@ -66,7 +71,7 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
     crearClienteMutation,
     // Reimportar
     reimportMutation,
-  } = useCotizadorWorkspace(proyectoId);
+  } = useCotizadorWorkspace(proyectoId, pasoInicial);
 
   if (isLoading) {
     return (

@@ -43,6 +43,10 @@ const AppContent: React.FC = () => {
   // proyecto puntual (ej. una OC pendiente de aprobación) -- ProyectosPage
   // lo consume y avisa por onProyectoAbierto para que no se reabra solo.
   const [proyectoAAbrir, setProyectoAAbrir] = useState<{ id: string; seccion?: string } | null>(null);
+  // Deep-link hacia una cotizacion puntual (aprobacion gerencial pendiente)
+  // -- CotizacionesPage lo consume, abre el Cotizador en el Paso 5
+  // (Consolidación) y avisa por onProyectoAbierto para que no se reabra solo.
+  const [cotizacionAAbrir, setCotizacionAAbrir] = useState<string | null>(null);
 
   const { data: permisos, isLoading: cargandoPermisos } = useQuery({
     queryKey: ['misPermisos'],
@@ -82,6 +86,17 @@ const AppContent: React.FC = () => {
     enabled: puedeVer('cotizaciones'),
   });
 
+  // Mismo queryKey que ProyectosPage (['proyectos', 'en-curso']) para
+  // compartir el cache -- el badge del Sidebar no dispara un fetch extra.
+  const { data: proyectosEnCursoData } = useQuery({
+    queryKey: ['proyectos', 'en-curso'],
+    queryFn: () => getProyectos({ limit: 200 }),
+    enabled: puedeVer('proyectos'),
+  });
+  const totalProyectosEnCurso = (proyectosEnCursoData?.data || []).filter(
+    (p) => p.versiones[0]?.estadoAprobacion === 'ACEPTADO_CLIENTE'
+  ).length;
+
   const handleNavigate = (tab: string, query?: string) => {
     setActiveTabState(tab);
     if (query !== undefined) {
@@ -92,6 +107,11 @@ const AppContent: React.FC = () => {
   const abrirProyecto = (proyectoId: string, seccion?: string) => {
     setActiveTabState('proyectos');
     setProyectoAAbrir({ id: proyectoId, seccion });
+  };
+
+  const abrirCotizacion = (proyectoId: string) => {
+    setActiveTabState('cotizaciones');
+    setCotizacionAAbrir(proyectoId);
   };
 
   // Deep-link desde el link "Ver Centro de Notificaciones" de los correos
@@ -109,7 +129,7 @@ const AppContent: React.FC = () => {
     } else {
       const [tipo, valor] = abrir.split(/:(.*)/s);
       if (tipo === 'cotizacion' && valor) {
-        handleNavigate('cotizaciones', valor);
+        abrirCotizacion(valor);
       } else if (tipo === 'oc' && valor) {
         abrirProyecto(valor, 'abastecimiento');
       }
@@ -148,6 +168,7 @@ const AppContent: React.FC = () => {
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         totalProyectos={data?.total}
+        totalProyectosEnCurso={totalProyectosEnCurso}
         seccionesPermitidas={seccionesPermitidas}
         usuarioActual={permisos && { nombre: permisos.nombre, email: permisos.email, rol: permisos.rol }}
       />
@@ -160,6 +181,7 @@ const AppContent: React.FC = () => {
           moduleTitle={MODULE_TITLES[activeTab] || 'Inicio'}
           onNavigate={handleNavigate}
           onAbrirProyecto={abrirProyecto}
+          onAbrirCotizacion={abrirCotizacion}
         />
 
         <main className="flex-1 overflow-y-auto flex flex-col min-h-0">
@@ -173,6 +195,8 @@ const AppContent: React.FC = () => {
             <CotizacionesPage
               searchTerm={searchTerm}
               onSearchChange={setSearchTerm}
+              proyectoAAbrir={cotizacionAAbrir}
+              onProyectoAbierto={() => setCotizacionAAbrir(null)}
             />
           )}
 
@@ -184,7 +208,9 @@ const AppContent: React.FC = () => {
             <ConfiguracionPage tabsPermitidas={permisos?.esAdmin ? null : permisos?.configTabs ?? []} />
           )}
 
-          {activeTab === TAB_CENTRO_NOTIFICACIONES && <CentroNotificacionesPage />}
+          {activeTab === TAB_CENTRO_NOTIFICACIONES && (
+            <CentroNotificacionesPage onAbrirProyecto={abrirProyecto} onAbrirCotizacion={abrirCotizacion} />
+          )}
         </main>
       </div>
 

@@ -163,6 +163,10 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ordenesCompra'] });
+      // Si nacio en PENDIENTE_APROBACION (requiereAprobacion tildado), esto
+      // es un pendiente gerencial nuevo -- se invalida para que la
+      // campanita/Centro de Notificaciones lo vean al toque.
+      queryClient.invalidateQueries({ queryKey: ['misAprobacionesPendientes'] });
       handleClose();
     },
     onError: (err: any) => {

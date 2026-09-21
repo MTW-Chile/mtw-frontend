@@ -1,24 +1,32 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Bell, Landmark, ShoppingCart, Loader2, ChevronRight } from 'lucide-react';
 import { getMisAprobacionesPendientes } from '../../api/client';
-import { AprobarCotizacionModal } from './AprobarCotizacionModal';
-import { AprobarOCModal } from './AprobarOCModal';
-import type { AprobacionPendienteCotizacion, AprobacionPendienteOC } from '../../types';
 
 const formatoMoneda = (valor: number) => valor.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
+
+interface CentroNotificacionesPageProps {
+  // Ir directo a donde ya existe la accion de aprobar/rechazar -- Paso 5
+  // del Cotizador para una cotizacion, tab Abastecimiento del proyecto
+  // para una OC. Nada de popups con un resumen aparte: la pagina real ya
+  // tiene toda la info (hoja de fijacion completa / detalle de items) y el
+  // boton de aprobar.
+  onAbrirCotizacion?: (proyectoId: string) => void;
+  onAbrirProyecto?: (proyectoId: string, seccion?: string) => void;
+}
 
 /**
  * Destino estable de la campanita y de los correos de aprobacion
  * pendiente ("Ver Centro de Notificaciones") -- a diferencia de un
  * deep-link a un item puntual, esto no queda "roto" si ese item ya se
  * resolvio para cuando alguien lo abre. Lista todo lo gerencial pendiente
- * (Cotizaciones + OC) y deja aprobar/rechazar desde un popup sin salir de
- * aca.
+ * (Cotizaciones + OC) y cada item lleva directo a la pagina donde ya vive
+ * la accion de aprobar/rechazar.
  */
-export const CentroNotificacionesPage: React.FC = () => {
-  const [itemAbierto, setItemAbierto] = useState<AprobacionPendienteCotizacion | AprobacionPendienteOC | null>(null);
-
+export const CentroNotificacionesPage: React.FC<CentroNotificacionesPageProps> = ({
+  onAbrirCotizacion,
+  onAbrirProyecto,
+}) => {
   const { data: pendientes, isLoading } = useQuery({
     queryKey: ['misAprobacionesPendientes'],
     queryFn: getMisAprobacionesPendientes,
@@ -51,7 +59,11 @@ export const CentroNotificacionesPage: React.FC = () => {
           {gerencial.map((item) => (
             <button
               key={item.tipo === 'orden_compra' ? `oc-${item.ordenCompraId}` : `cot-${item.versionId}`}
-              onClick={() => setItemAbierto(item)}
+              onClick={() =>
+                item.tipo === 'orden_compra'
+                  ? onAbrirProyecto?.(item.proyectoId, 'abastecimiento')
+                  : onAbrirCotizacion?.(item.proyectoId)
+              }
               className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div className="flex items-center gap-3 min-w-0">
@@ -79,11 +91,6 @@ export const CentroNotificacionesPage: React.FC = () => {
           ))}
         </div>
       )}
-
-      {itemAbierto?.tipo === 'aprobacion_gerencial_cotizacion' && (
-        <AprobarCotizacionModal item={itemAbierto} onClose={() => setItemAbierto(null)} />
-      )}
-      {itemAbierto?.tipo === 'orden_compra' && <AprobarOCModal item={itemAbierto} onClose={() => setItemAbierto(null)} />}
     </div>
   );
 };

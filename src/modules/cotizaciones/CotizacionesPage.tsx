@@ -33,13 +33,27 @@ const ESTADOS_FILTRO: { id: EstadoFiltro; label: string }[] = [
 export const CotizacionesPage: React.FC<{
   searchTerm?: string;
   onSearchChange?: (val: string) => void;
-}> = ({ searchTerm: externalSearch = '', onSearchChange }) => {
+  // Deep-link desde la campanita/Centro de Notificaciones (una cotizacion
+  // pendiente de aprobacion gerencial) -- abre directo el cotizador de ese
+  // proyecto en el Paso 5 (Consolidación), donde está "Aprobar (Gerencia)".
+  proyectoAAbrir?: string | null;
+  onProyectoAbierto?: () => void;
+}> = ({ searchTerm: externalSearch = '', onSearchChange, proyectoAAbrir, onProyectoAbierto }) => {
   const queryClient = useQueryClient();
   const [internalSearch, setInternalSearch] = useState(externalSearch);
   // Por defecto muestra solo proyectos con estado 2 (Presupuesto Terminado)
   const [statusFilter, setStatusFilter] = useState<EstadoFiltro>('TERMINADOS');
   const [selectedProyectoId, setSelectedProyectoId] = useState<string | null>(null);
   const [cotizarProyectoId, setCotizarProyectoId] = useState<string | null>(null);
+  const [pasoInicialCotizador, setPasoInicialCotizador] = useState<1 | 2 | 3 | 4 | 5>(1);
+
+  useEffect(() => {
+    if (!proyectoAAbrir) return;
+    setCotizarProyectoId(proyectoAAbrir);
+    setPasoInicialCotizador(5);
+    onProyectoAbierto?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proyectoAAbrir]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [mostrarModalManual, setMostrarModalManual] = useState(false);
   const [obraManual, setObraManual] = useState('');
@@ -149,8 +163,10 @@ export const CotizacionesPage: React.FC<{
     return (
       <CotizadorWorkspace
         proyectoId={cotizarProyectoId}
+        pasoInicial={pasoInicialCotizador}
         onBack={() => {
           setCotizarProyectoId(null);
+          setPasoInicialCotizador(1);
           refetch();
         }}
       />

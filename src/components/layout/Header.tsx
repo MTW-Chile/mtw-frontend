@@ -9,12 +9,13 @@ interface HeaderProps {
   onNavigateHome: () => void;
   onNavigateConfig?: () => void;
   moduleTitle?: string;
-  // Para la campanita de notificaciones: ir a una cotizacion pendiente
-  // (busca por obra, mismo mecanismo que el buscador de Inicio) o abrir
-  // directo un proyecto en una seccion puntual (ej. Abastecimiento, para
-  // una OC pendiente).
+  // Para la campanita de notificaciones: navegacion generica (ej. al
+  // Centro de Notificaciones), abrir directo una cotizacion pendiente en
+  // el Paso 5 del Cotizador, o abrir directo un proyecto en una seccion
+  // puntual (ej. Abastecimiento, para una OC pendiente).
   onNavigate?: (tab: string, search?: string) => void;
   onAbrirProyecto?: (proyectoId: string, seccion?: string) => void;
+  onAbrirCotizacion?: (proyectoId: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,6 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   moduleTitle = 'Inicio',
   onNavigate,
   onAbrirProyecto,
+  onAbrirCotizacion,
 }) => {
   const { usuario } = useSession();
   const nombreUsuario = displayName(usuario);
@@ -44,7 +46,14 @@ export const Header: React.FC<HeaderProps> = ({
     queryKey: ['misAprobacionesPendientes'],
     queryFn: getMisAprobacionesPendientes,
     enabled: puedeAprobar,
-    refetchInterval: 1000 * 60 * 2,
+    // Cada 20s + al volver el foco a la pestaña (override del default
+    // global refetchOnWindowFocus:false, ver App.tsx) -- ademas se
+    // invalida al toque desde las mutaciones que crean/resuelven un
+    // pendiente (ver useCotizadorWorkspace, OrdenesCompraList,
+    // NuevaOrdenCompraModal), este poll es la red de seguridad para
+    // cuando el cambio lo hizo OTRO usuario mientras este navega.
+    refetchInterval: 1000 * 20,
+    refetchOnWindowFocus: true,
   });
 
   // Cerrar menú al hacer clic afuera o con Escape
@@ -174,7 +183,7 @@ export const Header: React.FC<HeaderProps> = ({
                           key={`ger-cot-${item.versionId}`}
                           onClick={() => {
                             setIsNotifOpen(false);
-                            onNavigate?.('cotizaciones', item.obra);
+                            onAbrirCotizacion?.(item.proyectoId);
                           }}
                           className="w-full flex items-start gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-slate-100 transition-colors cursor-pointer"
                         >

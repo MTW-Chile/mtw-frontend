@@ -35,9 +35,9 @@ const initialNuevoCliente: NuevoClienteForm = {
   email: '',
 };
 
-export function useCotizadorWorkspace(proyectoId: string) {
+export function useCotizadorWorkspace(proyectoId: string, pasoInicial: 1 | 2 | 3 | 4 | 5 = 1) {
   const queryClient = useQueryClient();
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5>(pasoInicial);
   const [selectedVersionIdx, setSelectedVersionIdx] = useState(0);
   const [showReimportModal, setShowReimportModal] = useState(false);
 
@@ -243,6 +243,11 @@ export function useCotizadorWorkspace(proyectoId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyectoId] });
+      // Esta transicion puede crear o resolver un pendiente de aprobacion
+      // gerencial (ESPERANDO_APROBACION_COMERCIAL) -- se invalida para que
+      // la campanita/Centro de Notificaciones se actualicen al toque, sin
+      // esperar el proximo poll (ver Header.tsx).
+      queryClient.invalidateQueries({ queryKey: ['misAprobacionesPendientes'] });
     },
   });
 
