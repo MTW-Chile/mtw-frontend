@@ -7,7 +7,7 @@ import { Select } from '../../components/ui/Select';
 import { createOrdenCompra, getProyectos, getProveedores, getProyectoById } from '../../api/client';
 import { useMonedas } from '../../lib/monedas';
 import { computeMaterialesFasePorProveedor, type GrupoFaseProveedor } from '../cotizaciones/lib/materialesConsolidados';
-import { CATEGORIA_GASTO_OPTIONS } from './categoriaGasto';
+import { CATEGORIA_GASTO_OPTIONS, CATEGORIA_GASTO_LABEL } from './categoriaGasto';
 import type { CategoriaGasto, Fase } from '../../types';
 
 interface NuevaOrdenCompraModalProps {
@@ -22,6 +22,12 @@ interface NuevaOrdenCompraModalProps {
   // proveedor) al abrir, en vez de que el usuario tenga que volver a
   // elegirla del selector.
   faseIdInicial?: string;
+  // Cuando se abre desde el boton "Generar OC" de UNA categoria puntual
+  // dentro de una fase (ver FasesTab) -- filtra los materiales calculados
+  // a solo esa familia (Perfileria/Herrajes/Vidrios/...) y, si todos caen
+  // en un unico proveedor, lo deja ya elegido con sus items cargados,
+  // lista para enviar sin tocar nada mas.
+  categoriaFiltro?: string;
 }
 
 interface ItemForm {
@@ -58,6 +64,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   proyectoIdFijo,
   proyectoLabelFijo,
   faseIdInicial,
+  categoriaFiltro,
 }) => {
   const queryClient = useQueryClient();
   const monedas = useMonedas();
@@ -117,8 +124,12 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   const tasaEuro = Number(activeVersion?.tipoCambioEuro) || 1030;
   const gruposPorProveedor: GrupoFaseProveedor[] = useMemo(() => {
     const fase = (activeVersion?.fases || []).find((f) => f.id === faseId);
-    return computeMaterialesFasePorProveedor(activeVersion, fase, tasaDolar, tasaEuro, tasaUf, monedas);
-  }, [activeVersion, faseId, tasaDolar, tasaEuro, tasaUf, monedas]);
+    const grupos = computeMaterialesFasePorProveedor(activeVersion, fase, tasaDolar, tasaEuro, tasaUf, monedas);
+    if (!categoriaFiltro) return grupos;
+    return grupos
+      .map((g) => ({ ...g, items: g.items.filter((it) => it.familia === categoriaFiltro) }))
+      .filter((g) => g.items.length > 0);
+  }, [activeVersion, faseId, tasaDolar, tasaEuro, tasaUf, monedas, categoriaFiltro]);
 
   // Cambiar de proyecto o de fase invalida cualquier proveedor/items que ya
   // se hubieran elegido -- evita mezclar items de una fase con el proveedor
@@ -147,6 +158,20 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
     setProveedorId(grupo.proveedorId);
     setItems(grupo.items.length ? grupo.items.map(itemFormDesdeCalculo) : [itemVacio()]);
   };
+
+  // Con categoriaFiltro (boton "Generar OC" de una categoria puntual en
+  // FasesTab): si esa categoria cae entera en un unico proveedor, se elige
+  // solo -- el caso comun (Vidrios de un solo vidriero, Perfileria de un
+  // solo distribuidor). Si hay mas de un proveedor para la misma
+  // categoria, no se puede armar una sola OC igual (una OC es de un
+  // proveedor) -- queda el selector de chips de abajo, ya filtrado a solo
+  // esos proveedores, para elegir a mano.
+  useEffect(() => {
+    if (isOpen && categoriaFiltro && gruposPorProveedor.length === 1) {
+      elegirGrupoProveedor(gruposPorProveedor[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, categoriaFiltro, gruposPorProveedor]);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -292,12 +317,15 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
           {faseId && (
             <div className="space-y-1.5">
               <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Proveedores con materiales en esta fase
+                {categoriaFiltro
+                  ? `Proveedores de ${(CATEGORIA_GASTO_LABEL as Record<string, string>)[categoriaFiltro] || categoriaFiltro} en esta fase`
+                  : 'Proveedores con materiales en esta fase'}
               </span>
               {gruposPorProveedor.length === 0 ? (
                 <p className="text-[11px] text-slate-500">
-                  Esta fase no tiene materiales calculados (¿tiene líneas de ventana asignadas en la pestaña Fases?). Elige un
-                  proveedor manualmente abajo para una compra externa (flete, mano de obra, etc.).
+                  {categoriaFiltro
+                    ? `Esta fase no tiene materiales calculados de esta categoría. Elige un proveedor manualmente abajo para una compra externa.`
+                    : 'Esta fase no tiene materiales calculados (¿tiene líneas de ventana asignadas en la pestaña Fases?). Elige un proveedor manualmente abajo para una compra externa (flete, mano de obra, etc.).'}
                 </p>
               ) : (
                 <div className="flex flex-wrap gap-1.5">

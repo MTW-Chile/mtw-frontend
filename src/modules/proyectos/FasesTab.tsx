@@ -67,7 +67,7 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
   const [busqueda, setBusqueda] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [expandidas, setExpandidas] = useState<Set<string>>(new Set());
-  const [faseParaOC, setFaseParaOC] = useState<Fase | null>(null);
+  const [ocParaFase, setOcParaFase] = useState<{ fase: Fase; categoria: string } | null>(null);
   const monedas = useMonedas();
 
   const ventanas = activeVersion?.ventanas || [];
@@ -124,18 +124,19 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
   const tasaUf = Number(activeVersion?.tipoCambioUF) || 38500;
   const tasaEuro = Number(activeVersion?.tipoCambioEuro) || 1030;
   const materialesPorFase = useMemo(() => {
+    type ItemFase = { descripcion: string; proveedorNombre: string; unidadMedida: string; cantidad: number; precioUnitario: number };
     const map = new Map<
       string,
-      { montoTotal: number; categorias: { familia: string; monto: number; items: number }[]; items: { descripcion: string; proveedorNombre: string; unidadMedida: string; cantidad: number; precioUnitario: number }[] }
+      { montoTotal: number; categorias: { familia: string; monto: number; items: ItemFase[] }[] }
     >();
     fasesReales.forEach((fase) => {
       const grupos = computeMaterialesFasePorProveedor(activeVersion, fase, tasaDolar, tasaEuro, tasaUf, monedas);
       const itemsFlat = grupos.flatMap((g) => g.items.map((it) => ({ ...it, proveedorNombre: g.proveedorNombre })));
-      const porCategoria = new Map<string, { monto: number; items: number }>();
+      const porCategoria = new Map<string, { monto: number; items: ItemFase[] }>();
       itemsFlat.forEach((it) => {
-        const acc = porCategoria.get(it.familia) || { monto: 0, items: 0 };
+        const acc = porCategoria.get(it.familia) || { monto: 0, items: [] };
         acc.monto += it.cantidad * it.precioUnitario;
-        acc.items += 1;
+        acc.items.push(it);
         porCategoria.set(it.familia, acc);
       });
       const categorias = [...porCategoria.entries()]
@@ -144,18 +145,19 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
       map.set(fase.id, {
         montoTotal: categorias.reduce((sum, c) => sum + c.monto, 0),
         categorias,
-        items: itemsFlat,
       });
     });
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fasesReales, activeVersion, tasaDolar, tasaEuro, tasaUf, monedas]);
 
-  const toggleExpandida = (faseId: string) =>
+  // Expandidas se guarda como "faseId:familia" -- cada categoria se
+  // despliega de forma independiente, no toda la fase junta.
+  const toggleExpandida = (key: string) =>
     setExpandidas((prev) => {
       const next = new Set(prev);
-      if (next.has(faseId)) next.delete(faseId);
-      else next.add(faseId);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
 
@@ -424,7 +426,6 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
             const lineasAsignadas = (fase.ventanasFase || []).filter((vf) => vf.unidades > 0).length;
             const unidadesFase = (fase.ventanasFase || []).reduce((sum, vf) => sum + Number(vf.unidades), 0);
             const infoMateriales = materialesPorFase.get(fase.id);
-            const expandida = expandidas.has(fase.id);
             return (
               <div key={fase.id} className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -460,87 +461,95 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
 
                 {/* Resumen de materiales por categoria -- misma logica de
                     precio/cantidad que Abastecimiento > Nueva OC, ver
-                    computeMaterialesFasePorProveedor. */}
-                <div className="pt-3 border-t border-slate-100 space-y-2.5">
+                    computeMaterialesFasePorProveedor. Cada categoria se
+                    despliega y genera su OC de forma independiente: una OC
+                    es de un solo proveedor, asi que mezclar categorias
+                    (que pueden ser de proveedores distintos) en un solo
+                    boton no tendria sentido. */}
+                <div className="pt-3 border-t border-slate-100 space-y-2">
                   {!infoMateriales || infoMateriales.categorias.length === 0 ? (
                     <p className="text-[11px] text-slate-400">
                       Sin materiales calculados todavía para esta fase (asegúrate de que tenga líneas asignadas arriba).
                     </p>
                   ) : (
                     <>
-                      <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <div className="flex flex-wrap gap-1.5">
-                          {infoMateriales.categorias.map((c) => (
-                            <span
-                              key={c.familia}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-[11px]"
-                            >
-                              <span className="font-semibold text-slate-600">
-                                {CATEGORIA_GASTO_LABEL[c.familia as CategoriaGasto] || c.familia}
-                              </span>
-                              <span className="font-mono font-bold text-slate-800">{formatoMoneda(c.monto)}</span>
-                            </span>
-                          ))}
-                        </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Materiales por categoría</span>
                         <span className="text-[11px] font-bold text-slate-900 whitespace-nowrap">
-                          Total materiales: {formatoMoneda(infoMateriales.montoTotal)}
+                          Total: {formatoMoneda(infoMateriales.montoTotal)}
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          leftIcon={expandida ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                          onClick={() => toggleExpandida(fase.id)}
-                        >
-                          {expandida ? 'Ocultar items' : `Ver ${infoMateriales.items.length} items`}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          leftIcon={<ShoppingCart className="w-3.5 h-3.5" />}
-                          onClick={() => setFaseParaOC(fase)}
-                        >
-                          Generar OC
-                        </Button>
-                      </div>
+                      <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
+                        {infoMateriales.categorias.map((c) => {
+                          const key = `${fase.id}:${c.familia}`;
+                          const expandidaCat = expandidas.has(key);
+                          return (
+                            <div key={c.familia} className="bg-white">
+                              <div className="flex items-center justify-between gap-2 px-3 py-2 flex-wrap">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleExpandida(key)}
+                                  className="flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-[#E34A26] transition-colors cursor-pointer"
+                                >
+                                  {expandidaCat ? <ChevronDown className="w-3.5 h-3.5 text-slate-400" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400" />}
+                                  {CATEGORIA_GASTO_LABEL[c.familia as CategoriaGasto] || c.familia}
+                                  <span className="font-mono font-normal text-slate-400">
+                                    · {c.items.length} item{c.items.length === 1 ? '' : 's'}
+                                  </span>
+                                </button>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono font-bold text-slate-800 text-[11px]">{formatoMoneda(c.monto)}</span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    leftIcon={<ShoppingCart className="w-3.5 h-3.5" />}
+                                    onClick={() => setOcParaFase({ fase, categoria: c.familia })}
+                                  >
+                                    Generar OC
+                                  </Button>
+                                </div>
+                              </div>
 
-                      {expandida && (
-                        <div className="overflow-x-auto rounded-xl border border-slate-100">
-                          <table className="w-full text-[11px]">
-                            <thead className="bg-slate-50/80">
-                              <tr className="text-left text-slate-400 uppercase tracking-wider">
-                                <th className="px-3 py-1.5 font-bold">Item</th>
-                                <th className="px-3 py-1.5 font-bold">Proveedor</th>
-                                <th className="px-3 py-1.5 font-bold text-right">Cantidad</th>
-                                <th className="px-3 py-1.5 font-bold text-right">Precio unit.</th>
-                                <th className="px-3 py-1.5 font-bold text-right">Subtotal</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {infoMateriales.items.map((it, i) => (
-                                <tr key={i} className="border-t border-slate-100/80">
-                                  <td className="px-3 py-1.5 text-slate-700">
-                                    <span className="flex items-center gap-1.5">
-                                      <Package className="w-3 h-3 text-sky-500 shrink-0" />
-                                      {it.descripcion}
-                                    </span>
-                                  </td>
-                                  <td className="px-3 py-1.5 text-slate-500">{it.proveedorNombre}</td>
-                                  <td className="px-3 py-1.5 text-right font-mono text-slate-700">
-                                    {it.cantidad.toLocaleString('es-CL', { maximumFractionDigits: 2 })} {it.unidadMedida}
-                                  </td>
-                                  <td className="px-3 py-1.5 text-right font-mono text-slate-700">{formatoMoneda(it.precioUnitario)}</td>
-                                  <td className="px-3 py-1.5 text-right font-mono font-semibold text-slate-900">
-                                    {formatoMoneda(it.cantidad * it.precioUnitario)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
+                              {expandidaCat && (
+                                <div className="overflow-x-auto border-t border-slate-100">
+                                  <table className="w-full text-[11px]">
+                                    <thead className="bg-slate-50/80">
+                                      <tr className="text-left text-slate-400 uppercase tracking-wider">
+                                        <th className="px-3 py-1.5 font-bold">Item</th>
+                                        <th className="px-3 py-1.5 font-bold">Proveedor</th>
+                                        <th className="px-3 py-1.5 font-bold text-right">Cantidad</th>
+                                        <th className="px-3 py-1.5 font-bold text-right">Precio unit.</th>
+                                        <th className="px-3 py-1.5 font-bold text-right">Subtotal</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {c.items.map((it, i) => (
+                                        <tr key={i} className="border-t border-slate-100/80">
+                                          <td className="px-3 py-1.5 text-slate-700">
+                                            <span className="flex items-center gap-1.5">
+                                              <Package className="w-3 h-3 text-sky-500 shrink-0" />
+                                              {it.descripcion}
+                                            </span>
+                                          </td>
+                                          <td className="px-3 py-1.5 text-slate-500">{it.proveedorNombre}</td>
+                                          <td className="px-3 py-1.5 text-right font-mono text-slate-700">
+                                            {it.cantidad.toLocaleString('es-CL', { maximumFractionDigits: 2 })} {it.unidadMedida}
+                                          </td>
+                                          <td className="px-3 py-1.5 text-right font-mono text-slate-700">{formatoMoneda(it.precioUnitario)}</td>
+                                          <td className="px-3 py-1.5 text-right font-mono font-semibold text-slate-900">
+                                            {formatoMoneda(it.cantidad * it.precioUnitario)}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </>
                   )}
                 </div>
@@ -551,11 +560,12 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
       </div>
 
       <NuevaOrdenCompraModal
-        isOpen={!!faseParaOC}
-        onClose={() => setFaseParaOC(null)}
+        isOpen={!!ocParaFase}
+        onClose={() => setOcParaFase(null)}
         proyectoIdFijo={proyecto.id}
         proyectoLabelFijo={proyecto.obra}
-        faseIdInicial={faseParaOC?.id}
+        faseIdInicial={ocParaFase?.fase.id}
+        categoriaFiltro={ocParaFase?.categoria}
       />
     </div>
   );
