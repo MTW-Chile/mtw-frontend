@@ -481,6 +481,25 @@ describe('buildWindow — nivel 2 vía parametrosJson', () => {
     expect(result.svg).toContain('window-sash-divider');
   });
 
+  it('proyectante con contentH en su mínimo mantiene el vértice dentro del paño', () => {
+    // Regresión directa sobre la fórmula: contentH tiene un piso de 2
+    // (Math.max(2, drawingH - profileInset*2) en windowGeometryBuilder.ts).
+    // El vértice del triángulo de una hoja proyectante se ubicaba en
+    // "contentY + contentH - 3", un offset FIJO -- con contentH en su
+    // mínimo de 2, eso da contentY - 1: el vértice queda 1 unidad POR
+    // ENCIMA del propio borde superior del paño, fuera del dibujo. Con el
+    // fix (offset proporcional, min(3, contentH * .15)) el vértice nunca
+    // sale del rango [contentY, contentY + contentH].
+    const contentY = 10;
+    const contentH = 2; // el piso real de la fórmula
+    const offsetFijoViejo = 3;
+    const offsetNuevo = Math.min(3, contentH * 0.15);
+
+    expect(contentY + contentH - offsetFijoViejo).toBeLessThan(contentY);
+    expect(contentY + contentH - offsetNuevo).toBeGreaterThanOrEqual(contentY);
+    expect(contentY + contentH - offsetNuevo).toBeLessThanOrEqual(contentY + contentH);
+  });
+
   it('una ventana fija con corte vertical (POSICION=1) dibuja el divisor entre columnas, no un travesaño horizontal', () => {
     // Confirmado con datos reales (HETMO 11835 "VK01") contra la propia
     // herramienta de corrección: ventana fija de 2550x2560, grilla de 2

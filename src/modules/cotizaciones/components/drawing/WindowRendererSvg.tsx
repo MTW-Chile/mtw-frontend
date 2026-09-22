@@ -15,6 +15,29 @@ import type { Ventana } from '../../../../types';
 import { toWindowLine } from './ventanaAdapter';
 import { buildWindow } from './windowGeometryBuilder';
 
+// Ajuste manual "espejar" (Ventana.espejado): invierte horizontalmente
+// todo el dibujo dentro de su propio viewBox -- envuelve el contenido ya
+// generado en un <g> con el flip, en vez de tocar cada coordenada x en el
+// builder (que vive en windowGeometryBuilder.ts/windowSvgMarkup.tsx y no
+// sabe nada de este ajuste). El flip del grupo también invierte el texto
+// (cotas, códigos de vidrio) -- cada <text> se vuelve a espejar
+// individualmente alrededor de su propio X para que se siga leyendo
+// normal, con el resto del dibujo sí invertido.
+function aplicarEspejado(svg: SVGSVGElement): void {
+  const width = svg.viewBox.baseVal?.width || svg.getBBox().width || 240;
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.setAttribute('transform', `translate(${width},0) scale(-1,1)`);
+  while (svg.firstChild) g.appendChild(svg.firstChild);
+  svg.appendChild(g);
+
+  g.querySelectorAll('text').forEach((text) => {
+    const x = Number(text.getAttribute('x')) || 0;
+    const previo = text.getAttribute('transform');
+    const contraFlip = `translate(${x},0) scale(-1,1) translate(${-x},0)`;
+    text.setAttribute('transform', previo ? `${previo} ${contraFlip}` : contraFlip);
+  });
+}
+
 interface WindowRendererSvgProps {
   ventana: Ventana;
   className?: string;
@@ -58,9 +81,12 @@ export const WindowRendererSvg: React.FC<WindowRendererSvgProps> = ({
       const svgEl = containerRef.current.querySelector('svg');
       if (svgEl) {
         svgEl.setAttribute('class', className);
+        if (ventana.espejado) {
+          aplicarEspejado(svgEl);
+        }
       }
     }
-  }, [svgMarkup, className]);
+  }, [svgMarkup, className, ventana.espejado]);
 
   return (
     <div

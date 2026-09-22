@@ -472,6 +472,18 @@ export async function updateVentanaCorreccionGeometria(
   return response.data;
 }
 
+// Toggle: llamar de nuevo apaga el espejado. No hay endpoint /eliminar
+// aparte -- a diferencia de correccion-geometria, acá no hay estado
+// intermedio que decidir, solo prendido/apagado.
+export async function espejarVentana(
+  ventanaId: string
+): Promise<{ success: boolean; data: Ventana; message?: string }> {
+  const response = await apiClient.post<{ success: boolean; data: Ventana; message?: string }>(
+    `/ventanas/${ventanaId}/espejar`
+  );
+  return response.data;
+}
+
 // ==========================================
 // ABASTECIMIENTO: ORDENES DE COMPRA Y BODEGA
 // ==========================================

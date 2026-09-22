@@ -706,8 +706,16 @@ function buildSimpleWindow(
         segmentDimensions.push(segmentDimensionMarkup(leafX, leafWidth, y + drawingH, Number(leaf.width) || 0));
       }
 
+      // Margen proporcional, no fijo: contentH tiene un mínimo de 2 (ver
+      // más arriba), y un paño proyectante chico -- ej. dentro de un
+      // compuesto junto a paños más grandes -- puede quedar clamado justo
+      // ahí. Un offset fijo de 3 en un contentH de 2 empuja el vértice del
+      // triángulo por encima del propio borde superior del paño (fuera del
+      // dibujo), viéndose roto/confuso. Con un margen del 15% de contentH
+      // (nunca más de 3, igual que antes para paños de tamaño normal) el
+      // vértice siempre queda dentro del paño.
       const leafAxisY = unitDefinition.family === 'projecting'
-        ? contentY + contentH - 3
+        ? contentY + contentH - Math.min(3, contentH * 0.15)
         : openingAxisY(line, leaf, contentY, contentH, height);
       let leafMark = '';
       if (unitDefinition.obLeaf === position) leafMark = doubleTiltTurnMark(position === 0 ? 'left' : 'right', leafX, contentY, leafWidth, contentH, color);

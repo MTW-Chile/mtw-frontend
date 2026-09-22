@@ -39,6 +39,29 @@ export const ufLabel = (valorCLP: number, tasaUf: number) =>
 export const ensureSvgNamespace = (svg: string) =>
   svg.includes('xmlns=') ? svg : svg.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ');
 
+// Mismo ajuste "espejar" (Ventana.espejado) que WindowRendererSvg.tsx aplica
+// en pantalla, pero sobre el string SVG en vez de un nodo ya en el DOM --
+// acá no hay un <svg> montado, solo el markup que después se rasteriza a
+// PNG. Envuelve todo el contenido en un <g> con el flip horizontal y
+// contra-espeja cada <text> (cotas, códigos de vidrio) para que se siga
+// leyendo normal.
+export const mirrorSvgMarkup = (svg: string): string => {
+  const doc = new DOMParser().parseFromString(ensureSvgNamespace(svg), 'image/svg+xml');
+  const root = doc.documentElement;
+  const width = Number(root.getAttribute('viewBox')?.split(/\s+/)[2]) || 240;
+  const g = doc.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.setAttribute('transform', `translate(${width},0) scale(-1,1)`);
+  while (root.firstChild) g.appendChild(root.firstChild);
+  root.appendChild(g);
+  g.querySelectorAll('text').forEach((text) => {
+    const x = Number(text.getAttribute('x')) || 0;
+    const previo = text.getAttribute('transform');
+    const contraFlip = `translate(${x},0) scale(-1,1) translate(${-x},0)`;
+    text.setAttribute('transform', previo ? `${previo} ${contraFlip}` : contraFlip);
+  });
+  return new XMLSerializer().serializeToString(root);
+};
+
 export const svgToPngDataUrl = (svgRaw: string, width: number, height: number): Promise<string> =>
   new Promise((resolve, reject) => {
     const svg = ensureSvgNamespace(svgRaw);
@@ -153,7 +176,8 @@ export async function rasterizarDibujos(ventanas: Ventana[]): Promise<Map<string
       // compartido, asi que el PDF tampoco puede pedirselo a buildWindow().
       if (v.tipoLineaManual === 'PROTEX') {
         try {
-          const svg = buildProtexDoorSvg(v.numeroCuadrosHojas === 2 ? 2 : 1, v.anchoMm, v.altoMm);
+          const svgBase = buildProtexDoorSvg(v.numeroCuadrosHojas === 2 ? 2 : 1, v.anchoMm, v.altoMm);
+          const svg = v.espejado ? mirrorSvgMarkup(svgBase) : svgBase;
           const { svg: svgRecortado, aspect } = cropSvgToContent(svg);
           const alturaRaster = 480;
           pngPorVentana.set(v.id, await svgToPngDataUrl(svgRecortado, Math.round(alturaRaster * aspect), alturaRaster));
@@ -165,7 +189,8 @@ export async function rasterizarDibujos(ventanas: Ventana[]): Promise<Map<string
       const line = toWindowLine(v);
       if (!line) { pngPorVentana.set(v.id, null); return; }
       try {
-        const svg = buildWindow(line, 'offer').svg;
+        const svgBase = buildWindow(line, 'offer').svg;
+        const svg = v.espejado ? mirrorSvgMarkup(svgBase) : svgBase;
         const { svg: svgRecortado, aspect } = cropSvgToContent(svg);
         const alturaRaster = 480;
         pngPorVentana.set(v.id, await svgToPngDataUrl(svgRecortado, Math.round(alturaRaster * aspect), alturaRaster));

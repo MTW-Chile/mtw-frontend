@@ -9,7 +9,8 @@ import {
   ChevronDown,
   Sliders,
   Trash2,
-  Loader2
+  Loader2,
+  FlipHorizontal2
 } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
 import type { Ventana } from '../../../../types';
@@ -25,6 +26,8 @@ interface VentanaCardProps {
   onEditCorredera?: (ventana: Ventana) => void;
   onDeleteLineaManual?: (ventana: Ventana) => void;
   isDeletingLineaManual?: boolean;
+  onEspejar?: (ventana: Ventana) => void;
+  isEspejando?: boolean;
 }
 
 export const VentanaCard: React.FC<VentanaCardProps> = ({
@@ -33,6 +36,8 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
   onEditCorredera,
   onDeleteLineaManual,
   isDeletingLineaManual,
+  onEspejar,
+  isEspejando,
 }) => {
   const superficie = ventana.m2Ventana ?? ((ventana.anchoMm * ventana.altoMm) / 1_000_000);
   const esManual = ventana.origen === 'PERSONALIZADO';
@@ -260,6 +265,19 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
               <span>{ventana.correccionGeometria ? 'Ajustada' : 'Ajustar'}</span>
             </button>
           )}
+          <button
+            onClick={() => onEspejar?.(ventana)}
+            disabled={isEspejando}
+            className={`text-xs font-semibold flex items-center gap-1 transition-colors px-2 py-1 rounded-lg border cursor-pointer disabled:opacity-50 ${
+              ventana.espejado
+                ? 'bg-orange-50 text-[#E34A26] border-orange-200 hover:bg-orange-100'
+                : 'bg-white text-slate-700 border-slate-200 hover:text-[#E34A26] hover:bg-slate-50'
+            }`}
+            title="Espejar el dibujo horizontalmente, de forma permanente (para ventanas que salen al revés en el plano de HETMO)"
+          >
+            {isEspejando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FlipHorizontal2 className="w-3.5 h-3.5" />}
+            <span>{ventana.espejado ? 'Espejada' : 'Espejar'}</span>
+          </button>
           <button
             onClick={() => onOpenMaterials?.(ventana)}
             className="text-xs font-semibold text-slate-600 hover:text-[#E34A26] flex items-center gap-1 transition-colors px-2 py-1 rounded-lg hover:bg-slate-100 cursor-pointer"
