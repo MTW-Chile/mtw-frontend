@@ -9,6 +9,7 @@ import type { Proyecto, Ventana } from '../../../../types';
 import { formatNumber } from '../../../../lib/utils';
 import { toWindowLine } from '../../components/drawing/ventanaAdapter';
 import { buildWindow } from '../../components/drawing/windowGeometryBuilder';
+import { buildProtexDoorSvg } from '../../components/drawing/protexDoorSvg';
 import { getAcabadoLabel } from '../../components/drawing/colorSystem';
 import * as core from '../../components/drawing/geometryCore';
 import type { PrecioVentaLinea } from '../../lib/presupuesto';
@@ -147,6 +148,20 @@ export async function rasterizarDibujos(ventanas: Ventana[]): Promise<Map<string
   const pngPorVentana = new Map<string, string | null>();
   await Promise.all(
     ventanas.map(async (v) => {
+      // Puerta Protex: dibujo propio y aislado (ver VentanaCard.tsx /
+      // PresupuestoOferta.tsx) -- no pasa por el motor vectorial
+      // compartido, asi que el PDF tampoco puede pedirselo a buildWindow().
+      if (v.tipoLineaManual === 'PROTEX') {
+        try {
+          const svg = buildProtexDoorSvg(v.numeroCuadrosHojas === 2 ? 2 : 1, v.anchoMm, v.altoMm);
+          const { svg: svgRecortado, aspect } = cropSvgToContent(svg);
+          const alturaRaster = 480;
+          pngPorVentana.set(v.id, await svgToPngDataUrl(svgRecortado, Math.round(alturaRaster * aspect), alturaRaster));
+        } catch {
+          pngPorVentana.set(v.id, null);
+        }
+        return;
+      }
       const line = toWindowLine(v);
       if (!line) { pngPorVentana.set(v.id, null); return; }
       try {

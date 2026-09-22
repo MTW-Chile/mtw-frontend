@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   RotateCcw,
   Calculator,
@@ -7,20 +7,21 @@ import {
   Clock,
   Search,
   Building2,
-  Package,
+  Plus,
+  Loader2,
+  Trash2,
   X,
   ChevronDown,
 } from 'lucide-react';
-import { getProyectos, getSyncLogs, triggerManualSync } from '../../api/client';
+import { getProyectos, getSyncLogs, triggerManualSync, createProyectoManual, eliminarProyecto } from '../../api/client';
 import { formatNumber } from '../../lib/utils';
+import { useMediaQuery } from '../../lib/useMediaQuery';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { CotizacionDetalleModal } from './CotizacionDetalleModal';
 import { CotizadorWorkspace } from './CotizadorWorkspace';
-import { MaestroProductos } from './components/MaestroProductos';
 
-type SubTab = 'proyectos' | 'maestro';
 type EstadoFiltro = 'TERMINADOS' | 'PEDIDOS' | 'TODOS';
 
 const ESTADOS_FILTRO: { id: EstadoFiltro; label: string }[] = [
@@ -32,14 +33,54 @@ const ESTADOS_FILTRO: { id: EstadoFiltro; label: string }[] = [
 export const CotizacionesPage: React.FC<{
   searchTerm?: string;
   onSearchChange?: (val: string) => void;
-}> = ({ searchTerm: externalSearch = '', onSearchChange }) => {
-  const [activeSubTab, setActiveSubTab] = useState<SubTab>('proyectos');
+  // Deep-link desde la campanita/Centro de Notificaciones (una cotizacion
+  // pendiente de aprobacion gerencial) -- abre directo el cotizador de ese
+  // proyecto en el Paso 5 (Consolidación), donde está "Aprobar (Gerencia)".
+  proyectoAAbrir?: string | null;
+  onProyectoAbierto?: () => void;
+}> = ({ searchTerm: externalSearch = '', onSearchChange, proyectoAAbrir, onProyectoAbierto }) => {
+  const queryClient = useQueryClient();
   const [internalSearch, setInternalSearch] = useState(externalSearch);
   // Por defecto muestra solo proyectos con estado 2 (Presupuesto Terminado)
   const [statusFilter, setStatusFilter] = useState<EstadoFiltro>('TERMINADOS');
   const [selectedProyectoId, setSelectedProyectoId] = useState<string | null>(null);
   const [cotizarProyectoId, setCotizarProyectoId] = useState<string | null>(null);
+  const [pasoInicialCotizador, setPasoInicialCotizador] = useState<1 | 2 | 3 | 4 | 5>(1);
+
+  useEffect(() => {
+    if (!proyectoAAbrir) return;
+    setCotizarProyectoId(proyectoAAbrir);
+    setPasoInicialCotizador(5);
+    onProyectoAbierto?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proyectoAAbrir]);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [mostrarModalManual, setMostrarModalManual] = useState(false);
+  const [obraManual, setObraManual] = useState('');
+  const [clienteManual, setClienteManual] = useState('');
+  const crearManualMutation = useMutation({
+    mutationFn: () => createProyectoManual({ obra: obraManual, clienteNombre: clienteManual }),
+    onSuccess: ({ proyecto }) => {
+      setMostrarModalManual(false);
+      setObraManual('');
+      setClienteManual('');
+      setCotizarProyectoId(proyecto.id);
+    },
+  });
+  const eliminarMutation = useMutation({
+    mutationFn: (id: string) => eliminarProyecto(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['proyectos'] });
+    },
+  });
+  const handleEliminar = (id: string, obra: string) => {
+    if (window.confirm(`¿Eliminar "${obra}" y todo su presupuesto? Esta acción no se puede deshacer.`)) {
+      eliminarMutation.mutate(id);
+    }
+  };
+  // Monta sólo la vista de escritorio o la de mobile, nunca las dos -- ver
+  // useMediaQuery.ts.
+  const isDesktop = useMediaQuery('(min-width: 768px)');
 
   useEffect(() => {
     if (externalSearch) {
@@ -49,9 +90,17 @@ export const CotizacionesPage: React.FC<{
 
   const effectiveSearch = internalSearch;
 
+  // Filtro por estado en el SERVIDOR, no en el navegador -- el listado
+  // pagina por actualizadoEn desc (mas recientes primero), asi que si se
+  // filtrara solo del lado del cliente, un resync amplio que toque muchos
+  // proyectos de golpe puede llenar toda la pagina con proyectos de OTRO
+  // estado y dejar la pestana actual vacia aunque los proyectos reales
+  // sigan intactos en la base (confirmado en produccion).
+  const estadoServidor = statusFilter === 'TERMINADOS' ? 2 : statusFilter === 'PEDIDOS' ? 30 : undefined;
+
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['proyectos'],
-    queryFn: () => getProyectos({ limit: 100 }),
+    queryKey: ['proyectos', statusFilter],
+    queryFn: () => getProyectos({ limit: 100, estado: estadoServidor }),
     // El default global (5 min, sin refetch al volver a la pestaña) dejaba
     // esta lista mostrando el estado de HETMO desactualizado por minutos
     // despues de una resincronizacion (automatica o manual) -- incluida la
@@ -114,8 +163,10 @@ export const CotizacionesPage: React.FC<{
     return (
       <CotizadorWorkspace
         proyectoId={cotizarProyectoId}
+        pasoInicial={pasoInicialCotizador}
         onBack={() => {
           setCotizarProyectoId(null);
+          setPasoInicialCotizador(1);
           refetch();
         }}
       />
@@ -124,113 +175,67 @@ export const CotizacionesPage: React.FC<{
 
   return (
     <div className="p-3 sm:p-5 md:p-8 space-y-4 sm:space-y-5 max-w-7xl mx-auto animate-fade-in">
-      {/* NAVEGACIÓN DE SUB-PESTAÑAS: DESPLEGABLE EN MÓVILES / BOTONES EN DESKTOP */}
+      {/* ENCABEZADO: TITULO + SINCRONIZACIÓN RELAY / HETMO */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
-        {/* Desplegable para Móviles */}
-        <div className="block sm:hidden relative w-full">
-          <div className="relative">
-            <select
-              value={activeSubTab}
-              onChange={(e) => setActiveSubTab(e.target.value as SubTab)}
-              className="w-full py-2.5 pl-3.5 pr-10 rounded-xl bg-white border border-slate-300 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#E34A26] appearance-none cursor-pointer shadow-xs"
-            >
-              <option value="proyectos">Presupuestos & Obras HETMO ({proyectos.length})</option>
-              <option value="maestro">Maestro de Productos (Catálogo)</option>
-            </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-        </div>
-
-        {/* Botones de Tab para Desktop / Tablet */}
-        <div className="hidden sm:flex items-center gap-2">
-          <button
-            onClick={() => setActiveSubTab('proyectos')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              activeSubTab === 'proyectos'
-                ? 'bg-[#E34A26] text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            <Building2 className="w-4 h-4 shrink-0" />
-            <span>Presupuestos & Obras HETMO</span>
-            <span
-              className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono shrink-0 ${
-                activeSubTab === 'proyectos'
-                  ? 'bg-white/20 text-white'
-                  : 'bg-slate-100 text-slate-600'
-              }`}
-            >
-              {proyectos.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveSubTab('maestro')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              activeSubTab === 'maestro'
-                ? 'bg-[#E34A26] text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            <Package className="w-4 h-4 shrink-0" />
-            <span>Maestro de Productos</span>
-            <span
-              className={`px-1.5 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider shrink-0 ${
-                activeSubTab === 'maestro'
-                  ? 'bg-white/20 text-white'
-                  : 'bg-slate-100 text-slate-500'
-              }`}
-            >
-              Items
-            </span>
-          </button>
+        <div className="flex items-center gap-2">
+          <Building2 className="w-4 h-4 shrink-0 text-[#E34A26]" />
+          <span className="text-sm font-bold text-slate-900">Presupuestos & Obras HETMO</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono shrink-0 bg-slate-100 text-slate-600">
+            {proyectos.length}
+          </span>
         </div>
 
         {/* Sincronización Relay / HETMO */}
-        {activeSubTab === 'proyectos' && (
-          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs bg-white border border-slate-200 text-slate-600 shadow-xs">
-              <Clock className="w-3.5 h-3.5 text-[#E34A26]" />
-              <span>
-                Última importación:{' '}
-                <strong className="font-mono text-slate-900">
-                  {lastSync?.finalizadoEn
-                    ? new Date(lastSync.finalizadoEn).toLocaleTimeString('es-CL', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    : 'Reciente'}
-                </strong>
-              </span>
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleManualSync}
-              disabled={isSyncing}
-              leftIcon={
-                <RotateCcw
-                  className={`w-3.5 h-3.5 text-[#E34A26] ${
-                    isSyncing ? 'animate-spin' : ''
-                  }`}
-                />
-              }
-            >
-              <span className="hidden sm:inline">
-                {isSyncing ? 'Sincronizando...' : 'Sincronizar HETMO'}
-              </span>
-              <span className="sm:hidden">{isSyncing ? 'Sync...' : 'Sync'}</span>
-            </Button>
+        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs bg-white border border-slate-200 text-slate-600 shadow-xs">
+            <Clock className="w-3.5 h-3.5 text-[#E34A26]" />
+            <span>
+              Última importación:{' '}
+              <strong className="font-mono text-slate-900">
+                {lastSync?.finalizadoEn
+                  ? new Date(lastSync.finalizadoEn).toLocaleTimeString('es-CL', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  : 'Reciente'}
+              </strong>
+            </span>
           </div>
-        )}
+
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setMostrarModalManual(true)}
+            leftIcon={<Plus className="w-3.5 h-3.5" />}
+          >
+            <span className="hidden sm:inline">Presupuesto Manual</span>
+            <span className="sm:hidden">Manual</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            leftIcon={
+              <RotateCcw
+                className={`w-3.5 h-3.5 text-[#E34A26] ${
+                  isSyncing ? 'animate-spin' : ''
+                }`}
+              />
+            }
+          >
+            <span className="hidden sm:inline">
+              {isSyncing ? 'Sincronizando...' : 'Sincronizar HETMO'}
+            </span>
+            <span className="sm:hidden">{isSyncing ? 'Sync...' : 'Sync'}</span>
+          </Button>
+        </div>
       </div>
 
-      {/* CONTENIDO SEGÚN SUB-PESTAÑA */}
-      {activeSubTab === 'maestro' ? (
-        <MaestroProductos />
-      ) : (
-        <div className="space-y-4">
+      {/* CONTENIDO: LISTADO DE PROYECTOS -- Maestro de Materiales vive solo en
+          el menu lateral (ver Sidebar.tsx), ya no como sub-pestana aca. */}
+      <div className="space-y-4">
           {/* BARRA DE BÚSQUEDA Y FILTROS */}
           <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
             <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
@@ -348,7 +353,8 @@ export const CotizacionesPage: React.FC<{
           ) : (
             <>
               {/* 1. VISTA TABLA AUTOMÁTICA EN DESKTOP/TABLET (System-Wide) */}
-              <div className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+              {isDesktop && (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[850px] text-left text-xs text-slate-700">
                     <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
@@ -445,6 +451,15 @@ export const CotizacionesPage: React.FC<{
                                 >
                                   <Eye className="w-3.5 h-3.5 text-slate-600" />
                                 </Button>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => handleEliminar(p.id, p.obra)}
+                                  disabled={eliminarMutation.isPending}
+                                  title="Eliminar proyecto"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                                </Button>
                               </div>
                             </td>
                           </tr>
@@ -454,9 +469,11 @@ export const CotizacionesPage: React.FC<{
                   </table>
                 </div>
               </div>
+              )}
 
               {/* 2. VISTA TARJETAS AUTOMÁTICA EN MÓVILES (System-Wide por defecto) */}
-              <div className="block md:hidden space-y-3.5">
+              {!isDesktop && (
+              <div className="space-y-3.5">
                 {filteredProyectos.map((p) => {
                   const activeVersion = p.versiones[0];
                   const isPedido =
@@ -540,21 +557,90 @@ export const CotizacionesPage: React.FC<{
                         >
                           <Eye className="w-4 h-4 text-slate-600" />
                         </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleEliminar(p.id, p.obra)}
+                          disabled={eliminarMutation.isPending}
+                          title="Eliminar proyecto"
+                        >
+                          <Trash2 className="w-4 h-4 text-rose-600" />
+                        </Button>
                       </div>
                     </div>
                   );
                 })}
               </div>
+              )}
             </>
           )}
-        </div>
-      )}
+      </div>
 
       {/* Modal Ficha Técnica */}
       <CotizacionDetalleModal
         proyectoId={selectedProyectoId}
         onClose={() => setSelectedProyectoId(null)}
       />
+
+      {/* Modal Presupuesto Manual -- proyecto 100% lineas manuales (Vidrio
+          DVH, Puerta Protex), sin pasar por HETMO. Crea el proyecto y salta
+          directo al cotizador para agregar lineas de inmediato. */}
+      {mostrarModalManual && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black text-slate-900">Nuevo Presupuesto Manual</h3>
+              <button
+                onClick={() => setMostrarModalManual(false)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">
+              Crea un presupuesto vacío para cotizar solo con líneas manuales (Vidrio DVH, Puerta Protex), sin obra sincronizada de HETMO.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Obra</label>
+                <input
+                  autoFocus
+                  value={obraManual}
+                  onChange={(e) => setObraManual(e.target.value)}
+                  placeholder="Nombre de la obra"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-[#E34A26]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Cliente (opcional)</label>
+                <input
+                  value={clienteManual}
+                  onChange={(e) => setClienteManual(e.target.value)}
+                  placeholder="Nombre del cliente"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-[#E34A26]"
+                />
+              </div>
+            </div>
+            {crearManualMutation.isError && (
+              <p className="text-xs text-rose-600 font-semibold">No se pudo crear el presupuesto. Intenta de nuevo.</p>
+            )}
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <Button variant="outline" size="sm" onClick={() => setMostrarModalManual(false)}>
+                Cancelar
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={!obraManual.trim() || crearManualMutation.isPending}
+                onClick={() => crearManualMutation.mutate()}
+                leftIcon={crearManualMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : undefined}
+              >
+                Crear y cotizar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

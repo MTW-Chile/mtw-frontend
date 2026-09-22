@@ -198,11 +198,27 @@ function buildCompositePanel(
       // ventana es fija): la hoja es un perfil relleno, así que dibujarla
       // encima del vidrio lo taparía por completo.
       const sashInset = glassOnly ? 0 : SASH_THICKNESS;
-      const glazing = (gx: number, gy: number, gw: number, gh: number, insideSash: boolean) => {
+      // Un paño compuesto (numero_ventana propio) puede no traer NINGUN
+      // elemento de vidrio real (tipo 40000/200) -- es un tramo ciego /
+      // estructural entre dos ventanas vecinas de la misma linea HETMO, no
+      // una ventana con vidrio (confirmado contra el dibujo real de HETMO:
+      // PV08 de Edificio Matta Esmax, linea 12281, paño numero_ventana=2 de
+      // 1100mm sin ninguna fila de vidrio asociada -- se dibujaba con el
+      // mismo vidrio celeste que los paños vecinos, cuando en la ficha real
+      // ese tramo va en blanco). Sin vidrio real no se dibuja la marca de
+      // "fijo" (mark, mas abajo) para ese paño -- pero el rect SI se sigue
+      // dibujando (con hasGlass=false, fill blanco): frameMarkup rellena
+      // TODO el tile con el color oscuro del perfil (no es un marco hueco,
+      // es un rect solido con bordes biselados encima) y algo tiene que
+      // cubrir ese interior o el paño se ve como un bloque negro solido en
+      // vez de un tramo ciego en blanco -- primer intento de este fix lo
+      // dejaba vacio ('') y por eso salia negro solido, no blanco.
+      const glazing = (gx: number, gy: number, gw: number, gh: number, insideSash: boolean, hasGlass: boolean) => {
         const i = insideSash ? sashInset : 0;
-        return glassMarkup(glassClass, gx + i, gy + i, Math.max(1, gw - i * 2), Math.max(1, gh - i * 2));
+        return glassMarkup(glassClass, gx + i, gy + i, Math.max(1, gw - i * 2), Math.max(1, gh - i * 2), hasGlass);
       };
-      let panelGlazing = glazing(px, py, pw, ph, panelDefinition.family !== 'fixed');
+      const panelHasGlass = panel.raw.some((item: Record<string, unknown>) => core.glassElementTypes.indexOf(number(item && item.tipo_elemento)) >= 0);
+      let panelGlazing = glazing(px, py, pw, ph, panelDefinition.family !== 'fixed', panelHasGlass);
 
       const panelAxisY = panelDefinition?.family === 'projecting'
         ? py + ph - 3
@@ -240,13 +256,13 @@ function buildCompositePanel(
           ? sideBySideSegments.map((segment: { x: number; width: number; last: boolean }) =>
               `${hingedMark(panel.apertura, segment.x, py, segment.width, ph, '#2452d6', panelAxisY)}${segment.last ? '' : dividerMarkup(segment.x + segment.width, py + 2, py + ph - 2, finish, 2.5)}`
             ).join('')
-          : (panel.apertura ? hingedMark(panel.apertura, px, py, pw, ph, '#2452d6', panelAxisY) : fixedMark(px, py, pw, ph, '#2452d6'));
+          : (panel.apertura ? hingedMark(panel.apertura, px, py, pw, ph, '#2452d6', panelAxisY) : (panelHasGlass ? fixedMark(px, py, pw, ph, '#2452d6') : ''));
 
       let hardwareMarkup = '';
       if (isDoubleOpening) {
         // Dos hojas en paralelo dentro del mismo marco, sin solape.
         sash = glassOnly ? '' : `${sashMarkup(px, py, pw / 2, ph, finish)}${sashMarkup(px + pw / 2, py, pw / 2, ph, finish)}`;
-        panelGlazing = `${glazing(px, py, pw / 2, ph, true)}${glazing(px + pw / 2, py, pw / 2, ph, true)}`;
+        panelGlazing = `${glazing(px, py, pw / 2, ph, true, panelHasGlass)}${glazing(px + pw / 2, py, pw / 2, ph, true, panelHasGlass)}`;
         if (!glassOnly) {
           const activeSide = panelDefinition.hand === 'left' ? 'left' : 'right';
           const activeX = activeSide === 'left' ? px : px + pw / 2;
@@ -269,7 +285,7 @@ function buildCompositePanel(
         }
       } else if (sideBySideSegments.length) {
         sash = glassOnly ? '' : sideBySideSegments.map((segment: { x: number; width: number }) => sashMarkup(segment.x, py, segment.width, ph, finish)).join('');
-        panelGlazing = sideBySideSegments.map((segment: { x: number; width: number }) => glazing(segment.x, py, segment.width, ph, true)).join('');
+        panelGlazing = sideBySideSegments.map((segment: { x: number; width: number }) => glazing(segment.x, py, segment.width, ph, true, panelHasGlass)).join('');
         if (!glassOnly) {
           sideBySideSegments.forEach((segment: { x: number; width: number }) => {
             if (panelDefinition.family === 'projecting') {
@@ -363,7 +379,7 @@ function buildCompositePanel(
           const leafWidth = availableWidth * panelWeights[leafIndex] / totalWeight;
           const depth = resolvedLeaves[leafIndex].carril;
           const leafSash = glassOnly ? '' : sashMarkup(leafX, py, leafWidth, ph, finish);
-          const leafGlass = glazing(leafX, py, leafWidth, ph, true);
+          const leafGlass = glazing(leafX, py, leafWidth, ph, true, panelHasGlass);
           const leafAxisY = openingAxisY(line, resolvedLeaves[leafIndex], py, ph, panel.height);
           const leafMark = slidingMark(kind, leafX, py, leafWidth, ph, '#2452d6', leafAxisY);
           const leafHandle = glassOnly ? '' : handleMark(

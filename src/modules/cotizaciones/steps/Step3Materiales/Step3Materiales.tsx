@@ -12,8 +12,6 @@ import {
   Lock,
   Loader2,
 } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { formatNumber } from '../../../../lib/utils';
 import { useMonedas, resolverMoneda, formatMonto } from '../../../../lib/monedas';
 import { saveMaterialAjuste, setFamiliaAprobacion, setFamiliaDescuento, setFamiliaRecargo, updateEstadoAprobacion } from '../../../../api/client';
@@ -132,9 +130,14 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   // ACEPTADO_CLIENTE el retroceso se maneja desde el Paso 5, no desde aca.
   const puedeDeshacerAca = estadoActual === 'ESPERANDO_APROBACION_COMERCIAL';
 
+  // Sólo invalida el detalle de este proyecto: nada de lo que se edita acá
+  // (ajustes de material, aprobación/descuento/recargo por familia) se
+  // muestra en el listado de proyectos (['proyectos'], CotizacionesPage.tsx
+  // -- ahí sólo aparecen codigoInterno, los datos crudos de cliente y el
+  // estadoGlosa de HETMO), así que invalidarlo en cada ajuste sólo generaba
+  // un refetch de red de hasta 100 proyectos que nadie estaba mirando.
   const invalidar = () => {
     queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyecto.id] });
-    queryClient.invalidateQueries({ queryKey: ['proyectos'] });
   };
 
   // Ajustes por material: exclusion, precio y familia personalizados. Se
@@ -284,6 +287,13 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   const cantidadExcluidos = materialesConsolidados.filter((m) => m.excluido).length;
 
   const exportarPDF = async () => {
+    // jsPDF + autotable pesan ~430KB: se cargan recién al exportar, no con
+    // el resto del Paso 3 (que ya es su propio chunk lazy, ver
+    // CotizadorWorkspace.tsx), para no traerlos solo por abrir la pantalla.
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
     const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
     const margen = 32;
@@ -385,6 +395,56 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     doc.text(`$ ${formatNumber(costoTotalCLP, 0)}  ·  ${formatUF(costoTotalUF)} UF`, margen + 14, y + 34);
 
     doc.save(`analitica-materiales-${(proyecto.codigoInterno || proyecto.obra).replace(/\s+/g, '-')}.pdf`);
+  };
+
+  // CSV, no XLSX: los paquetes que generan .xlsx real en el navegador (xlsx
+  // de SheetJS, exceljs) traen vulnerabilidades conocidas sin parche en npm
+  // (alta severidad en xlsx, moderada via su dependencia uuid en exceljs) --
+  // no vale la pena esa superficie de ataque para una exportación. Un CSV
+  // con BOM UTF-8 abre perfecto en Excel (columnas, tildes, ñ, todo bien) y
+  // no depende de ningún paquete nuevo.
+  const exportarCSV = () => {
+    const escaparCelda = (valor: string | number) => {
+      const texto = String(valor);
+      return /[",\n]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
+    };
+    const encabezados = [
+      'Familia', 'SKU', 'Descripción', 'Proveedor', 'Precio Unit. Origen', 'Moneda Origen',
+      'Precio Unit. CLP', 'Cantidad', 'Unidad', 'Descuento %', 'Recargo %', 'Total CLP', 'Estado',
+    ];
+    const filas: (string | number)[][] = [encabezados];
+    gruposPorFamilia.forEach(([familia, materiales]) => {
+      const aprobacion = aprobacionesPorFamilia.get(familia);
+      const descuento = Number(aprobacion?.descuentoPct) || 0;
+      const recargo = Number(aprobacion?.recargoPct) || 0;
+      materiales.forEach((m) => {
+        filas.push([
+          familia,
+          m.skuInterno,
+          m.descripcion,
+          m.proveedorNombre,
+          m.precioOrigen,
+          resolverMoneda(m.monedaOrigen, monedas).nombre,
+          m.precioCLP,
+          m.cantidadTotal,
+          familia === 'VIDRIOS' ? 'M²' : m.familiaCruda === 'JUNTAS' ? 'M' : m.unidadMedida,
+          descuento,
+          recargo,
+          montoConAjuste(m, aprobacionesPorFamilia),
+          m.excluido ? 'Excluido' : 'Incluido',
+        ]);
+      });
+    });
+    filas.push(['TOTAL', '', '', '', '', '', '', '', '', '', '', costoTotalCLP, '']);
+
+    const csv = filas.map((fila) => fila.map(escaparCelda).join(',')).join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `analitica-materiales-${(proyecto.codigoInterno || proyecto.obra).replace(/\s+/g, '-')}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -515,12 +575,12 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
             </button>
 
             <button
-              onClick={() => alert('Generando planilla de materiales en XLSX (Excel)...')}
+              onClick={exportarCSV}
               className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm"
-              title="Exportar materiales a Excel XLSX"
+              title="Exportar materiales a CSV (se abre directo en Excel)"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span>Exportar XLSX</span>
+              <span>Exportar CSV</span>
             </button>
           </div>
         </div>

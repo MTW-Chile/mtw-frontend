@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Calculator, Check, Loader2, Plus, Trash2, FileDown, Lock } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { formatNumber } from '../../../../lib/utils';
 import { useMonedas } from '../../../../lib/monedas';
 import { updateFijacionConfig, updateEstadoAprobacion } from '../../../../api/client';
@@ -79,6 +77,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
     cantidadViajes: config?.cantidadViajes ?? Math.ceil(cantidadVentanas / 14),
     valorViaje: config?.valorViaje ?? 80000,
     valorInstalacionM2: config?.valorInstalacionM2 ?? 15000,
+    valorInstalacionProtexM2: config?.valorInstalacionProtexM2 ?? 25000,
     margenVentaPct: config?.margenVentaPct ?? 0,
   });
 
@@ -153,6 +152,12 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
   const m2Vidrios = materialesConsolidados
     .filter((m) => !m.excluido && m.familia === 'VIDRIOS')
     .reduce((acc, m) => acc + m.cantidadTotal, 0);
+  // totalM2Ventanas solo lo actualiza el sync de HETMO -- una Puerta Protex
+  // (linea manual) nunca suma ahi, asi que su instalacion se calcula aparte
+  // con su propio m2 real y su propia tarifa (ver valorInstalacionProtexM2).
+  const m2Protex = (activeVersion?.ventanas || [])
+    .filter((v) => v.tipoLineaManual === 'PROTEX')
+    .reduce((acc, v) => acc + (Number(v.m2Ventana) || 0), 0);
 
   // Costos complementarios: tasas CLP/m2 (no montos planos) -- mano de obra
   // y material de instalacion por m2 de VENTANAS, film protector por m2 de
@@ -164,7 +169,8 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
   const extrasTotal = extras.reduce((acc, e) => acc + numeroInput(e.monto), 0);
   const costosComplementarios = costoManoObra + costoFilm + costoMaterialInstalacion + extrasTotal;
   const costoFlete = numeroInput(draft.cantidadViajes) * numeroInput(draft.valorViaje);
-  const costoInstalacion = numeroInput(draft.valorInstalacionM2) * m2Ventanas;
+  const costoInstalacion =
+    numeroInput(draft.valorInstalacionM2) * m2Ventanas + numeroInput(draft.valorInstalacionProtexM2) * m2Protex;
   const costoTotal = materialesTotal + costosComplementarios + costoFlete + costoInstalacion;
   const margen = Math.min(99, Math.max(0, numeroInput(draft.margenVentaPct)));
   const venta = margen < 100 ? costoTotal / (1 - margen / 100) : costoTotal;
@@ -182,6 +188,12 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
   const eliminarExtra = (index: number) => setExtras((prev) => prev.filter((_, i) => i !== index));
 
   const exportarPDF = async () => {
+    // Ver el mismo comentario en Step3Materiales.tsx: jsPDF + autotable se
+    // cargan recién al exportar, no con el resto del Paso 4.
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
     const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
     const margen2 = 36;
@@ -567,6 +579,20 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
                 disabled={congelado}
                 value={draft.valorInstalacionM2 || ''}
                 onChange={(e) => setDraft((prev) => ({ ...prev, valorInstalacionM2: numeroInput(e.target.value) }))}
+                className={`${inputClass} max-w-[140px]`}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-3 text-xs">
+              <span className="text-slate-600 flex-1">
+                <span className="block">Valor por m² (Puerta Protex)</span>
+                <span className="block text-[10px] text-slate-400">CLP por m² de línea manual Protex</span>
+              </span>
+              <input
+                type="number"
+                min={0}
+                disabled={congelado}
+                value={draft.valorInstalacionProtexM2 || ''}
+                onChange={(e) => setDraft((prev) => ({ ...prev, valorInstalacionProtexM2: numeroInput(e.target.value) }))}
                 className={`${inputClass} max-w-[140px]`}
               />
             </div>

@@ -35,9 +35,9 @@ const initialNuevoCliente: NuevoClienteForm = {
   email: '',
 };
 
-export function useCotizadorWorkspace(proyectoId: string) {
+export function useCotizadorWorkspace(proyectoId: string, pasoInicial: 1 | 2 | 3 | 4 | 5 = 1) {
   const queryClient = useQueryClient();
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5>(pasoInicial);
   const [selectedVersionIdx, setSelectedVersionIdx] = useState(0);
   const [showReimportModal, setShowReimportModal] = useState(false);
 
@@ -172,6 +172,14 @@ export function useCotizadorWorkspace(proyectoId: string) {
     }
   }, [proyecto]);
 
+  // ['proyectos'] (CotizacionesPage.tsx) sólo muestra codigoInterno, los
+  // datos crudos de cliente (clienteNombreRaw/RutRaw/DireccionRaw -- del
+  // import de HETMO, no del Cliente vinculado del maestro) y el estadoGlosa
+  // de la última versión importada. Vincular/crear cliente, guardar divisas
+  // y cambiar el estado comercial interno no tocan nada de eso, así que
+  // invalidarlo ahí sólo generaba un refetch de red de hasta 100 proyectos
+  // en cada guardado sin que la lista fuese a mostrar algo distinto.
+
   // Mutación para vincular o desvincular un cliente existente del maestro
   const vincularClienteMutation = useMutation({
     mutationFn: async (clienteId: string | null) => {
@@ -179,7 +187,6 @@ export function useCotizadorWorkspace(proyectoId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyectoId] });
-      queryClient.invalidateQueries({ queryKey: ['proyectos'] });
       setClientMode('view');
     },
   });
@@ -205,7 +212,6 @@ export function useCotizadorWorkspace(proyectoId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyectoId] });
       queryClient.invalidateQueries({ queryKey: ['clientesMaster'] });
-      queryClient.invalidateQueries({ queryKey: ['proyectos'] });
       setClientMode('view');
     },
   });
@@ -223,7 +229,6 @@ export function useCotizadorWorkspace(proyectoId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyectoId] });
-      queryClient.invalidateQueries({ queryKey: ['proyectos'] });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2500);
     },
@@ -238,7 +243,11 @@ export function useCotizadorWorkspace(proyectoId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyectoId] });
-      queryClient.invalidateQueries({ queryKey: ['proyectos'] });
+      // Esta transicion puede crear o resolver un pendiente de aprobacion
+      // gerencial (ESPERANDO_APROBACION_COMERCIAL) -- se invalida para que
+      // la campanita/Centro de Notificaciones se actualicen al toque, sin
+      // esperar el proximo poll (ver Header.tsx).
+      queryClient.invalidateQueries({ queryKey: ['misAprobacionesPendientes'] });
     },
   });
 

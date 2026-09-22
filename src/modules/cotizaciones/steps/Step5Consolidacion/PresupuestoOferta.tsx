@@ -6,12 +6,14 @@ import { formatNumber } from '../../../../lib/utils';
 import { useMonedas } from '../../../../lib/monedas';
 import { updatePresupuestoConfig, updateVentanaPresupuesto, renderPdf, getConfiguracionEmpresa } from '../../../../api/client';
 import { WindowRendererSvg } from '../../components/drawing/WindowRendererSvg';
+import { buildProtexDoorSvg } from '../../components/drawing/protexDoorSvg';
 import { toWindowLine } from '../../components/drawing/ventanaAdapter';
 import { createFinish, getAcabadoLabel } from '../../components/drawing/colorSystem';
 import * as core from '../../components/drawing/geometryCore';
 import {
   computeMaterialesConsolidados,
   computeCostoTotalYVenta,
+  computeCostoVentanaCLP,
 } from '../../lib/materialesConsolidados';
 import { computePreciosVenta } from '../../lib/presupuesto';
 import { loadImageDataUrl } from '../../lib/pdfTheme';
@@ -179,13 +181,25 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
     () => new Map((activeVersion?.familiaAprobaciones || []).map((f) => [f.familia, f])),
     [activeVersion?.familiaAprobaciones]
   );
-  const { venta } = useMemo(
+  const { venta, costoTotal } = useMemo(
     () => computeCostoTotalYVenta(activeVersion, materialesConsolidados, aprobacionesPorFamilia),
     [activeVersion, materialesConsolidados, aprobacionesPorFamilia]
   );
+  const ajustesPorMaterial = useMemo(
+    () => new Map((activeVersion?.materialAjustes || []).map((a) => [a.materialId, a])),
+    [activeVersion?.materialAjustes]
+  );
   const preciosVenta = useMemo(
-    () => computePreciosVenta(ventanas, activeVersion?.sumaTotalLineas, venta),
-    [ventanas, activeVersion?.sumaTotalLineas, venta]
+    () =>
+      computePreciosVenta(
+        ventanas,
+        activeVersion?.sumaTotalLineas,
+        venta,
+        (v) => computeCostoVentanaCLP(v, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas),
+        costoTotal,
+        tasaUf
+      ),
+    [ventanas, activeVersion?.sumaTotalLineas, venta, costoTotal, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas]
   );
   const ivaPct = 19;
   const iva = venta * (ivaPct / 100);
@@ -349,7 +363,10 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
           const precio = preciosVenta.get(v.id);
           const line = toWindowLine(v);
           const isFrameless = Boolean(line?.dibujoSinMarco);
-          const apertura = line ? core.apertureLabel(line) : '—';
+          // Una puerta Protex no pasa por el motor de aperturas de HETMO
+          // (ver mismo caso en VentanaCard.tsx) -- "Ventana fija" seria
+          // enganoso, es una puerta abatible con herrajes.
+          const apertura = v.tipoLineaManual === 'PROTEX' ? 'Puerta Protex' : line ? core.apertureLabel(line) : '—';
           const finish = createFinish(line?.acabadoCodigo, line?.acabadoDescripcion, line?.acabadoPatron);
           const finishLabel = getAcabadoLabel(v.acabadoCodigo, v.acabadoDescripcion);
           const vidrio = Array.from(
@@ -370,7 +387,16 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
               </header>
               <div className="p-4 grid grid-cols-1 md:grid-cols-[180px_1fr_180px] gap-4">
                 <div className="bg-[#f8fafc] rounded-xl flex items-center justify-center min-h-[140px]">
-                  <WindowRendererSvg ventana={v} />
+                  {v.tipoLineaManual === 'PROTEX' ? (
+                    <div
+                      className="w-full h-[140px]"
+                      dangerouslySetInnerHTML={{
+                        __html: buildProtexDoorSvg(v.numeroCuadrosHojas === 2 ? 2 : 1, v.anchoMm, v.altoMm),
+                      }}
+                    />
+                  ) : (
+                    <WindowRendererSvg ventana={v} />
+                  )}
                 </div>
                 <div className="space-y-1.5 text-xs">
                   <div><span className="text-slate-400">Dimensiones: </span><span className="font-bold text-slate-900">{formatNumber(v.anchoMm, 0)} × {formatNumber(v.altoMm, 0)} mm</span></div>

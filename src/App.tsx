@@ -4,9 +4,18 @@ import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { InicioPage } from './modules/inicio/InicioPage';
 import { CotizacionesPage } from './modules/cotizaciones/CotizacionesPage';
+import { MaestroPage } from './modules/cotizaciones/MaestroPage';
 import { ConfiguracionPage } from './modules/configuracion/ConfiguracionPage';
-import { getProyectos } from './api/client';
+import { ProyectosPage } from './modules/proyectos/ProyectosPage';
+import { CentroNotificacionesPage } from './modules/notificaciones/CentroNotificacionesPage';
+import { getProyectos, getMisPermisos } from './api/client';
 import { useCloudflareAccessSession, SessionContext } from './lib/useCloudflareAccessSession';
+import { SECCIONES_FRONTEND } from './lib/accessControl';
+
+// Tab especial, fuera de SECCIONES_FRONTEND a proposito (no va en el
+// Sidebar -- solo se llega ahi desde la campanita del Header o el link de
+// un correo de aprobacion pendiente, ver puedeVerCentro mas abajo).
+const TAB_CENTRO_NOTIFICACIONES = 'centro-notificaciones';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,17 +28,51 @@ const queryClient = new QueryClient({
 
 import { ScrollToTop } from './components/ui/ScrollToTop';
 
+// Generado desde SECCIONES_FRONTEND (lib/accessControl.ts) -- una seccion
+// nueva agrega su titulo de pestaña del navegador sola, sin tocar este archivo.
 const MODULE_TITLES: Record<string, string> = {
-  inicio: 'Inicio',
-  cotizaciones: 'Cotizaciones',
-  taller: 'Taller & Fabricación',
-  configuracion: 'Configuración',
+  ...Object.fromEntries(SECCIONES_FRONTEND.map((s) => [s.id, s.label])),
+  [TAB_CENTRO_NOTIFICACIONES]: 'Centro de Notificaciones',
 };
 
 const AppContent: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('inicio');
+  const [activeTab, setActiveTabState] = useState('inicio');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  // Deep-link desde la campanita de notificaciones (Header) hacia un
+  // proyecto puntual (ej. una OC pendiente de aprobación) -- ProyectosPage
+  // lo consume y avisa por onProyectoAbierto para que no se reabra solo.
+  const [proyectoAAbrir, setProyectoAAbrir] = useState<{ id: string; seccion?: string } | null>(null);
+  // Deep-link hacia una cotizacion puntual (aprobacion gerencial pendiente)
+  // -- CotizacionesPage lo consume, abre el Cotizador en el Paso 5
+  // (Consolidación) y avisa por onProyectoAbierto para que no se reabra solo.
+  const [cotizacionAAbrir, setCotizacionAAbrir] = useState<string | null>(null);
+
+  const { data: permisos, isLoading: cargandoPermisos } = useQuery({
+    queryKey: ['misPermisos'],
+    queryFn: getMisPermisos,
+  });
+
+  // null = administrador, ve todo sin filtrar.
+  const seccionesPermitidas = permisos ? (permisos.esAdmin ? null : permisos.secciones) : [];
+  // El Centro de Notificaciones no es una seccion real (no vive en
+  // SECCIONES_FRONTEND/Sidebar) -- su acceso depende de poder aprobar
+  // gerencial, no de secciones habilitadas.
+  const puedeVerCentroNotificaciones = !!permisos && (permisos.esAdmin || permisos.aprobaciones.includes('gerencial'));
+  const puedeVer = (id: string) =>
+    id === TAB_CENTRO_NOTIFICACIONES
+      ? puedeVerCentroNotificaciones
+      : seccionesPermitidas === null || seccionesPermitidas.includes(id);
+
+  // Si el usuario no tiene acceso a la pestaña activa (recien resueltos
+  // los permisos, o un rol le quito acceso a lo que estaba viendo), cae a
+  // la primera seccion permitida en vez de mostrar una pantalla vacia.
+  useEffect(() => {
+    if (!permisos || puedeVer(activeTab)) return;
+    const primeraPermitida = SECCIONES_FRONTEND.find((s) => puedeVer(s.id));
+    setActiveTabState(primeraPermitida?.id ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [permisos, activeTab]);
 
   // Título dinámico del navegador según el módulo activo
   useEffect(() => {
@@ -40,23 +83,94 @@ const AppContent: React.FC = () => {
   const { data } = useQuery({
     queryKey: ['proyectosCount'],
     queryFn: () => getProyectos({ limit: 1 }),
+    enabled: puedeVer('cotizaciones'),
   });
 
+  // Mismo queryKey que ProyectosPage (['proyectos', 'en-curso']) para
+  // compartir el cache -- el badge del Sidebar no dispara un fetch extra.
+  const { data: proyectosEnCursoData } = useQuery({
+    queryKey: ['proyectos', 'en-curso'],
+    queryFn: () => getProyectos({ limit: 200 }),
+    enabled: puedeVer('proyectos'),
+  });
+  const totalProyectosEnCurso = (proyectosEnCursoData?.data || []).filter(
+    (p) => p.versiones[0]?.estadoAprobacion === 'ACEPTADO_CLIENTE'
+  ).length;
+
   const handleNavigate = (tab: string, query?: string) => {
-    setActiveTab(tab);
+    setActiveTabState(tab);
     if (query !== undefined) {
       setSearchTerm(query);
     }
   };
 
+  const abrirProyecto = (proyectoId: string, seccion?: string) => {
+    setActiveTabState('proyectos');
+    setProyectoAAbrir({ id: proyectoId, seccion });
+  };
+
+  const abrirCotizacion = (proyectoId: string) => {
+    setActiveTabState('cotizaciones');
+    setCotizacionAAbrir(proyectoId);
+  };
+
+  // Deep-link desde el link "Ver Centro de Notificaciones" de los correos
+  // de aprobacion pendiente (?abrir=centro, ver
+  // notificarAprobacionGerencialPendiente en mtw-api) -- tambien soporta
+  // ?abrir=cotizacion:<obra> / ?abrir=oc:<proyectoId> para ir directo a un
+  // item puntual (usado por la campanita del Header). Se consume una sola
+  // vez al cargar la app y se limpia de la URL para que un refresh no
+  // vuelva a navegar solo.
+  useEffect(() => {
+    const abrir = new URLSearchParams(window.location.search).get('abrir');
+    if (!abrir) return;
+    if (abrir === 'centro') {
+      handleNavigate(TAB_CENTRO_NOTIFICACIONES);
+    } else {
+      const [tipo, valor] = abrir.split(/:(.*)/s);
+      if (tipo === 'cotizacion' && valor) {
+        abrirCotizacion(valor);
+      } else if (tipo === 'oc' && valor) {
+        abrirProyecto(valor, 'abastecimiento');
+      }
+    }
+    window.history.replaceState({}, '', window.location.pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (cargandoPermisos) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-500 text-sm">
+        Verificando permisos...
+      </div>
+    );
+  }
+
+  if (seccionesPermitidas !== null && seccionesPermitidas.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-8">
+        <div className="max-w-sm text-center space-y-2">
+          <h1 className="text-sm font-black text-slate-900">Sin acceso asignado</h1>
+          <p className="text-xs text-slate-500">
+            Tu cuenta ({permisos?.email}) todavía no tiene un rol asignado en MTW ERP. Pídele a un administrador que
+            te asigne uno en Configuración &gt; Roles de Usuario.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen overflow-hidden flex bg-slate-50 text-slate-900 font-sans">
       <Sidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleNavigate}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         totalProyectos={data?.total}
+        totalProyectosEnCurso={totalProyectosEnCurso}
+        seccionesPermitidas={seccionesPermitidas}
+        usuarioActual={permisos && { nombre: permisos.nombre, email: permisos.email, rol: permisos.rol }}
       />
 
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
@@ -65,6 +179,9 @@ const AppContent: React.FC = () => {
           onNavigateHome={() => handleNavigate('inicio')}
           onNavigateConfig={() => handleNavigate('configuracion')}
           moduleTitle={MODULE_TITLES[activeTab] || 'Inicio'}
+          onNavigate={handleNavigate}
+          onAbrirProyecto={abrirProyecto}
+          onAbrirCotizacion={abrirCotizacion}
         />
 
         <main className="flex-1 overflow-y-auto flex flex-col min-h-0">
@@ -72,27 +189,27 @@ const AppContent: React.FC = () => {
             <InicioPage onNavigate={handleNavigate} />
           )}
 
+          {activeTab === 'maestro' && <MaestroPage />}
+
           {activeTab === 'cotizaciones' && (
             <CotizacionesPage
               searchTerm={searchTerm}
               onSearchChange={setSearchTerm}
+              proyectoAAbrir={cotizacionAAbrir}
+              onProyectoAbierto={() => setCotizacionAAbrir(null)}
             />
           )}
 
-          {activeTab === 'configuracion' && <ConfiguracionPage />}
+          {activeTab === 'proyectos' && (
+            <ProyectosPage proyectoAAbrir={proyectoAAbrir} onProyectoAbierto={() => setProyectoAAbrir(null)} />
+          )}
 
-          {activeTab === 'taller' && (
-            <div className="p-8 sm:p-16 text-center space-y-3 max-w-md mx-auto">
-              <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-500 font-bold">
-                🛠️
-              </div>
-              <h3 className="text-sm font-bold text-slate-900">
-                Módulo de Taller & Fabricación
-              </h3>
-              <p className="text-xs text-slate-500">
-                Este módulo estará disponible en las próximas etapas para la gestión de corte, ensamble y despacho.
-              </p>
-            </div>
+          {activeTab === 'configuracion' && (
+            <ConfiguracionPage tabsPermitidas={permisos?.esAdmin ? null : permisos?.configTabs ?? []} />
+          )}
+
+          {activeTab === TAB_CENTRO_NOTIFICACIONES && (
+            <CentroNotificacionesPage onAbrirProyecto={abrirProyecto} onAbrirCotizacion={abrirCotizacion} />
           )}
         </main>
       </div>

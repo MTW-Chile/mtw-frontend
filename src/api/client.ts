@@ -15,6 +15,21 @@ import type {
   Cliente,
   Material,
   Proveedor,
+  PlantillaLinea,
+  OrdenCompra,
+  OrdenesCompraResponse,
+  EstadoOC,
+  RecepcionOC,
+  SolicitudMaterial,
+  BodegaProyectoResponse,
+  UnidadesMaterialResponse,
+  ConciliacionFactura,
+  FacturaSugerida,
+  CategoriaGasto,
+  Rol,
+  Usuario,
+  MisPermisos,
+  AprobacionesPendientes,
 } from '../types';
 
 // withCredentials: true es lo que hace que el navegador mande la cookie de
@@ -76,6 +91,21 @@ export async function getProyectos(params?: {
   estado?: number;
 }): Promise<ProyectosResponse> {
   const response = await apiClient.get<ProyectosResponse>('/proyectos', { params });
+  return response.data;
+}
+
+export async function createProyectoManual(payload: {
+  obra: string;
+  clienteNombre?: string;
+}): Promise<{ proyecto: Proyecto }> {
+  const response = await apiClient.post<{ proyecto: Proyecto }>('/proyectos/manual', payload);
+  return response.data;
+}
+
+export async function eliminarProyecto(id: string): Promise<{ success: boolean; obra: string }> {
+  // POST, no DELETE -- Cloudflare Access bloquea DELETE/PUT con "Network
+  // Error" en produccion (ver comentario en mtw-api junto al endpoint).
+  const response = await apiClient.post<{ success: boolean; obra: string }>(`/proyectos/${id}/eliminar`);
   return response.data;
 }
 
@@ -173,9 +203,13 @@ export async function updateEstadoAprobacion(
 export async function createFase(
   versionId: string,
   payload: {
-    numeroFase: number;
+    // Opcional: si no se manda, el backend usa el siguiente correlativo
+    // disponible (nunca 0, reservado para la Fase Base del sync).
+    numeroFase?: number;
     nombre: string;
     descripcion?: string;
+    fechaInicio?: string;
+    fechaEntrega?: string;
     ventanas: { ventanaId: string; unidades: number; notas?: string }[];
   }
 ): Promise<{ success: boolean; fase: Fase }> {
@@ -183,6 +217,29 @@ export async function createFase(
     `/versiones/${versionId}/fases`,
     payload
   );
+  return response.data;
+}
+
+// Edita nombre/estado/fechas de una fase existente y, si se manda
+// "ventanas", reemplaza por completo su reparto de unidades (no es un
+// merge -- manda la lista completa de lo que esa fase debe tener).
+export async function updateFase(
+  faseId: string,
+  payload: {
+    nombre?: string;
+    descripcion?: string;
+    estado?: Fase['estado'];
+    fechaInicio?: string | null;
+    fechaEntrega?: string | null;
+    ventanas?: { ventanaId: string; unidades: number; notas?: string }[];
+  }
+): Promise<{ success: boolean; fase: Fase }> {
+  const response = await apiClient.patch<{ success: boolean; fase: Fase }>(`/fases/${faseId}`, payload);
+  return response.data;
+}
+
+export async function deleteFase(faseId: string): Promise<{ success: boolean }> {
+  const response = await apiClient.delete<{ success: boolean }>(`/fases/${faseId}`);
   return response.data;
 }
 
@@ -366,6 +423,41 @@ export async function getProveedores(): Promise<{ data: Proveedor[] }> {
   return response.data;
 }
 
+export async function createProveedor(nombre: string): Promise<{ data: Proveedor }> {
+  const response = await apiClient.post<{ data: Proveedor }>('/proveedores', { nombre });
+  return response.data;
+}
+
+export interface ProveedorFacturacionPayload {
+  nombre?: string;
+  rut?: string | null;
+  nombreFantasia?: string | null;
+  giroComercial?: string | null;
+  direccion?: string | null;
+  comuna?: string | null;
+  region?: string | null;
+  pais?: string | null;
+  telefono?: string | null;
+  sitioWeb?: string | null;
+  contactoNombre?: string | null;
+  email?: string | null;
+  emailFacturacion?: string | null;
+  emailPedidos?: string | null;
+  emailAvisoPago?: string | null;
+  condicionesPago?: string | null;
+  banco?: string | null;
+  tipoCuenta?: string | null;
+  numeroCuenta?: string | null;
+  monedaDefecto?: string | null;
+  categoria?: string | null;
+  ibanSwift?: string | null;
+}
+
+export async function updateProveedor(id: string, payload: ProveedorFacturacionPayload): Promise<{ data: Proveedor }> {
+  const response = await apiClient.post<{ data: Proveedor }>(`/proveedores/${id}`, payload);
+  return response.data;
+}
+
 // POST, no PUT/DELETE -- son los unicos dos verbos de la API sin usar en
 // ningun otro lado del cliente, y "Network Error" en panel.mtw.cl al
 // guardar apunta a un bloqueo de metodo aguas arriba de Cloudflare Access.
@@ -380,12 +472,323 @@ export async function updateVentanaCorreccionGeometria(
   return response.data;
 }
 
+// ==========================================
+// ABASTECIMIENTO: ORDENES DE COMPRA Y BODEGA
+// ==========================================
+export async function getOrdenesCompra(params?: {
+  proyectoId?: string;
+  estado?: EstadoOC;
+  proveedorId?: string;
+  limit?: number;
+  page?: number;
+}): Promise<OrdenesCompraResponse> {
+  const response = await apiClient.get<OrdenesCompraResponse>('/ordenes-compra', { params });
+  return response.data;
+}
+
+export async function getOrdenCompraById(id: string): Promise<OrdenCompra> {
+  const response = await apiClient.get<OrdenCompra>(`/ordenes-compra/${id}`);
+  return response.data;
+}
+
+export async function createOrdenCompra(payload: {
+  proyectoId: string;
+  faseId?: string | null;
+  proveedorId: string;
+  requiereAprobacion?: boolean;
+  moneda?: string;
+  fechaCalendarizada?: string | null;
+  comentarios?: string;
+  items: {
+    materialId?: string | null;
+    descripcion: string;
+    unidadMedida?: string;
+    cantidad: number;
+    // Valor teorico antes de redondear a la unidad de compra (ver
+    // OrdenCompraItem.cantidadCalculada) -- puramente informativo.
+    cantidadCalculada?: number | null;
+    precioUnitario: number;
+    // Obligatoria solo cuando el item no tiene materialId (partida
+    // externa) -- con materialId, mtw-api la deriva sola de la familia.
+    categoria?: CategoriaGasto;
+  }[];
+}): Promise<{ success: boolean; ordenCompra: OrdenCompra }> {
+  const response = await apiClient.post<{ success: boolean; ordenCompra: OrdenCompra }>('/ordenes-compra', payload);
+  return response.data;
+}
+
+export async function updateOrdenCompraEstado(
+  id: string,
+  estado: EstadoOC,
+  motivoRechazo?: string
+): Promise<{ success: boolean; ordenCompra: OrdenCompra }> {
+  const response = await apiClient.patch<{ success: boolean; ordenCompra: OrdenCompra }>(`/ordenes-compra/${id}/estado`, {
+    estado,
+    motivoRechazo,
+  });
+  return response.data;
+}
+
+export async function registrarRecepcionOC(
+  ordenCompraId: string,
+  payload: { guiaDespachoNumero?: string; notas?: string; items: { ordenCompraItemId: string; cantidadRecibida: number }[] }
+): Promise<{ success: boolean; recepcion: RecepcionOC; ordenCompra: OrdenCompra }> {
+  const response = await apiClient.post<{ success: boolean; recepcion: RecepcionOC; ordenCompra: OrdenCompra }>(
+    `/ordenes-compra/${ordenCompraId}/recepciones`,
+    payload
+  );
+  return response.data;
+}
+
+export async function getBodegaProyecto(proyectoId: string): Promise<BodegaProyectoResponse> {
+  const response = await apiClient.get<BodegaProyectoResponse>(`/proyectos/${proyectoId}/bodega`);
+  return response.data;
+}
+
+export async function getUnidadesMaterial(bodegaId: string, materialId: string): Promise<UnidadesMaterialResponse> {
+  const response = await apiClient.get<UnidadesMaterialResponse>(`/bodega/${bodegaId}/materiales/${materialId}/unidades`);
+  return response.data;
+}
+
+export async function getSolicitudesMaterial(params?: {
+  faseId?: string;
+  proyectoId?: string;
+  estado?: string;
+}): Promise<{ data: SolicitudMaterial[] }> {
+  const response = await apiClient.get<{ data: SolicitudMaterial[] }>('/solicitudes-material', { params });
+  return response.data;
+}
+
+// Facturas recibidas en Clay para el proveedor de esta OC, sugeridas por
+// cercania de monto -- no un match automatico, la persona confirma cual
+// es con vincularFactura(). Falla con el error de mtw-api si el proveedor
+// no tiene RUT cargado (necesario para buscar en Clay).
+export async function getFacturasSugeridas(ordenCompraId: string): Promise<{ totalOC: number; sugeridas: FacturaSugerida[] }> {
+  const response = await apiClient.get(`/ordenes-compra/${ordenCompraId}/facturas-sugeridas`);
+  return response.data;
+}
+
+export async function vincularFactura(
+  ordenCompraId: string,
+  payload: { clayTransactionId: string; notas?: string }
+): Promise<{ success: boolean; conciliacion: ConciliacionFactura; totalOC: number }> {
+  const response = await apiClient.post(`/ordenes-compra/${ordenCompraId}/facturas`, payload);
+  return response.data;
+}
+
+// Re-consulta esa factura en Clay y actualiza pagada/montoPagado -- nada
+// dispara esto automaticamente todavia (sin cron ni webhook), es accion
+// manual.
+export async function refrescarConciliacion(conciliacionId: string): Promise<{ success: boolean; conciliacion: ConciliacionFactura }> {
+  const response = await apiClient.post(`/conciliaciones/${conciliacionId}/refrescar`);
+  return response.data;
+}
+
+export async function createSolicitudMaterial(
+  faseId: string,
+  payload: { items: { materialId: string; cantidadSolicitada: number }[]; notas?: string }
+): Promise<{ success: boolean; solicitud: SolicitudMaterial }> {
+  const response = await apiClient.post<{ success: boolean; solicitud: SolicitudMaterial }>(
+    `/fases/${faseId}/solicitudes-material`,
+    payload
+  );
+  return response.data;
+}
+
+export async function entregarSolicitudMaterial(
+  id: string
+): Promise<{ success: boolean; entregada: boolean; solicitud: SolicitudMaterial; faltantes?: any[] }> {
+  const response = await apiClient.post(`/solicitudes-material/${id}/entregar`);
+  return response.data;
+}
+
+export async function aprobarGerenciaSolicitud(
+  id: string,
+  aprobado: boolean,
+  notas?: string
+): Promise<{ success: boolean; solicitud: SolicitudMaterial }> {
+  const response = await apiClient.patch(`/solicitudes-material/${id}/aprobar-gerencia`, { aprobado, notas });
+  return response.data;
+}
+
 export async function deleteVentanaCorreccionGeometria(
   ventanaId: string
 ): Promise<{ success: boolean; data: Ventana; message?: string }> {
   const response = await apiClient.post<{ success: boolean; data: Ventana; message?: string }>(
     `/ventanas/${ventanaId}/correccion-geometria/eliminar`
   );
+  return response.data;
+}
+
+// Materiales personalizados por línea (revisión de líneas): agregar un item
+// del maestro a una línea, reemplazar un item HETMO de esa línea por otro
+// del maestro, o deshacer cualquiera de los dos. Ver comentarios junto a
+// los endpoints homónimos en mtw-api/src/index.ts.
+export async function addVentanaMaterial(
+  ventanaId: string,
+  payload: { materialId: string; cantidad: number; piezas?: number | null; longitudMm?: number | null; acabado?: string | null }
+): Promise<{ success: boolean; data: Ventana }> {
+  const response = await apiClient.post<{ success: boolean; data: Ventana }>(
+    `/ventanas/${ventanaId}/materiales`,
+    payload
+  );
+  return response.data;
+}
+
+export async function reemplazarVentanaMaterial(
+  ventanaId: string,
+  payload: {
+    materialIdOriginal: string;
+    materialIdNuevo: string;
+    cantidad: number;
+    piezas?: number | null;
+    longitudMm?: number | null;
+    acabado?: string | null;
+  }
+): Promise<{ success: boolean; data: Ventana }> {
+  const response = await apiClient.post<{ success: boolean; data: Ventana }>(
+    `/ventanas/${ventanaId}/materiales/reemplazar`,
+    payload
+  );
+  return response.data;
+}
+
+export async function eliminarVentanaMaterial(
+  ventanaId: string,
+  materialVentanaId: string
+): Promise<{ success: boolean; data: Ventana }> {
+  const response = await apiClient.post<{ success: boolean; data: Ventana }>(
+    `/ventanas/${ventanaId}/materiales/${materialVentanaId}/eliminar`
+  );
+  return response.data;
+}
+
+// ==========================================
+// PLANTILLAS DE LINEA (recetas de puertas Protex, ver Configuracion)
+// ==========================================
+
+export interface PlantillaLineaItemPayload {
+  materialId: string;
+  cantidad: number;
+}
+
+export async function getPlantillasLinea(): Promise<{ data: PlantillaLinea[] }> {
+  const response = await apiClient.get<{ data: PlantillaLinea[] }>('/plantillas-linea');
+  return response.data;
+}
+
+export async function createPlantillaLinea(payload: {
+  nombre: string;
+  tipo?: string;
+  hojas?: 1 | 2;
+  items: PlantillaLineaItemPayload[];
+}): Promise<{ data: PlantillaLinea }> {
+  const response = await apiClient.post<{ data: PlantillaLinea }>('/plantillas-linea', payload);
+  return response.data;
+}
+
+export async function updatePlantillaLinea(
+  id: string,
+  payload: { nombre?: string; activa?: boolean; hojas?: 1 | 2; items?: PlantillaLineaItemPayload[] }
+): Promise<{ data: PlantillaLinea }> {
+  const response = await apiClient.post<{ data: PlantillaLinea }>(`/plantillas-linea/${id}`, payload);
+  return response.data;
+}
+
+export async function eliminarPlantillaLinea(id: string): Promise<{ success: boolean }> {
+  const response = await apiClient.post<{ success: boolean }>(`/plantillas-linea/${id}/eliminar`);
+  return response.data;
+}
+
+// ==========================================
+// LINEAS MANUALES (vidrio DVH fijo, puerta Protex...)
+// ==========================================
+
+export interface LineaManualPayload {
+  versionId: string;
+  tipo: 'DVH_FIJO' | 'PROTEX';
+  anchoMm: number;
+  altoMm: number;
+  unidades: number;
+  acabadoCodigo?: string | null;
+  acabadoDescripcion?: string | null;
+  comentarioPresupuesto?: string | null;
+  materialVidrioId?: string;
+  plantillaId?: string;
+}
+
+export async function crearLineaManual(payload: LineaManualPayload): Promise<{ success: boolean; data: Ventana }> {
+  const response = await apiClient.post<{ success: boolean; data: Ventana }>('/ventanas/manual', payload);
+  return response.data;
+}
+
+export async function eliminarLineaManual(ventanaId: string): Promise<{ success: boolean }> {
+  const response = await apiClient.post<{ success: boolean }>(`/ventanas/${ventanaId}/eliminar-manual`);
+  return response.data;
+}
+
+// ==========================================
+// ROLES Y USUARIOS (control de acceso, ver Configuración > Roles de Usuario)
+// ==========================================
+
+export async function getMisPermisos(): Promise<MisPermisos> {
+  const response = await apiClient.get<MisPermisos>('/mi-permisos');
+  return response.data;
+}
+
+export async function getRoles(): Promise<{ data: Rol[] }> {
+  const response = await apiClient.get<{ data: Rol[] }>('/roles');
+  return response.data;
+}
+
+export async function createRol(payload: {
+  nombre: string;
+  secciones: string[];
+  configTabs: string[];
+  aprobaciones: string[];
+}): Promise<{ data: Rol }> {
+  const response = await apiClient.post<{ data: Rol }>('/roles', payload);
+  return response.data;
+}
+
+export async function updateRol(
+  id: string,
+  payload: Partial<{ nombre: string; secciones: string[]; configTabs: string[]; aprobaciones: string[] }>
+): Promise<{ data: Rol }> {
+  const response = await apiClient.patch<{ data: Rol }>(`/roles/${id}`, payload);
+  return response.data;
+}
+
+export async function getMisAprobacionesPendientes(): Promise<AprobacionesPendientes> {
+  const response = await apiClient.get<AprobacionesPendientes>('/mis-aprobaciones-pendientes');
+  return response.data;
+}
+
+// POST, no DELETE -- ver comentario junto a eliminarProyecto sobre Cloudflare Access.
+export async function eliminarRol(id: string): Promise<{ success: boolean }> {
+  const response = await apiClient.post<{ success: boolean }>(`/roles/${id}/eliminar`);
+  return response.data;
+}
+
+export async function getUsuarios(): Promise<{ data: Usuario[] }> {
+  const response = await apiClient.get<{ data: Usuario[] }>('/usuarios');
+  return response.data;
+}
+
+export async function createUsuario(payload: {
+  nombre: string;
+  email: string;
+  rolId?: string | null;
+}): Promise<{ data: Usuario }> {
+  const response = await apiClient.post<{ data: Usuario }>('/usuarios', payload);
+  return response.data;
+}
+
+export async function updateUsuario(
+  id: string,
+  payload: Partial<{ nombre: string; email: string; rolId: string | null; activo: boolean }>
+): Promise<{ data: Usuario }> {
+  const response = await apiClient.patch<{ data: Usuario }>(`/usuarios/${id}`, payload);
   return response.data;
 }
 

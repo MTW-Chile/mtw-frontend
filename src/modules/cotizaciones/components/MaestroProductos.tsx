@@ -16,11 +16,24 @@ import { TableSkeleton } from '../../../components/ui/Skeleton';
 import { NuevoMaterialModal } from './NuevoMaterialModal';
 import { useMonedas, resolverMoneda, formatMonto } from '../../../lib/monedas';
 import type { Material } from '../../../types';
+import { useMediaQuery } from '../../../lib/useMediaQuery';
+
+// El catálogo trae hasta ~2000 materiales -- volcar esa cantidad de filas al
+// DOM de una sola vez (tabla + cards, sin virtualizar) es lo que hacía que
+// abrir esta pantalla colgara/crasheara el tab. Se renderiza de a tandas y
+// se agranda con "Mostrar más" en vez de todo junto.
+const TANDA_INICIAL = 150;
+const TANDA_INCREMENTO = 150;
 
 export const MaestroProductos: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFamilia, setSelectedFamilia] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [cantidadVisible, setCantidadVisible] = useState(TANDA_INICIAL);
+  // Monta sólo la vista de escritorio o la de mobile, nunca las dos -- el
+  // maestro puede traer hasta ~2000 materiales, así que duplicar el DOM acá
+  // pesa más que en cualquier otra lista de la app. Ver useMediaQuery.ts.
+  const isDesktop = useMediaQuery('(min-width: 768px)');
 
   const { data, isLoading, isError, refetch } = useQuery<Material[]>({
     queryKey: ['materiales'],
@@ -68,14 +81,29 @@ export const MaestroProductos: React.FC = () => {
     });
   }, [materiales, searchTerm, selectedFamilia]);
 
+  // Al cambiar el filtro se vuelve a arrancar desde la primera tanda --
+  // si no, "Mostrar más" quedaría pedido sobre un filtro que ya no aplica.
+  React.useEffect(() => {
+    setCantidadVisible(TANDA_INICIAL);
+  }, [searchTerm, selectedFamilia]);
+
+  const materialesVisibles = useMemo(
+    () => filteredMateriales.slice(0, cantidadVisible),
+    [filteredMateriales, cantidadVisible]
+  );
+  const hayMasPorMostrar = cantidadVisible < filteredMateriales.length;
+
+  // Mismas familias que familyOrder en MaterialesLineaModal.tsx y
+  // FAMILIAS_CATALOGO en NuevoMaterialModal.tsx -- las claves van en
+  // mayúsculas porque se comparan contra mat.familia.toUpperCase() más abajo.
   const familiaBadges: Record<string, { label: string; variant: any }> = {
     PERFILERIA: { label: 'Perfilería', variant: 'brand' },
-    CRISTALES: { label: 'Cristal / DVH', variant: 'info' },
     HERRAJES: { label: 'Herrajes', variant: 'warning' },
-    SELLOS_GOMAS: { label: 'Sellos & Gomas', variant: 'success' },
-    FIJACIONES: { label: 'Fijaciones', variant: 'subtle' },
+    JUNTAS: { label: 'Juntas', variant: 'success' },
+    VIDRIOS: { label: 'Vidrios', variant: 'info' },
+    REFUERZOS: { label: 'Refuerzos', variant: 'subtle' },
+    SUPERFICIES: { label: 'Superficies', variant: 'subtle' },
     ACCESORIOS: { label: 'Accesorios', variant: 'default' },
-    QUIMICOS: { label: 'Químicos & Sellos', variant: 'info' },
     OTROS: { label: 'Otros', variant: 'outline' },
   };
 
@@ -245,7 +273,8 @@ export const MaestroProductos: React.FC = () => {
       ) : (
         <>
           {/* 1. VISTA TABLA AUTOMÁTICA EN DESKTOP/TABLET (System-Wide) */}
-          <div className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          {isDesktop && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-left text-xs text-slate-700">
                 <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
@@ -253,13 +282,14 @@ export const MaestroProductos: React.FC = () => {
                     <th className="px-5 py-3.5 w-36">SKU / Código</th>
                     <th className="px-5 py-3.5">Descripción</th>
                     <th className="px-5 py-3.5 w-36">Familia</th>
+                    <th className="px-5 py-3.5 w-36">Proveedor</th>
                     <th className="px-5 py-3.5 text-center w-20">Unidad</th>
                     <th className="px-5 py-3.5 text-center w-24">Divisa</th>
                     <th className="px-5 py-3.5 text-right w-32">Precio Origen</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredMateriales.map((mat) => {
+                  {materialesVisibles.map((mat) => {
                     const badgeInfo = familiaBadges[mat.familia.toUpperCase()] || {
                       label: mat.familia,
                       variant: 'default',
@@ -286,6 +316,9 @@ export const MaestroProductos: React.FC = () => {
                             {badgeInfo.label}
                           </Badge>
                         </td>
+                        <td className="px-5 py-4 text-slate-600 whitespace-nowrap">
+                          {mat.proveedor?.nombre || <span className="text-slate-300">—</span>}
+                        </td>
                         <td className="px-5 py-4 text-center font-mono font-bold text-slate-700 whitespace-nowrap">
                           <span className="px-2 py-0.5 rounded-md bg-slate-100 text-[11px]">
                             {mat.unidadMedida}
@@ -306,10 +339,12 @@ export const MaestroProductos: React.FC = () => {
               </table>
             </div>
           </div>
+          )}
 
           {/* 2. VISTA TARJETAS AUTOMÁTICA EN MÓVILES (System-Wide por defecto) */}
-          <div className="block md:hidden space-y-3">
-            {filteredMateriales.map((mat) => {
+          {!isDesktop && (
+          <div className="space-y-3">
+            {materialesVisibles.map((mat) => {
               const badgeInfo = familiaBadges[mat.familia.toUpperCase()] || {
                 label: mat.familia,
                 variant: 'default',
@@ -334,6 +369,12 @@ export const MaestroProductos: React.FC = () => {
                     {mat.descripcion}
                   </h4>
 
+                  {mat.proveedor?.nombre && (
+                    <div className="text-[11px] text-slate-500">
+                      Proveedor: <span className="font-semibold text-slate-700">{mat.proveedor.nombre}</span>
+                    </div>
+                  )}
+
                   <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1.5 font-mono text-slate-600">
                       <span className="text-slate-400">Unidad:</span>
@@ -351,6 +392,19 @@ export const MaestroProductos: React.FC = () => {
               );
             })}
           </div>
+          )}
+
+          {/* Renderizado por tandas -- ver TANDA_INICIAL más arriba */}
+          {hayMasPorMostrar && (
+            <div className="flex flex-col items-center gap-2 pt-1 pb-2">
+              <p className="text-[11px] text-slate-400">
+                Mostrando {materialesVisibles.length} de {filteredMateriales.length} materiales
+              </p>
+              <Button variant="outline" size="sm" onClick={() => setCantidadVisible((n) => n + TANDA_INCREMENTO)}>
+                Mostrar más
+              </Button>
+            </div>
+          )}
         </>
       )}
 
