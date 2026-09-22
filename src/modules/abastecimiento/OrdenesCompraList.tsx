@@ -159,7 +159,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
       ) : (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full min-w-[720px] text-xs">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
                   <th className="px-4 py-3 font-bold">Número</th>
@@ -179,7 +179,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                         <button
                           type="button"
                           onClick={() => toggleExpandida(oc.id)}
-                          className="flex items-center gap-1.5 font-mono font-bold text-slate-900 hover:text-[#E34A26] transition-colors cursor-pointer"
+                          className="flex items-center gap-1.5 font-mono font-bold text-slate-900 hover:text-[#E34A26] transition-colors cursor-pointer whitespace-nowrap"
                         >
                           {expandidas.has(oc.id) ? (
                             <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />

@@ -227,7 +227,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="relative shrink-0" ref={menuRef}>
         <button
           onClick={() => setIsMenuOpen((prev) => !prev)}
-          className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border transition-all cursor-pointer focus:outline-none max-w-[150px] sm:max-w-none ${
+          className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border transition-all cursor-pointer focus:outline-none max-w-[108px] sm:max-w-none ${
             isMenuOpen
               ? 'bg-slate-100 border-slate-300 shadow-xs ring-2 ring-[#E34A26]/20'
               : 'bg-slate-50 hover:bg-slate-100/80 border-slate-200/80 shadow-2xs'
