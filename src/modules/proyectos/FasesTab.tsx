@@ -1,12 +1,32 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Layers, Plus, Pencil, Trash2, AlertCircle, X as XIcon, Search } from 'lucide-react';
+import {
+  Loader2,
+  Layers,
+  Plus,
+  Pencil,
+  Trash2,
+  AlertCircle,
+  X as XIcon,
+  Search,
+  Sparkles,
+  ChevronDown,
+  ChevronRight,
+  ShoppingCart,
+  Package,
+} from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { StatCard } from '../../components/ui/StatCard';
 import { createFase, updateFase, deleteFase } from '../../api/client';
-import type { Fase, Proyecto, ProyectoVersion } from '../../types';
+import { useMonedas } from '../../lib/monedas';
+import { computeMaterialesFasePorProveedor } from '../cotizaciones/lib/materialesConsolidados';
+import { CATEGORIA_GASTO_LABEL } from '../abastecimiento/categoriaGasto';
+import { NuevaOrdenCompraModal } from '../abastecimiento/NuevaOrdenCompraModal';
+import type { CategoriaGasto, Fase, Proyecto, ProyectoVersion } from '../../types';
+
+const formatoMoneda = (valor: number) => valor.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
 const ESTADO_LABEL: Record<Fase['estado'], string> = {
   BORRADOR: 'Borrador',
@@ -46,6 +66,9 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
   const [cantidades, setCantidades] = useState<Record<string, string>>({});
   const [busqueda, setBusqueda] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [expandidas, setExpandidas] = useState<Set<string>>(new Set());
+  const [faseParaOC, setFaseParaOC] = useState<Fase | null>(null);
+  const monedas = useMonedas();
 
   const ventanas = activeVersion?.ventanas || [];
   const todasLasFases = activeVersion?.fases || [];
@@ -90,6 +113,51 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
     const planificado = filas.reduce((sum, f) => sum + f.asignadoOtrasFases, 0);
     return { totalUnidades, planificado, sinPlanificar: totalUnidades - planificado };
   }, [filas]);
+
+  // Materiales calculados por fase real (misma logica que Abastecimiento >
+  // Nueva OC, ver computeMaterialesFasePorProveedor) -- de aca sale tanto el
+  // resumen por categoria como los items individuales que "Generar OC"
+  // precarga. Se calcula para todas las fases reales de una, no una por
+  // una al expandir, porque el resumen se muestra siempre (no solo al
+  // expandir el detalle).
+  const tasaDolar = Number(activeVersion?.tipoCambioDolar) || 950;
+  const tasaUf = Number(activeVersion?.tipoCambioUF) || 38500;
+  const tasaEuro = Number(activeVersion?.tipoCambioEuro) || 1030;
+  const materialesPorFase = useMemo(() => {
+    const map = new Map<
+      string,
+      { montoTotal: number; categorias: { familia: string; monto: number; items: number }[]; items: { descripcion: string; proveedorNombre: string; unidadMedida: string; cantidad: number; precioUnitario: number }[] }
+    >();
+    fasesReales.forEach((fase) => {
+      const grupos = computeMaterialesFasePorProveedor(activeVersion, fase, tasaDolar, tasaEuro, tasaUf, monedas);
+      const itemsFlat = grupos.flatMap((g) => g.items.map((it) => ({ ...it, proveedorNombre: g.proveedorNombre })));
+      const porCategoria = new Map<string, { monto: number; items: number }>();
+      itemsFlat.forEach((it) => {
+        const acc = porCategoria.get(it.familia) || { monto: 0, items: 0 };
+        acc.monto += it.cantidad * it.precioUnitario;
+        acc.items += 1;
+        porCategoria.set(it.familia, acc);
+      });
+      const categorias = [...porCategoria.entries()]
+        .map(([familia, v]) => ({ familia, monto: v.monto, items: v.items }))
+        .sort((a, b) => b.monto - a.monto);
+      map.set(fase.id, {
+        montoTotal: categorias.reduce((sum, c) => sum + c.monto, 0),
+        categorias,
+        items: itemsFlat,
+      });
+    });
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fasesReales, activeVersion, tasaDolar, tasaEuro, tasaUf, monedas]);
+
+  const toggleExpandida = (faseId: string) =>
+    setExpandidas((prev) => {
+      const next = new Set(prev);
+      if (next.has(faseId)) next.delete(faseId);
+      else next.add(faseId);
+      return next;
+    });
 
   const resetForm = () => {
     setEditando(null);
@@ -148,6 +216,21 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
     onError: (err: any) => setError(err?.response?.data?.error || 'No se pudo eliminar la fase.'),
   });
 
+  // Atajo para proyectos que no necesitan repartir por etapas: una sola
+  // fase con TODO lo que todavia no este asignado a otra fase (no
+  // necesariamente el 100% de cada linea -- si ya hay fases planificadas,
+  // esto solo completa el resto sin pisarlas).
+  const crearFaseUnicaMutation = useMutation({
+    mutationFn: () => {
+      const ventanasPayload = filas
+        .map((f) => ({ ventanaId: f.ventanaId, unidades: f.unidadesTotal - f.asignadoOtrasFases }))
+        .filter((v) => v.unidades > 0);
+      return createFase(activeVersion!.id, { nombre: 'Fase única', ventanas: ventanasPayload });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyecto.id] }),
+    onError: (err: any) => setError(err?.response?.data?.error || 'No se pudo crear la fase única.'),
+  });
+
   if (!activeVersion) {
     return <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">Sin versión activa.</div>;
   }
@@ -165,11 +248,34 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
           </p>
         </div>
         {!formAbierto && (
-          <Button size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={abrirNueva}>
-            Nueva fase
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              leftIcon={crearFaseUnicaMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              disabled={resumen.sinPlanificar <= 0 || crearFaseUnicaMutation.isPending}
+              title={
+                resumen.sinPlanificar <= 0
+                  ? 'Ya no queda ninguna unidad sin asignar a una fase.'
+                  : 'Crea una fase con todo lo que todavía no esté asignado a otra fase.'
+              }
+              onClick={() => crearFaseUnicaMutation.mutate()}
+            >
+              Crear fase única
+            </Button>
+            <Button size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={abrirNueva}>
+              Nueva fase
+            </Button>
+          </div>
         )}
       </div>
+
+      {!formAbierto && error && (
+        <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+          {error}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatCard title="Unidades del presupuesto" value={resumen.totalUnidades.toLocaleString('es-CL')} icon={Layers} />
@@ -317,41 +423,140 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
           fasesReales.map((fase) => {
             const lineasAsignadas = (fase.ventanasFase || []).filter((vf) => vf.unidades > 0).length;
             const unidadesFase = (fase.ventanasFase || []).reduce((sum, vf) => sum + Number(vf.unidades), 0);
+            const infoMateriales = materialesPorFase.get(fase.id);
+            const expandida = expandidas.has(fase.id);
             return (
-              <div key={fase.id} className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <Badge variant="brand" size="sm">
-                    Fase {fase.numeroFase}
-                  </Badge>
-                  <span className="text-xs font-bold text-slate-800 truncate">{fase.nombre}</span>
-                  <Badge variant={ESTADO_VARIANT[fase.estado]} size="sm">
-                    {ESTADO_LABEL[fase.estado]}
-                  </Badge>
-                  <span className="text-[11px] text-slate-400 whitespace-nowrap">
-                    {lineasAsignadas} línea{lineasAsignadas === 1 ? '' : 's'} · {unidadesFase} unidades
-                  </span>
+              <div key={fase.id} className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Badge variant="brand" size="sm">
+                      Fase {fase.numeroFase}
+                    </Badge>
+                    <span className="text-xs font-bold text-slate-800 truncate">{fase.nombre}</span>
+                    <Badge variant={ESTADO_VARIANT[fase.estado]} size="sm">
+                      {ESTADO_LABEL[fase.estado]}
+                    </Badge>
+                    <span className="text-[11px] text-slate-400 whitespace-nowrap">
+                      {lineasAsignadas} línea{lineasAsignadas === 1 ? '' : 's'} · {unidadesFase} unidades
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Button size="sm" variant="ghost" leftIcon={<Pencil className="w-3.5 h-3.5" />} onClick={() => abrirEdicion(fase)}>
+                      Editar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      leftIcon={eliminarMutation.isPending && eliminarMutation.variables === fase.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                      onClick={() => {
+                        if (window.confirm(`¿Eliminar la fase "${fase.nombre}"?`)) eliminarMutation.mutate(fase.id);
+                      }}
+                      className="text-rose-500 hover:text-rose-700 hover:bg-rose-50"
+                    >
+                      Eliminar
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <Button size="sm" variant="ghost" leftIcon={<Pencil className="w-3.5 h-3.5" />} onClick={() => abrirEdicion(fase)}>
-                    Editar
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    leftIcon={eliminarMutation.isPending && eliminarMutation.variables === fase.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                    onClick={() => {
-                      if (window.confirm(`¿Eliminar la fase "${fase.nombre}"?`)) eliminarMutation.mutate(fase.id);
-                    }}
-                    className="text-rose-500 hover:text-rose-700 hover:bg-rose-50"
-                  >
-                    Eliminar
-                  </Button>
+
+                {/* Resumen de materiales por categoria -- misma logica de
+                    precio/cantidad que Abastecimiento > Nueva OC, ver
+                    computeMaterialesFasePorProveedor. */}
+                <div className="pt-3 border-t border-slate-100 space-y-2.5">
+                  {!infoMateriales || infoMateriales.categorias.length === 0 ? (
+                    <p className="text-[11px] text-slate-400">
+                      Sin materiales calculados todavía para esta fase (asegúrate de que tenga líneas asignadas arriba).
+                    </p>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div className="flex flex-wrap gap-1.5">
+                          {infoMateriales.categorias.map((c) => (
+                            <span
+                              key={c.familia}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-[11px]"
+                            >
+                              <span className="font-semibold text-slate-600">
+                                {CATEGORIA_GASTO_LABEL[c.familia as CategoriaGasto] || c.familia}
+                              </span>
+                              <span className="font-mono font-bold text-slate-800">{formatoMoneda(c.monto)}</span>
+                            </span>
+                          ))}
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-900 whitespace-nowrap">
+                          Total materiales: {formatoMoneda(infoMateriales.montoTotal)}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          leftIcon={expandida ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                          onClick={() => toggleExpandida(fase.id)}
+                        >
+                          {expandida ? 'Ocultar items' : `Ver ${infoMateriales.items.length} items`}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          leftIcon={<ShoppingCart className="w-3.5 h-3.5" />}
+                          onClick={() => setFaseParaOC(fase)}
+                        >
+                          Generar OC
+                        </Button>
+                      </div>
+
+                      {expandida && (
+                        <div className="overflow-x-auto rounded-xl border border-slate-100">
+                          <table className="w-full text-[11px]">
+                            <thead className="bg-slate-50/80">
+                              <tr className="text-left text-slate-400 uppercase tracking-wider">
+                                <th className="px-3 py-1.5 font-bold">Item</th>
+                                <th className="px-3 py-1.5 font-bold">Proveedor</th>
+                                <th className="px-3 py-1.5 font-bold text-right">Cantidad</th>
+                                <th className="px-3 py-1.5 font-bold text-right">Precio unit.</th>
+                                <th className="px-3 py-1.5 font-bold text-right">Subtotal</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {infoMateriales.items.map((it, i) => (
+                                <tr key={i} className="border-t border-slate-100/80">
+                                  <td className="px-3 py-1.5 text-slate-700">
+                                    <span className="flex items-center gap-1.5">
+                                      <Package className="w-3 h-3 text-sky-500 shrink-0" />
+                                      {it.descripcion}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-1.5 text-slate-500">{it.proveedorNombre}</td>
+                                  <td className="px-3 py-1.5 text-right font-mono text-slate-700">
+                                    {it.cantidad.toLocaleString('es-CL', { maximumFractionDigits: 2 })} {it.unidadMedida}
+                                  </td>
+                                  <td className="px-3 py-1.5 text-right font-mono text-slate-700">{formatoMoneda(it.precioUnitario)}</td>
+                                  <td className="px-3 py-1.5 text-right font-mono font-semibold text-slate-900">
+                                    {formatoMoneda(it.cantidad * it.precioUnitario)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             );
           })
         )}
       </div>
+
+      <NuevaOrdenCompraModal
+        isOpen={!!faseParaOC}
+        onClose={() => setFaseParaOC(null)}
+        proyectoIdFijo={proyecto.id}
+        proyectoLabelFijo={proyecto.obra}
+        faseIdInicial={faseParaOC?.id}
+      />
     </div>
   );
 };

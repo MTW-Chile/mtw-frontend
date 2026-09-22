@@ -17,6 +17,11 @@ interface NuevaOrdenCompraModalProps {
   // se fija y no se puede cambiar, en vez de mostrar el selector completo.
   proyectoIdFijo?: string;
   proyectoLabelFijo?: string;
+  // Cuando se abre desde el boton "Generar OC" de una fase puntual (ver
+  // FasesTab) -- precarga esa fase (y sus materiales calculados por
+  // proveedor) al abrir, en vez de que el usuario tenga que volver a
+  // elegirla del selector.
+  faseIdInicial?: string;
 }
 
 interface ItemForm {
@@ -52,6 +57,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   onClose,
   proyectoIdFijo,
   proyectoLabelFijo,
+  faseIdInicial,
 }) => {
   const queryClient = useQueryClient();
   const monedas = useMonedas();
@@ -120,6 +126,16 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   useEffect(() => {
     setFaseId('');
   }, [proyectoId]);
+
+  // Precarga de fase al abrir desde "Generar OC" (ver faseIdInicial) --
+  // corre despues del reset de arriba en el mismo commit si proyectoId
+  // tambien cambio, asi que el valor final es siempre el de la fase
+  // pedida, no ''.
+  useEffect(() => {
+    if (isOpen && faseIdInicial) {
+      setFaseId(faseIdInicial);
+    }
+  }, [isOpen, faseIdInicial]);
 
   useEffect(() => {
     setProveedorId('');

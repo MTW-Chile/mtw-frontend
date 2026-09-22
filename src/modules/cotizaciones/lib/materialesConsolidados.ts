@@ -373,6 +373,10 @@ export function computeCantidadCuadros(activeVersion: ProyectoVersion | undefine
 export interface ItemFaseProveedor {
   materialId: string;
   descripcion: string;
+  // Familia normalizada (PERFILERIA/HERRAJES/VIDRIOS/ACCESORIOS/REFUERZOS)
+  // -- mismo dominio que CategoriaGasto, para poder resumir por categoria
+  // en la pestaña Fases sin recalcular nada (ver FasesTab.tsx).
+  familia: string;
   unidadMedida: string;
   cantidad: number;
   // Valor teorico antes de redondear a la unidad de compra -- solo se
@@ -492,6 +496,7 @@ export function computeMaterialesFasePorProveedor(
     porProveedor.get(key)!.items.push({
       materialId,
       descripcion: `${consolidado.skuInterno} · ${consolidado.descripcion}`,
+      familia: consolidado.familia,
       unidadMedida: esBarra ? 'BARRA' : consolidado.unidadMedida,
       cantidad,
       cantidadCalculada: esBarra && Math.abs(cantidad - cantidadTeorica) > 0.0001 ? Math.round(cantidadTeorica * 1000) / 1000 : null,
