@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Loader2, Check, Send, X as XIcon, Ban, ChevronDown, ChevronRight, Package, Undo2, FileDown } from 'lucide-react';
+import { Plus, Loader2, Check, Send, X as XIcon, Ban, ChevronDown, ChevronRight, Package, Undo2, FileDown, Trash2 } from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { getOrdenesCompra, updateOrdenCompraEstado, renderPdf } from '../../api/client';
+import { getOrdenesCompra, updateOrdenCompraEstado, eliminarOrdenCompra, getMisPermisos, renderPdf } from '../../api/client';
 import { loadImageDataUrl } from '../cotizaciones/lib/pdfTheme';
 import type { EstadoOC, OrdenCompra } from '../../types';
 import { NuevaOrdenCompraModal } from './NuevaOrdenCompraModal';
@@ -101,6 +101,10 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
     queryFn: () => getOrdenesCompra({ proyectoId, estado: filtroEstado || undefined, limit: 100 }),
   });
 
+  // mismo queryKey que App.tsx/Header.tsx -- sale del cache, no pega de
+  // nuevo al backend.
+  const { data: permisos } = useQuery({ queryKey: ['misPermisos'], queryFn: getMisPermisos });
+
   const transicion = useMutation({
     mutationFn: ({ id, estado, motivo }: { id: string; estado: EstadoOC; motivo?: string }) =>
       updateOrdenCompraEstado(id, estado, motivo),
@@ -112,6 +116,21 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
       queryClient.invalidateQueries({ queryKey: ['misAprobacionesPendientes'] });
       setRechazandoId(null);
       setMotivoRechazo('');
+    },
+  });
+
+  // Solo admin (ver requireAdmin en mtw-api) -- borra la OC completa,
+  // cualquier estado, y libera su numero (no es un contador aparte, ver
+  // generarNumeroOC en mtw-api). El backend devuelve 409 si el stock que
+  // ingreso ya se movio de Bodega.
+  const eliminarMutation = useMutation({
+    mutationFn: (id: string) => eliminarOrdenCompra(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ordenesCompra'] });
+      queryClient.invalidateQueries({ queryKey: ['misAprobacionesPendientes'] });
+    },
+    onError: (error: any) => {
+      window.alert(error?.response?.data?.error || 'No se pudo eliminar la OC.');
     },
   });
 
@@ -278,6 +297,25 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                               onClick={() => transicion.mutate({ id: oc.id, estado: 'CANCELADA' })}
                             >
                               Cancelar
+                            </Button>
+                          )}
+                          {permisos?.esAdmin && (
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+                              isLoading={eliminarMutation.isPending && eliminarMutation.variables === oc.id}
+                              onClick={() => {
+                                if (
+                                  window.confirm(
+                                    `¿Eliminar definitivamente la OC ${oc.numero}? Esta acción no se puede deshacer y libera su número.`
+                                  )
+                                ) {
+                                  eliminarMutation.mutate(oc.id);
+                                }
+                              }}
+                            >
+                              Eliminar
                             </Button>
                           )}
                         </div>

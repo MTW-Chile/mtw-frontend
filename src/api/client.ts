@@ -541,6 +541,15 @@ export async function updateOrdenCompraEstado(
   return response.data;
 }
 
+// Solo administrador (ver requireAdmin en mtw-api) -- borra la OC entera,
+// incluida CANCELADA, y reversa el stock que haya ingresado por ella. El
+// backend devuelve 409 si ese stock ya se movio de Bodega (hay que
+// resolverlo ahi primero).
+export async function eliminarOrdenCompra(id: string): Promise<{ success: boolean }> {
+  const response = await apiClient.post<{ success: boolean }>(`/ordenes-compra/${id}/eliminar`);
+  return response.data;
+}
+
 export async function registrarRecepcionOC(
   ordenCompraId: string,
   payload: { guiaDespachoNumero?: string; notas?: string; items: { ordenCompraItemId: string; cantidadRecibida: number }[] }
