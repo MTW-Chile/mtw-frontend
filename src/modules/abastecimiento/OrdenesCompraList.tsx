@@ -317,11 +317,6 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                                     <td className="py-1.5 pr-2 text-slate-500">{CATEGORIA_GASTO_LABEL[item.categoria] || item.categoria}</td>
                                     <td className="py-1.5 text-right font-mono text-slate-700">
                                       {Number(item.cantidad).toLocaleString('es-CL', { maximumFractionDigits: 2 })} {item.unidadMedida}
-                                      {item.cantidadCalculada != null && (
-                                        <span className="block text-[10px] text-slate-400 font-normal">
-                                          cálculo: {Number(item.cantidadCalculada).toLocaleString('es-CL', { maximumFractionDigits: 2 })}
-                                        </span>
-                                      )}
                                     </td>
                                     <td className="py-1.5 text-right font-mono text-slate-700">
                                       {formatoMoneda(Number(item.precioUnitario), oc.moneda)}

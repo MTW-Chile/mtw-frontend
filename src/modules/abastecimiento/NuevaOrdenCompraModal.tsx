@@ -397,11 +397,6 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
                       placeholder="Cantidad"
                       value={item.cantidad}
                       onChange={(e) => setItemField(index, 'cantidad', e.target.value)}
-                      helperText={
-                        item.cantidadCalculada != null
-                          ? `Cálculo exacto: ${item.cantidadCalculada.toLocaleString('es-CL', { maximumFractionDigits: 2 })} (redondeado a entero por barra)`
-                          : undefined
-                      }
                     />
                     <Input
                       type="number"

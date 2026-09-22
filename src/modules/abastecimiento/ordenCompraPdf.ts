@@ -49,7 +49,6 @@ export function buildOrdenCompraHtml(oc: OrdenCompra, logoDataUrl: string | null
       <td style="padding:7px 10px;font-size:9.5px;color:${HEX.navy};border-bottom:1px solid ${HEX.borde};">${escapeHtml(item.descripcion)}</td>
       <td style="padding:7px 10px;font-size:9.5px;color:${HEX.navy};text-align:right;white-space:nowrap;border-bottom:1px solid ${HEX.borde};">
         ${Number(item.cantidad).toLocaleString('es-CL', { maximumFractionDigits: 2 })} ${escapeHtml(item.unidadMedida)}
-        ${item.cantidadCalculada != null ? `<div style="font-size:8px;color:${HEX.gris};font-weight:normal;">cálculo: ${Number(item.cantidadCalculada).toLocaleString('es-CL', { maximumFractionDigits: 2 })}</div>` : ''}
       </td>
       <td style="padding:7px 10px;font-size:9.5px;color:${HEX.navy};text-align:right;white-space:nowrap;border-bottom:1px solid ${HEX.borde};">${escapeHtml(formatoMonto(Number(item.precioUnitario), oc.moneda))}</td>
       <td style="padding:7px 10px;font-size:9.5px;color:${HEX.navy};font-weight:bold;text-align:right;white-space:nowrap;border-bottom:1px solid ${HEX.borde};">${escapeHtml(formatoMonto(Number(item.cantidad) * Number(item.precioUnitario), oc.moneda))}</td>
