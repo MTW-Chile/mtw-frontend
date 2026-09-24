@@ -10,7 +10,7 @@ import { formatNumber } from '../../../../lib/utils';
 import { toWindowLine } from '../../components/drawing/ventanaAdapter';
 import { buildWindow } from '../../components/drawing/windowGeometryBuilder';
 import { buildProtexDoorSvg } from '../../components/drawing/protexDoorSvg';
-import { createFinish, getAcabadoNombre } from '../../components/drawing/colorSystem';
+import { getAcabadoNombre } from '../../components/drawing/colorSystem';
 import * as core from '../../components/drawing/geometryCore';
 import type { PrecioVentaLinea } from '../../lib/presupuesto';
 
@@ -214,14 +214,6 @@ interface CardDeps {
 // referencia (Vista Monseñor, Casa La Aurora), no una aproximación.
 interface VentanaAnalisis {
   metaFilas: [string, string][];
-  // Herrajes y proveedor de perfil NO son filas propias -- van incrustados
-  // dentro de la fila "Apertura" y "Serie de perfiles" respectivamente (ver
-  // buildCardHtml), para no agregar alto a la tarjeta. Se calculan acá para
-  // que altoMinimoTarjeta/alturaFilasTexto (que solo cuentan metaFilas.length)
-  // y buildCardHtml lean exactamente el mismo dato.
-  herraje: string;
-  serieProveedor: string;
-  colorAcabado: string;
 }
 
 // Centraliza qué filas de metadatos lleva cada tarjeta -- usado tanto para
@@ -239,49 +231,47 @@ function analizarVentana(v: Ventana): VentanaAnalisis {
   // "Ventana fija" en casi todos los casos ambiguos, pero esta es la
   // red de seguridad final para que la fila nunca salga vacía.
   const apertura = (line ? core.apertureLabel(line) : '') || 'Ventana fija';
-  // "Serie de perfiles" en el documento de referencia trae el acabado
-  // pegado con un guion ("Línea Efficient - Black Matt"), no como fila
-  // aparte -- mismo formato que generate_project_budget.js del sistema
-  // anterior: `${serie_perfiles} - ${finish.description||finish.label}`.
-  // Acá va el NOMBRE del acabado nada más (getAcabadoNombre, sin el código
-  // HETMO entre paréntesis que trae getAcabadoLabel) -- el círculo de color
-  // (colorAcabado) y el proveedor de perfil (serieProveedor) reemplazan esa
-  // información en buildCardHtml, no hace falta repetir el código.
+  // "Composición" resume en una sola línea, con guiones, todo lo que antes
+  // vivía repartido entre "Serie de perfiles" y el proveedor de herrajes:
+  // Línea de perfil, proveedor de perfil, acabado (Color X) y proveedor de
+  // herrajes -- cada segmento se omite si no hay dato real (una ventana con
+  // perfiles pero sin herrajes, un fijo Efficient por ejemplo, no imprime
+  // "Herrajes"). Nombre fantasía si el proveedor lo tiene cargado (más
+  // reconocible para el cliente que la razón social); si no, la razón
+  // social.
+  const nombreProveedor = (m: { material?: { proveedor?: { nombre: string; nombreFantasia: string | null } | null; descripcion?: string } | null }) =>
+    m.material?.proveedor?.nombreFantasia || m.material?.proveedor?.nombre || '';
   const serieBase = core.profileSeries({ modelo: v.descripcionCorta || v.modelo });
   const finishNombre = getAcabadoNombre(v.acabadoCodigo, v.acabadoDescripcion);
-  const serieP = [serieBase !== 'Línea no especificada' ? serieBase : null, finishNombre]
-    .filter(Boolean)
-    .join(' - ');
-  const colorAcabado = createFinish(line?.acabadoCodigo, line?.acabadoDescripcion, line?.acabadoPatron).frame;
-  const vidrio = Array.from(
-    new Set((v.materiales || []).filter((m) => !m.excluido && m.material?.familia === 'VIDRIOS').map((m) => m.material?.descripcion || ''))
+  const proveedorPerfil = Array.from(
+    new Set((v.materiales || []).filter((m) => !m.excluido && m.material?.familia === 'PERFILERIA').map(nombreProveedor))
   ).filter(Boolean).join(' + ');
-  // Nombre fantasía si el proveedor lo tiene cargado (más reconocible para
-  // el cliente que la razón social) -- si no, la razón social; si el
-  // material ni siquiera tiene proveedor enlazado, su descripción.
-  const nombreProveedor = (m: { material?: { proveedor?: { nombre: string; nombreFantasia: string | null } | null; descripcion?: string } | null }) =>
-    m.material?.proveedor?.nombreFantasia || m.material?.proveedor?.nombre || m.material?.descripcion || '';
-  const herraje = Array.from(
+  const proveedorHerraje = Array.from(
     new Set((v.materiales || []).filter((m) => !m.excluido && m.material?.familia === 'HERRAJES').map(nombreProveedor))
   ).filter(Boolean).join(' + ');
-  const serieProveedor = Array.from(
-    new Set((v.materiales || []).filter((m) => !m.excluido && m.material?.familia === 'PERFILERIA').map((m) => m.material?.proveedor?.nombreFantasia || m.material?.proveedor?.nombre || ''))
+  const composicion = [
+    serieBase !== 'Línea no especificada' ? serieBase : null,
+    proveedorPerfil || null,
+    finishNombre ? `Color ${finishNombre}` : null,
+    proveedorHerraje ? `Herrajes ${proveedorHerraje}` : null,
+  ].filter(Boolean).join(' - ');
+  const vidrio = Array.from(
+    new Set((v.materiales || []).filter((m) => !m.excluido && m.material?.familia === 'VIDRIOS').map((m) => m.material?.descripcion || ''))
   ).filter(Boolean).join(' + ');
   // Una línea "sin marco" (dibujoSinMarco/isFrameless -- exige material
   // coincidente Y vidrio explícito, no es un simple "vacío -> sin marco",
   // ver el comentario largo en ventanaAdapter.ts) es en los hechos solo
-  // vidrio: no tiene perfil que amerite "Serie de perfiles", no tiene
-  // hoja que "abra" (Apertura no aplica) y no lleva herrajes propios --
-  // esas filas se omiten. Para el resto, orden igual al Presupuesto de
-  // referencia: Dimensiones, Serie de perfiles con el acabado incluido,
-  // Apertura (con Herrajes incrustado a la derecha si hay), Vidrios.
+  // vidrio: no tiene perfil ni acabado ni herrajes que amerite
+  // "Composición", ni hoja que "abra" (Apertura no aplica) -- esas filas se
+  // omiten. Para el resto, orden igual al Presupuesto de referencia:
+  // Dimensiones, Composición, Apertura, Vidrios.
   const metaFilas: [string, string][] = [
     ['Dimensiones', `${formatNumber(v.anchoMm, 0)} × ${formatNumber(v.altoMm, 0)} mm`],
-    ...(!isFrameless ? [['Serie de perfiles', serieP] as [string, string]] : []),
+    ...(!isFrameless ? [['Composición', composicion] as [string, string]] : []),
     ...(!isFrameless ? [['Apertura', apertura] as [string, string]] : []),
     ...(vidrio ? [['Vidrios', vidrio] as [string, string]] : []),
   ];
-  return { metaFilas, herraje: !isFrameless ? herraje : '', serieProveedor: !isFrameless ? serieProveedor : '', colorAcabado };
+  return { metaFilas };
 }
 
 // Cuántas líneas visuales va a ocupar un texto libre (Observación,
@@ -376,56 +366,15 @@ function estimarAltoHeaderCompleto(texto: string, filasCliente: number): number 
 export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { altoTarjeta: number; esUltimaEnPagina?: boolean }): string {
   const { preciosVenta, pngPorVentana, tasaUf } = deps;
   const analisis = analizarVentana(v);
-  const { metaFilas, herraje, serieProveedor, colorAcabado } = analisis;
+  const { metaFilas } = analisis;
   // Tabla de metadatos a todo el ancho de la tarjeta, sin grilla -- el
   // documento de referencia distingue las filas con una banda de color
   // alternada (zebra), no con líneas divisorias entre celdas.
-  //
-  // "Serie de perfiles" y "Apertura" llevan, ADEMÁS del valor normal, un
-  // segundo dato incrustado en la misma celda (no una fila propia -- eso
-  // agrandaría la tarjeta hacia abajo, que es justo lo que se quiere
-  // evitar): el círculo de color del acabado + su proveedor de perfil en
-  // "Serie de perfiles" (en negro, igual que el resto del texto -- no es un
-  // dato secundario), y el proveedor de herrajes en "Apertura", cada uno
-  // solo si hay dato real (si la ventana no tiene herrajes cargados, o el
-  // material de perfil no tiene proveedor enlazado, esa parte no se
-  // imprime).
-  //
-  // "Herrajes" va en una columna propia alineada con la caja "Valores
-  // comerciales" de más abajo (misma tabla anidada 56%/44% que arma esa
-  // fila, ver ANCHO_COL_HERRAJE), NO pegado al texto de Apertura ni
-  // empujado al borde derecho de la tarjeta -- ambas alternativas se
-  // probaron y se sentían desprolijas frente a esta, que hace que la
-  // columna quede visualmente alineada verticalmente con el resto de la
-  // tarjeta.
-  const ANCHO_TARJETA = 732;
-  const ANCHO_LABEL_META = 150;
-  const PADDING_CELDA_VALOR = 10;
-  const anchoColApertura = Math.round(0.56 * ANCHO_TARJETA - (ANCHO_LABEL_META + PADDING_CELDA_VALOR));
-  const metaRowsHtml = metaFilas.map(([label, value], i) => {
-    let valorHtml = escapeHtml(value);
-    if (label === 'Serie de perfiles') {
-      valorHtml = `
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-          <span>${escapeHtml(value)}</span>
-          <span style="display:inline-block;width:9px;height:9px;border-radius:50%;border:1px solid rgba(0,0,0,.2);background:${escapeHtml(colorAcabado)};flex-shrink:0;"></span>
-          ${serieProveedor ? `<span>${escapeHtml(serieProveedor)}</span>` : ''}
-        </div>`;
-    } else if (label === 'Apertura' && herraje) {
-      valorHtml = `
-        <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
-          <tr>
-            <td style="width:${anchoColApertura}px;padding:0;">${escapeHtml(value)}</td>
-            <td style="padding:0 0 0 10px;font-weight:normal;color:${HEX.gris};">Herrajes: <span style="font-weight:bold;color:${HEX.navy};">${escapeHtml(herraje)}</span></td>
-          </tr>
-        </table>`;
-    }
-    return `
+  const metaRowsHtml = metaFilas.map(([label, value], i) => `
     <tr style="background:${i % 2 === 0 ? HEX.zebra : '#ffffff'};">
       <td style="padding:4px 10px;color:${HEX.gris};width:150px;font-size:9px;">${escapeHtml(label)}:</td>
-      <td style="padding:4px 10px;color:${HEX.navy};font-weight:bold;font-size:9px;">${valorHtml}</td>
-    </tr>`;
-  }).join('');
+      <td style="padding:4px 10px;color:${HEX.navy};font-weight:bold;font-size:9px;">${escapeHtml(value)}</td>
+    </tr>`).join('');
   // Tope estandarizado de 3 líneas -- en la práctica casi ningún comentario
   // pasa de ahí, y fijar un tope predecible es lo que hace posible
   // estimar el alto de esta fila para el paginado sin adivinar cuánto
