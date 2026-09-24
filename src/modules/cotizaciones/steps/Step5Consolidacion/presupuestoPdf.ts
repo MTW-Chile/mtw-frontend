@@ -10,7 +10,7 @@ import { formatNumber } from '../../../../lib/utils';
 import { toWindowLine } from '../../components/drawing/ventanaAdapter';
 import { buildWindow } from '../../components/drawing/windowGeometryBuilder';
 import { buildProtexDoorSvg } from '../../components/drawing/protexDoorSvg';
-import { getAcabadoLabel } from '../../components/drawing/colorSystem';
+import { getAcabadoNombre } from '../../components/drawing/colorSystem';
 import * as core from '../../components/drawing/geometryCore';
 import type { PrecioVentaLinea } from '../../lib/presupuesto';
 
@@ -231,34 +231,44 @@ function analizarVentana(v: Ventana): VentanaAnalisis {
   // "Ventana fija" en casi todos los casos ambiguos, pero esta es la
   // red de seguridad final para que la fila nunca salga vacía.
   const apertura = (line ? core.apertureLabel(line) : '') || 'Ventana fija';
-  // "Serie de perfiles" en el documento de referencia trae el acabado
-  // pegado con un guion ("Línea Efficient - Black Matt"), no como fila
-  // aparte -- mismo formato que generate_project_budget.js del sistema
-  // anterior: `${serie_perfiles} - ${finish.description||finish.label}`.
+  // "Composición" resume en una sola línea, con guiones, todo lo que antes
+  // vivía repartido entre "Serie de perfiles" y el proveedor de herrajes:
+  // Línea de perfil, proveedor de perfil, acabado (Color X) y proveedor de
+  // herrajes -- cada segmento se omite si no hay dato real (una ventana con
+  // perfiles pero sin herrajes, un fijo Efficient por ejemplo, no imprime
+  // "Herrajes"). Nombre fantasía si el proveedor lo tiene cargado (más
+  // reconocible para el cliente que la razón social); si no, la razón
+  // social.
+  const nombreProveedor = (m: { material?: { proveedor?: { nombre: string; nombreFantasia: string | null } | null; descripcion?: string } | null }) =>
+    m.material?.proveedor?.nombreFantasia || m.material?.proveedor?.nombre || '';
   const serieBase = core.profileSeries({ modelo: v.descripcionCorta || v.modelo });
-  const finishLabel = getAcabadoLabel(v.acabadoCodigo, v.acabadoDescripcion);
-  const serieP = [serieBase !== 'Línea no especificada' ? serieBase : null, finishLabel]
-    .filter(Boolean)
-    .join(' - ');
+  const finishNombre = getAcabadoNombre(v.acabadoCodigo, v.acabadoDescripcion);
+  const proveedorPerfil = Array.from(
+    new Set((v.materiales || []).filter((m) => !m.excluido && m.material?.familia === 'PERFILERIA').map(nombreProveedor))
+  ).filter(Boolean).join(' + ');
+  const proveedorHerraje = Array.from(
+    new Set((v.materiales || []).filter((m) => !m.excluido && m.material?.familia === 'HERRAJES').map(nombreProveedor))
+  ).filter(Boolean).join(' + ');
+  const composicion = [
+    serieBase !== 'Línea no especificada' ? serieBase : null,
+    proveedorPerfil || null,
+    finishNombre ? `Color ${finishNombre}` : null,
+    proveedorHerraje ? `Herrajes ${proveedorHerraje}` : null,
+  ].filter(Boolean).join(' - ');
   const vidrio = Array.from(
     new Set((v.materiales || []).filter((m) => !m.excluido && m.material?.familia === 'VIDRIOS').map((m) => m.material?.descripcion || ''))
-  ).filter(Boolean).join(' + ');
-  const herraje = Array.from(
-    new Set((v.materiales || []).filter((m) => !m.excluido && m.material?.familia === 'HERRAJES').map((m) => m.material?.proveedor?.nombre || m.material?.descripcion || ''))
   ).filter(Boolean).join(' + ');
   // Una línea "sin marco" (dibujoSinMarco/isFrameless -- exige material
   // coincidente Y vidrio explícito, no es un simple "vacío -> sin marco",
   // ver el comentario largo en ventanaAdapter.ts) es en los hechos solo
-  // vidrio: no tiene perfil que amerite "Serie de perfiles", no tiene
-  // hoja que "abra" (Apertura no aplica) y no lleva herrajes propios --
-  // esas tres filas se omiten. Para el resto, orden igual al Presupuesto
-  // de referencia: Dimensiones, Serie de perfiles con el acabado incluido,
-  // Apertura, Herrajes, Vidrios.
+  // vidrio: no tiene perfil ni acabado ni herrajes que amerite
+  // "Composición", ni hoja que "abra" (Apertura no aplica) -- esas filas se
+  // omiten. Para el resto, orden igual al Presupuesto de referencia:
+  // Dimensiones, Composición, Apertura, Vidrios.
   const metaFilas: [string, string][] = [
     ['Dimensiones', `${formatNumber(v.anchoMm, 0)} × ${formatNumber(v.altoMm, 0)} mm`],
-    ...(!isFrameless ? [['Serie de perfiles', serieP] as [string, string]] : []),
+    ...(!isFrameless ? [['Composición', composicion] as [string, string]] : []),
     ...(!isFrameless ? [['Apertura', apertura] as [string, string]] : []),
-    ...(!isFrameless && herraje ? [['Herrajes', herraje] as [string, string]] : []),
     ...(vidrio ? [['Vidrios', vidrio] as [string, string]] : []),
   ];
   return { metaFilas };
@@ -283,18 +293,20 @@ const LINEAS_OBSERVACION_TOPE = 3;
 // siempre, sin variar según el contenido. El alto de CADA tarjeta es el
 // máximo que le puede tocar dado ese cupo fijo (el alto útil de la página
 // dividido en partes iguales -- ver slotPortada/slotSiguiente en
-// buildDocumentoHtml), no un cálculo por tarjeta. El dibujo mide siempre
-// lo mismo (ALTO_IMAGEN_BASE x ANCHO_IMAGEN_BASE, fijo) -- no se estira
-// para llenar el sobrante del slot, eso se sentía invasivo con tarjetas
-// livianas (a pedido explícito); el aire que sobra en la fila imagen/
-// valores queda como aire, centrado.
+// buildDocumentoHtml), no un cálculo por tarjeta. El dibujo SÍ se estira
+// para llenar el sobrante de la fila imagen/valores (a pedido explícito:
+// se veía chico incluso con espacio de sobra), pero entre un PISO y un
+// TECHO (ALTO_IMAGEN_BASE/ALTO_IMAGEN_MAX en vez de un tamaño fijo único,
+// ver buildCardHtml) -- sin techo, en el cupo más liviano (portada, 2
+// tarjetas) el dibujo se veía desproporcionadamente grande frente al resto
+// de la tarjeta, confirmado renderizando ese caso real.
 const ALTO_FILA_META = 19;
 const ALTO_HEADER_TARJETA = 26;
 const ALTO_BORDE_TARJETA = 2;
-// Tamaño FIJO del dibujo -- el mismo en toda tarjeta, con o sin
-// Observación, sobre o no sobre espacio en el slot.
-const ALTO_IMAGEN_BASE = 132;
-const ANCHO_IMAGEN_BASE = 184;
+// Piso y techo del dibujo -- nunca se achica más que el piso, ni crece más
+// que el techo, sea cual sea el slot.
+const ALTO_IMAGEN_BASE = 150;
+const ALTO_IMAGEN_MAX = 210;
 // Piso REAL (medido renderizando la caja de "Valores comerciales" sola,
 // con su padding) de la fila imagen/valores -- esa caja no puede achicarse
 // más, tenga o no dibujo al lado. Ignorarlo fue justamente el bug: con
@@ -397,13 +409,21 @@ export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { altoTarjeta: n
   // este Math.max no debería activarse nunca en la práctica; queda como
   // red de seguridad.
   //
-  // El DIBUJO en sí ya NO se escala con ese sobrante -- mide siempre lo
-  // mismo (ANCHO_IMAGEN_BASE x ALTO_IMAGEN_BASE), tenga la tarjeta
-  // Observación o no, quede mucho o poco aire en la fila. Escalarlo hacia
-  // arriba se sentía invasivo con más espacio disponible (cupo 2/3) -- a
-  // pedido explícito, el aire sobrante en la fila queda como aire
-  // (centrado, vertical-align:middle), no lo absorbe el dibujo.
+  // El DIBUJO SÍ se escala con ese sobrante -- a pedido explícito, se veía
+  // chico incluso con espacio de sobra en la fila. max-height del <img> usa
+  // filaImagenValores (menos el padding vertical de la celda, con margen de
+  // sobra a propósito -- confirmado renderizando que sin ese margen quedaba
+  // pegado al borde de la celda) como techo, acotado entre ALTO_IMAGEN_BASE
+  // y ALTO_IMAGEN_MAX -- nunca se ve minúsculo en un slot apretado ni
+  // desproporcionado en uno liviano (portada). max-width usa el ancho real
+  // de la celda (56% de la tarjeta, no un ancho fijo en px), respetando el
+  // aspect ratio real del SVG recortado (cropSvgToContent).
   const filaImagenValores = Math.max(ALTO_MIN_FILA_IMAGEN_VALORES, opts.altoTarjeta - alturaFilasTexto(v, analisis));
+  const PADDING_VERTICAL_FILA_IMAGEN = 26;
+  const altoMaxImagen = Math.min(
+    ALTO_IMAGEN_MAX,
+    Math.max(ALTO_IMAGEN_BASE, Math.round(filaImagenValores) - PADDING_VERTICAL_FILA_IMAGEN)
+  );
 
   // margin-bottom SOLO si no es la última tarjeta de la página -- el
   // presupuesto de alto que reparte el cupo (calcularSlot en
@@ -422,8 +442,8 @@ export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { altoTarjeta: n
     <table style="width:100%;border-collapse:collapse;">${metaRowsHtml}</table>
     <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
       <tr>
-        <td style="width:56%;height:${Math.round(filaImagenValores)}px;padding:8px 10px 8px 12px;vertical-align:middle;">
-          ${png ? `<img src="${png}" style="max-width:${ANCHO_IMAGEN_BASE}px;max-height:${ALTO_IMAGEN_BASE}px;width:auto;height:auto;display:block;margin:0 auto;" />` : ''}
+        <td style="width:56%;height:${Math.round(filaImagenValores)}px;padding:8px 10px 8px 12px;vertical-align:middle;text-align:center;">
+          ${png ? `<img src="${png}" style="max-width:100%;max-height:${altoMaxImagen}px;width:auto;height:auto;display:inline-block;" />` : ''}
         </td>
         <td style="width:44%;vertical-align:top;padding:8px 12px 8px 0;">
           <table style="width:100%;border-collapse:collapse;">
