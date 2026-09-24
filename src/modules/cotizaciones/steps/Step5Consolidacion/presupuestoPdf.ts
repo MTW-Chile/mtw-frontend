@@ -5,7 +5,7 @@
 // cambio a como se arma la tarjeta o el documento va acá, no duplicado en el
 // componente ni en scripts de prueba sueltos (esa duplicación fue la causa
 // real de varios rounds de bugs de paginación que no se detectaron a tiempo).
-import type { Proyecto, Ventana } from '../../../../types';
+import type { MaterialVentana, Proyecto, Ventana } from '../../../../types';
 import { formatNumber } from '../../../../lib/utils';
 import { toWindowLine } from '../../components/drawing/ventanaAdapter';
 import { buildWindow } from '../../components/drawing/windowGeometryBuilder';
@@ -206,6 +206,24 @@ interface CardDeps {
   preciosVenta: Map<string, PrecioVentaLinea>;
   pngPorVentana: Map<string, string | null>;
   tasaUf: number;
+  escalaPxPorMm?: number;
+}
+
+// Mayor escala (px por mm) con la que TODAS las ventanas del documento
+// entran en su celda de dibujo: limitada por ALTO_IMAGEN_MAX, ANCHO_IMAGEN_MAX
+// y el alto real que le queda a cada tarjeta según su slot de página.
+export function calcularEscalaDibujos(
+  tarjetas: { ventana: Ventana; altoTarjeta: number }[],
+  pngPorVentana: Map<string, string | null>
+): number | undefined {
+  let escala = Infinity;
+  tarjetas.forEach(({ ventana: v, altoTarjeta }) => {
+    if (!pngPorVentana.get(v.id) || !(v.altoMm > 0) || !(v.anchoMm > 0)) return;
+    const fila = Math.max(ALTO_MIN_FILA_IMAGEN_VALORES, altoTarjeta - alturaFilasTexto(v, analizarVentana(v)));
+    const altoDisponible = Math.min(ALTO_IMAGEN_MAX, Math.round(fila) - PADDING_VERTICAL_FILA_IMAGEN);
+    escala = Math.min(escala, altoDisponible / v.altoMm, ANCHO_IMAGEN_MAX / v.anchoMm);
+  });
+  return Number.isFinite(escala) && escala > 0 ? escala : undefined;
 }
 
 // Cada tarjeta es HTML/CSS real (tabla con bordes), no coordenadas
@@ -239,25 +257,32 @@ function analizarVentana(v: Ventana): VentanaAnalisis {
   // "Herrajes"). Nombre fantasía si el proveedor lo tiene cargado (más
   // reconocible para el cliente que la razón social); si no, la razón
   // social.
-  const nombreProveedor = (m: { material?: { proveedor?: { nombre: string; nombreFantasia: string | null } | null; descripcion?: string } | null }) =>
-    m.material?.proveedor?.nombreFantasia || m.material?.proveedor?.nombre || '';
+  const nombreProveedor = (m: MaterialVentana) =>
+    (m.material?.proveedor?.nombreFantasia || m.material?.proveedor?.nombre || '').trim();
+  // HETMO escribe la familia como 'Perfileria'/'Herrajes'/'Vidrios' (ver
+  // HetmoRepository.cs en mtw-hetmo), no en mayúsculas -- comparar directo
+  // contra 'PERFILERIA' nunca calzaba y estas filas salían siempre vacías.
+  const materialesDe = (familia: string) =>
+    (v.materiales || []).filter((m) => !m.excluido && (m.material?.familia || '').toUpperCase().trim() === familia);
   const serieBase = core.profileSeries({ modelo: v.descripcionCorta || v.modelo });
   const finishNombre = getAcabadoNombre(v.acabadoCodigo, v.acabadoDescripcion);
-  const proveedorPerfil = Array.from(
-    new Set((v.materiales || []).filter((m) => !m.excluido && m.material?.familia === 'PERFILERIA').map(nombreProveedor))
-  ).filter(Boolean).join(' + ');
-  const proveedorHerraje = Array.from(
-    new Set((v.materiales || []).filter((m) => !m.excluido && m.material?.familia === 'HERRAJES').map(nombreProveedor))
-  ).filter(Boolean).join(' + ');
+  // Proveedor de perfil = el que aporta MÁS filas de Perfileria -- HETMO
+  // también clasifica como Perfileria piezas de aluminio de otros
+  // proveedores, y listarlos todos ("Muchtek + X") desfiguraría la línea.
+  const conteoPerfil = new Map<string, number>();
+  materialesDe('PERFILERIA').forEach((m) => {
+    const nombre = nombreProveedor(m);
+    if (nombre) conteoPerfil.set(nombre, (conteoPerfil.get(nombre) || 0) + 1);
+  });
+  const proveedorPerfil = [...conteoPerfil.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+  const proveedorHerraje = Array.from(new Set(materialesDe('HERRAJES').map(nombreProveedor))).filter(Boolean).join(' + ');
   const composicion = [
     serieBase !== 'Línea no especificada' ? serieBase : null,
     proveedorPerfil || null,
     finishNombre ? `Color ${finishNombre}` : null,
     proveedorHerraje ? `Herrajes ${proveedorHerraje}` : null,
   ].filter(Boolean).join(' - ');
-  const vidrio = Array.from(
-    new Set((v.materiales || []).filter((m) => !m.excluido && m.material?.familia === 'VIDRIOS').map((m) => m.material?.descripcion || ''))
-  ).filter(Boolean).join(' + ');
+  const vidrio = Array.from(new Set(materialesDe('VIDRIOS').map((m) => m.material?.descripcion || ''))).filter(Boolean).join(' + ');
   // Una línea "sin marco" (dibujoSinMarco/isFrameless -- exige material
   // coincidente Y vidrio explícito, no es un simple "vacío -> sin marco",
   // ver el comentario largo en ventanaAdapter.ts) es en los hechos solo
@@ -293,20 +318,25 @@ const LINEAS_OBSERVACION_TOPE = 3;
 // siempre, sin variar según el contenido. El alto de CADA tarjeta es el
 // máximo que le puede tocar dado ese cupo fijo (el alto útil de la página
 // dividido en partes iguales -- ver slotPortada/slotSiguiente en
-// buildDocumentoHtml), no un cálculo por tarjeta. El dibujo SÍ se estira
-// para llenar el sobrante de la fila imagen/valores (a pedido explícito:
-// se veía chico incluso con espacio de sobra), pero entre un PISO y un
-// TECHO (ALTO_IMAGEN_BASE/ALTO_IMAGEN_MAX en vez de un tamaño fijo único,
-// ver buildCardHtml) -- sin techo, en el cupo más liviano (portada, 2
-// tarjetas) el dibujo se veía desproporcionadamente grande frente al resto
-// de la tarjeta, confirmado renderizando ese caso real.
+// buildDocumentoHtml), no un cálculo por tarjeta.
+//
+// El dibujo usa UNA escala (px por mm) para todo el documento, no un
+// tamaño por tarjeta: con un alto de dibujo igual para todas, una ventana
+// baja y ancha (2.280 × 1.350) salía más grande que una alta (2.490 ×
+// 2.280), invirtiendo las proporciones reales entre ventanas. La escala la
+// fija la ventana más exigente (ver calcularEscalaDibujos), así la más
+// grande llega a ALTO_IMAGEN_MAX / ANCHO_IMAGEN_MAX y el resto queda a su
+// tamaño relativo real. ALTO_IMAGEN_MIN es solo un piso de legibilidad
+// para ventanas muy chicas.
 const ALTO_FILA_META = 19;
 const ALTO_HEADER_TARJETA = 26;
 const ALTO_BORDE_TARJETA = 2;
-// Piso y techo del dibujo -- nunca se achica más que el piso, ni crece más
-// que el techo, sea cual sea el slot.
-const ALTO_IMAGEN_BASE = 150;
+const ALTO_IMAGEN_MIN = 70;
 const ALTO_IMAGEN_MAX = 210;
+// Ancho útil para el marco dentro de la celda del dibujo (56% de la
+// tarjeta menos padding), descontando el espacio de las cotas laterales.
+const ANCHO_IMAGEN_MAX = 340;
+const PADDING_VERTICAL_FILA_IMAGEN = 26;
 // Piso REAL (medido renderizando la caja de "Valores comerciales" sola,
 // con su padding) de la fila imagen/valores -- esa caja no puede achicarse
 // más, tenga o no dibujo al lado. Ignorarlo fue justamente el bug: con
@@ -409,21 +439,15 @@ export function buildCardHtml(v: Ventana, deps: CardDeps, opts: { altoTarjeta: n
   // este Math.max no debería activarse nunca en la práctica; queda como
   // red de seguridad.
   //
-  // El DIBUJO SÍ se escala con ese sobrante -- a pedido explícito, se veía
-  // chico incluso con espacio de sobra en la fila. max-height del <img> usa
-  // filaImagenValores (menos el padding vertical de la celda, con margen de
-  // sobra a propósito -- confirmado renderizando que sin ese margen quedaba
-  // pegado al borde de la celda) como techo, acotado entre ALTO_IMAGEN_BASE
-  // y ALTO_IMAGEN_MAX -- nunca se ve minúsculo en un slot apretado ni
-  // desproporcionado en uno liviano (portada). max-width usa el ancho real
-  // de la celda (56% de la tarjeta, no un ancho fijo en px), respetando el
-  // aspect ratio real del SVG recortado (cropSvgToContent).
+  // Alto del dibujo = alto real de la ventana (mm) × la escala común del
+  // documento (deps.escalaPxPorMm, ver calcularEscalaDibujos), para que las
+  // ventanas mantengan sus proporciones reales entre sí. Sin escala (o sin
+  // medidas) cae al alto disponible en la fila, acotado a ALTO_IMAGEN_MAX.
   const filaImagenValores = Math.max(ALTO_MIN_FILA_IMAGEN_VALORES, opts.altoTarjeta - alturaFilasTexto(v, analisis));
-  const PADDING_VERTICAL_FILA_IMAGEN = 26;
-  const altoMaxImagen = Math.min(
-    ALTO_IMAGEN_MAX,
-    Math.max(ALTO_IMAGEN_BASE, Math.round(filaImagenValores) - PADDING_VERTICAL_FILA_IMAGEN)
-  );
+  const altoDisponibleImagen = Math.round(filaImagenValores) - PADDING_VERTICAL_FILA_IMAGEN;
+  const altoMaxImagen = deps.escalaPxPorMm && v.altoMm > 0
+    ? Math.max(ALTO_IMAGEN_MIN, Math.min(altoDisponibleImagen, Math.round(v.altoMm * deps.escalaPxPorMm)))
+    : Math.max(ALTO_IMAGEN_MIN, Math.min(ALTO_IMAGEN_MAX, altoDisponibleImagen));
 
   // margin-bottom SOLO si no es la última tarjeta de la página -- el
   // presupuesto de alto que reparte el cupo (calcularSlot en
@@ -511,8 +535,8 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
       </tr></table>`
     : logoImg;
 
-  const cardHtml = (v: Ventana, altoTarjeta: number, esUltimaEnPagina: boolean) =>
-    buildCardHtml(v, { preciosVenta, pngPorVentana, tasaUf }, { altoTarjeta, esUltimaEnPagina });
+  const cardHtml = (v: Ventana, altoTarjeta: number, esUltimaEnPagina: boolean, escalaPxPorMm: number | undefined) =>
+    buildCardHtml(v, { preciosVenta, pngPorVentana, tasaUf, escalaPxPorMm }, { altoTarjeta, esUltimaEnPagina });
 
   // Encabezado completo (primera página): logo, "Oferta Cliente" como
   // título, línea divisoria, "Presupuesto - X / Fecha", datos del cliente
@@ -668,10 +692,15 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
   // hace falta -- si sigue Condiciones Comerciales, esa sección ya trae
   // su propio page-break-before). height+overflow:hidden en cada página
   // es un margen de seguridad, no lo que reparte el alto.
+  const escalaPxPorMm = calcularEscalaDibujos(
+    paginas.flatMap(({ ventanas: vs, slot }) => vs.map((ventana) => ({ ventana, altoTarjeta: slot }))),
+    pngPorVentana
+  );
+
   const contenidoVentanasHtml = paginas.map(({ ventanas: cardsPagina, slot }, idx) => {
     const esPortada = idx === 0;
     const esUltima = idx === paginas.length - 1;
-    const tarjetasHtml = cardsPagina.map((v, i) => cardHtml(v, slot, i === cardsPagina.length - 1)).join('');
+    const tarjetasHtml = cardsPagina.map((v, i) => cardHtml(v, slot, i === cardsPagina.length - 1, escalaPxPorMm)).join('');
     return `
       <div style="width:100%;height:${ALTO_UTIL_PAGINA}px;box-sizing:border-box;overflow:hidden;font-family:Helvetica,Arial,sans-serif;background:#ffffff;${esUltima ? '' : 'page-break-after:always;'}">
         ${esPortada ? headerCompletoHtml : ''}

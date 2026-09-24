@@ -370,7 +370,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
           const finish = createFinish(line?.acabadoCodigo, line?.acabadoDescripcion, line?.acabadoPatron);
           const finishLabel = getAcabadoLabel(v.acabadoCodigo, v.acabadoDescripcion);
           const vidrio = Array.from(
-            new Set((v.materiales || []).filter((m) => !m.excluido && m.material?.familia === 'VIDRIOS').map((m) => m.material?.descripcion || ''))
+            new Set((v.materiales || []).filter((m) => !m.excluido && (m.material?.familia || '').toUpperCase().trim() === 'VIDRIOS').map((m) => m.material?.descripcion || ''))
           ).filter(Boolean).join(' + ');
 
           return (
