@@ -458,6 +458,21 @@ export async function updateProveedor(id: string, payload: ProveedorFacturacionP
   return response.data;
 }
 
+// Solo administrador -- ver requireAdmin en mtw-api. Falla con 409 si el
+// proveedor todavia tiene materiales u OC enlazados (hay que fusionarlo,
+// no eliminarlo).
+export async function eliminarProveedor(id: string): Promise<{ success: boolean }> {
+  const response = await apiClient.post<{ success: boolean }>(`/proveedores/${id}/eliminar`);
+  return response.data;
+}
+
+// Solo administrador -- reasigna todos los materiales/OC del proveedor
+// origen (duplicado) al destino (el real) y elimina el origen.
+export async function fusionarProveedor(id: string, proveedorDestinoId: string): Promise<{ success: boolean; data: Proveedor }> {
+  const response = await apiClient.post<{ success: boolean; data: Proveedor }>(`/proveedores/${id}/fusionar`, { proveedorDestinoId });
+  return response.data;
+}
+
 // POST, no PUT/DELETE -- son los unicos dos verbos de la API sin usar en
 // ningun otro lado del cliente, y "Network Error" en panel.mtw.cl al
 // guardar apunta a un bloqueo de metodo aguas arriba de Cloudflare Access.

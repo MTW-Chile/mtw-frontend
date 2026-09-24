@@ -98,6 +98,9 @@ export interface Proveedor {
   ibanSwift: string | null;
   creadoEn: string;
   actualizadoEn: string;
+  // Cuantos materiales/OC lo tienen enlazado -- en 0/0 es candidato a
+  // duplicado (ver bug de codigo_proveedor corregido en mtw-hetmo).
+  _count?: { materiales: number; ordenesCompra: number };
 }
 
 export interface PrecioHistorial {

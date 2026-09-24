@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Search, Pencil, Building2, X } from 'lucide-react';
-import { getProveedores } from '../../../api/client';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Search, Pencil, Building2, X, Trash2, GitMerge, Loader2 } from 'lucide-react';
+import { getProveedores, getMisPermisos, eliminarProveedor } from '../../../api/client';
 import { TableSkeleton } from '../../../components/ui/Skeleton';
 import { Badge } from '../../../components/ui/Badge';
 import type { Proveedor } from '../../../types';
 import { ProveedorEditModal } from './ProveedorEditModal';
+import { FusionarProveedorModal } from './FusionarProveedorModal';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
 
 /**
@@ -16,8 +17,10 @@ import { useMediaQuery } from '../../../lib/useMediaQuery';
  * Artículo en Maestro" se completan acá, no tienen otra fuente.
  */
 export const ProveedoresPanel: React.FC = () => {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [editando, setEditando] = useState<Proveedor | null>(null);
+  const [fusionando, setFusionando] = useState<Proveedor | null>(null);
   // Monta sólo la vista de escritorio o la de mobile, nunca las dos -- ver
   // useMediaQuery.ts (mismo patrón que MaestroProductos y CotizacionesPage).
   const isDesktop = useMediaQuery('(min-width: 768px)');
@@ -25,6 +28,19 @@ export const ProveedoresPanel: React.FC = () => {
   const { data, isLoading, isError, refetch } = useQuery<Proveedor[]>({
     queryKey: ['proveedores'],
     queryFn: async () => (await getProveedores()).data,
+  });
+
+  // mismo queryKey que App.tsx/Header.tsx -- sale del cache, no pega de
+  // nuevo al backend.
+  const { data: permisos } = useQuery({ queryKey: ['misPermisos'], queryFn: getMisPermisos });
+
+  // Solo admin (ver requireAdmin en mtw-api) -- borra un proveedor sin
+  // ningun material/OC enlazado. El backend responde 409 si todavia tiene
+  // algo enlazado (hay que fusionarlo, ver FusionarProveedorModal).
+  const eliminarMutation = useMutation({
+    mutationFn: (id: string) => eliminarProveedor(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['proveedores'] }),
+    onError: (err: any) => window.alert(err?.response?.data?.error || 'No se pudo eliminar el proveedor.'),
   });
 
   const proveedores = useMemo(() => data || [], [data]);
@@ -96,11 +112,14 @@ export const ProveedoresPanel: React.FC = () => {
                     <th className="px-5 py-3.5">RUT</th>
                     <th className="px-5 py-3.5">Email</th>
                     <th className="px-5 py-3.5">Condiciones de Pago</th>
+                    <th className="px-5 py-3.5">Uso</th>
                     <th className="px-5 py-3.5 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filtrados.map((p) => (
+                  {filtrados.map((p) => {
+                    const sinUso = !!p._count && p._count.materiales === 0 && p._count.ordenesCompra === 0;
+                    return (
                     <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-5 py-3.5 font-semibold text-slate-900">{p.nombre}</td>
                       <td className="px-5 py-3.5">
@@ -113,17 +132,62 @@ export const ProveedoresPanel: React.FC = () => {
                       <td className="px-5 py-3.5 text-slate-600">{p.rut || <span className="text-slate-300">—</span>}</td>
                       <td className="px-5 py-3.5 text-slate-600">{p.email || <span className="text-slate-300">—</span>}</td>
                       <td className="px-5 py-3.5 text-slate-600">{p.condicionesPago || <span className="text-slate-300">—</span>}</td>
+                      <td className="px-5 py-3.5">
+                        {p._count ? (
+                          sinUso ? (
+                            <Badge variant="warning" size="sm">Sin uso</Badge>
+                          ) : (
+                            <span className="text-[11px] text-slate-500 font-mono">
+                              {p._count.materiales} mat · {p._count.ordenesCompra} OC
+                            </span>
+                          )
+                        ) : (
+                          <span className="text-slate-300">—</span>
+                        )}
+                      </td>
                       <td className="px-5 py-3.5 text-right">
-                        <button
-                          onClick={() => setEditando(p)}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:text-[#E34A26] hover:bg-orange-50 transition-colors cursor-pointer"
-                        >
-                          <Pencil className="w-3 h-3" />
-                          <span>Editar</span>
-                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => setEditando(p)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:text-[#E34A26] hover:bg-orange-50 transition-colors cursor-pointer"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            <span>Editar</span>
+                          </button>
+                          {permisos?.esAdmin && (
+                            <>
+                              <button
+                                onClick={() => setFusionando(p)}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+                                title="Fusionar dentro de otro proveedor (reasigna materiales/OC)"
+                              >
+                                <GitMerge className="w-3 h-3" />
+                                <span>Fusionar</span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`¿Eliminar el proveedor "${p.nombre}"? Esta acción no se puede deshacer.`)) {
+                                    eliminarMutation.mutate(p.id);
+                                  }
+                                }}
+                                disabled={!sinUso || (eliminarMutation.isPending && eliminarMutation.variables === p.id)}
+                                title={sinUso ? undefined : 'Tiene materiales u OC enlazados -- fusiónalo primero'}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
+                              >
+                                {eliminarMutation.isPending && eliminarMutation.variables === p.id ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-3 h-3" />
+                                )}
+                                <span>Eliminar</span>
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -133,18 +197,23 @@ export const ProveedoresPanel: React.FC = () => {
           {/* 2. VISTA TARJETAS AUTOMÁTICA EN MÓVILES (System-Wide por defecto) */}
           {!isDesktop && (
           <div className="space-y-3">
-            {filtrados.map((p) => (
+            {filtrados.map((p) => {
+              const sinUso = !!p._count && p._count.materiales === 0 && p._count.ordenesCompra === 0;
+              return (
               <div
                 key={p.id}
                 className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2.5"
               >
                 <div className="flex items-start justify-between gap-2">
                   <h4 className="text-xs font-bold text-slate-900 leading-snug">{p.nombre}</h4>
-                  {p.codigoHetmo != null ? (
-                    <Badge variant="info" size="sm">HETMO</Badge>
-                  ) : (
-                    <Badge variant="default" size="sm">Manual</Badge>
-                  )}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {sinUso && <Badge variant="warning" size="sm">Sin uso</Badge>}
+                    {p.codigoHetmo != null ? (
+                      <Badge variant="info" size="sm">HETMO</Badge>
+                    ) : (
+                      <Badge variant="default" size="sm">Manual</Badge>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
@@ -160,9 +229,17 @@ export const ProveedoresPanel: React.FC = () => {
                     <span className="text-slate-400">Condiciones de Pago:</span>{' '}
                     <span className="font-semibold text-slate-700">{p.condicionesPago || '—'}</span>
                   </div>
+                  {p._count && !sinUso && (
+                    <div className="col-span-2">
+                      <span className="text-slate-400">Uso:</span>{' '}
+                      <span className="font-semibold text-slate-700 font-mono">
+                        {p._count.materiales} mat · {p._count.ordenesCompra} OC
+                      </span>
+                    </div>
+                  )}
                 </div>
 
-                <div className="pt-2.5 border-t border-slate-100 flex justify-end">
+                <div className="pt-2.5 border-t border-slate-100 flex justify-end gap-1 flex-wrap">
                   <button
                     onClick={() => setEditando(p)}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-[#E34A26] hover:bg-orange-50 transition-colors cursor-pointer"
@@ -170,15 +247,46 @@ export const ProveedoresPanel: React.FC = () => {
                     <Pencil className="w-3 h-3" />
                     <span>Editar</span>
                   </button>
+                  {permisos?.esAdmin && (
+                    <>
+                      <button
+                        onClick={() => setFusionando(p)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+                      >
+                        <GitMerge className="w-3 h-3" />
+                        <span>Fusionar</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`¿Eliminar el proveedor "${p.nombre}"? Esta acción no se puede deshacer.`)) {
+                            eliminarMutation.mutate(p.id);
+                          }
+                        }}
+                        disabled={!sinUso || (eliminarMutation.isPending && eliminarMutation.variables === p.id)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
+                      >
+                        {eliminarMutation.isPending && eliminarMutation.variables === p.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3 h-3" />
+                        )}
+                        <span>Eliminar</span>
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
           )}
         </>
       )}
 
       {editando && <ProveedorEditModal proveedor={editando} onClose={() => setEditando(null)} />}
+      {fusionando && (
+        <FusionarProveedorModal origen={fusionando} proveedores={proveedores} onClose={() => setFusionando(null)} />
+      )}
     </div>
   );
 };
