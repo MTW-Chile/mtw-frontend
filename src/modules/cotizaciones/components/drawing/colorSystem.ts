@@ -462,3 +462,19 @@ export function getAcabadoLabel(codigo?: string | null, descripcion?: string | n
   return codigo || 'Estándar';
 }
 
+/**
+ * Igual que getAcabadoLabel(), pero sin el código HETMO entre paréntesis --
+ * para el Presupuesto PDF de cliente, donde el código interno (ej. "6997")
+ * no le dice nada al cliente y solo ensucia el nombre del acabado.
+ */
+export function getAcabadoNombre(codigo?: string | null, descripcion?: string | null): string {
+  if (descripcion && descripcion.trim() && descripcion.trim().toLowerCase() !== (codigo || '').trim().toLowerCase()) {
+    return descripcion.trim();
+  }
+  const cleanCode = (codigo || '').trim().toUpperCase();
+  if (cleanCode && FINISH_NAMES[cleanCode]) {
+    return FINISH_NAMES[cleanCode];
+  }
+  return codigo || 'Estándar';
+}
+
