@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileDown, Loader2, Pencil, Check } from 'lucide-react';
-import type { Proyecto, ProyectoVersion, Ventana } from '../../../../types';
+import type { MaterialVentana, Proyecto, ProyectoVersion, Ventana } from '../../../../types';
 import { formatNumber } from '../../../../lib/utils';
 import { useMonedas } from '../../../../lib/monedas';
 import { updatePresupuestoConfig, updateVentanaPresupuesto, renderPdf, getConfiguracionEmpresa } from '../../../../api/client';
@@ -279,7 +279,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
             return [{ ventana: v.modelo, materiales: Array.isArray(mats) ? 0 : `sin campo (${typeof mats})` }];
           }
           const porFamilia = new Map<string, { n: number; excluidos: number; conProveedorId: number; conProveedor: number; ejemplo: string }>();
-          (mats as Ventana['materiales']).forEach((m) => {
+          (mats as MaterialVentana[]).forEach((m) => {
             const fam = JSON.stringify(m.material?.familia ?? null);
             const r = porFamilia.get(fam) || { n: 0, excluidos: 0, conProveedorId: 0, conProveedor: 0, ejemplo: '' };
             r.n += 1;
