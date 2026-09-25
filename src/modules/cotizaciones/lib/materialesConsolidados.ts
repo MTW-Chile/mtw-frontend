@@ -16,6 +16,11 @@ export interface MaterialConsolidado {
   precioOrigen: number;
   monedaOrigen: string;
   precioCLP: number;
+  // Cuantas unidades de precioOrigen entran en precioCLP: 5,8 para
+  // Perfileria/Refuerzos con cantidad por barra (precioOrigen es por metro,
+  // precioCLP por barra), 1 para el resto. Hay que dividir por esto al
+  // guardar un precio escrito en la columna CLP.
+  factorBarra: number;
   excluido: boolean;
   // true cuando el precio viene de un ajuste manual en la Analitica
   // (ProyectoMaterialAjuste.precioPersonalizado), no del precio original de
@@ -167,6 +172,7 @@ export function computeMaterialesConsolidados(
           precioOrigen,
           monedaOrigen,
           precioCLP,
+          factorBarra: 1,
           excluido: ajuste?.excluido ?? mv.excluido ?? false,
           precioModificado: ajuste?.precioPersonalizado != null,
         });
@@ -215,7 +221,8 @@ export function computeMaterialesConsolidados(
     const cantidadResumen = resumenPorMaterial.get(m.materialId);
     if (cantidadResumen === undefined) return;
     m.cantidadTotal = cantidadResumen;
-    m.precioCLP *= LARGO_BARRA_METROS[familiaCruda];
+    m.factorBarra = LARGO_BARRA_METROS[familiaCruda];
+    m.precioCLP *= m.factorBarra;
   });
 
   return consolidados;

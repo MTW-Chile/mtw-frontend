@@ -758,9 +758,9 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                               <div className="flex items-center justify-end gap-1">
                                 <span className="text-slate-400 font-mono text-[10px]">$</span>
                                 <PrecioEditable
-                                  valor={m.precioCLP}
+                                  valor={Math.round(m.precioCLP * 100) / 100}
                                   disabled={edicionBloqueada}
-                                  onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo, monedaOrigen: 'CLP' })}
+                                  onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo / m.factorBarra, monedaOrigen: 'CLP' })}
                                 />
                               </div>
                             </td>
