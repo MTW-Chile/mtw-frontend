@@ -14,6 +14,7 @@ import {
   computeMaterialesConsolidados,
   computeCostoTotalYVenta,
   computeCostoVentanaCLP,
+  computeCostoMaterialesPersonalizadosCLP,
 } from '../../lib/materialesConsolidados';
 import { computePreciosVenta } from '../../lib/presupuesto';
 import { loadImageDataUrl } from '../../lib/pdfTheme';
@@ -197,7 +198,8 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         venta,
         (v) => computeCostoVentanaCLP(v, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas),
         costoTotal,
-        tasaUf
+        tasaUf,
+        (v) => computeCostoMaterialesPersonalizadosCLP(v, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas)
       ),
     [ventanas, activeVersion?.sumaTotalLineas, venta, costoTotal, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas]
   );
