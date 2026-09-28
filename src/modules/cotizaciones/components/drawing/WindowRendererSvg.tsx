@@ -84,6 +84,30 @@ export const WindowRendererSvg: React.FC<WindowRendererSvgProps> = ({
         if (ventana.espejado) {
           aplicarEspejado(svgEl);
         }
+        // buildWindow() dibuja siempre dentro de un lienzo fijo (240×178,
+        // ver el mismo comentario en presupuestoPdf.ts) pensado para que
+        // quepa cualquier proporción de ventana -- pero eso deja mucho aire
+        // en blanco alrededor del dibujo real para una compuesta angosta o
+        // muy vertical (ej. proyectante + fijo), que en esta vista en
+        // pantalla (a diferencia del PDF, que ya recorta con
+        // cropSvgToContent antes de rasterizar) terminaba viéndose
+        // diminuta dentro de su tarjeta. Acá SÍ hay un nodo real en el DOM,
+        // así que en vez de reimplementar el recorte a mano con regex
+        // (como tiene que hacerlo el PDF, que solo tiene el string) se usa
+        // getBBox() -- el bounding box real y exacto de todo lo dibujado.
+        try {
+          const bbox = svgEl.getBBox();
+          if (bbox.width > 0 && bbox.height > 0) {
+            const pad = 6;
+            svgEl.setAttribute(
+              'viewBox',
+              `${bbox.x - pad} ${bbox.y - pad} ${bbox.width + pad * 2} ${bbox.height + pad * 2}`
+            );
+          }
+        } catch {
+          // getBBox() puede no estar disponible (ej. jsdom en tests) -- se
+          // deja el viewBox original del builder, sin recorte.
+        }
       }
     }
   }, [svgMarkup, className, ventana.espejado]);

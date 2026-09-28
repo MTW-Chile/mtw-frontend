@@ -692,14 +692,21 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
   // hace falta -- si sigue Condiciones Comerciales, esa sección ya trae
   // su propio page-break-before). height+overflow:hidden en cada página
   // es un margen de seguridad, no lo que reparte el alto.
-  const escalaPxPorMm = calcularEscalaDibujos(
-    paginas.flatMap(({ ventanas: vs, slot }) => vs.map((ventana) => ({ ventana, altoTarjeta: slot }))),
-    pngPorVentana
-  );
-
+  // La escala es POR PÁGINA, no global al documento entero -- una sola
+  // ventana fuera de lo común en OTRA página (mucho más ancha o alta que el
+  // resto del proyecto, ej. un paño gigante o una puerta corredera de
+  // varias hojas) no debe achicar el dibujo de TODAS las demás tarjetas del
+  // presupuesto, muchas veces páginas completas de ventanas normales que no
+  // tienen nada que ver con esa. Las ventanas que sí importa comparar entre
+  // sí -- que quede claro cuál es más grande que cuál -- son las que el
+  // cliente ve juntas en la misma página, no las de todo el documento.
   const contenidoVentanasHtml = paginas.map(({ ventanas: cardsPagina, slot }, idx) => {
     const esPortada = idx === 0;
     const esUltima = idx === paginas.length - 1;
+    const escalaPxPorMm = calcularEscalaDibujos(
+      cardsPagina.map((ventana) => ({ ventana, altoTarjeta: slot })),
+      pngPorVentana
+    );
     const tarjetasHtml = cardsPagina.map((v, i) => cardHtml(v, slot, i === cardsPagina.length - 1, escalaPxPorMm)).join('');
     return `
       <div style="width:100%;height:${ALTO_UTIL_PAGINA}px;box-sizing:border-box;overflow:hidden;font-family:Helvetica,Arial,sans-serif;background:#ffffff;${esUltima ? '' : 'page-break-after:always;'}">
