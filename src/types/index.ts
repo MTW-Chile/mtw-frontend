@@ -622,6 +622,10 @@ export interface BodegaProyectoResponse {
   bodega: Bodega | null;
   stock: StockMaterial[];
   movimientos: MovimientoBodega[];
+  // Stock de "Obras Mayores" -- viaja siempre junto al de la bodega propia,
+  // para poder calcular cuanto falta comprar de verdad (ver
+  // stockDisponiblePorMaterial en materialesConsolidados.ts).
+  stockObrasMayores: StockMaterial[];
 }
 
 // GET /api/bodega -- todas las bodegas juntas (obras reales + "Obras

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Loader2,
   Layers,
@@ -19,7 +19,7 @@ import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { StatCard } from '../../components/ui/StatCard';
-import { createFase, updateFase, deleteFase } from '../../api/client';
+import { createFase, updateFase, deleteFase, getBodegaProyecto } from '../../api/client';
 import { useMonedas } from '../../lib/monedas';
 import { computeMaterialesFasePorProveedor } from '../cotizaciones/lib/materialesConsolidados';
 import { CATEGORIA_GASTO_LABEL } from '../abastecimiento/categoriaGasto';
@@ -114,23 +114,43 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
     return { totalUnidades, planificado, sinPlanificar: totalUnidades - planificado };
   }, [filas]);
 
+  // Stock ya disponible (bodega propia + Obras Mayores) para no sugerir
+  // comprar de nuevo algo que ya esta ahi -- ver
+  // stockDisponiblePorMaterial en computeMaterialesFasePorProveedor. Ojo:
+  // se calcula UNA vez y se resta igual para cada fase de abajo -- si dos
+  // fases necesitan el mismo material, ambas ven el mismo stock
+  // disponible sin "reservarlo" entre si (limitacion conocida, ver
+  // comentario de computeMaterialesFasePorProveedor).
+  const { data: bodegaData } = useQuery({
+    queryKey: ['bodegaProyecto', proyecto.id],
+    queryFn: () => getBodegaProyecto(proyecto.id),
+  });
+  const stockDisponiblePorMaterial = useMemo(() => {
+    const map = new Map<string, number>();
+    const sumar = (rows: { materialId: string; cantidad: number }[] | undefined) =>
+      (rows || []).forEach((s) => map.set(s.materialId, (map.get(s.materialId) || 0) + Number(s.cantidad)));
+    sumar(bodegaData?.stock);
+    sumar(bodegaData?.stockObrasMayores);
+    return map;
+  }, [bodegaData]);
+
   // Materiales calculados por fase real (misma logica que Abastecimiento >
   // Nueva OC, ver computeMaterialesFasePorProveedor) -- de aca sale tanto el
   // resumen por categoria como los items individuales que "Generar OC"
   // precarga. Se calcula para todas las fases reales de una, no una por
   // una al expandir, porque el resumen se muestra siempre (no solo al
-  // expandir el detalle).
+  // expandir el detalle). Ya neta de stock disponible.
   const tasaDolar = Number(activeVersion?.tipoCambioDolar) || 950;
   const tasaUf = Number(activeVersion?.tipoCambioUF) || 38500;
   const tasaEuro = Number(activeVersion?.tipoCambioEuro) || 1030;
   const materialesPorFase = useMemo(() => {
-    type ItemFase = { descripcion: string; proveedorNombre: string; unidadMedida: string; cantidad: number; precioUnitario: number };
+    type ItemFase = { descripcion: string; proveedorNombre: string; unidadMedida: string; cantidad: number; stockDisponible: number; precioUnitario: number };
     const map = new Map<
       string,
       { montoTotal: number; categorias: { familia: string; monto: number; items: ItemFase[] }[] }
     >();
     fasesReales.forEach((fase) => {
-      const grupos = computeMaterialesFasePorProveedor(activeVersion, fase, tasaDolar, tasaEuro, tasaUf, monedas);
+      const grupos = computeMaterialesFasePorProveedor(activeVersion, fase, tasaDolar, tasaEuro, tasaUf, monedas, stockDisponiblePorMaterial);
       const itemsFlat = grupos.flatMap((g) => g.items.map((it) => ({ ...it, proveedorNombre: g.proveedorNombre })));
       const porCategoria = new Map<string, { monto: number; items: ItemFase[] }>();
       itemsFlat.forEach((it) => {
@@ -149,7 +169,7 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
     });
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fasesReales, activeVersion, tasaDolar, tasaEuro, tasaUf, monedas]);
+  }, [fasesReales, activeVersion, tasaDolar, tasaEuro, tasaUf, monedas, stockDisponiblePorMaterial]);
 
   // Expandidas se guarda como "faseId:familia" -- cada categoria se
   // despliega de forma independiente, no toda la fase junta.
@@ -535,6 +555,11 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                                           <td className="px-3 py-1.5 text-slate-500">{it.proveedorNombre}</td>
                                           <td className="px-3 py-1.5 text-right font-mono text-slate-700">
                                             {it.cantidad.toLocaleString('es-CL', { maximumFractionDigits: 2 })} {it.unidadMedida}
+                                            {it.stockDisponible > 0 && (
+                                              <span className="block text-[10px] text-emerald-600 font-normal">
+                                                ya tenías {it.stockDisponible.toLocaleString('es-CL', { maximumFractionDigits: 2 })} en stock
+                                              </span>
+                                            )}
                                           </td>
                                           <td className="px-3 py-1.5 text-right font-mono text-slate-700">{formatoMoneda(it.precioUnitario)}</td>
                                           <td className="px-3 py-1.5 text-right font-mono font-semibold text-slate-900">

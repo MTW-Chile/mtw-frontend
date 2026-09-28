@@ -389,7 +389,14 @@ export interface ItemFaseProveedor {
   // en la pestaña Fases sin recalcular nada (ver FasesTab.tsx).
   familia: string;
   unidadMedida: string;
+  // Ya neta de stock disponible (ver stockDisponiblePorMaterial mas
+  // abajo) -- es lo que efectivamente hay que comprar, no la necesidad
+  // bruta de la fase.
   cantidad: number;
+  // Cuanto de la necesidad bruta se cubrio con stock ya disponible
+  // (bodega propia + Obras Mayores) antes de llegar a `cantidad`. Puramente
+  // informativo, para mostrar "ya tenías X, se pide Y".
+  stockDisponible: number;
   // Valor teorico antes de redondear a la unidad de compra -- solo se
   // completa para Perfileria/Refuerzos (se compran por barra entera).
   // Puramente informativo: no se usa en ningun otro calculo, ver
@@ -430,6 +437,18 @@ const FAMILIAS_BARRA = new Set(['PERFILERIA', 'REFUERZOS']);
  * generosa (nunca deja corta a la fase), no una optimizacion de corte real
  * para ese subconjunto -- cantidadCalculada guarda el valor sin redondear
  * para poder auditar despues cuanto "de mas" se compro.
+ *
+ * stockDisponiblePorMaterial (materialId -> cantidad, en la MISMA unidad
+ * de compra que cantidadTotal -- barras para Perfileria/Refuerzos) resta
+ * lo que ya hay en bodega (propia + Obras Mayores, ver
+ * GET /proyectos/:id/bodega en mtw-api) ANTES de redondear a la unidad de
+ * compra: necesidad NETA, no bruta -- no tiene sentido comprar de nuevo
+ * algo que ya esta disponible para trasladar. Un material totalmente
+ * cubierto por stock no aparece en el resultado. Limitacion conocida: no
+ * "reserva" el stock entre dos calculos -- generar OC para dos fases
+ * seguidas sin recepcionar nada entre medio puede restar el mismo stock
+ * dos veces (ver conversacion en la tarea, queda fuera de esta primera
+ * version).
  */
 export function computeMaterialesFasePorProveedor(
   activeVersion: ProyectoVersion | undefined,
@@ -437,7 +456,8 @@ export function computeMaterialesFasePorProveedor(
   tasaDolar: number,
   tasaEuro: number,
   tasaUf: number,
-  monedas: MonedaHetmo[]
+  monedas: MonedaHetmo[],
+  stockDisponiblePorMaterial?: Map<string, number>
 ): GrupoFaseProveedor[] {
   if (!activeVersion || !fase) return [];
 
@@ -491,8 +511,11 @@ export function computeMaterialesFasePorProveedor(
     const proporcion = Math.min(1, baseFase / baseVersion);
 
     const cantidadTeorica = consolidado.cantidadTotal * proporcion;
+    const disponible = Math.max(0, stockDisponiblePorMaterial?.get(materialId) || 0);
+    const cantidadNetaTeorica = Math.max(0, cantidadTeorica - disponible);
+    if (cantidadNetaTeorica <= 0.0001) return; // stock ya cubre toda la necesidad de esta fase -- no hay que comprar nada
     const esBarra = FAMILIAS_BARRA.has(consolidado.familiaCruda);
-    const cantidad = esBarra ? Math.ceil(cantidadTeorica - 0.0001) : Math.round(cantidadTeorica * 100) / 100;
+    const cantidad = esBarra ? Math.ceil(cantidadNetaTeorica - 0.0001) : Math.round(cantidadNetaTeorica * 100) / 100;
 
     const aprobacion = aprobacionesPorFamilia.get(consolidado.familia);
     const descuento = Number(aprobacion?.descuentoPct) || 0;
@@ -510,7 +533,8 @@ export function computeMaterialesFasePorProveedor(
       familia: consolidado.familia,
       unidadMedida: esBarra ? 'BARRA' : consolidado.unidadMedida,
       cantidad,
-      cantidadCalculada: esBarra && Math.abs(cantidad - cantidadTeorica) > 0.0001 ? Math.round(cantidadTeorica * 1000) / 1000 : null,
+      stockDisponible: Math.round(disponible * 1000) / 1000,
+      cantidadCalculada: esBarra && Math.abs(cantidad - cantidadNetaTeorica) > 0.0001 ? Math.round(cantidadNetaTeorica * 1000) / 1000 : null,
       precioUnitario: Math.round(precioUnitario),
     });
   });

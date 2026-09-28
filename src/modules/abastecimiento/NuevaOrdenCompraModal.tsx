@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
-import { createOrdenCompra, getProyectos, getProveedores, getProyectoById } from '../../api/client';
+import { createOrdenCompra, getProyectos, getProveedores, getProyectoById, getBodegaProyecto } from '../../api/client';
 import { useMonedas } from '../../lib/monedas';
 import { computeMaterialesFasePorProveedor, type GrupoFaseProveedor } from '../cotizaciones/lib/materialesConsolidados';
 import { CATEGORIA_GASTO_OPTIONS, CATEGORIA_GASTO_LABEL } from './categoriaGasto';
@@ -42,6 +42,9 @@ interface ItemForm {
   // Perfileria/Refuerzos, que se compran por barra entera) -- puramente
   // informativo, se guarda tal cual en OrdenCompraItem.cantidadCalculada.
   cantidadCalculada?: number | null;
+  // Cuanto de la necesidad bruta ya se cubrio con stock disponible --
+  // `cantidad` ya viene neta de esto, es solo para mostrar el porque.
+  stockDisponible?: number;
   precioUnitario: string;
   categoria: CategoriaGasto | '';
 }
@@ -54,6 +57,7 @@ const itemFormDesdeCalculo = (item: GrupoFaseProveedor['items'][number]): ItemFo
   unidadMedida: item.unidadMedida,
   cantidad: String(item.cantidad),
   cantidadCalculada: item.cantidadCalculada,
+  stockDisponible: item.stockDisponible,
   precioUnitario: item.precioUnitario ? String(item.precioUnitario) : '',
   categoria: '',
 });
@@ -118,23 +122,41 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   const fasesReales = (activeVersion?.fases || []).filter((f) => f.numeroFase > 0).sort((a, b) => a.numeroFase - b.numeroFase);
   const opcionesFase: Fase[] = fasesReales.length > 0 ? fasesReales : (activeVersion?.fases || []).filter((f) => f.numeroFase === 0);
 
+  // Stock ya disponible (bodega propia + Obras Mayores) para no sugerir
+  // comprar de nuevo algo que ya esta ahi -- ver
+  // stockDisponiblePorMaterial en computeMaterialesFasePorProveedor.
+  const { data: bodegaData } = useQuery({
+    queryKey: ['bodegaProyecto', proyectoId],
+    queryFn: () => getBodegaProyecto(proyectoId),
+    enabled: isOpen && !!proyectoId,
+  });
+  const stockDisponiblePorMaterial = useMemo(() => {
+    const mapa = new Map<string, number>();
+    const sumar = (rows: { materialId: string; cantidad: number }[] | undefined) =>
+      (rows || []).forEach((s) => mapa.set(s.materialId, (mapa.get(s.materialId) || 0) + Number(s.cantidad)));
+    sumar(bodegaData?.stock);
+    sumar(bodegaData?.stockObrasMayores);
+    return mapa;
+  }, [bodegaData]);
+
   // Materiales necesarios para fabricar la fase elegida, agrupados por
   // proveedor -- reusa EXACTAMENTE la misma logica de precio/cantidad que
   // la Analitica de Materiales (conversion de moneda, ajustes manuales,
   // descuento/recargo por familia, barras para Perfileria/Refuerzos) para
-  // no mostrar un precio distinto al ya aprobado en el proyecto. Ver
-  // comentario de computeMaterialesFasePorProveedor.
+  // no mostrar un precio distinto al ya aprobado en el proyecto. Ya neta
+  // de lo que hay en stock -- ver comentario de
+  // computeMaterialesFasePorProveedor.
   const tasaDolar = Number(activeVersion?.tipoCambioDolar) || 950;
   const tasaUf = Number(activeVersion?.tipoCambioUF) || 38500;
   const tasaEuro = Number(activeVersion?.tipoCambioEuro) || 1030;
   const gruposPorProveedor: GrupoFaseProveedor[] = useMemo(() => {
     const fase = (activeVersion?.fases || []).find((f) => f.id === faseId);
-    const grupos = computeMaterialesFasePorProveedor(activeVersion, fase, tasaDolar, tasaEuro, tasaUf, monedas);
+    const grupos = computeMaterialesFasePorProveedor(activeVersion, fase, tasaDolar, tasaEuro, tasaUf, monedas, stockDisponiblePorMaterial);
     if (!categoriaFiltro) return grupos;
     return grupos
       .map((g) => ({ ...g, items: g.items.filter((it) => it.familia === categoriaFiltro) }))
       .filter((g) => g.items.length > 0);
-  }, [activeVersion, faseId, tasaDolar, tasaEuro, tasaUf, monedas, categoriaFiltro]);
+  }, [activeVersion, faseId, tasaDolar, tasaEuro, tasaUf, monedas, categoriaFiltro, stockDisponiblePorMaterial]);
 
   // Cambiar de proyecto o de fase invalida cualquier proveedor/items que ya
   // se hubieran elegido -- evita mezclar items de una fase con el proveedor
@@ -447,6 +469,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
                       placeholder="Cantidad"
                       value={item.cantidad}
                       onChange={(e) => setItemField(index, 'cantidad', e.target.value)}
+                      helperText={item.stockDisponible ? `Ya tenías ${item.stockDisponible.toLocaleString('es-CL', { maximumFractionDigits: 2 })} en stock` : undefined}
                     />
                     <Input
                       type="number"
