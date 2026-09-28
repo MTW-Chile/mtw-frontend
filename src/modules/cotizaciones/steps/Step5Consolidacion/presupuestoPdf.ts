@@ -142,6 +142,28 @@ export const cropSvgToContent = (svg: string): { svg: string; aspect: number } =
     push(attr(m[1], 'x1'), attr(m[1], 'y1'));
     push(attr(m[1], 'x2'), attr(m[1], 'y2'));
   }
+  // Ventana "con forma" (poliforme, ej. paño trapezoidal bajo una
+  // pendiente de techo) o circular: windowGeometryBuilder.ts la dibuja
+  // ENTERA como un <polygon>/<ellipse> (buildSimpleWindow, rama
+  // specialOutline) -- sin marco rect aparte, ese polígono/elipse ES el
+  // dibujo completo. Sin esto, el crop se calculaba solo con lo que
+  // quedaba (cotas, cruz de "fijo"), un bounding box chico y desplazado
+  // del polígono real -- confirmado comparando con la vista en pantalla
+  // (que sí sale bien: WindowRendererSvg usa getBBox() del navegador, que
+  // no depende de esta lista de tags).
+  for (const m of svg.matchAll(/<polygon\b([^>]*)\spoints="([^"]+)"/g)) {
+    for (const par of m[2].trim().split(/\s+/)) {
+      const [px, py] = par.split(',');
+      push(px, py);
+    }
+  }
+  for (const m of svg.matchAll(/<ellipse\b([^>]*)\/?>/g)) {
+    const cx = attr(m[1], 'cx'), cy = attr(m[1], 'cy'), rx = attr(m[1], 'rx'), ry = attr(m[1], 'ry');
+    if (cx !== undefined && cy !== undefined && rx !== undefined && ry !== undefined) {
+      push(cx - rx, cy - ry);
+      push(cx + rx, cy + ry);
+    }
+  }
   for (const m of svg.matchAll(/<path\b[^>]*\sd="([^"]+)"/g)) {
     const tokens = m[1].match(/[MLmlHhVv]|-?[\d.]+/g) || [];
     let cmd: string | null = null, cx = 0, cy = 0, i = 0;
