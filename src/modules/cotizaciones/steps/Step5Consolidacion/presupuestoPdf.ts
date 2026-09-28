@@ -766,7 +766,18 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
       while (cupo > 1) {
         const candidatas = ventanas.slice(idx, idx + cupo);
         const minimoNecesario = Math.max(...candidatas.map((v) => altoMinimoTarjeta(v, analizarVentana(v))));
-        if (minimoNecesario <= slot && escalaEsLegible(candidatas, slot, pngPorVentana)) break;
+        const cabeTexto = minimoNecesario <= slot;
+        // La legibilidad NUNCA baja el cupo hasta 1 por sí sola -- piso en
+        // 2. Aislar una ventana sola en su propia página por este motivo
+        // (no porque de verdad sea la última del documento) cambia un
+        // problema por otro: la tarjeta queda legible, pero la página
+        // entera se ve vacía debajo de ella (confirmado real: V04,
+        // 1.250×550mm, quedaba sola en una página casi en blanco solo por
+        // caer justo antes de tres ventanas muy altas). El texto sí puede
+        // seguir bajando el cupo hasta 1 -- ahí no hay alternativa, cortar
+        // contenido no es opción.
+        const legibleOk = cupo <= 2 || escalaEsLegible(candidatas, slot, pngPorVentana);
+        if (cabeTexto && legibleOk) break;
         cupo -= 1;
         slot = calcularSlot(cupo, altoDisponible);
       }

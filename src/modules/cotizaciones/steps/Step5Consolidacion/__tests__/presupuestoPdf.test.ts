@@ -155,4 +155,37 @@ describe('buildDocumentoHtml — una ventana angosta no queda ilegible por compa
     // TODAS las ventanas del grupo, V21 incluida, por encima de ese piso.
     expect(maxHeightImg).toBeGreaterThanOrEqual(150);
   });
+
+  it('la legibilidad nunca aísla una ventana sola en una página casi vacía -- el piso es 2, no 1', () => {
+    // Regresión real (Casa La Aurora, 1679-3): V04 (1.250×550mm) caía justo
+    // antes de tres ventanas muy altas (V05A/B/C, ~3.300mm). El freno de
+    // legibilidad, sin piso, bajaba el cupo de V04 hasta 1 -- la tarjeta de
+    // V04 quedaba legible, pero sola en una página de ~900px de alto útil
+    // usando solo ~260px: la página entera se veía vacía. La legibilidad
+    // ahora nunca baja el cupo de una página hasta 1 por sí sola (piso 2)
+    // -- solo el texto que no entra puede hacerlo, porque ahí no hay
+    // alternativa.
+    const ventanas = [
+      ventana('a', 'V1', 1200, 1350), ventana('b', 'V2', 1200, 1550),
+      ventana('c', 'V03A', 4100, 3120), ventana('d', 'V03B', 4100, 3120),
+      ventana('e', 'V04', 1250, 550),
+      ventana('f', 'V05A', 1300, 3320), ventana('g', 'V05B', 1300, 3320), ventana('h', 'V05C', 1200, 3120),
+    ];
+    const pngPorVentana = new Map(ventanas.map((v) => [v.id, 'data:image/png;base64,AA==']));
+    const preciosVenta = new Map<string, PrecioVentaLinea>(ventanas.map((v) => [v.id, { precioUnitarioCLP: 1, precioVentaCLP: 1 }]));
+    const html = buildDocumentoHtml({
+      proyecto: { obra: 'TEST', codigoInterno: 'T', numeroPresupuesto: 1 } as unknown as Proyecto,
+      ventanas, texto: '', condiciones: '', venta: 1, iva: 1, totalConIva: 1, ivaPct: 19, tasaUf: 38500,
+      logoDataUrl: null, logoMuchtekDataUrl: null, preciosVenta, pngPorVentana,
+    });
+    // Toda tarjeta que comparte página con V04 aparece en el mismo bloque
+    // "height:1006px" que ella -- si V04 quedó sola, ese bloque no
+    // contiene ningún otro modelo.
+    const idxV04 = html.indexOf('>V04<');
+    const inicioPagina = html.lastIndexOf('height:1006px', idxV04);
+    const finPagina = html.indexOf('height:1006px', idxV04 + 1);
+    const bloquePagina = html.slice(inicioPagina, finPagina === -1 ? undefined : finPagina);
+    const otroModeloEnPagina = ['V03A', 'V03B', 'V05A', 'V05B', 'V05C'].some((m) => bloquePagina.includes(`>${m}<`));
+    expect(otroModeloEnPagina).toBe(true);
+  });
 });
