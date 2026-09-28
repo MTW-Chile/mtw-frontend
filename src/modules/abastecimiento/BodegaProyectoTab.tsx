@@ -1,7 +1,7 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Loader2, Boxes, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, Wrench, ChevronDown, ChevronRight, Tags, Send } from 'lucide-react';
-import { getBodegaProyecto, getBodegaGlobal, getUnidadesMaterial } from '../../api/client';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Loader2, Boxes, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, Wrench, ChevronDown, ChevronRight, Tags, Send, Trash2 } from 'lucide-react';
+import { getBodegaProyecto, getBodegaGlobal, getUnidadesMaterial, eliminarStockMaterial, getMisPermisos } from '../../api/client';
 import { Button } from '../../components/ui/Button';
 import { TrasladoBodegaModal } from './TrasladoBodegaModal';
 import type { TipoMovimientoBodega, EstadoUnidadMaterial, Bodega, StockMaterial, BodegaProyectoResponse, BodegaGlobalResponse } from '../../types';
@@ -76,12 +76,29 @@ const esGlobal = (d: BodegaProyectoResponse | BodegaGlobalResponse | undefined):
   !!d && 'bodegas' in d;
 
 export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoId }) => {
+  const queryClient = useQueryClient();
   const { data, isLoading } = useQuery<BodegaProyectoResponse | BodegaGlobalResponse>({
     queryKey: proyectoId ? ['bodegaProyecto', proyectoId] : ['bodegaGlobal'],
     queryFn: () => (proyectoId ? getBodegaProyecto(proyectoId) : getBodegaGlobal()),
   });
+  // Mismo queryKey que el resto de la app -- sale del cache, no pega de
+  // nuevo al backend.
+  const { data: permisos } = useQuery({ queryKey: ['misPermisos'], queryFn: getMisPermisos });
   const [expandido, setExpandido] = React.useState<Set<string>>(new Set());
   const [trasladando, setTrasladando] = React.useState<{ stock: StockMaterial; bodegasDestino: Bodega[] } | null>(null);
+
+  // Solo administrador, y solo mientras el modulo esta en desarrollo --
+  // borra una fila de stock de prueba directamente, sin pasar por un
+  // ajuste de kardex (ver eliminarStockMaterial en api/client.ts).
+  const eliminarMutation = useMutation({
+    mutationFn: (stockId: string) => eliminarStockMaterial(stockId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: proyectoId ? ['bodegaProyecto', proyectoId] : ['bodegaGlobal'] });
+    },
+    onError: (error: any) => {
+      window.alert(error?.response?.data?.error || 'No se pudo eliminar el stock.');
+    },
+  });
 
   const toggleExpandido = (materialId: string) => {
     setExpandido((prev) => {
@@ -111,6 +128,10 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
       : data.movimientos.map((m) => ({ ...m, bodega: data.bodega ?? undefined }))
     : [];
   const bodegasDisponibles: Bodega[] = global ? data.bodegas : [];
+  // "Enviar a obra" solo tiene sentido en la vista global (hay a donde
+  // trasladar); "Eliminar" es admin-only pero aplica en ambas vistas.
+  const mostrarAcciones = !proyectoId || !!permisos?.esAdmin;
+  const colSpanDetalle = 4 + (!proyectoId ? 1 : 0) + (mostrarAcciones ? 1 : 0);
 
   if (proyectoId && (!data || global || !data.bodega)) {
     return (
@@ -159,7 +180,7 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
                   {!proyectoId && <th className="px-4 py-3 font-bold">Obra</th>}
                   <th className="px-4 py-3 font-bold">Familia</th>
                   <th className="px-4 py-3 font-bold text-right">Cantidad</th>
-                  {!proyectoId && <th className="px-4 py-3 font-bold text-right">Acciones</th>}
+                  {mostrarAcciones && <th className="px-4 py-3 font-bold text-right">Acciones</th>}
                 </tr>
               </thead>
               <tbody>
@@ -200,22 +221,45 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
                         <td className="px-4 py-3 text-right font-bold text-slate-900">
                           {Number(s.cantidad).toLocaleString('es-CL')} {s.material.unidadMedida}
                         </td>
-                        {!proyectoId && (
+                        {mostrarAcciones && (
                           <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              leftIcon={<Send className="w-3.5 h-3.5" />}
-                              onClick={() => setTrasladando({ stock: s, bodegasDestino: bodegasDisponibles.filter((b) => b.id !== s.bodegaId) })}
-                            >
-                              Enviar a obra
-                            </Button>
+                            <div className="flex items-center justify-end gap-1">
+                              {!proyectoId && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  leftIcon={<Send className="w-3.5 h-3.5" />}
+                                  onClick={() => setTrasladando({ stock: s, bodegasDestino: bodegasDisponibles.filter((b) => b.id !== s.bodegaId) })}
+                                >
+                                  Enviar a obra
+                                </Button>
+                              )}
+                              {permisos?.esAdmin && (
+                                <Button
+                                  size="sm"
+                                  variant="danger"
+                                  leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+                                  isLoading={eliminarMutation.isPending && eliminarMutation.variables === s.id}
+                                  onClick={() => {
+                                    if (
+                                      window.confirm(
+                                        `¿Eliminar el stock de "${s.material.descripcion}" en ${labelBodega(s.bodega)}? Esto borra la fila completa (y sus unidades individualizadas si corresponde) sin dejar movimiento de kardex.`
+                                      )
+                                    ) {
+                                      eliminarMutation.mutate(s.id);
+                                    }
+                                  }}
+                                >
+                                  Eliminar
+                                </Button>
+                              )}
+                            </div>
                           </td>
                         )}
                       </tr>
                       {abierto && s.material.individualizado && (
                         <tr className="bg-slate-50/60">
-                          <td colSpan={proyectoId ? 4 : 6} className="p-0">
+                          <td colSpan={colSpanDetalle} className="p-0">
                             <UnidadesMaterialDetalle bodegaId={s.bodegaId} materialId={s.materialId} />
                           </td>
                         </tr>

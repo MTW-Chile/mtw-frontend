@@ -662,6 +662,15 @@ export async function getUnidadesMaterial(bodegaId: string, materialId: string):
   return response.data;
 }
 
+// Solo administrador -- borra una fila de stock completa (y sus unidades
+// individualizadas si corresponde). Limpieza directa para datos de
+// prueba, no genera movimiento de kardex -- ver POST
+// /api/bodega/stock/:id/eliminar en mtw-api.
+export async function eliminarStockMaterial(stockId: string): Promise<{ success: boolean }> {
+  const response = await apiClient.post<{ success: boolean }>(`/bodega/stock/${stockId}/eliminar`);
+  return response.data;
+}
+
 export async function getSolicitudesMaterial(params?: {
   faseId?: string;
   proyectoId?: string;
