@@ -20,6 +20,7 @@ import type {
   OrdenesCompraResponse,
   EstadoOC,
   RecepcionOC,
+  TipoDocumento,
   SolicitudMaterial,
   BodegaProyectoResponse,
   BodegaGlobalResponse,
@@ -626,12 +627,20 @@ export interface RecepcionOCItemCreado {
 export async function registrarRecepcionOC(
   ordenCompraId: string,
   payload: {
-    guiaDespachoNumero?: string;
+    tipoDocumentoId?: string;
+    numeroDocumento?: string;
     notas?: string;
     items: { ordenCompraItemId: string; cantidadRecibida: number; precioReal?: number | null }[];
   }
 ): Promise<{ success: boolean; recepcion: Omit<RecepcionOC, 'items'> & { items: RecepcionOCItemCreado[] }; ordenCompra: OrdenCompra }> {
   const response = await apiClient.post(`/ordenes-compra/${ordenCompraId}/recepciones`, payload);
+  return response.data;
+}
+
+// Catalogo chico para el selector de "Tipo de documento" al recepcionar
+// una OC (Guía de Despacho, Factura, ...) -- ver TipoDocumento en mtw-api.
+export async function getTiposDocumento(): Promise<{ data: TipoDocumento[] }> {
+  const response = await apiClient.get<{ data: TipoDocumento[] }>('/tipos-documento');
   return response.data;
 }
 

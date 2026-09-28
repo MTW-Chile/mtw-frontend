@@ -487,11 +487,20 @@ export interface RecepcionOCItem {
   precioReal: number | null;
 }
 
+export interface TipoDocumento {
+  id: string;
+  nombre: string;
+  activo: boolean;
+  orden: number;
+}
+
 export interface RecepcionOC {
   id: string;
   ordenCompraId: string;
   fechaRecepcion: string;
-  guiaDespachoNumero: string | null;
+  tipoDocumentoId: string | null;
+  tipoDocumento?: TipoDocumento | null;
+  numeroDocumento: string | null;
   recibidoPorId: string | null;
   recibidoPor?: { id: string; nombre: string; email: string } | null;
   notas: string | null;

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { X, PackageCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { registrarRecepcionOC, type RecepcionOCItemCreado } from '../../api/client';
+import { Select } from '../../components/ui/Select';
+import { registrarRecepcionOC, getTiposDocumento, type RecepcionOCItemCreado } from '../../api/client';
 import type { OrdenCompra } from '../../types';
 
 interface RecepcionarOCModalProps {
@@ -29,10 +30,14 @@ interface FilaItem {
  */
 export const RecepcionarOCModal: React.FC<RecepcionarOCModalProps> = ({ ordenCompra, onClose }) => {
   const queryClient = useQueryClient();
-  const [guiaDespachoNumero, setGuiaDespachoNumero] = useState('');
+  const { data: tiposDocumento } = useQuery({ queryKey: ['tiposDocumento'], queryFn: getTiposDocumento });
+  const [tipoDocumentoId, setTipoDocumentoId] = useState('');
+  const [numeroDocumento, setNumeroDocumento] = useState('');
   const [notas, setNotas] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [creados, setCreados] = useState<RecepcionOCItemCreado[] | null>(null);
+
+  const tipoDocumentoElegido = tiposDocumento?.data.find((t) => t.id === tipoDocumentoId);
 
   const filas: FilaItem[] = ordenCompra.items.map((item) => {
     const yaRecibido = (item.recepciones || []).reduce((s, r) => s + Number(r.cantidadRecibida), 0);
@@ -58,7 +63,8 @@ export const RecepcionarOCModal: React.FC<RecepcionarOCModalProps> = ({ ordenCom
         .filter((i) => i.cantidadRecibida > 0);
       if (items.length === 0) throw new Error('Cargá al menos una cantidad recibida.');
       return registrarRecepcionOC(ordenCompra.id, {
-        guiaDespachoNumero: guiaDespachoNumero.trim() || undefined,
+        tipoDocumentoId: tipoDocumentoId || undefined,
+        numeroDocumento: numeroDocumento.trim() || undefined,
         notas: notas.trim() || undefined,
         items,
       });
@@ -129,9 +135,22 @@ export const RecepcionarOCModal: React.FC<RecepcionarOCModalProps> = ({ ordenCom
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <Input label="N° de guía de despacho (opcional)" value={guiaDespachoNumero} onChange={(e) => setGuiaDespachoNumero(e.target.value)} />
-              <Input label="Notas (opcional)" value={notas} onChange={(e) => setNotas(e.target.value)} />
+              <Select
+                label="Tipo de documento (opcional)"
+                options={[
+                  { value: '', label: 'Sin especificar' },
+                  ...(tiposDocumento?.data.map((t) => ({ value: t.id, label: t.nombre })) || []),
+                ]}
+                value={tipoDocumentoId}
+                onChange={(e) => setTipoDocumentoId(e.target.value)}
+              />
+              <Input
+                label={`N° de ${tipoDocumentoElegido?.nombre.toLowerCase() || 'documento'} (opcional)`}
+                value={numeroDocumento}
+                onChange={(e) => setNumeroDocumento(e.target.value)}
+              />
             </div>
+            <Input label="Notas (opcional)" value={notas} onChange={(e) => setNotas(e.target.value)} />
 
             <div className="space-y-2">
               <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Ítems</span>
