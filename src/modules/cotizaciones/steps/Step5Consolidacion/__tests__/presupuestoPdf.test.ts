@@ -117,3 +117,42 @@ describe('buildDocumentoHtml — el cupo de una página nunca es mayor que las v
     expect(alturaTarjeta).toBeLessThan(400);
   });
 });
+
+describe('buildDocumentoHtml — una ventana angosta no queda ilegible por compartir página con una ventana alta', () => {
+  // Regresión real: Casa La Aurora, presupuesto 1679-3. V21 (500×1400mm)
+  // terminaba en un rectángulo de ~40×112px, perdido en su celda, al
+  // compartir página (cupo 3, full) con V19 (2500×1800mm) y sobre todo V20
+  // (2000×2600mm) -- la escala COMÚN de la página la fija la ventana más
+  // alta (V20), y V21 hereda esa misma escala reducida aunque su propia
+  // altura (1400mm) no la necesite. altoMinimoTarjeta (el único freno que
+  // existía para bajar el cupo de una página) solo mira que el TEXTO entre
+  // sin cortarse -- un dibujo de 40×112px pasa esa vara sin problema y
+  // queda igual de ilegible. Ahora el cupo también baja si la escala común
+  // resultante dejaría a alguna ventana del grupo por debajo del piso de
+  // legibilidad (ver escalaEsLegible).
+  const ventana = (id: string, modelo: string, anchoMm: number, altoMm: number): Ventana =>
+    ({ id, modelo, descripcionCorta: 'Línea Efficient', anchoMm, altoMm, unidades: 1, acabadoCodigo: '7310', materiales: [], comentarioPresupuesto: null }) as unknown as Ventana;
+
+  it('la página se parte en vez de dejar a la ventana angosta con un dibujo ilegible', () => {
+    const ventanas = [
+      ventana('a', 'V1', 1200, 1350), ventana('b', 'V2', 1200, 1550),
+      ventana('c', 'V19', 2500, 1800), ventana('d', 'V20', 2000, 2600), ventana('e', 'V21', 500, 1400),
+    ];
+    const pngPorVentana = new Map(ventanas.map((v) => [v.id, 'data:image/png;base64,AA==']));
+    const preciosVenta = new Map<string, PrecioVentaLinea>(ventanas.map((v) => [v.id, { precioUnitarioCLP: 1, precioVentaCLP: 1 }]));
+    const html = buildDocumentoHtml({
+      proyecto: { obra: 'TEST', codigoInterno: 'T', numeroPresupuesto: 1 } as unknown as Proyecto,
+      ventanas, texto: '', condiciones: '', venta: 1, iva: 1, totalConIva: 1, ivaPct: 19, tasaUf: 38500,
+      logoDataUrl: null, logoMuchtekDataUrl: null, preciosVenta, pngPorVentana,
+    });
+    const idxV21 = html.indexOf('>V21<');
+    const inicioTarjeta = html.lastIndexOf('<div style="border:1px solid', idxV21);
+    const bloque = html.slice(inicioTarjeta, inicioTarjeta + 1400);
+    const maxHeightImg = Number(/max-height:(\d+)px/.exec(bloque)![1]);
+    // Antes del fix, la escala común (fijada por V20) dejaba a V21 con un
+    // dibujo de ~112px de alto -- por debajo del piso de legibilidad. El
+    // fix baja el cupo de la página hasta que la escala resultante deje a
+    // TODAS las ventanas del grupo, V21 incluida, por encima de ese piso.
+    expect(maxHeightImg).toBeGreaterThanOrEqual(150);
+  });
+});
