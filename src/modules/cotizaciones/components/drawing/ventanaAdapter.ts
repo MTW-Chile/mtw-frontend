@@ -148,6 +148,7 @@ export function toWindowLine(ventana: Ventana): WindowLine | null {
     cantidadVidriosPorUnidad: toPositive(ventana.numeroCuadrosHojas) ?? undefined,
     dibujoTipoApertura: effectiveAperture,
     dibujoSinMarco,
+    ordenPanelesInvertido: Boolean(ventana.ordenPanelesInvertido),
     numeroCuadrosHojas: toPositive(ventana.numeroCuadrosHojas) ?? undefined,
     dibujoVidrio: (ventana as any).dibujoVidrio ?? undefined,
     vidrioCodigo: (ventana as any).vidrioCodigo ?? undefined,

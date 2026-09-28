@@ -310,6 +310,12 @@ export interface Ventana {
   // manual para ventanas que HETMO entrega "al revés" sin ningún campo de
   // posición izquierda/derecha confiable para detectarlo solo.
   espejado?: boolean;
+  // Invierte manualmente qué paño va arriba/abajo en una línea compuesta en
+  // vertical (ej. proyectante + fijo) -- para cuando HETMO no define sus
+  // paños en el mismo orden que el plano real y no hay una regla física
+  // única (a diferencia de una puerta, que siempre llega al piso y no
+  // necesita este ajuste, ver compositePanels() en geometryCore.ts).
+  ordenPanelesInvertido?: boolean;
 }
 
 export interface PlantillaLineaItem {

@@ -277,6 +277,53 @@ describe('compositePanels — una PUERTA siempre va abajo en su columna', () => 
     expect(fijo.y).toBe(0);
     expect(puerta.y).toBe(fijo.height);
   });
+
+  // A diferencia de una puerta, una PROYECTANTE ('projecting', código 23)
+  // no llega al piso -- no hay una regla física que diga si un fijo va
+  // arriba o abajo de ella, así que no se puede forzar un orden fijo por
+  // familia (a diferencia de 'door'). Confirmado con V07A (Franklin
+  // Sánchez, HETMO 12629): salía con la proyectante arriba y el fijo
+  // abajo, al revés del plano real -- Ventana.ordenPanelesInvertido (botón
+  // "Invertir orden" en VentanaCard) es la corrección manual para este
+  // caso, sin tocar el orden por defecto de ninguna otra línea.
+  it('ordenPanelesInvertido invierte una proyectante+fijo sin tocar la regla de la puerta', () => {
+    const line = {
+      dibujoAncho: 1250,
+      dibujoAlto: 1800,
+      ordenPanelesInvertido: true,
+      geometria: [
+        { tipo_elemento: 10000, ancho: 1250, alto: 1400, parametrosJson: { numero_ventana: 1 } },
+        { tipo_elemento: 3, tipo_apertura: 23, parametrosJson: { numero_ventana: 1 } },
+        { tipo_elemento: 10000, ancho: 1250, alto: 400, parametrosJson: { numero_ventana: 2 } },
+      ],
+    };
+    const composite = core.compositePanels(line) as { tiles: { panel: { number: number }; y: number; height: number }[] } | null;
+    expect(composite).not.toBeNull();
+    const proyectante = composite!.tiles.find(t => t.panel.number === 1)!;
+    const fijo = composite!.tiles.find(t => t.panel.number === 2)!;
+    // Sin el flag, la proyectante (number=1) iría arriba (y=0) -- invertido,
+    // el fijo (number=2) pasa a estar arriba.
+    expect(fijo.y).toBe(0);
+    expect(proyectante.y).toBe(fijo.height);
+  });
+
+  it('ordenPanelesInvertido no saca a una puerta de abajo', () => {
+    const line = {
+      dibujoAncho: 1300,
+      dibujoAlto: 2600,
+      ordenPanelesInvertido: true,
+      geometria: [
+        { tipo_elemento: 10000, ancho: 1300, alto: 1880, parametrosJson: { numero_ventana: 1 } },
+        { tipo_elemento: 3, tipo_apertura: 17, parametrosJson: { numero_ventana: 1 } },
+        { tipo_elemento: 10000, ancho: 1300, alto: 720, parametrosJson: { numero_ventana: 2 } },
+      ],
+    };
+    const composite = core.compositePanels(line) as { tiles: { panel: { number: number }; y: number; height: number }[] } | null;
+    const puerta = composite!.tiles.find(t => t.panel.number === 1)!;
+    const fijo = composite!.tiles.find(t => t.panel.number === 2)!;
+    expect(fijo.y).toBe(0);
+    expect(puerta.y).toBe(fijo.height);
+  });
 });
 
 describe('panelTraverseLines — travesaño declarado como fila tipo_elemento 6 + cota', () => {
