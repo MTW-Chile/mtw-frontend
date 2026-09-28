@@ -257,30 +257,6 @@ export function calcularEscalaDibujos(
   return Number.isFinite(escala) && escala > 0 ? escala : undefined;
 }
 
-// ¿La escala común que le tocaría a este grupo de tarjetas (compartiendo
-// página) deja a TODAS con un dibujo legible? "Legible" no es lo mismo que
-// "entra sin cortar texto" (altoMinimoTarjeta) -- una ventana angosta y
-// baja puede terminar en un rectángulo de 40×112px, perfectamente dentro
-// de esa cota mínima, pero ilegible igual. Pasa cuando una ventana ALTA
-// comparte página con una angosta: la escala común la fija la más
-// exigente (la alta), y la angosta hereda esa misma escala reducida sin
-// necesitarla -- confirmado real, Casa La Aurora V21 (500×1400mm) junto a
-// V19/V20 (1800/2600mm). Si esto da false, buildDocumentoHtml le baja el
-// cupo a la página (menos tarjetas, más alto para cada una, escala más
-// generosa) igual que ya hace por texto.
-function escalaEsLegible(
-  candidatas: Ventana[],
-  slot: number,
-  pngPorVentana: Map<string, string | null>
-): boolean {
-  const escala = calcularEscalaDibujos(candidatas.map((v) => ({ ventana: v, altoTarjeta: slot })), pngPorVentana);
-  if (escala === undefined) return true;
-  return candidatas.every((v) => {
-    if (!pngPorVentana.get(v.id) || !(v.altoMm > 0) || !(v.anchoMm > 0)) return true;
-    return v.altoMm * escala >= ALTO_IMAGEN_DESEABLE || v.anchoMm * escala >= ANCHO_IMAGEN_DESEABLE;
-  });
-}
-
 // Cada tarjeta es HTML/CSS real (tabla con bordes), no coordenadas
 // calculadas a mano -- este HTML se manda tal cual al relay, que lo
 // imprime a PDF con Chromium real (page.pdf()), igual al documento de
@@ -391,17 +367,6 @@ const ALTO_HEADER_TARJETA = 26;
 const ALTO_BORDE_TARJETA = 2;
 const ALTO_IMAGEN_MIN = 70;
 const ALTO_IMAGEN_MAX = 210;
-// Piso de LEGIBILIDAD (no de mero "cabe sin cortar texto", ese es
-// altoMinimoTarjeta) para el dibujo -- ver el ajuste de cupo por escala más
-// abajo en buildDocumentoHtml. Más alto que ALTO_IMAGEN_MIN a propósito:
-// ALTO_IMAGEN_MIN evita que el <img> quede en 0px, pero una ventana de
-// 40×112px sigue siendo perfectamente "válida" para ese piso y se ve
-// enana igual -- confirmado real, Casa La Aurora V21 (500×1400mm)
-// compartiendo página con V19/V20 (1800/2600mm de alto): la escala común
-// de la página, forzada abajo por lo alta que es V20 para el cupo de 3,
-// dejaba a V21 en un rectángulo de ~40×112px perdido en su celda.
-const ALTO_IMAGEN_DESEABLE = 150;
-const ANCHO_IMAGEN_DESEABLE = 170;
 // Ancho útil para el marco dentro de la celda del dibujo (56% de la
 // tarjeta menos padding), descontando el espacio de las cotas laterales.
 const ANCHO_IMAGEN_MAX = 340;
@@ -766,18 +731,7 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
       while (cupo > 1) {
         const candidatas = ventanas.slice(idx, idx + cupo);
         const minimoNecesario = Math.max(...candidatas.map((v) => altoMinimoTarjeta(v, analizarVentana(v))));
-        const cabeTexto = minimoNecesario <= slot;
-        // La legibilidad NUNCA baja el cupo hasta 1 por sí sola -- piso en
-        // 2. Aislar una ventana sola en su propia página por este motivo
-        // (no porque de verdad sea la última del documento) cambia un
-        // problema por otro: la tarjeta queda legible, pero la página
-        // entera se ve vacía debajo de ella (confirmado real: V04,
-        // 1.250×550mm, quedaba sola en una página casi en blanco solo por
-        // caer justo antes de tres ventanas muy altas). El texto sí puede
-        // seguir bajando el cupo hasta 1 -- ahí no hay alternativa, cortar
-        // contenido no es opción.
-        const legibleOk = cupo <= 2 || escalaEsLegible(candidatas, slot, pngPorVentana);
-        if (cabeTexto && legibleOk) break;
+        if (minimoNecesario <= slot) break;
         cupo -= 1;
         slot = calcularSlot(cupo, altoDisponible);
       }

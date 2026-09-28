@@ -118,22 +118,24 @@ describe('buildDocumentoHtml — el cupo de una página nunca es mayor que las v
   });
 });
 
-describe('buildDocumentoHtml — una ventana angosta no queda ilegible por compartir página con una ventana alta', () => {
-  // Regresión real: Casa La Aurora, presupuesto 1679-3. V21 (500×1400mm)
-  // terminaba en un rectángulo de ~40×112px, perdido en su celda, al
-  // compartir página (cupo 3, full) con V19 (2500×1800mm) y sobre todo V20
-  // (2000×2600mm) -- la escala COMÚN de la página la fija la ventana más
-  // alta (V20), y V21 hereda esa misma escala reducida aunque su propia
-  // altura (1400mm) no la necesite. altoMinimoTarjeta (el único freno que
-  // existía para bajar el cupo de una página) solo mira que el TEXTO entre
-  // sin cortarse -- un dibujo de 40×112px pasa esa vara sin problema y
-  // queda igual de ilegible. Ahora el cupo también baja si la escala común
-  // resultante dejaría a alguna ventana del grupo por debajo del piso de
-  // legibilidad (ver escalaEsLegible).
+describe('buildDocumentoHtml — el cupo de página es fijo (2 en portada, 3 en las demás), nunca por escala', () => {
+  // Requisito explícito, reafirmado varias veces: SIEMPRE 2 en la portada y
+  // 3 en cada página siguiente -- el único motivo para bajar ese cupo es
+  // que de verdad no queden más ventanas (la última página del documento,
+  // que reparte su espacio proporcionalmente, ver el describe de arriba) o
+  // que el TEXTO no entre sin cortarse (altoMinimoTarjeta, caso límite
+  // real pero rarísimo). Una página completa (cupo lleno) nunca se parte
+  // por la escala del dibujo que le toque a cada ventana -- se probó y
+  // descartó un freno de legibilidad por escala (ver PR #42): aunque
+  // evitaba ventanas angostas ilegibles, partía páginas normales sin que
+  // faltaran ventanas, cambiando cupos fijos por cupos variables. Eso es
+  // justo lo que no puede pasar.
   const ventana = (id: string, modelo: string, anchoMm: number, altoMm: number): Ventana =>
     ({ id, modelo, descripcionCorta: 'Línea Efficient', anchoMm, altoMm, unidades: 1, acabadoCodigo: '7310', materiales: [], comentarioPresupuesto: null }) as unknown as Ventana;
 
-  it('la página se parte en vez de dejar a la ventana angosta con un dibujo ilegible', () => {
+  it('una ventana angosta comparte página con ventanas altas igual (cupo 3 completo, no se parte)', () => {
+    // Mismo caso real de Casa La Aurora (V19/V20/V21) que en algún momento
+    // se usó para justificar partir la página -- ahora debe seguir junta.
     const ventanas = [
       ventana('a', 'V1', 1200, 1350), ventana('b', 'V2', 1200, 1550),
       ventana('c', 'V19', 2500, 1800), ventana('d', 'V20', 2000, 2600), ventana('e', 'V21', 500, 1400),
@@ -146,30 +148,18 @@ describe('buildDocumentoHtml — una ventana angosta no queda ilegible por compa
       logoDataUrl: null, logoMuchtekDataUrl: null, preciosVenta, pngPorVentana,
     });
     const idxV21 = html.indexOf('>V21<');
-    const inicioTarjeta = html.lastIndexOf('<div style="border:1px solid', idxV21);
-    const bloque = html.slice(inicioTarjeta, inicioTarjeta + 1400);
-    const maxHeightImg = Number(/max-height:(\d+)px/.exec(bloque)![1]);
-    // Antes del fix, la escala común (fijada por V20) dejaba a V21 con un
-    // dibujo de ~112px de alto -- por debajo del piso de legibilidad. El
-    // fix baja el cupo de la página hasta que la escala resultante deje a
-    // TODAS las ventanas del grupo, V21 incluida, por encima de ese piso.
-    expect(maxHeightImg).toBeGreaterThanOrEqual(150);
+    const inicioPagina = html.lastIndexOf('height:1006px', idxV21);
+    const finPagina = html.indexOf('height:1006px', idxV21 + 1);
+    const bloquePagina = html.slice(inicioPagina, finPagina === -1 ? undefined : finPagina);
+    expect(bloquePagina.includes('>V19<')).toBe(true);
+    expect(bloquePagina.includes('>V20<')).toBe(true);
   });
 
-  it('la legibilidad nunca aísla una ventana sola en una página casi vacía -- el piso es 2, no 1', () => {
-    // Regresión real (Casa La Aurora, 1679-3): V04 (1.250×550mm) caía justo
-    // antes de tres ventanas muy altas (V05A/B/C, ~3.300mm). El freno de
-    // legibilidad, sin piso, bajaba el cupo de V04 hasta 1 -- la tarjeta de
-    // V04 quedaba legible, pero sola en una página de ~900px de alto útil
-    // usando solo ~260px: la página entera se veía vacía. La legibilidad
-    // ahora nunca baja el cupo de una página hasta 1 por sí sola (piso 2)
-    // -- solo el texto que no entra puede hacerlo, porque ahí no hay
-    // alternativa.
+  it('7 ventanas de tamaño normal se reparten 2+3+2, nunca menos de 3 por partir de más', () => {
     const ventanas = [
       ventana('a', 'V1', 1200, 1350), ventana('b', 'V2', 1200, 1550),
-      ventana('c', 'V03A', 4100, 3120), ventana('d', 'V03B', 4100, 3120),
-      ventana('e', 'V04', 1250, 550),
-      ventana('f', 'V05A', 1300, 3320), ventana('g', 'V05B', 1300, 3320), ventana('h', 'V05C', 1200, 3120),
+      ventana('c', 'V3', 1200, 1350), ventana('d', 'V4', 1200, 1550), ventana('e', 'V5', 1200, 1350),
+      ventana('f', 'V6', 1200, 1550), ventana('g', 'V7', 1200, 1350),
     ];
     const pngPorVentana = new Map(ventanas.map((v) => [v.id, 'data:image/png;base64,AA==']));
     const preciosVenta = new Map<string, PrecioVentaLinea>(ventanas.map((v) => [v.id, { precioUnitarioCLP: 1, precioVentaCLP: 1 }]));
@@ -178,14 +168,12 @@ describe('buildDocumentoHtml — una ventana angosta no queda ilegible por compa
       ventanas, texto: '', condiciones: '', venta: 1, iva: 1, totalConIva: 1, ivaPct: 19, tasaUf: 38500,
       logoDataUrl: null, logoMuchtekDataUrl: null, preciosVenta, pngPorVentana,
     });
-    // Toda tarjeta que comparte página con V04 aparece en el mismo bloque
-    // "height:1006px" que ella -- si V04 quedó sola, ese bloque no
-    // contiene ningún otro modelo.
-    const idxV04 = html.indexOf('>V04<');
-    const inicioPagina = html.lastIndexOf('height:1006px', idxV04);
-    const finPagina = html.indexOf('height:1006px', idxV04 + 1);
-    const bloquePagina = html.slice(inicioPagina, finPagina === -1 ? undefined : finPagina);
-    const otroModeloEnPagina = ['V03A', 'V03B', 'V05A', 'V05B', 'V05C'].some((m) => bloquePagina.includes(`>${m}<`));
-    expect(otroModeloEnPagina).toBe(true);
+    const marker = /<div style="width:100%;height:1006px[^>]*>([\s\S]*?)(?=<div style="width:100%;height:1006px|$)/g;
+    const conteos: number[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = marker.exec(html))) {
+      conteos.push((m[1].match(/>V\d</g) || []).length);
+    }
+    expect(conteos).toEqual([2, 3, 2]);
   });
 });
