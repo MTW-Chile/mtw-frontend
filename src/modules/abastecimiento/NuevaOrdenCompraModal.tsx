@@ -1,10 +1,19 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { X, ShoppingCart, AlertCircle, Plus, Trash2, Package } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { X, ShoppingCart, AlertCircle, Plus, Trash2, Package, Loader2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
-import { createOrdenCompra, getProyectos, getProveedores, getProyectoById, getBodegaProyecto } from '../../api/client';
+import {
+  createOrdenCompra,
+  completarOrdenCompra,
+  getProyectos,
+  getProveedores,
+  getProyectoById,
+  getBodegaProyecto,
+  getOrdenCompraById,
+  type ItemOrdenCompraPayload,
+} from '../../api/client';
 import { useMonedas } from '../../lib/monedas';
 import { computeMaterialesFasePorProveedor, type GrupoFaseProveedor, type TrasladoDesdeObrasMayores } from '../cotizaciones/lib/materialesConsolidados';
 import { CATEGORIA_GASTO_OPTIONS, CATEGORIA_GASTO_LABEL } from './categoriaGasto';
@@ -15,6 +24,8 @@ interface NuevaOrdenCompraModalProps {
   onClose: () => void;
   // Cuando se abre desde la ficha de un proyecto ya sabemos el proyecto --
   // se fija y no se puede cambiar, en vez de mostrar el selector completo.
+  // Con esto puesto (y sin solicitudId) el modo es "solicitar": no se
+  // elige proveedor ni precio, solo se pide -- ver comentario de `modo`.
   proyectoIdFijo?: string;
   proyectoLabelFijo?: string;
   // Cuando se abre desde el boton "Generar OC" de una fase puntual (ver
@@ -28,6 +39,9 @@ interface NuevaOrdenCompraModalProps {
   // en un unico proveedor, lo deja ya elegido con sus items cargados,
   // lista para enviar sin tocar nada mas.
   categoriaFiltro?: string;
+  // Cuando se abre para COMPLETAR una solicitud existente (Compras, ver
+  // OrdenesCompraList) en vez de crear una OC nueva -- modo "completar".
+  solicitudId?: string;
 }
 
 interface ItemForm {
@@ -42,9 +56,17 @@ interface ItemForm {
   // Perfileria/Refuerzos, que se compran por barra entera) -- puramente
   // informativo, se guarda tal cual en OrdenCompraItem.cantidadCalculada.
   cantidadCalculada?: number | null;
-  // Cuanto de la necesidad bruta ya se cubrio con stock disponible --
-  // `cantidad` ya viene neta de esto, es solo para mostrar el porque.
+  // Modo "crear": cuanto de la necesidad bruta ya se cubrio con stock
+  // disponible -- `cantidad` ya viene neta de esto, es solo para mostrar
+  // el porque (ver computeMaterialesFasePorProveedor).
   stockDisponible?: number;
+  // Modo "completar": la cantidad tal como se pidio en la solicitud
+  // original, y lo que hay disponible en cada bodega AHORA (puede haber
+  // cambiado desde que se solicito) -- `cantidad` viene sugerida ya neta
+  // de esto, pero Compras puede ajustarla.
+  cantidadSolicitada?: number;
+  disponibleObra?: number;
+  disponibleObrasMayores?: number;
   precioUnitario: string;
   categoria: CategoriaGasto | '';
 }
@@ -62,6 +84,8 @@ const itemFormDesdeCalculo = (item: GrupoFaseProveedor['items'][number]): ItemFo
   categoria: '',
 });
 
+const fmtCantidad = (n: number | undefined) => (n ?? 0).toLocaleString('es-CL', { maximumFractionDigits: 2 });
+
 export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   isOpen,
   onClose,
@@ -69,7 +93,15 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   proyectoLabelFijo,
   faseIdInicial,
   categoriaFiltro,
+  solicitudId,
 }) => {
+  // "solicitar": desde un Proyecto, se pide sin elegir proveedor/precio --
+  // Compras la completa despues. "completar": Compras abre una solicitud
+  // existente, ve el contraste contra stock y arma el pedido final.
+  // "crear": Compras arma una OC nueva y completa de una (con proveedor),
+  // igual que antes -- ver PATCH /api/ordenes-compra/:id/completar y POST
+  // /api/ordenes-compra en mtw-api.
+  const modo: 'solicitar' | 'completar' | 'crear' = solicitudId ? 'completar' : proyectoIdFijo ? 'solicitar' : 'crear';
   const queryClient = useQueryClient();
   const monedas = useMonedas();
 
@@ -80,15 +112,23 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   const [items, setItems] = useState<ItemForm[]>([itemVacio()]);
   const [generalError, setGeneralError] = useState<string | null>(null);
 
+  // Solo modo "completar": la solicitud que se esta completando.
+  const { data: solicitud, isLoading: cargandoSolicitud } = useQuery({
+    queryKey: ['ordenCompra', solicitudId],
+    queryFn: () => getOrdenCompraById(solicitudId!),
+    enabled: isOpen && modo === 'completar' && !!solicitudId,
+  });
+
   // Mismo queryKey que ProyectosPage/App.tsx (['proyectos', 'en-curso']) --
   // comparte cache, y solo se muestran obras ya aceptadas por el cliente
   // (Cotizaciones deja de ser relevante despues de eso, ver ProyectosPage).
   // Una cotizacion todavia en curso no tiene fases ni bodega, no tiene
-  // sentido comprarle nada todavia.
+  // sentido comprarle nada todavia. Solo aplica al modo "crear" -- en
+  // "solicitar"/"completar" el proyecto ya viene fijo.
   const { data: proyectosData } = useQuery({
     queryKey: ['proyectos', 'en-curso'],
     queryFn: () => getProyectos({ limit: 200 }),
-    enabled: isOpen && !proyectoIdFijo,
+    enabled: isOpen && modo === 'crear',
   });
   const proyectosEnCurso = (proyectosData?.data || []).filter((p) => p.versiones[0]?.estadoAprobacion === 'ACEPTADO_CLIENTE');
   const { data: proveedoresData } = useQuery({
@@ -99,11 +139,13 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   // Detalle completo del proyecto (ventanas + materiales + fases) para poder
   // calcular que se necesita comprar por fase -- mismo queryKey que usa
   // ProyectoWorkspace, asi que si se abre esta modal desde ahí, sale del
-  // cache de react-query sin pegarle de nuevo al backend.
+  // cache de react-query sin pegarle de nuevo al backend. En "completar" no
+  // hace falta: los items ya vienen de la solicitud, no se recalculan
+  // desde la composicion de la fase.
   const { data: proyectoDetalle, isLoading: cargandoDetalle } = useQuery({
     queryKey: ['proyectoDetail', proyectoId],
     queryFn: () => getProyectoById(proyectoId),
-    enabled: isOpen && !!proyectoId,
+    enabled: isOpen && !!proyectoId && modo !== 'completar',
   });
 
   // La ejecucion real de la obra sigue la version activa, igual que en
@@ -122,14 +164,15 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   const fasesReales = (activeVersion?.fases || []).filter((f) => f.numeroFase > 0).sort((a, b) => a.numeroFase - b.numeroFase);
   const opcionesFase: Fase[] = fasesReales.length > 0 ? fasesReales : (activeVersion?.fases || []).filter((f) => f.numeroFase === 0);
 
-  // Stock ya disponible -- bodega propia (gratis) y Obras Mayores (hay
-  // que trasladarlo al crear la OC para reservarlo de verdad, ver
-  // trasladosDesdeObrasMayores mas abajo) -- para no sugerir comprar de
-  // nuevo algo que ya esta ahi.
+  // Stock ya disponible -- bodega propia (gratis) y Obras Mayores (hay que
+  // trasladarlo para reservarlo de verdad, ver trasladosDesdeObrasMayores
+  // mas abajo) -- para no sugerir comprar de nuevo algo que ya esta ahi.
+  // En "solicitar" no se pide (una solicitud es la necesidad bruta, sin
+  // contrastar contra stock todavia -- eso lo hace Compras al completarla).
   const { data: bodegaData } = useQuery({
     queryKey: ['bodegaProyecto', proyectoId],
     queryFn: () => getBodegaProyecto(proyectoId),
-    enabled: isOpen && !!proyectoId,
+    enabled: isOpen && !!proyectoId && modo !== 'solicitar',
   });
   const mapaStock = (rows: { materialId: string; cantidad: number }[] | undefined) => {
     const mapa = new Map<string, number>();
@@ -188,9 +231,54 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   }, [isOpen, faseIdInicial]);
 
   useEffect(() => {
+    // En "completar" los items vienen de la solicitud, no de este calculo
+    // -- ver el efecto que puebla `items` desde `solicitud` mas abajo.
+    if (modo === 'completar') return;
     setProveedorId('');
     setItems([itemVacio()]);
-  }, [faseId]);
+  }, [faseId, modo]);
+
+  // Modo "completar": fija el proyecto de la solicitud en cuanto carga
+  // (dispara el fetch de su bodega) y precarga los comentarios.
+  useEffect(() => {
+    if (modo === 'completar' && solicitud) {
+      setProyectoId(solicitud.proyectoId || '');
+      setComentarios(solicitud.comentarios || '');
+    }
+  }, [modo, solicitud]);
+
+  // Modo "completar": arma los items desde la solicitud, contrastados
+  // contra el stock ACTUAL (puede haber cambiado desde que se solicito) --
+  // una sola vez por solicitud, para no pisar lo que Compras ya edito.
+  const solicitudPobladaRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (modo !== 'completar' || !solicitud || !isOpen) return;
+    if (!bodegaData) return; // esperando el stock
+    if (solicitudPobladaRef.current === solicitud.id) return;
+    solicitudPobladaRef.current = solicitud.id;
+    setItems(
+      solicitud.items.length
+        ? solicitud.items.map((it): ItemForm => {
+            const cantidadSolicitada = Number(it.cantidad);
+            const disponibleObra = it.materialId ? stockProyectoPorMaterial.get(it.materialId) || 0 : 0;
+            const disponibleObrasMayores = it.materialId ? stockObrasMayoresPorMaterial.get(it.materialId) || 0 : 0;
+            const neta = Math.max(0, cantidadSolicitada - disponibleObra - disponibleObrasMayores);
+            return {
+              materialId: it.materialId || undefined,
+              descripcion: it.descripcion,
+              unidadMedida: it.unidadMedida,
+              cantidad: String(neta || cantidadSolicitada),
+              cantidadCalculada: it.cantidadCalculada,
+              cantidadSolicitada,
+              disponibleObra,
+              disponibleObrasMayores,
+              precioUnitario: it.precioUnitario != null ? String(it.precioUnitario) : '',
+              categoria: (it.materialId ? '' : it.categoria) as CategoriaGasto | '',
+            };
+          })
+        : [itemVacio()]
+    );
+  }, [modo, solicitud, isOpen, bodegaData, stockProyectoPorMaterial, stockObrasMayoresPorMaterial]);
 
   const elegirGrupoProveedor = (grupo: GrupoFaseProveedor) => {
     if (!grupo.proveedorId) return; // sin proveedor asignado: no se puede generar OC para este grupo
@@ -214,53 +302,84 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
 
   const mutation = useMutation({
     mutationFn: async () => {
-      if (!proveedorId) {
+      // En "solicitar" todavia no hay proveedor/precio -- eso lo decide
+      // Compras al completarla. En los otros dos modos, la OC ya queda
+      // lista para pedir aprobacion, asi que ambos son obligatorios.
+      if (modo !== 'solicitar' && !proveedorId) {
         throw new Error('Proveedor es obligatorio.');
       }
-      const itemsValidos = items.filter((i) => i.descripcion.trim() && i.cantidad && i.precioUnitario);
+      const itemsValidos = items.filter((i) => i.descripcion.trim() && i.cantidad && (modo === 'solicitar' || i.precioUnitario));
       if (itemsValidos.length === 0) {
-        throw new Error('Agrega al menos un item con descripción, cantidad y precio.');
+        throw new Error(modo === 'solicitar' ? 'Agrega al menos un item con descripción y cantidad.' : 'Agrega al menos un item con descripción, cantidad y precio.');
       }
       if (itemsValidos.some((i) => !i.materialId && !i.categoria)) {
         throw new Error('Elige una categoría para cada item sin material del catálogo -- sirve para el Control de Presupuesto.');
       }
+
+      const itemsPayload: ItemOrdenCompraPayload[] = itemsValidos.map((i) => ({
+        materialId: i.materialId,
+        descripcion: i.descripcion.trim(),
+        unidadMedida: i.unidadMedida || 'UN',
+        cantidad: parseFloat(i.cantidad),
+        cantidadCalculada: i.cantidadCalculada ?? undefined,
+        precioUnitario: i.precioUnitario ? parseFloat(i.precioUnitario) : undefined,
+        categoria: i.materialId ? undefined : (i.categoria as CategoriaGasto),
+      }));
+
+      if (modo === 'completar') {
+        // El material que ya esta en Obras Mayores se reserva de verdad
+        // (traslado real) recien ahora, al completar -- independiente de
+        // la cantidad final que Compras decida comprar (ver comentario de
+        // disponibleObrasMayores en ItemForm).
+        return completarOrdenCompra(solicitudId!, {
+          proveedorId,
+          comentarios: comentarios.trim() || undefined,
+          items: itemsPayload,
+          trasladosDesdeObrasMayores: items
+            .filter((i) => i.materialId && (i.disponibleObrasMayores || 0) > 0.0001)
+            .map((i) => ({
+              materialId: i.materialId!,
+              cantidad: Math.min(i.disponibleObrasMayores || 0, (i.cantidadSolicitada ?? 0) - (i.disponibleObra || 0)),
+            }))
+            .filter((t) => t.cantidad > 0.0001),
+        });
+      }
+
       return createOrdenCompra({
         // Sin proyectoId, la OC va al centro de costo GENERAL ("Obras
         // Mayores", ver resolverCentroCosto en mtw-api).
         proyectoId: proyectoId || null,
         faseId: faseId || null,
-        proveedorId,
+        // En "solicitar" nunca se manda -- aunque haya un chip de
+        // proveedor elegido arriba (solo sirve para agrupar los items),
+        // mandarlo la convertiria en una OC completa, no una solicitud.
+        proveedorId: modo === 'solicitar' ? undefined : proveedorId,
         comentarios: comentarios.trim() || undefined,
-        items: itemsValidos.map((i) => ({
-          materialId: i.materialId,
-          descripcion: i.descripcion.trim(),
-          unidadMedida: i.unidadMedida || 'UN',
-          cantidad: parseFloat(i.cantidad),
-          cantidadCalculada: i.cantidadCalculada ?? undefined,
-          precioUnitario: parseFloat(i.precioUnitario),
-          categoria: i.materialId ? undefined : (i.categoria as CategoriaGasto),
-        })),
+        items: itemsPayload,
         // Todo lo que esta fase/categoria ya tiene disponible en Obras
         // Mayores se traslada a la bodega del proyecto al generar la OC
-        // (queda reservado ahi), independiente de a que proveedor se le
-        // este comprando el resto -- ver computeMaterialesFasePorProveedor.
-        // Si otra OC de la misma fase se crea despues, el stock de Obras
-        // Mayores ya estara descontado y no se vuelve a trasladar.
-        trasladosDesdeObrasMayores: proyectoId
-          ? trasladosDesdeObrasMayores.map((t) => ({ materialId: t.materialId, cantidad: t.cantidad }))
-          : undefined,
+        // (queda reservado ahi) -- solo tiene sentido en modo "crear": una
+        // solicitud sin proveedor todavia no reserva nada (eso pasa al
+        // completarla, ver arriba).
+        trasladosDesdeObrasMayores:
+          modo === 'crear' && proyectoId
+            ? trasladosDesdeObrasMayores.map((t) => ({ materialId: t.materialId, cantidad: t.cantidad }))
+            : undefined,
       });
     },
     onSuccess: () => {
-      // Nace en BORRADOR (una solicitud) -- todavia no es un pendiente de
-      // aprobacion gerencial, asi que no hace falta invalidar
-      // misAprobacionesPendientes aca (eso lo dispara Compras al emitirla,
-      // ver "Solicitar aprobación" en OrdenesCompraList).
       queryClient.invalidateQueries({ queryKey: ['ordenesCompra'] });
+      if (modo === 'completar') {
+        queryClient.invalidateQueries({ queryKey: ['ordenCompra', solicitudId] });
+        // Completar puede dejarla lista para pedir aprobacion gerencial de
+        // una en un paso posterior -- no cambia acá, pero mantiene el
+        // listado de pendientes consistente si algo mas lo invalida.
+        queryClient.invalidateQueries({ queryKey: ['misAprobacionesPendientes'] });
+      }
       handleClose();
     },
     onError: (err: any) => {
-      setGeneralError(err?.response?.data?.error || err?.message || 'No se pudo crear la Orden de Compra.');
+      setGeneralError(err?.response?.data?.error || err?.message || 'No se pudo guardar la Orden de Compra.');
     },
   });
 
@@ -271,6 +390,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
     setComentarios('');
     setItems([itemVacio()]);
     setGeneralError(null);
+    solicitudPobladaRef.current = null;
     onClose();
   };
 
@@ -284,6 +404,16 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   const total = items.reduce((sum, i) => sum + (parseFloat(i.cantidad) || 0) * (parseFloat(i.precioUnitario) || 0), 0);
 
   if (!isOpen) return null;
+
+  if (modo === 'completar' && (cargandoSolicitud || !solicitud)) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl px-6 py-5 flex items-center gap-2.5 text-xs text-slate-500">
+          <Loader2 className="w-4 h-4 animate-spin" /> Cargando solicitud...
+        </div>
+      </div>
+    );
+  }
 
   const proyectoOptions = [
     { value: '', label: 'Sin proyecto (Obras Mayores)' },
@@ -313,8 +443,16 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
               <ShoppingCart className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-sm font-black tracking-tight text-slate-900">Nueva Orden de Compra</h2>
-              <p className="text-[11px] text-slate-500">Se crea en BORRADOR -- el número se genera automáticamente</p>
+              <h2 className="text-sm font-black tracking-tight text-slate-900">
+                {modo === 'solicitar' ? 'Solicitar Orden de Compra' : modo === 'completar' ? 'Completar solicitud' : 'Nueva Orden de Compra'}
+              </h2>
+              <p className="text-[11px] text-slate-500">
+                {modo === 'solicitar'
+                  ? 'Se manda a Compras -- ellos eligen proveedor y precio, y la envían'
+                  : modo === 'completar'
+                    ? `${solicitud?.numero} -- elige proveedor y ajusta cantidades/precios antes de enviarla`
+                    : 'Se crea en BORRADOR -- el número se genera automáticamente'}
+              </p>
             </div>
           </div>
           <button
@@ -340,34 +478,47 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            {proyectoIdFijo ? (
-              <div className="space-y-1.5">
-                <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Proyecto (obra)</span>
-                <div className="w-full py-2.5 px-3.5 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-700 font-semibold">
-                  {proyectoLabelFijo || 'Proyecto actual'}
+          {modo === 'completar' ? (
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+              <p className="font-bold text-slate-900">
+                {solicitud?.proyecto?.obra || solicitud?.centroCosto?.nombre || 'Obras Mayores'}
+              </p>
+              {solicitud?.fase && (
+                <p className="text-slate-500">
+                  Fase {solicitud.fase.numeroFase ?? ''} - {solicitud.fase.nombre}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {proyectoIdFijo ? (
+                <div className="space-y-1.5">
+                  <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Proyecto (obra)</span>
+                  <div className="w-full py-2.5 px-3.5 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-700 font-semibold">
+                    {proyectoLabelFijo || 'Proyecto actual'}
+                  </div>
                 </div>
-              </div>
-            ) : (
+              ) : (
+                <Select
+                  label="Proyecto (obra)"
+                  options={proyectoOptions}
+                  value={proyectoId}
+                  onChange={(e) => setProyectoId(e.target.value)}
+                  helperText="Sin proyecto, la compra va al stock de Obras Mayores"
+                />
+              )}
               <Select
-                label="Proyecto (obra)"
-                options={proyectoOptions}
-                value={proyectoId}
-                onChange={(e) => setProyectoId(e.target.value)}
-                helperText="Sin proyecto, la compra va al stock de Obras Mayores"
+                label="Fase"
+                options={faseOptions}
+                value={faseId}
+                onChange={(e) => setFaseId(e.target.value)}
+                disabled={!proyectoId || cargandoDetalle}
+                helperText={cargandoDetalle ? 'Cargando fases del proyecto...' : undefined}
               />
-            )}
-            <Select
-              label="Fase"
-              options={faseOptions}
-              value={faseId}
-              onChange={(e) => setFaseId(e.target.value)}
-              disabled={!proyectoId || cargandoDetalle}
-              helperText={cargandoDetalle ? 'Cargando fases del proyecto...' : undefined}
-            />
-          </div>
+            </div>
+          )}
 
-          {faseId && (
+          {modo !== 'completar' && faseId && (
             <div className="space-y-1.5">
               <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                 {categoriaFiltro
@@ -377,8 +528,8 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
               {gruposPorProveedor.length === 0 ? (
                 <p className="text-[11px] text-slate-500">
                   {categoriaFiltro
-                    ? `Esta fase no tiene materiales calculados de esta categoría. Elige un proveedor manualmente abajo para una compra externa.`
-                    : 'Esta fase no tiene materiales calculados (¿tiene líneas de ventana asignadas en la pestaña Fases?). Elige un proveedor manualmente abajo para una compra externa (flete, mano de obra, etc.).'}
+                    ? `Esta fase no tiene materiales calculados de esta categoría. ${modo === 'solicitar' ? 'Agrega un item manual abajo para una compra externa.' : 'Elige un proveedor manualmente abajo para una compra externa.'}`
+                    : `Esta fase no tiene materiales calculados (¿tiene líneas de ventana asignadas en la pestaña Fases?). ${modo === 'solicitar' ? 'Agrega un item manual abajo para una compra externa (flete, mano de obra, etc.).' : 'Elige un proveedor manualmente abajo para una compra externa (flete, mano de obra, etc.).'}`}
                 </p>
               ) : (
                 <div className="flex flex-wrap gap-1.5">
@@ -413,19 +564,27 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
             </div>
           )}
 
-          <Select
-            label="Proveedor"
-            options={proveedorOptions}
-            value={proveedorId}
-            onChange={(e) => setProveedorId(e.target.value)}
-            helperText="Se llena solo al elegir un proveedor arriba -- se puede cambiar a mano para una compra externa"
-            required
-          />
+          {modo !== 'solicitar' && (
+            <Select
+              label="Proveedor"
+              options={proveedorOptions}
+              value={proveedorId}
+              onChange={(e) => setProveedorId(e.target.value)}
+              helperText={
+                modo === 'completar'
+                  ? 'A quién se le va a comprar -- elige uno para poder guardar'
+                  : 'Se llena solo al elegir un proveedor arriba -- se puede cambiar a mano para una compra externa'
+              }
+              required
+            />
+          )}
 
           <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5">
-            {proyectoIdFijo
-              ? 'Esta queda como una solicitud -- Compras la revisa y decide cuándo pedirle la aprobación a Gerencia y enviarla al proveedor.'
-              : 'Esta queda en Borrador -- pedile la aprobación a Gerencia y envíala al proveedor desde el listado cuando esté lista.'}
+            {modo === 'solicitar'
+              ? 'Se manda como solicitud a Compras -- ellos eligen el proveedor, ajustan precios/cantidades contra el stock disponible, y la envían.'
+              : modo === 'completar'
+                ? 'Al guardar, el material que ya esté disponible en Obras Mayores se traslada de verdad a la bodega de la obra (queda reservado). Después podés pedirle aprobación a Gerencia desde el listado.'
+                : 'Esta queda en Borrador -- pedile la aprobación a Gerencia y envíala al proveedor desde el listado cuando esté lista.'}
           </p>
 
           <div className="space-y-1.5">
@@ -483,28 +642,46 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  {modo === 'completar' && item.materialId && (
+                    <p className="text-[10px] text-slate-500 -mt-1">
+                      Solicitado {fmtCantidad(item.cantidadSolicitada)} · En bodega de la obra: {fmtCantidad(item.disponibleObra)} · En Obras
+                      Mayores: {fmtCantidad(item.disponibleObrasMayores)}
+                    </p>
+                  )}
+                  <div className={modo === 'solicitar' ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-3 gap-2'}>
                     <Input placeholder="Unidad" value={item.unidadMedida} onChange={(e) => setItemField(index, 'unidadMedida', e.target.value)} />
                     <Input
                       type="number"
                       placeholder="Cantidad"
                       value={item.cantidad}
                       onChange={(e) => setItemField(index, 'cantidad', e.target.value)}
-                      helperText={item.stockDisponible ? `Ya tenías ${item.stockDisponible.toLocaleString('es-CL', { maximumFractionDigits: 2 })} en stock` : undefined}
+                      helperText={
+                        modo !== 'completar' && item.stockDisponible
+                          ? `Ya tenías ${fmtCantidad(item.stockDisponible)} en stock`
+                          : undefined
+                      }
                     />
-                    <Input
-                      type="number"
-                      placeholder="Precio unit."
-                      value={item.precioUnitario}
-                      onChange={(e) => setItemField(index, 'precioUnitario', e.target.value)}
-                    />
+                    {modo !== 'solicitar' && (
+                      <Input
+                        type="number"
+                        placeholder="Precio unit."
+                        value={item.precioUnitario}
+                        onChange={(e) => setItemField(index, 'precioUnitario', e.target.value)}
+                      />
+                    )}
                   </div>
+                  {modo === 'solicitar' && item.precioUnitario && (
+                    <p className="text-[10px] text-slate-400">
+                      Precio referencial:{' '}
+                      {Number(item.precioUnitario).toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
 
             <div className="text-right text-xs text-slate-600">
-              Total estimado:{' '}
+              {modo === 'solicitar' ? 'Total referencial' : 'Total estimado'}:{' '}
               <span className="font-bold text-slate-900">
                 {total.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })}
               </span>
@@ -517,7 +694,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
             Cancelar
           </Button>
           <Button type="button" isLoading={mutation.isPending} onClick={() => { setGeneralError(null); mutation.mutate(); }}>
-            Crear Orden de Compra
+            {modo === 'solicitar' ? 'Solicitar' : modo === 'completar' ? 'Guardar y completar' : 'Crear Orden de Compra'}
           </Button>
         </div>
       </div>

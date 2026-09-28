@@ -467,7 +467,8 @@ export interface OrdenCompraItem {
   // usa en ningun calculo de stock/presupuesto. null cuando no hubo
   // redondeo (cantidad ya es el valor exacto).
   cantidadCalculada: number | null;
-  precioUnitario: number;
+  // null en una solicitud sin completar -- ver OrdenCompra.proveedorId.
+  precioUnitario: number | null;
   recepciones?: RecepcionOCItem[];
 }
 
@@ -518,8 +519,11 @@ export interface OrdenCompra {
   centroCosto?: CentroCosto | null;
   faseId: string | null;
   fase?: { id: string; nombre: string; numeroFase?: number } | null;
-  proveedorId: string;
-  proveedor?: Proveedor;
+  // null mientras es una solicitud sin completar (nacida desde un
+  // Proyecto, sin proveedor ni precios todavia) -- Compras la completa
+  // (PATCH .../completar) antes de poder pedir aprobación.
+  proveedorId: string | null;
+  proveedor?: Proveedor | null;
   estado: EstadoOC;
   requiereAprobacion: boolean;
   moneda: string;

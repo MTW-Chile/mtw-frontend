@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Loader2, Check, Send, X as XIcon, Ban, ChevronDown, ChevronRight, Package, Undo2, FileDown, Trash2 } from 'lucide-react';
+import { Plus, Loader2, Check, Send, X as XIcon, Ban, ChevronDown, ChevronRight, Package, Undo2, FileDown, Trash2, ClipboardList } from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { getOrdenesCompra, updateOrdenCompraEstado, eliminarOrdenCompra, getMisPermisos, renderPdf } from '../../api/client';
@@ -34,7 +34,7 @@ export const ESTADO_OC_VARIANT: Record<EstadoOC, BadgeVariant> = {
   CANCELADA: 'outline',
 };
 
-const totalOC = (oc: OrdenCompra) => oc.items.reduce((sum, i) => sum + Number(i.cantidad) * Number(i.precioUnitario), 0);
+const totalOC = (oc: OrdenCompra) => oc.items.reduce((sum, i) => sum + Number(i.cantidad) * Number(i.precioUnitario ?? 0), 0);
 
 const formatoMoneda = (valor: number, moneda: string) =>
   valor.toLocaleString('es-CL', { style: moneda === 'CLP' ? 'currency' : 'decimal', currency: moneda === 'CLP' ? 'CLP' : undefined, maximumFractionDigits: 0 }) +
@@ -56,6 +56,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
   const modoRestringido = !!proyectoId;
   const queryClient = useQueryClient();
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [solicitudIdParaCompletar, setSolicitudIdParaCompletar] = useState<string | null>(null);
   const [filtroEstado, setFiltroEstado] = useState<EstadoOC | ''>('');
   const [rechazandoId, setRechazandoId] = useState<string | null>(null);
   const [motivoRechazo, setMotivoRechazo] = useState('');
@@ -214,7 +215,13 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                         </button>
                       </td>
                       {!proyectoId && <td className="px-4 py-3 text-slate-700">{oc.proyecto?.obra || oc.centroCosto?.nombre || '—'}</td>}
-                      <td className="px-4 py-3 text-slate-700">{oc.proveedor?.nombre || '—'}</td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {oc.proveedor?.nombre || (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold uppercase tracking-wide">
+                            Solicitud
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <Badge variant={ESTADO_OC_VARIANT[oc.estado]} size="sm">
                           {ESTADO_OC_LABEL[oc.estado]}
@@ -236,7 +243,16 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                           {/* Aprobar/enviar es trabajo del módulo Compras (revisión
                               centralizada), no de la ficha de un proyecto puntual --
                               ver modoRestringido. */}
-                          {!modoRestringido && oc.estado === 'BORRADOR' && oc.requiereAprobacion && (
+                          {!modoRestringido && oc.estado === 'BORRADOR' && !oc.proveedorId && (
+                            <Button
+                              size="sm"
+                              leftIcon={<ClipboardList className="w-3.5 h-3.5" />}
+                              onClick={() => setSolicitudIdParaCompletar(oc.id)}
+                            >
+                              Completar
+                            </Button>
+                          )}
+                          {!modoRestringido && oc.estado === 'BORRADOR' && !!oc.proveedorId && oc.requiereAprobacion && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -426,6 +442,11 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
         onClose={() => setModalAbierto(false)}
         proyectoIdFijo={proyectoId}
         proyectoLabelFijo={proyectoLabel}
+      />
+      <NuevaOrdenCompraModal
+        isOpen={!!solicitudIdParaCompletar}
+        onClose={() => setSolicitudIdParaCompletar(null)}
+        solicitudId={solicitudIdParaCompletar || undefined}
       />
     </div>
   );

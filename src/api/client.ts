@@ -530,36 +530,65 @@ export async function getOrdenCompraById(id: string): Promise<OrdenCompra> {
   return response.data;
 }
 
+export interface ItemOrdenCompraPayload {
+  materialId?: string | null;
+  descripcion: string;
+  unidadMedida?: string;
+  cantidad: number;
+  // Valor teorico antes de redondear a la unidad de compra (ver
+  // OrdenCompraItem.cantidadCalculada) -- puramente informativo.
+  cantidadCalculada?: number | null;
+  // Obligatorio solo si la OC ya tiene proveedor (ver proveedorId abajo) --
+  // una solicitud sin proveedor todavia puede no tener precio.
+  precioUnitario?: number | null;
+  // Obligatoria solo cuando el item no tiene materialId (partida externa)
+  // -- con materialId, mtw-api la deriva sola de la familia.
+  categoria?: CategoriaGasto;
+}
+
 export async function createOrdenCompra(payload: {
   // Sin proyectoId, la OC va al centro de costo GENERAL ("Obras Mayores")
   // -- ver resolverCentroCosto en mtw-api.
   proyectoId?: string | null;
   faseId?: string | null;
-  proveedorId: string;
+  // Sin proveedorId (solo posible con proyectoId), la OC nace como
+  // SOLICITUD -- Compras la completa despues con
+  // completarOrdenCompra/PATCH .../completar antes de poder pedirle
+  // aprobación a Gerencia. Con proveedorId, nace ya completa.
+  proveedorId?: string | null;
   // Toda OC nueva requiere aprobacion gerencial -- ya no es opcional,
   // mtw-api la fuerza siempre sin importar lo que se mande aca.
   moneda?: string;
   fechaCalendarizada?: string | null;
   comentarios?: string;
-  items: {
-    materialId?: string | null;
-    descripcion: string;
-    unidadMedida?: string;
-    cantidad: number;
-    // Valor teorico antes de redondear a la unidad de compra (ver
-    // OrdenCompraItem.cantidadCalculada) -- puramente informativo.
-    cantidadCalculada?: number | null;
-    precioUnitario: number;
-    // Obligatoria solo cuando el item no tiene materialId (partida
-    // externa) -- con materialId, mtw-api la deriva sola de la familia.
-    categoria?: CategoriaGasto;
-  }[];
+  items: ItemOrdenCompraPayload[];
   // Material que ya esta disponible en la bodega de Obras Mayores y se
   // reserva para este proyecto trasladandolo a su bodega al generar la OC
-  // -- ver ejecutarTraslado en mtw-api. Ignorado si no hay proyectoId.
+  // -- ver ejecutarTraslado en mtw-api. Ignorado si no hay proyectoId o si
+  // la OC nace sin proveedor (una solicitud todavia no reserva nada).
   trasladosDesdeObrasMayores?: { materialId: string; cantidad: number }[];
 }): Promise<{ success: boolean; ordenCompra: OrdenCompra }> {
   const response = await apiClient.post<{ success: boolean; ordenCompra: OrdenCompra }>('/ordenes-compra', payload);
+  return response.data;
+}
+
+// Completa una solicitud (OC sin proveedor, nacida desde un Proyecto) con
+// el proveedor, items y precios finales que decide Compras -- ver
+// PATCH /api/ordenes-compra/:id/completar en mtw-api. Reemplaza los items
+// enteros. Solo funciona mientras la OC sigue en BORRADOR.
+export async function completarOrdenCompra(
+  id: string,
+  payload: {
+    proveedorId: string;
+    comentarios?: string;
+    items: ItemOrdenCompraPayload[];
+    trasladosDesdeObrasMayores?: { materialId: string; cantidad: number }[];
+  }
+): Promise<{ success: boolean; ordenCompra: OrdenCompra }> {
+  const response = await apiClient.patch<{ success: boolean; ordenCompra: OrdenCompra }>(
+    `/ordenes-compra/${id}/completar`,
+    payload
+  );
   return response.data;
 }
 
