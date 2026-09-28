@@ -465,7 +465,15 @@ export interface RecepcionOCItem {
   id: string;
   recepcionId: string;
   ordenCompraItemId: string;
+  // Correlativo unico de esta linea recibida (un "lote": lo que llego de
+  // este item en ESTA recepcion) -- codigo es la version legible para
+  // pantalla (ej. "PER-000045"), calculada en mtw-api.
+  numero: number;
+  codigo: string;
   cantidadRecibida: number;
+  // Precio real/facturado de este lote si ya se conoce -- null mientras
+  // se asuma el precio comprometido de OrdenCompraItem.precioUnitario.
+  precioReal: number | null;
 }
 
 export interface RecepcionOC {
@@ -479,11 +487,25 @@ export interface RecepcionOC {
   items: RecepcionOCItem[];
 }
 
+// Un Proyecto (obra real de HETMO) es UN TIPO de centro de costos --
+// "Obras Mayores" es otro, sin Proyecto asociado (compras/stock no
+// ligados a una obra puntual). Ver CentroCosto en mtw-api/schema.prisma.
+export interface CentroCosto {
+  id: string;
+  nombre: string;
+  tipo: 'OBRA' | 'GENERAL';
+}
+
 export interface OrdenCompra {
   id: string;
   numero: string;
-  proyectoId: string;
-  proyecto?: Pick<Proyecto, 'id' | 'obra' | 'codigoInterno'>;
+  // proyectoId puede venir null (compra de "Obras Mayores", sin obra
+  // asociada) -- centroCosto es la relacion real de ahora en mas, ver
+  // CentroCosto arriba.
+  proyectoId: string | null;
+  proyecto?: Pick<Proyecto, 'id' | 'obra' | 'codigoInterno'> | null;
+  centroCostoId?: string | null;
+  centroCosto?: CentroCosto | null;
   faseId: string | null;
   fase?: { id: string; nombre: string; numeroFase?: number } | null;
   proveedorId: string;
@@ -526,7 +548,11 @@ export interface SolicitudMaterialItem {
 export interface SolicitudMaterial {
   id: string;
   faseId: string;
-  fase?: { id: string; nombre: string; versionId: string };
+  // version.proyecto solo viaja para poder mostrar la obra en la vista
+  // global del modulo Bodega (ver RequisicionesSection con proyecto
+  // omitido) -- en la ficha de un proyecto puntual no hace falta, ya se
+  // conoce por contexto.
+  fase?: { id: string; nombre: string; versionId: string; version?: { proyecto: Pick<Proyecto, 'id' | 'obra' | 'codigoInterno'> } };
   estado: EstadoSolicitudMaterial;
   solicitadoPorId: string | null;
   fechaSolicitud: string;
@@ -538,7 +564,13 @@ export interface SolicitudMaterial {
 
 export interface Bodega {
   id: string;
-  proyectoId: string;
+  // Legado -- puede venir null para la bodega de un centro de costo
+  // GENERAL (ej. "Obras Mayores", sin Proyecto asociado). centroCosto es
+  // la relacion real.
+  proyectoId: string | null;
+  proyecto?: Pick<Proyecto, 'id' | 'obra' | 'codigoInterno'> | null;
+  centroCostoId?: string | null;
+  centroCosto?: CentroCosto | null;
   nombre: string;
   activa: boolean;
   creadoEn: string;
@@ -580,6 +612,15 @@ export interface BodegaProyectoResponse {
   bodega: Bodega | null;
   stock: StockMaterial[];
   movimientos: MovimientoBodega[];
+}
+
+// GET /api/bodega -- todas las bodegas juntas (obras reales + "Obras
+// Mayores"), para el modulo Bodega de primer nivel. Cada fila de
+// stock/movimiento trae su bodega para poder agrupar/filtrar por obra.
+export interface BodegaGlobalResponse {
+  bodegas: Bodega[];
+  stock: (StockMaterial & { bodega?: Bodega })[];
+  movimientos: (MovimientoBodega & { bodega?: Bodega })[];
 }
 
 // Material.individualizado (Perfileria/Refuerzos/Vidrios): se compra y

@@ -1,8 +1,10 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Boxes, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, Wrench, ChevronDown, ChevronRight, Tags } from 'lucide-react';
-import { getBodegaProyecto, getUnidadesMaterial } from '../../api/client';
-import type { TipoMovimientoBodega, EstadoUnidadMaterial } from '../../types';
+import { Loader2, Boxes, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, Wrench, ChevronDown, ChevronRight, Tags, Send } from 'lucide-react';
+import { getBodegaProyecto, getBodegaGlobal, getUnidadesMaterial } from '../../api/client';
+import { Button } from '../../components/ui/Button';
+import { TrasladoBodegaModal } from './TrasladoBodegaModal';
+import type { TipoMovimientoBodega, EstadoUnidadMaterial, Bodega, StockMaterial, BodegaProyectoResponse, BodegaGlobalResponse } from '../../types';
 
 const TIPO_MOVIMIENTO: Record<TipoMovimientoBodega, { label: string; icon: React.ReactNode; color: string }> = {
   INGRESO_OC: { label: 'Ingreso (OC)', icon: <ArrowDownToLine className="w-3.5 h-3.5" />, color: 'text-emerald-600' },
@@ -19,6 +21,11 @@ const ESTADO_UNIDAD: Record<EstadoUnidadMaterial, { label: string; className: st
   DEFECTUOSA: { label: 'Defectuosa', className: 'bg-rose-50 text-rose-700 border-rose-200' },
   DEVUELTA_PROVEEDOR: { label: 'Devuelta a proveedor', className: 'bg-amber-50 text-amber-700 border-amber-200' },
 };
+
+// Nombre para mostrar de una bodega -- la obra si esta ligada a un
+// Proyecto, o el nombre de su centro de costo (ej. "Obras Mayores") si
+// no. Mismo criterio que labelCentroCosto() en mtw-api.
+const labelBodega = (bodega?: Bodega | null) => bodega?.proyecto?.obra || bodega?.centroCosto?.nombre || bodega?.nombre || '—';
 
 // Detalle de unidades individuales de un material (Perfileria/Refuerzos/
 // Vidrios, ver Material.individualizado) -- se carga solo al expandir la
@@ -61,12 +68,20 @@ const UnidadesMaterialDetalle: React.FC<{ bodegaId: string; materialId: string }
   );
 };
 
-export const BodegaProyectoTab: React.FC<{ proyectoId: string }> = ({ proyectoId }) => {
-  const { data, isLoading } = useQuery({
-    queryKey: ['bodegaProyecto', proyectoId],
-    queryFn: () => getBodegaProyecto(proyectoId),
+// Sin proyectoId: vista global (todas las bodegas juntas, incluida "Obras
+// Mayores") -- pensada para el modulo Bodega de primer nivel. Con
+// proyectoId: la de siempre, acotada a la bodega de esa obra (ficha de
+// proyecto).
+const esGlobal = (d: BodegaProyectoResponse | BodegaGlobalResponse | undefined): d is BodegaGlobalResponse =>
+  !!d && 'bodegas' in d;
+
+export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoId }) => {
+  const { data, isLoading } = useQuery<BodegaProyectoResponse | BodegaGlobalResponse>({
+    queryKey: proyectoId ? ['bodegaProyecto', proyectoId] : ['bodegaGlobal'],
+    queryFn: () => (proyectoId ? getBodegaProyecto(proyectoId) : getBodegaGlobal()),
   });
   const [expandido, setExpandido] = React.useState<Set<string>>(new Set());
+  const [trasladando, setTrasladando] = React.useState<{ stock: StockMaterial; bodegasDestino: Bodega[] } | null>(null);
 
   const toggleExpandido = (materialId: string) => {
     setExpandido((prev) => {
@@ -85,7 +100,19 @@ export const BodegaProyectoTab: React.FC<{ proyectoId: string }> = ({ proyectoId
     );
   }
 
-  if (!data?.bodega) {
+  // Normaliza las dos formas de respuesta (por-proyecto trae una sola
+  // bodega, global trae varias) a una lista comun -- el resto del render
+  // no necesita saber cual vino.
+  const global = esGlobal(data);
+  const stock = data ? (global ? data.stock : data.stock.map((s) => ({ ...s, bodega: data.bodega ?? undefined }))) : [];
+  const movimientos = data
+    ? global
+      ? data.movimientos
+      : data.movimientos.map((m) => ({ ...m, bodega: data.bodega ?? undefined }))
+    : [];
+  const bodegasDisponibles: Bodega[] = global ? data.bodegas : [];
+
+  if (proyectoId && (!data || global || !data.bodega)) {
     return (
       <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs space-y-1">
         <Boxes className="w-6 h-6 mx-auto text-slate-300" />
@@ -98,7 +125,7 @@ export const BodegaProyectoTab: React.FC<{ proyectoId: string }> = ({ proyectoId
     <div className="space-y-5">
       <div className="space-y-2.5">
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Stock actual</h3>
-        {data.stock.length === 0 ? (
+        {stock.length === 0 ? (
           <div className="p-8 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">Sin stock por ahora.</div>
         ) : (
           <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden overflow-x-auto">
@@ -107,12 +134,14 @@ export const BodegaProyectoTab: React.FC<{ proyectoId: string }> = ({ proyectoId
                 <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
                   <th className="px-4 py-3 font-bold">SKU</th>
                   <th className="px-4 py-3 font-bold">Material</th>
+                  {!proyectoId && <th className="px-4 py-3 font-bold">Obra</th>}
                   <th className="px-4 py-3 font-bold">Familia</th>
                   <th className="px-4 py-3 font-bold text-right">Cantidad</th>
+                  {!proyectoId && <th className="px-4 py-3 font-bold text-right">Acciones</th>}
                 </tr>
               </thead>
               <tbody>
-                {data.stock.map((s) => {
+                {stock.map((s) => {
                   const abierto = expandido.has(s.materialId);
                   return (
                     <React.Fragment key={s.id}>
@@ -144,14 +173,27 @@ export const BodegaProyectoTab: React.FC<{ proyectoId: string }> = ({ proyectoId
                             )}
                           </div>
                         </td>
+                        {!proyectoId && <td className="px-4 py-3 text-slate-600">{labelBodega(s.bodega)}</td>}
                         <td className="px-4 py-3 text-slate-500">{s.material.familia}</td>
                         <td className="px-4 py-3 text-right font-bold text-slate-900">
                           {Number(s.cantidad).toLocaleString('es-CL')} {s.material.unidadMedida}
                         </td>
+                        {!proyectoId && (
+                          <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              leftIcon={<Send className="w-3.5 h-3.5" />}
+                              onClick={() => setTrasladando({ stock: s, bodegasDestino: bodegasDisponibles.filter((b) => b.id !== s.bodegaId) })}
+                            >
+                              Enviar a obra
+                            </Button>
+                          </td>
+                        )}
                       </tr>
                       {abierto && s.material.individualizado && (
                         <tr className="bg-slate-50/60">
-                          <td colSpan={4} className="p-0">
+                          <td colSpan={proyectoId ? 4 : 6} className="p-0">
                             <UnidadesMaterialDetalle bodegaId={s.bodegaId} materialId={s.materialId} />
                           </td>
                         </tr>
@@ -167,11 +209,11 @@ export const BodegaProyectoTab: React.FC<{ proyectoId: string }> = ({ proyectoId
 
       <div className="space-y-2.5">
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Movimientos recientes</h3>
-        {data.movimientos.length === 0 ? (
+        {movimientos.length === 0 ? (
           <div className="p-8 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">Sin movimientos todavía.</div>
         ) : (
           <div className="rounded-2xl bg-white border border-slate-200 shadow-sm divide-y divide-slate-50">
-            {data.movimientos.map((m) => {
+            {movimientos.map((m) => {
               const tipo = TIPO_MOVIMIENTO[m.tipo];
               return (
                 <div key={m.id} className="px-4 py-3 flex items-center justify-between gap-3">
@@ -180,6 +222,7 @@ export const BodegaProyectoTab: React.FC<{ proyectoId: string }> = ({ proyectoId
                     <div className="min-w-0">
                       <div className="text-xs font-semibold text-slate-800 truncate">{m.material.descripcion}</div>
                       <div className="text-[10px] text-slate-400">
+                        {!proyectoId && <>{labelBodega(m.bodega)} · </>}
                         {tipo.label} · {new Date(m.creadoEn).toLocaleString('es-CL')}
                         {m.creadoPor && ` · ${m.creadoPor.nombre}`}
                       </div>
@@ -195,6 +238,8 @@ export const BodegaProyectoTab: React.FC<{ proyectoId: string }> = ({ proyectoId
           </div>
         )}
       </div>
+
+      {trasladando && <TrasladoBodegaModal stock={trasladando.stock} bodegasDestino={trasladando.bodegasDestino} onClose={() => setTrasladando(null)} />}
     </div>
   );
 };

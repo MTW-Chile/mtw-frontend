@@ -38,8 +38,12 @@ interface ItemNuevo {
 
 // "Requisiciones de materiales" -- la Solicitud de Materiales (Fases) del
 // BPMN Producción -> Bodega. Vive dentro de la pestaña Bodega de la ficha
-// de proyecto, junto al stock y los movimientos (BodegaProyectoTab).
-export const RequisicionesSection: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVersion }> = ({
+// de proyecto (junto al stock y los movimientos, BodegaProyectoTab) y
+// tambien, sin `proyecto`, en el modulo Bodega global: ahi lista TODAS
+// las requisiciones de cualquier obra (getSolicitudesMaterial ya soporta
+// proyectoId opcional) y no deja crear una nueva -- una requisicion
+// siempre nace de una fase real, hay que estar dentro de esa obra.
+export const RequisicionesSection: React.FC<{ proyecto?: Proyecto; activeVersion?: ProyectoVersion }> = ({
   proyecto,
   activeVersion,
 }) => {
@@ -52,8 +56,8 @@ export const RequisicionesSection: React.FC<{ proyecto: Proyecto; activeVersion?
   const fases = activeVersion?.fases || [];
 
   const { data, isLoading } = useQuery({
-    queryKey: ['solicitudesMaterial', { proyectoId: proyecto.id }],
-    queryFn: () => getSolicitudesMaterial({ proyectoId: proyecto.id }),
+    queryKey: ['solicitudesMaterial', proyecto ? { proyectoId: proyecto.id } : 'global'],
+    queryFn: () => getSolicitudesMaterial(proyecto ? { proyectoId: proyecto.id } : {}),
   });
 
   const { data: materiales } = useQuery({
@@ -201,6 +205,9 @@ export const RequisicionesSection: React.FC<{ proyecto: Proyecto; activeVersion?
             <div key={s.id} className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
+                  {!proyecto && s.fase?.version?.proyecto?.obra && (
+                    <span className="text-xs font-semibold text-slate-500">{s.fase.version.proyecto.obra} ·</span>
+                  )}
                   <span className="text-xs font-bold text-slate-800">{s.fase?.nombre || 'Fase'}</span>
                   <Badge variant={ESTADO_VARIANT[s.estado]} size="sm">
                     {ESTADO_LABEL[s.estado]}

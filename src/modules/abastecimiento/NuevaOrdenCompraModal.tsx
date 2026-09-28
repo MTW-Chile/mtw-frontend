@@ -175,8 +175,8 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
 
   const mutation = useMutation({
     mutationFn: async () => {
-      if (!proyectoId || !proveedorId) {
-        throw new Error('Proyecto y proveedor son obligatorios.');
+      if (!proveedorId) {
+        throw new Error('Proveedor es obligatorio.');
       }
       const itemsValidos = items.filter((i) => i.descripcion.trim() && i.cantidad && i.precioUnitario);
       if (itemsValidos.length === 0) {
@@ -186,7 +186,9 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
         throw new Error('Elige una categoría para cada item sin material del catálogo -- sirve para el Control de Presupuesto.');
       }
       return createOrdenCompra({
-        proyectoId,
+        // Sin proyectoId, la OC va al centro de costo GENERAL ("Obras
+        // Mayores", ver resolverCentroCosto en mtw-api).
+        proyectoId: proyectoId || null,
         faseId: faseId || null,
         proveedorId,
         requiereAprobacion,
@@ -238,7 +240,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   if (!isOpen) return null;
 
   const proyectoOptions = [
-    { value: '', label: 'Selecciona un proyecto...' },
+    { value: '', label: 'Sin proyecto (Obras Mayores)' },
     ...(proyectosData?.data.map((p) => ({
       value: p.id,
       label: `${p.codigoInterno || `#${p.numeroPresupuesto}`} - ${p.obra}`,
@@ -301,7 +303,13 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
                 </div>
               </div>
             ) : (
-              <Select label="Proyecto (obra)" options={proyectoOptions} value={proyectoId} onChange={(e) => setProyectoId(e.target.value)} required />
+              <Select
+                label="Proyecto (obra)"
+                options={proyectoOptions}
+                value={proyectoId}
+                onChange={(e) => setProyectoId(e.target.value)}
+                helperText="Sin proyecto, la compra va al stock de Obras Mayores"
+              />
             )}
             <Select
               label="Fase"
@@ -310,7 +318,6 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
               onChange={(e) => setFaseId(e.target.value)}
               disabled={!proyectoId || cargandoDetalle}
               helperText={cargandoDetalle ? 'Cargando fases del proyecto...' : undefined}
-              required
             />
           </div>
 

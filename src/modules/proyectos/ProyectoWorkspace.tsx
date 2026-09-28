@@ -4,6 +4,7 @@ import { ArrowLeft, Building2, Loader2, Wallet, ShoppingCart, FileCheck2, Wareho
 import { getProyectoById } from '../../api/client';
 import { OrdenesCompraList } from '../abastecimiento/OrdenesCompraList';
 import { BodegaProyectoTab } from '../abastecimiento/BodegaProyectoTab';
+import { RecepcionesPendientesSection } from '../abastecimiento/RecepcionesPendientesSection';
 import { RequisicionesSection } from './RequisicionesSection';
 import { ControlPresupuestoTab } from './ControlPresupuestoTab';
 import { ControlDocumentosTab } from './ControlDocumentosTab';
@@ -114,6 +115,7 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
               {seccion === 'documentos' && <ControlDocumentosTab proyectoId={proyectoId} />}
               {seccion === 'bodega' && (
                 <div className="space-y-8">
+                  <RecepcionesPendientesSection proyectoId={proyectoId} />
                   <RequisicionesSection proyecto={proyecto} activeVersion={activeVersion} />
                   <BodegaProyectoTab proyectoId={proyectoId} />
                 </div>

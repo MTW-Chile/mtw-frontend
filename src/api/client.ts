@@ -22,6 +22,8 @@ import type {
   RecepcionOC,
   SolicitudMaterial,
   BodegaProyectoResponse,
+  BodegaGlobalResponse,
+  MovimientoBodega,
   UnidadesMaterialResponse,
   ConciliacionFactura,
   FacturaSugerida,
@@ -519,7 +521,9 @@ export async function getOrdenCompraById(id: string): Promise<OrdenCompra> {
 }
 
 export async function createOrdenCompra(payload: {
-  proyectoId: string;
+  // Sin proyectoId, la OC va al centro de costo GENERAL ("Obras Mayores")
+  // -- ver resolverCentroCosto en mtw-api.
+  proyectoId?: string | null;
   faseId?: string | null;
   proveedorId: string;
   requiereAprobacion?: boolean;
@@ -565,19 +569,47 @@ export async function eliminarOrdenCompra(id: string): Promise<{ success: boolea
   return response.data;
 }
 
+// El "codigo" unico por item (ver RecepcionOCItem.numero en mtw-api) se
+// genera solo -- la respuesta trae uno por item recien creado, listo para
+// mostrar/rotular sin pedir de nuevo la OC completa.
+export interface RecepcionOCItemCreado {
+  id: string;
+  ordenCompraItemId: string;
+  codigo: string;
+  cantidadRecibida: number;
+}
+
 export async function registrarRecepcionOC(
   ordenCompraId: string,
-  payload: { guiaDespachoNumero?: string; notas?: string; items: { ordenCompraItemId: string; cantidadRecibida: number }[] }
-): Promise<{ success: boolean; recepcion: RecepcionOC; ordenCompra: OrdenCompra }> {
-  const response = await apiClient.post<{ success: boolean; recepcion: RecepcionOC; ordenCompra: OrdenCompra }>(
-    `/ordenes-compra/${ordenCompraId}/recepciones`,
-    payload
-  );
+  payload: {
+    guiaDespachoNumero?: string;
+    notas?: string;
+    items: { ordenCompraItemId: string; cantidadRecibida: number; precioReal?: number | null }[];
+  }
+): Promise<{ success: boolean; recepcion: Omit<RecepcionOC, 'items'> & { items: RecepcionOCItemCreado[] }; ordenCompra: OrdenCompra }> {
+  const response = await apiClient.post(`/ordenes-compra/${ordenCompraId}/recepciones`, payload);
   return response.data;
 }
 
 export async function getBodegaProyecto(proyectoId: string): Promise<BodegaProyectoResponse> {
   const response = await apiClient.get<BodegaProyectoResponse>(`/proyectos/${proyectoId}/bodega`);
+  return response.data;
+}
+
+// Vista global de Bodega (todas las obras + "Obras Mayores" juntas) --
+// para el modulo Bodega de primer nivel.
+export async function getBodegaGlobal(): Promise<BodegaGlobalResponse> {
+  const response = await apiClient.get<BodegaGlobalResponse>('/bodega');
+  return response.data;
+}
+
+// Traslada stock de una bodega a otra (ej. desde "Obras Mayores" hacia la
+// bodega de una obra puntual).
+export async function trasladarBodega(
+  bodegaId: string,
+  payload: { materialId: string; cantidad: number; bodegaDestinoId: string; notas?: string }
+): Promise<{ success: boolean; movimientoSalida: MovimientoBodega; movimientoEntrada: MovimientoBodega }> {
+  const response = await apiClient.post(`/bodega/${bodegaId}/trasladar`, payload);
   return response.data;
 }
 
