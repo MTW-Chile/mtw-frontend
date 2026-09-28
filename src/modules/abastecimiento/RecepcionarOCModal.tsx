@@ -62,9 +62,14 @@ export const RecepcionarOCModal: React.FC<RecepcionarOCModalProps> = ({ ordenCom
         .map((f) => ({ ordenCompraItemId: f.ordenCompraItemId, cantidadRecibida: parseFloat(cantidades[f.ordenCompraItemId] || '0') }))
         .filter((i) => i.cantidadRecibida > 0);
       if (items.length === 0) throw new Error('Cargá al menos una cantidad recibida.');
+      // Obligatorio -- no hay recepcion "sin papel". No hay intermedios:
+      // los dos van juntos, ver mismo chequeo en mtw-api.
+      if (!tipoDocumentoId || !numeroDocumento.trim()) {
+        throw new Error('Tipo de documento y su número son obligatorios.');
+      }
       return registrarRecepcionOC(ordenCompra.id, {
-        tipoDocumentoId: tipoDocumentoId || undefined,
-        numeroDocumento: numeroDocumento.trim() || undefined,
+        tipoDocumentoId,
+        numeroDocumento: numeroDocumento.trim(),
         notas: notas.trim() || undefined,
         items,
       });
@@ -79,6 +84,7 @@ export const RecepcionarOCModal: React.FC<RecepcionarOCModalProps> = ({ ordenCom
   });
 
   const hayAlgunaCantidad = Object.values(cantidades).some((v) => parseFloat(v || '0') > 0);
+  const documentoCompleto = !!tipoDocumentoId && !!numeroDocumento.trim();
 
   return (
     <div
@@ -136,20 +142,23 @@ export const RecepcionarOCModal: React.FC<RecepcionarOCModalProps> = ({ ordenCom
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <Select
-                label="Tipo de documento (opcional)"
+                label="Tipo de documento"
                 options={[
-                  { value: '', label: 'Sin especificar' },
+                  { value: '', label: 'Selecciona...' },
                   ...(tiposDocumento?.data.map((t) => ({ value: t.id, label: t.nombre })) || []),
                 ]}
                 value={tipoDocumentoId}
                 onChange={(e) => setTipoDocumentoId(e.target.value)}
+                required
               />
               <Input
-                label={`N° de ${tipoDocumentoElegido?.nombre.toLowerCase() || 'documento'} (opcional)`}
+                label={`N° de ${tipoDocumentoElegido?.nombre.toLowerCase() || 'documento'}`}
                 value={numeroDocumento}
                 onChange={(e) => setNumeroDocumento(e.target.value)}
+                required
               />
             </div>
+            <p className="text-[11px] text-slate-400">Toda recepción necesita un documento de respaldo -- factura o guía de despacho.</p>
             <Input label="Notas (opcional)" value={notas} onChange={(e) => setNotas(e.target.value)} />
 
             <div className="space-y-2">
@@ -187,7 +196,7 @@ export const RecepcionarOCModal: React.FC<RecepcionarOCModalProps> = ({ ordenCom
               </Button>
               <Button
                 isLoading={mutation.isPending}
-                disabled={!hayAlgunaCantidad}
+                disabled={!hayAlgunaCantidad || !documentoCompleto}
                 onClick={() => {
                   setError(null);
                   mutation.mutate();

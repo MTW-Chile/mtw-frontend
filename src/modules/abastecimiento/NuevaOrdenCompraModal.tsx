@@ -379,7 +379,11 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
       handleClose();
     },
     onError: (err: any) => {
-      setGeneralError(err?.response?.data?.error || err?.message || 'No se pudo guardar la Orden de Compra.');
+      setGeneralError(
+        err?.response?.data?.error ||
+          err?.message ||
+          (modo === 'solicitar' ? 'No se pudo guardar la solicitud.' : 'No se pudo guardar la Orden de Compra.')
+      );
     },
   });
 
@@ -444,7 +448,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
             </div>
             <div>
               <h2 className="text-sm font-black tracking-tight text-slate-900">
-                {modo === 'solicitar' ? 'Solicitar Orden de Compra' : modo === 'completar' ? 'Completar solicitud' : 'Nueva Orden de Compra'}
+                {modo === 'solicitar' ? 'Solicitud de Materiales' : modo === 'completar' ? 'Completar solicitud' : 'Nueva Orden de Compra'}
               </h2>
               <p className="text-[11px] text-slate-500">
                 {modo === 'solicitar'
@@ -694,7 +698,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
             Cancelar
           </Button>
           <Button type="button" isLoading={mutation.isPending} onClick={() => { setGeneralError(null); mutation.mutate(); }}>
-            {modo === 'solicitar' ? 'Solicitar' : modo === 'completar' ? 'Guardar y completar' : 'Crear Orden de Compra'}
+            {modo === 'solicitar' ? 'Solicitar Materiales' : modo === 'completar' ? 'Guardar y completar' : 'Crear Orden de Compra'}
           </Button>
         </div>
       </div>

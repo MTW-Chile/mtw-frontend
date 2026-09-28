@@ -536,7 +536,7 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                                     leftIcon={<ShoppingCart className="w-3.5 h-3.5" />}
                                     onClick={() => setOcParaFase({ fase, categoria: c.familia })}
                                   >
-                                    Solicitar OC
+                                    Solicitud de Materiales
                                   </Button>
                                 </div>
                               </div>
