@@ -86,4 +86,34 @@ describe('buildDocumentoHtml — el cupo de una página nunca es mayor que las v
     const alturaTarjeta = Number(/height:(\d+)px/.exec(html.slice(inicioTarjeta, inicioTarjeta + 200))![1]);
     expect(alturaTarjeta).toBeGreaterThan(500);
   });
+
+  it('una ventana ANCHA y BAJA sola en la última página NO recibe todo el alto disponible (no infla una caja vacía)', () => {
+    // Regresión: el fix de arriba (dar el alto disponible completo a una
+    // tarjeta sola) reventó con L01 (Casa La Aramoni, 800×500mm) -- ancha y
+    // baja, el ANCHO es lo que fija su escala, no el alto, así que darle
+    // TODO el alto disponible (igual que a V21) no agranda su dibujo en
+    // nada: solo deja una caja casi vacía ocupando casi toda la página.
+    // El alto de la tarjeta tiene que ser el que el CONTENIDO (dibujo a la
+    // escala que le tocó + filas de texto) necesita de verdad, acotado por
+    // el slot -- nunca forzado a ocupar todo el slot si no lo necesita.
+    const ventanas = [
+      ventana('a', 'V1', 1200, 1350), ventana('b', 'V2', 1200, 1550),
+      ventana('c', 'V3', 1200, 1350), ventana('d', 'V4', 1200, 1550), ventana('e', 'V5', 1200, 1350),
+      ventana('f', 'L01', 800, 500),
+    ];
+    const pngPorVentana = new Map(ventanas.map((v) => [v.id, 'data:image/png;base64,AA==']));
+    const preciosVenta = new Map<string, PrecioVentaLinea>(ventanas.map((v) => [v.id, { precioUnitarioCLP: 1, precioVentaCLP: 1 }]));
+    const html = buildDocumentoHtml({
+      proyecto: { obra: 'TEST', codigoInterno: 'T', numeroPresupuesto: 1 } as unknown as Proyecto,
+      ventanas, texto: '', condiciones: '', venta: 1, iva: 1, totalConIva: 1, ivaPct: 19, tasaUf: 38500,
+      logoDataUrl: null, logoMuchtekDataUrl: null, preciosVenta, pngPorVentana,
+    });
+    const idxL01 = html.indexOf('L01');
+    const inicioTarjeta = html.lastIndexOf('<div style="border:1px solid', idxL01);
+    const alturaTarjeta = Number(/height:(\d+)px/.exec(html.slice(inicioTarjeta, inicioTarjeta + 200))![1]);
+    // Una tarjeta ancha-baja normal (con sus 3 filas de texto + el piso de
+    // la caja de valores) no pasa de ~300px de alto real -- si el bug
+    // reaparece, esto sale en 800+ (el alto útil casi completo de la página).
+    expect(alturaTarjeta).toBeLessThan(400);
+  });
 });
