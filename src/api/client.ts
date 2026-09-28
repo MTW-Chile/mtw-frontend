@@ -501,6 +501,16 @@ export async function espejarVentana(
   return response.data;
 }
 
+// Toggle de ordenPanelesInvertido -- mismo patrón que espejarVentana.
+export async function invertirOrdenPanelesVentana(
+  ventanaId: string
+): Promise<{ success: boolean; data: Ventana; message?: string }> {
+  const response = await apiClient.post<{ success: boolean; data: Ventana; message?: string }>(
+    `/ventanas/${ventanaId}/invertir-orden-paneles`
+  );
+  return response.data;
+}
+
 // ==========================================
 // ABASTECIMIENTO: ORDENES DE COMPRA Y BODEGA
 // ==========================================

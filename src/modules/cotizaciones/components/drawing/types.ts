@@ -246,6 +246,8 @@ export interface WindowLine {
   vidrioCodigo?: string;
   /** Si se debe dibujar sin marco */
   dibujoSinMarco?: boolean;
+  /** Ajuste manual: invierte qué paño va arriba/abajo en una compuesta vertical (ver compositePanels en geometryCore.ts) */
+  ordenPanelesInvertido?: boolean;
   /** Código de apertura para dibujo */
   dibujoTipoApertura?: number;
   /** Ancho para dibujo (puede diferir del real) */

@@ -10,7 +10,8 @@ import {
   Sliders,
   Trash2,
   Loader2,
-  FlipHorizontal2
+  FlipHorizontal2,
+  ArrowUpDown
 } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
 import type { Ventana } from '../../../../types';
@@ -28,6 +29,8 @@ interface VentanaCardProps {
   isDeletingLineaManual?: boolean;
   onEspejar?: (ventana: Ventana) => void;
   isEspejando?: boolean;
+  onInvertirOrden?: (ventana: Ventana) => void;
+  isInvirtiendoOrden?: boolean;
 }
 
 export const VentanaCard: React.FC<VentanaCardProps> = ({
@@ -38,6 +41,8 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
   isDeletingLineaManual,
   onEspejar,
   isEspejando,
+  onInvertirOrden,
+  isInvirtiendoOrden,
 }) => {
   const superficie = ventana.m2Ventana ?? ((ventana.anchoMm * ventana.altoMm) / 1_000_000);
   const esManual = ventana.origen === 'PERSONALIZADO';
@@ -46,6 +51,14 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
   // Extraemos el acabado y nombre de la apertura según el motor de HETMO
   const windowLine = useMemo(() => toWindowLine(ventana), [ventana]);
   const isSliding = useMemo(() => (windowLine ? core.isSlidingLine(windowLine) : false), [windowLine]);
+  // "Invertir orden" solo tiene sentido en una línea compuesta en vertical
+  // (más de un paño apilado, ej. proyectante + fijo) -- en una línea de un
+  // solo paño no hay nada que reordenar.
+  const isComposite = useMemo(() => {
+    if (!windowLine) return false;
+    const composite = core.compositePanels(windowLine) as { tiles: unknown[] } | null;
+    return Boolean(composite && composite.tiles.length > 1);
+  }, [windowLine]);
   // Sin marco (solo DVH) no tiene perfil -> no hay acabado que mostrar.
   const isFrameless = Boolean(windowLine?.dibujoSinMarco);
 
@@ -278,6 +291,21 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
             {isEspejando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FlipHorizontal2 className="w-3.5 h-3.5" />}
             <span>{ventana.espejado ? 'Espejada' : 'Espejar'}</span>
           </button>
+          {isComposite && (
+            <button
+              onClick={() => onInvertirOrden?.(ventana)}
+              disabled={isInvirtiendoOrden}
+              className={`text-xs font-semibold flex items-center gap-1 transition-colors px-2 py-1 rounded-lg border cursor-pointer disabled:opacity-50 ${
+                ventana.ordenPanelesInvertido
+                  ? 'bg-orange-50 text-[#E34A26] border-orange-200 hover:bg-orange-100'
+                  : 'bg-white text-slate-700 border-slate-200 hover:text-[#E34A26] hover:bg-slate-50'
+              }`}
+              title="Invertir qué paño va arriba y cuál abajo en el dibujo (para ventanas compuestas que HETMO entrega con el orden vertical al revés)"
+            >
+              {isInvirtiendoOrden ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowUpDown className="w-3.5 h-3.5" />}
+              <span>{ventana.ordenPanelesInvertido ? 'Orden invertido' : 'Invertir orden'}</span>
+            </button>
+          )}
           <button
             onClick={() => onOpenMaterials?.(ventana)}
             className="text-xs font-semibold text-slate-600 hover:text-[#E34A26] flex items-center gap-1 transition-colors px-2 py-1 rounded-lg hover:bg-slate-100 cursor-pointer"

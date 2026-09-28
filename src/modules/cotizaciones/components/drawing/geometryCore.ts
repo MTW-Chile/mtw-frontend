@@ -417,17 +417,28 @@
     // ajuste, la puerta quedaba dibujada arriba y el fijo abajo, al revés
     // de como HETMO mismo la muestra en su propio configurador.
     const esPuerta = panel => apertureDefinition(line, panel.apertura).family === 'door';
+    // Fuera de una puerta, no hay una regla física única para decidir qué
+    // paño va arriba en una columna (ej. proyectante+fijo: HETMO no siempre
+    // define sus paños en el mismo orden que el plano real, y a diferencia
+    // de una puerta, un fijo puede ir arriba O abajo de una ventana que no
+    // llega al piso). ordenPanelesInvertido es la corrección manual para
+    // esos casos (ver Ventana.ordenPanelesInvertido, botón "Invertir orden"
+    // en VentanaCard) -- invierte el orden por numero_ventana, pero NUNCA
+    // saca a una puerta de abajo: una puerta llega al piso siempre, así que
+    // ese ajuste manual no tiene sentido aplicárselo a ella.
+    const invertirOrden = Boolean(line && line.ordenPanelesInvertido);
     let packedX = 0;
     const tiles = [];
     columns.forEach(column => {
       const columnWidth = Math.max(...column.map(panel => panel.width));
+      const puertas = column.filter(esPuerta).sort((a, b) => a.number - b.number);
+      const resto = column.filter(panel => !esPuerta(panel)).sort((a, b) => a.number - b.number);
+      if (invertirOrden) resto.reverse();
       let packedY = 0;
-      column
-        .sort((a, b) => Number(esPuerta(a)) - Number(esPuerta(b)) || a.number - b.number)
-        .forEach(panel => {
-          tiles.push({ panel, x: packedX, y: packedY, width: columnWidth, height: panel.height });
-          packedY += panel.height;
-        });
+      [...resto, ...puertas].forEach(panel => {
+        tiles.push({ panel, x: packedX, y: packedY, width: columnWidth, height: panel.height });
+        packedY += panel.height;
+      });
       packedX += columnWidth;
     });
     return {
