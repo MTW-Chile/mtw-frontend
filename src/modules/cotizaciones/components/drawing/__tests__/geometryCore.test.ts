@@ -251,6 +251,34 @@ describe('normalizeGeometryItem — numero_ventana crudo tiene prioridad sobre p
   });
 });
 
+describe('compositePanels — una PUERTA siempre va abajo en su columna', () => {
+  // Confirmado con V05A (Franklin Sánchez, HETMO 12611, 1300x2600):
+  // HETMO define primero el paño de la puerta (numero_ventana=1) y
+  // después el fijo superior (numero_ventana=2) -- pero la puerta llega
+  // hasta el piso, así que tiene que dibujarse SIEMPRE abajo, sin importar
+  // en qué orden HETMO haya definido los paños (a diferencia de un
+  // 'hinged' -- ventana practicable, que no llega al piso y sí puede ir
+  // arriba de un fijo). El propio configurador de HETMO la muestra con el
+  // fijo arriba y la puerta abajo.
+  it('puerta definida ANTES que el fijo en numero_ventana queda igual abajo (tile.y mayor)', () => {
+    const line = {
+      dibujoAncho: 1300,
+      dibujoAlto: 2600,
+      geometria: [
+        { tipo_elemento: 10000, ancho: 1300, alto: 1880, parametrosJson: { numero_ventana: 1 } },
+        { tipo_elemento: 3, tipo_apertura: 17, parametrosJson: { numero_ventana: 1 } },
+        { tipo_elemento: 10000, ancho: 1300, alto: 720, parametrosJson: { numero_ventana: 2 } },
+      ],
+    };
+    const composite = core.compositePanels(line) as { tiles: { panel: { number: number }; y: number; height: number }[] } | null;
+    expect(composite).not.toBeNull();
+    const puerta = composite!.tiles.find(t => t.panel.number === 1)!;
+    const fijo = composite!.tiles.find(t => t.panel.number === 2)!;
+    expect(fijo.y).toBe(0);
+    expect(puerta.y).toBe(fijo.height);
+  });
+});
+
 describe('panelTraverseLines — travesaño declarado como fila tipo_elemento 6 + cota', () => {
   // Confirmado con Franklin Sánchez V01/V02 (HETMO 10200/10201): sin
   // bh_numero_travesano, el travesaño real de cada paño es una fila tipo 6

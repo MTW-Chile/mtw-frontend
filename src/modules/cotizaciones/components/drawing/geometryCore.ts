@@ -404,15 +404,30 @@
     const packedWidth = columns.reduce((sum, column) => sum + Math.max(...column.map(panel => panel.width)), 0);
     const packedHeightValid = columns.every(column => !lineHeight || Math.abs(column.reduce((sum, panel) => sum + panel.height, 0) - lineHeight) <= tolerance(lineHeight));
     if (!packedHeightValid || (lineWidth && Math.abs(packedWidth - lineWidth) > tolerance(lineWidth))) return null;
+    // Dentro de una columna, el orden por defecto es panel.number (el orden
+    // en que HETMO define los paños) -- confirmado correcto para paños
+    // fijos/practicables entre sí. Pero una PUERTA (familia 'door', código
+    // HETMO 17/18/20/21 -- distinta de 'hinged', que es una ventana
+    // practicable que no llega al piso) siempre tiene que apoyar en el
+    // suelo: si comparte columna con otro paño (típico: puerta + fijo
+    // superior tipo dintel/luz sobre la puerta), la puerta va SIEMPRE
+    // abajo, sin importar en qué orden HETMO haya definido los paños.
+    // Confirmado con un caso real (V05A, Franklin Sánchez) donde HETMO
+    // define primero el paño de la puerta y después el fijo -- sin este
+    // ajuste, la puerta quedaba dibujada arriba y el fijo abajo, al revés
+    // de como HETMO mismo la muestra en su propio configurador.
+    const esPuerta = panel => apertureDefinition(line, panel.apertura).family === 'door';
     let packedX = 0;
     const tiles = [];
     columns.forEach(column => {
       const columnWidth = Math.max(...column.map(panel => panel.width));
       let packedY = 0;
-      column.sort((a, b) => a.number - b.number).forEach(panel => {
-        tiles.push({ panel, x: packedX, y: packedY, width: columnWidth, height: panel.height });
-        packedY += panel.height;
-      });
+      column
+        .sort((a, b) => Number(esPuerta(a)) - Number(esPuerta(b)) || a.number - b.number)
+        .forEach(panel => {
+          tiles.push({ panel, x: packedX, y: packedY, width: columnWidth, height: panel.height });
+          packedY += panel.height;
+        });
       packedX += columnWidth;
     });
     return {
