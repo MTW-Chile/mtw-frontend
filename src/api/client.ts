@@ -624,10 +624,11 @@ export async function updateOrdenCompraEstado(
 
 // Solo administrador (ver requireAdmin en mtw-api) -- borra la OC entera,
 // incluida CANCELADA, y reversa el stock que haya ingresado por ella. El
-// backend devuelve 409 si ese stock ya se movio de Bodega (hay que
-// resolverlo ahi primero).
-export async function eliminarOrdenCompra(id: string): Promise<{ success: boolean }> {
-  const response = await apiClient.post<{ success: boolean }>(`/ordenes-compra/${id}/eliminar`);
+// backend devuelve 409 (forzable: true) si ese stock ya se movio de
+// Bodega o se borro a mano -- forzar=true salta esa validacion (nunca
+// deja stock negativo, ver mtw-api).
+export async function eliminarOrdenCompra(id: string, forzar?: boolean): Promise<{ success: boolean }> {
+  const response = await apiClient.post<{ success: boolean }>(`/ordenes-compra/${id}/eliminar`, forzar ? { forzar: true } : undefined);
   return response.data;
 }
 

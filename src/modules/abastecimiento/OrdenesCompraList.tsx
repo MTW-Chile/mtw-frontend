@@ -127,16 +127,24 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
 
   // Solo admin (ver requireAdmin en mtw-api) -- borra la OC completa,
   // cualquier estado, y libera su numero (no es un contador aparte, ver
-  // generarNumeroOC en mtw-api). El backend devuelve 409 si el stock que
-  // ingreso ya se movio de Bodega.
+  // generarNumeroOC en mtw-api). El backend devuelve 409 (forzable) si el
+  // stock que ingreso ya se movio de Bodega o se borro a mano -- en ese
+  // caso se ofrece reintentar forzado (nunca deja stock negativo).
   const eliminarMutation = useMutation({
-    mutationFn: (id: string) => eliminarOrdenCompra(id),
+    mutationFn: ({ id, forzar }: { id: string; forzar?: boolean }) => eliminarOrdenCompra(id, forzar),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ordenesCompra'] });
       queryClient.invalidateQueries({ queryKey: ['misAprobacionesPendientes'] });
     },
-    onError: (error: any) => {
-      window.alert(error?.response?.data?.error || 'No se pudo eliminar la OC.');
+    onError: (error: any, variables) => {
+      const mensaje = error?.response?.data?.error || 'No se pudo eliminar la OC.';
+      if (error?.response?.status === 409 && error?.response?.data?.forzable && !variables.forzar) {
+        if (window.confirm(`${mensaje}\n\n¿Forzar la eliminación de todos modos? El stock afectado queda en 0, nunca negativo.`)) {
+          eliminarMutation.mutate({ id: variables.id, forzar: true });
+        }
+        return;
+      }
+      window.alert(mensaje);
     },
   });
 
@@ -328,14 +336,14 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                               size="sm"
                               variant="danger"
                               leftIcon={<Trash2 className="w-3.5 h-3.5" />}
-                              isLoading={eliminarMutation.isPending && eliminarMutation.variables === oc.id}
+                              isLoading={eliminarMutation.isPending && eliminarMutation.variables?.id === oc.id}
                               onClick={() => {
                                 if (
                                   window.confirm(
                                     `¿Eliminar definitivamente la OC ${oc.numero}? Esta acción no se puede deshacer y libera su número.`
                                   )
                                 ) {
-                                  eliminarMutation.mutate(oc.id);
+                                  eliminarMutation.mutate({ id: oc.id });
                                 }
                               }}
                             >
