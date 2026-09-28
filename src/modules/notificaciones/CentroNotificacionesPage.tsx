@@ -7,12 +7,12 @@ const formatoMoneda = (valor: number) => valor.toLocaleString('es-CL', { style: 
 
 interface CentroNotificacionesPageProps {
   // Ir directo a donde ya existe la accion de aprobar/rechazar -- Paso 5
-  // del Cotizador para una cotizacion, tab Abastecimiento del proyecto
-  // para una OC. Nada de popups con un resumen aparte: la pagina real ya
-  // tiene toda la info (hoja de fijacion completa / detalle de items) y el
-  // boton de aprobar.
+  // del Cotizador para una cotizacion, modulo Compras para una OC (ahi se
+  // aprueba Y se envia, ya no desde la ficha de un proyecto puntual).
+  // Nada de popups con un resumen aparte: la pagina real ya tiene toda la
+  // info y el boton de aprobar.
   onAbrirCotizacion?: (proyectoId: string) => void;
-  onAbrirProyecto?: (proyectoId: string, seccion?: string) => void;
+  onAbrirCompras?: () => void;
 }
 
 /**
@@ -25,7 +25,7 @@ interface CentroNotificacionesPageProps {
  */
 export const CentroNotificacionesPage: React.FC<CentroNotificacionesPageProps> = ({
   onAbrirCotizacion,
-  onAbrirProyecto,
+  onAbrirCompras,
 }) => {
   const { data: pendientes, isLoading } = useQuery({
     queryKey: ['misAprobacionesPendientes'],
@@ -59,11 +59,7 @@ export const CentroNotificacionesPage: React.FC<CentroNotificacionesPageProps> =
           {gerencial.map((item) => (
             <button
               key={item.tipo === 'orden_compra' ? `oc-${item.ordenCompraId}` : `cot-${item.versionId}`}
-              onClick={() =>
-                item.tipo === 'orden_compra'
-                  ? onAbrirProyecto?.(item.proyectoId, 'abastecimiento')
-                  : onAbrirCotizacion?.(item.proyectoId)
-              }
+              onClick={() => (item.tipo === 'orden_compra' ? onAbrirCompras?.() : onAbrirCotizacion?.(item.proyectoId))}
               className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div className="flex items-center gap-3 min-w-0">

@@ -10,11 +10,9 @@ interface HeaderProps {
   onNavigateConfig?: () => void;
   moduleTitle?: string;
   // Para la campanita de notificaciones: navegacion generica (ej. al
-  // Centro de Notificaciones), abrir directo una cotizacion pendiente en
-  // el Paso 5 del Cotizador, o abrir directo un proyecto en una seccion
-  // puntual (ej. Abastecimiento, para una OC pendiente).
+  // Centro de Notificaciones o al módulo Compras, para una OC pendiente)
+  // o abrir directo una cotizacion pendiente en el Paso 5 del Cotizador.
   onNavigate?: (tab: string, search?: string) => void;
-  onAbrirProyecto?: (proyectoId: string, seccion?: string) => void;
   onAbrirCotizacion?: (proyectoId: string) => void;
 }
 
@@ -24,7 +22,6 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateConfig,
   moduleTitle = 'Inicio',
   onNavigate,
-  onAbrirProyecto,
   onAbrirCotizacion,
 }) => {
   const { usuario } = useSession();
@@ -202,7 +199,11 @@ export const Header: React.FC<HeaderProps> = ({
                           key={`ger-oc-${item.ordenCompraId}`}
                           onClick={() => {
                             setIsNotifOpen(false);
-                            onAbrirProyecto?.(item.proyectoId, 'abastecimiento');
+                            // Aprobar/enviar una OC es trabajo del módulo
+                            // Compras, no de la ficha de un proyecto
+                            // puntual -- ver modoRestringido en
+                            // OrdenesCompraList.
+                            onNavigate?.('compras');
                           }}
                           className="w-full flex items-start gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-slate-100 transition-colors cursor-pointer"
                         >

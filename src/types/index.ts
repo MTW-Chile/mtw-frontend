@@ -45,7 +45,11 @@ export interface AprobacionPendienteOC {
   ordenCompraId: string;
   numero: string;
   proveedorNombre: string;
-  proyectoId: string;
+  // null para una OC de "Obras Mayores" (sin proyecto asociado) -- obra
+  // ya trae el nombre correcto en ese caso (ver labelCentroCosto en
+  // mtw-api). No se usa para navegar: aprobar/enviar una OC es siempre
+  // en el módulo Compras, ver onAbrirCompras.
+  proyectoId: string | null;
   obra: string;
   codigoInterno: string | null;
   total: number;

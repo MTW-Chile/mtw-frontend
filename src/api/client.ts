@@ -526,7 +526,8 @@ export async function createOrdenCompra(payload: {
   proyectoId?: string | null;
   faseId?: string | null;
   proveedorId: string;
-  requiereAprobacion?: boolean;
+  // Toda OC nueva requiere aprobacion gerencial -- ya no es opcional,
+  // mtw-api la fuerza siempre sin importar lo que se mande aca.
   moneda?: string;
   fechaCalendarizada?: string | null;
   comentarios?: string;

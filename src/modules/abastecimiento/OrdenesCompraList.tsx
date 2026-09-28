@@ -49,6 +49,11 @@ interface OrdenesCompraListProps {
 }
 
 export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId, proyectoLabel }) => {
+  // Aprobar y enviar una OC es trabajo centralizado del módulo Compras --
+  // desde la ficha de un proyecto puntual (proyectoId fijo) solo se puede
+  // crear/ver/cancelar, no resolver la aprobación ni mandarla al
+  // proveedor. Rendered sin proyectoId (Compras) tiene el flujo completo.
+  const modoRestringido = !!proyectoId;
   const queryClient = useQueryClient();
   const [modalAbierto, setModalAbierto] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState<EstadoOC | ''>('');
@@ -228,7 +233,10 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                           >
                             PDF
                           </Button>
-                          {oc.estado === 'BORRADOR' && oc.requiereAprobacion && (
+                          {/* Aprobar/enviar es trabajo del módulo Compras (revisión
+                              centralizada), no de la ficha de un proyecto puntual --
+                              ver modoRestringido. */}
+                          {!modoRestringido && oc.estado === 'BORRADOR' && oc.requiereAprobacion && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -238,7 +246,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                               Solicitar aprobación
                             </Button>
                           )}
-                          {oc.estado === 'BORRADOR' && !oc.requiereAprobacion && (
+                          {!modoRestringido && oc.estado === 'BORRADOR' && !oc.requiereAprobacion && (
                             <Button
                               size="sm"
                               leftIcon={<Send className="w-3.5 h-3.5" />}
@@ -248,7 +256,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                               Enviar
                             </Button>
                           )}
-                          {oc.estado === 'PENDIENTE_APROBACION' && (
+                          {!modoRestringido && oc.estado === 'PENDIENTE_APROBACION' && (
                             <>
                               <Button
                                 size="sm"
@@ -263,7 +271,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                               </Button>
                             </>
                           )}
-                          {oc.estado === 'APROBADA' && (
+                          {!modoRestringido && oc.estado === 'APROBADA' && (
                             <Button
                               size="sm"
                               leftIcon={<Send className="w-3.5 h-3.5" />}
@@ -273,7 +281,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                               Enviar
                             </Button>
                           )}
-                          {oc.estado === 'ENVIADA' && (
+                          {!modoRestringido && oc.estado === 'ENVIADA' && (
                             <Button
                               size="sm"
                               variant="outline"

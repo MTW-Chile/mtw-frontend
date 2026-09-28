@@ -116,13 +116,35 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
     return (
       <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs space-y-1">
         <Boxes className="w-6 h-6 mx-auto text-slate-300" />
-        <p>Este proyecto todavía no tiene bodega -- se crea automáticamente con la primera recepción de una Orden de Compra.</p>
+        <p>Este proyecto todavía no tiene bodega -- se abre sola al aceptar el proyecto o con la primera recepción de una Orden de Compra.</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-5">
+      {!proyectoId && (
+        <div className="space-y-2.5">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Bodegas disponibles</h3>
+          <div className="flex flex-wrap gap-1.5">
+            {bodegasDisponibles.map((b) => {
+              const items = stock.filter((s) => s.bodegaId === b.id).length;
+              return (
+                <span
+                  key={b.id}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700"
+                >
+                  {labelBodega(b)}
+                  <span className={`font-mono font-normal ${items === 0 ? 'text-slate-300' : 'text-slate-400'}`}>
+                    · {items === 0 ? 'vacía' : `${items} ítem${items === 1 ? '' : 's'}`}
+                  </span>
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="space-y-2.5">
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Stock actual</h3>
         {stock.length === 0 ? (

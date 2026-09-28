@@ -41,10 +41,6 @@ const AppContent: React.FC = () => {
   const [activeTab, setActiveTabState] = useState('inicio');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  // Deep-link desde la campanita de notificaciones (Header) hacia un
-  // proyecto puntual (ej. una OC pendiente de aprobación) -- ProyectosPage
-  // lo consume y avisa por onProyectoAbierto para que no se reabra solo.
-  const [proyectoAAbrir, setProyectoAAbrir] = useState<{ id: string; seccion?: string } | null>(null);
   // Deep-link hacia una cotizacion puntual (aprobacion gerencial pendiente)
   // -- CotizacionesPage lo consume, abre el Cotizador en el Paso 5
   // (Consolidación) y avisa por onProyectoAbierto para que no se reabra solo.
@@ -106,11 +102,6 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const abrirProyecto = (proyectoId: string, seccion?: string) => {
-    setActiveTabState('proyectos');
-    setProyectoAAbrir({ id: proyectoId, seccion });
-  };
-
   const abrirCotizacion = (proyectoId: string) => {
     setActiveTabState('cotizaciones');
     setCotizacionAAbrir(proyectoId);
@@ -132,8 +123,10 @@ const AppContent: React.FC = () => {
       const [tipo, valor] = abrir.split(/:(.*)/s);
       if (tipo === 'cotizacion' && valor) {
         abrirCotizacion(valor);
-      } else if (tipo === 'oc' && valor) {
-        abrirProyecto(valor, 'abastecimiento');
+      } else if (tipo === 'oc') {
+        // Aprobar/enviar una OC es trabajo del módulo Compras, no de un
+        // proyecto puntual -- ver modoRestringido en OrdenesCompraList.
+        handleNavigate('compras');
       }
     }
     window.history.replaceState({}, '', window.location.pathname);
@@ -182,7 +175,6 @@ const AppContent: React.FC = () => {
           onNavigateConfig={() => handleNavigate('configuracion')}
           moduleTitle={MODULE_TITLES[activeTab] || 'Inicio'}
           onNavigate={handleNavigate}
-          onAbrirProyecto={abrirProyecto}
           onAbrirCotizacion={abrirCotizacion}
         />
 
@@ -203,7 +195,7 @@ const AppContent: React.FC = () => {
           )}
 
           {activeTab === 'proyectos' && (
-            <ProyectosPage proyectoAAbrir={proyectoAAbrir} onProyectoAbierto={() => setProyectoAAbrir(null)} />
+            <ProyectosPage />
           )}
 
           {activeTab === 'compras' && <ComprasPage />}
@@ -215,7 +207,7 @@ const AppContent: React.FC = () => {
           )}
 
           {activeTab === TAB_CENTRO_NOTIFICACIONES && (
-            <CentroNotificacionesPage onAbrirProyecto={abrirProyecto} onAbrirCotizacion={abrirCotizacion} />
+            <CentroNotificacionesPage onAbrirCompras={() => handleNavigate('compras')} onAbrirCotizacion={abrirCotizacion} />
           )}
         </main>
       </div>

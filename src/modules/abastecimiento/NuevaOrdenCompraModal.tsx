@@ -72,16 +72,21 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   const [proyectoId, setProyectoId] = useState(proyectoIdFijo || '');
   const [faseId, setFaseId] = useState('');
   const [proveedorId, setProveedorId] = useState('');
-  const [requiereAprobacion, setRequiereAprobacion] = useState(false);
   const [comentarios, setComentarios] = useState('');
   const [items, setItems] = useState<ItemForm[]>([itemVacio()]);
   const [generalError, setGeneralError] = useState<string | null>(null);
 
+  // Mismo queryKey que ProyectosPage/App.tsx (['proyectos', 'en-curso']) --
+  // comparte cache, y solo se muestran obras ya aceptadas por el cliente
+  // (Cotizaciones deja de ser relevante despues de eso, ver ProyectosPage).
+  // Una cotizacion todavia en curso no tiene fases ni bodega, no tiene
+  // sentido comprarle nada todavia.
   const { data: proyectosData } = useQuery({
-    queryKey: ['proyectos', 'todos-para-oc'],
+    queryKey: ['proyectos', 'en-curso'],
     queryFn: () => getProyectos({ limit: 200 }),
     enabled: isOpen && !proyectoIdFijo,
   });
+  const proyectosEnCurso = (proyectosData?.data || []).filter((p) => p.versiones[0]?.estadoAprobacion === 'ACEPTADO_CLIENTE');
   const { data: proveedoresData } = useQuery({
     queryKey: ['proveedores'],
     queryFn: () => getProveedores(),
@@ -191,7 +196,6 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
         proyectoId: proyectoId || null,
         faseId: faseId || null,
         proveedorId,
-        requiereAprobacion,
         comentarios: comentarios.trim() || undefined,
         items: itemsValidos.map((i) => ({
           materialId: i.materialId,
@@ -206,9 +210,9 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ordenesCompra'] });
-      // Si nacio en PENDIENTE_APROBACION (requiereAprobacion tildado), esto
-      // es un pendiente gerencial nuevo -- se invalida para que la
-      // campanita/Centro de Notificaciones lo vean al toque.
+      // Toda OC nueva nace pendiente de aprobacion gerencial -- se invalida
+      // para que la campanita/Centro de Notificaciones/Compras lo vean al
+      // toque.
       queryClient.invalidateQueries({ queryKey: ['misAprobacionesPendientes'] });
       handleClose();
     },
@@ -221,7 +225,6 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
     setProyectoId(proyectoIdFijo || '');
     setFaseId('');
     setProveedorId('');
-    setRequiereAprobacion(false);
     setComentarios('');
     setItems([itemVacio()]);
     setGeneralError(null);
@@ -241,10 +244,10 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
 
   const proyectoOptions = [
     { value: '', label: 'Sin proyecto (Obras Mayores)' },
-    ...(proyectosData?.data.map((p) => ({
+    ...proyectosEnCurso.map((p) => ({
       value: p.id,
       label: `${p.codigoInterno || `#${p.numeroPresupuesto}`} - ${p.obra}`,
-    })) || []),
+    })),
   ];
   const faseOptions = [
     { value: '', label: proyectoId ? 'Selecciona una fase...' : 'Elige primero un proyecto' },
@@ -376,15 +379,10 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
             required
           />
 
-          <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={requiereAprobacion}
-              onChange={(e) => setRequiereAprobacion(e.target.checked)}
-              className="w-4 h-4 rounded border-slate-300 text-[#E34A26] focus:ring-[#E34A26]/30"
-            />
-            Requiere aprobación de Gerencia antes de enviarse al proveedor
-          </label>
+          <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5">
+            Esta OC va a quedar pendiente de aprobación gerencial -- desde ahí, quien la aprueba también la envía al
+            proveedor desde el módulo Compras.
+          </p>
 
           <div className="space-y-1.5">
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
