@@ -231,9 +231,18 @@ interface CardDeps {
   escalaPxPorMm?: number;
 }
 
-// Mayor escala (px por mm) con la que TODAS las ventanas del documento
-// entran en su celda de dibujo: limitada por ALTO_IMAGEN_MAX, ANCHO_IMAGEN_MAX
-// y el alto real que le queda a cada tarjeta según su slot de página.
+// Mayor escala (px por mm) con la que TODAS las ventanas de la página
+// entran en su celda de dibujo: limitada por ANCHO_IMAGEN_MAX y el alto
+// real que le queda a cada tarjeta según su slot de página (ya NO por un
+// techo fijo en px -- ver ALTO_IMAGEN_MAX más abajo, que dejó de aplicarse
+// acá). Un techo fijo siempre terminaba siendo o muy chico (una tarjeta
+// sola en su página, con casi toda la página libre, igual quedaba
+// achicada a ese techo -- confirmado con V21, 500×1400mm, sola en su
+// página) o muy grande para el caso normal -- no hay un solo número que
+// sirva para los dos casos. El alto real de la fila (altoTarjeta menos
+// las filas de texto de ESTA tarjeta) ya refleja cuánto espacio hay de
+// verdad, gracias a que el cupo de la página ahora es el real (ver
+// buildDocumentoHtml: cupo = min(cupoMax, ventanas restantes)).
 export function calcularEscalaDibujos(
   tarjetas: { ventana: Ventana; altoTarjeta: number }[],
   pngPorVentana: Map<string, string | null>
@@ -242,7 +251,7 @@ export function calcularEscalaDibujos(
   tarjetas.forEach(({ ventana: v, altoTarjeta }) => {
     if (!pngPorVentana.get(v.id) || !(v.altoMm > 0) || !(v.anchoMm > 0)) return;
     const fila = Math.max(ALTO_MIN_FILA_IMAGEN_VALORES, altoTarjeta - alturaFilasTexto(v, analizarVentana(v)));
-    const altoDisponible = Math.min(ALTO_IMAGEN_MAX, Math.round(fila) - PADDING_VERTICAL_FILA_IMAGEN);
+    const altoDisponible = Math.round(fila) - PADDING_VERTICAL_FILA_IMAGEN;
     escala = Math.min(escala, altoDisponible / v.altoMm, ANCHO_IMAGEN_MAX / v.anchoMm);
   });
   return Number.isFinite(escala) && escala > 0 ? escala : undefined;
@@ -336,20 +345,23 @@ function estimarLineasTexto(texto: string, anchoColumnaPx: number, anchoCaracter
 // -webkit-line-clamp en observacionRowHtml si el texto real es más largo).
 const LINEAS_OBSERVACION_TOPE = 3;
 
-// Cupo FIJO -- 2 tarjetas en la portada, 3 en cada página siguiente,
-// siempre, sin variar según el contenido. El alto de CADA tarjeta es el
-// máximo que le puede tocar dado ese cupo fijo (el alto útil de la página
-// dividido en partes iguales -- ver slotPortada/slotSiguiente en
-// buildDocumentoHtml), no un cálculo por tarjeta.
+// Cupo MÁXIMO -- 2 tarjetas en la portada, 3 en cada página siguiente,
+// pero nunca más tarjetas que las que de verdad quedan por ubicar (ver
+// buildDocumentoHtml: cupo = min(cupoMax, ventanas restantes)). El alto de
+// CADA tarjeta es el alto útil de la página dividido en ese cupo real --
+// una página con menos ventanas que el cupo máximo (ej. la última del
+// documento, con 1 sola ventana suelta) le da esa única tarjeta TODO el
+// alto disponible, no un tercio de él dejando el resto en blanco.
 //
-// El dibujo usa UNA escala (px por mm) para todo el documento, no un
-// tamaño por tarjeta: con un alto de dibujo igual para todas, una ventana
-// baja y ancha (2.280 × 1.350) salía más grande que una alta (2.490 ×
-// 2.280), invirtiendo las proporciones reales entre ventanas. La escala la
-// fija la ventana más exigente (ver calcularEscalaDibujos), así la más
-// grande llega a ALTO_IMAGEN_MAX / ANCHO_IMAGEN_MAX y el resto queda a su
-// tamaño relativo real. ALTO_IMAGEN_MIN es solo un piso de legibilidad
-// para ventanas muy chicas.
+// El dibujo usa UNA escala (px por mm) para toda la PÁGINA (no para todo
+// el documento -- ver calcularEscalaDibujos), no un tamaño por tarjeta:
+// con un alto de dibujo igual para todas, una ventana baja y ancha (2.280
+// × 1.350) salía más grande que una alta (2.490 × 2.280), invirtiendo las
+// proporciones reales entre ventanas. La escala la fija la ventana más
+// exigente de esa página contra el alto real que le toca (ya no hay un
+// techo fijo en px -- ver el comentario de calcularEscalaDibujos sobre por
+// qué). ALTO_IMAGEN_MIN es solo un piso de legibilidad para ventanas muy
+// chicas.
 const ALTO_FILA_META = 19;
 const ALTO_HEADER_TARJETA = 26;
 const ALTO_BORDE_TARJETA = 2;
@@ -689,7 +701,15 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
       const esUltimaCandidata = ventanas.length - idx <= cupoMax;
       const altoDisponible =
         ALTO_UTIL_PAGINA - PADDING_INFERIOR_PAGINA - (esPortada ? altoHeaderPortada : 0) - (esUltimaCandidata ? ALTO_RESUMEN : 0);
-      let cupo = cupoMax;
+      // Si quedan MENOS ventanas que el cupo máximo (ej. 1 ventana sola al
+      // final del documento, con cupo 3), el cupo real de esta página es
+      // ese resto, no el máximo -- repartir el alto disponible en 3
+      // cuando solo hay 1 tarjeta real dejaba 2/3 de la página en blanco
+      // debajo de ella (confirmado: V21, sola en su página, con la
+      // tarjeta entera limitada a un tercio del alto útil). El resto
+      // siempre se puede achicar más si no entra (ver el while de abajo),
+      // nunca al revés.
+      let cupo = Math.min(cupoMax, ventanas.length - idx);
       let slot = calcularSlot(cupo, altoDisponible);
       while (cupo > 1) {
         const candidatas = ventanas.slice(idx, idx + cupo);
