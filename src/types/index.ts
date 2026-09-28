@@ -449,6 +449,17 @@ export type CategoriaGasto =
   | 'INSTALACION'
   | 'OTROS';
 
+// Config editable por partida (nombre "estandarizado" + codigo de
+// integracion con Clay) -- una fila fija por valor de CategoriaGasto, ver
+// PartidaConfig en mtw-api/schema.prisma.
+export interface PartidaConfig {
+  id: string;
+  categoria: CategoriaGasto;
+  nombre: string;
+  integracionClay: string | null;
+  actualizadoEn: string;
+}
+
 export interface OrdenCompraItem {
   id: string;
   ordenCompraId: string;

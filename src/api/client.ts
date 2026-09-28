@@ -21,6 +21,7 @@ import type {
   EstadoOC,
   RecepcionOC,
   TipoDocumento,
+  PartidaConfig,
   SolicitudMaterial,
   BodegaProyectoResponse,
   BodegaGlobalResponse,
@@ -376,6 +377,22 @@ export async function getClientes(q?: string): Promise<{ data: Cliente[] }> {
 
 export async function createCliente(payload: Partial<Cliente>): Promise<{ data: Cliente }> {
   const response = await apiClient.post<{ data: Cliente }>('/clientes', payload);
+  return response.data;
+}
+
+// Config editable por partida (nombre + codigo de integracion Clay) --
+// ver PartidaConfig en mtw-api.
+export async function getPartidas(): Promise<{ data: PartidaConfig[] }> {
+  const response = await apiClient.get<{ data: PartidaConfig[] }>('/partidas');
+  return response.data;
+}
+
+// Solo administrador (ver requireAdmin en mtw-api).
+export async function updatePartida(
+  categoria: CategoriaGasto,
+  payload: { nombre?: string; integracionClay?: string | null }
+): Promise<{ success: boolean; partida: PartidaConfig }> {
+  const response = await apiClient.patch<{ success: boolean; partida: PartidaConfig }>(`/partidas/${categoria}`, payload);
   return response.data;
 }
 

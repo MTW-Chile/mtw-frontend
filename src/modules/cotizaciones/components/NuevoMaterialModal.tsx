@@ -225,7 +225,7 @@ export const NuevoMaterialModal: React.FC<NuevoMaterialModalProps> = ({
             />
 
             <Select
-              label="Familia / Categoría"
+              label="Partida"
               options={FAMILIAS_CATALOGO}
               value={formData.familia}
               onChange={(e) =>

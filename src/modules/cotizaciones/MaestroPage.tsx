@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
-import { Boxes, Building2 } from 'lucide-react';
+import { Boxes, Building2, Tags } from 'lucide-react';
 import { MaestroProductos } from './components/MaestroProductos';
 import { ProveedoresPanel } from './components/ProveedoresPanel';
+import { PartidasPanel } from './components/PartidasPanel';
 
-type SubTab = 'materiales' | 'proveedores';
+type SubTab = 'materiales' | 'proveedores' | 'partidas';
 
 /**
- * Contenedor del ítem de menú "Maestro de Materiales": dos sub-vistas,
- * materiales (MaestroProductos, ya existía) y proveedores (nuevo, ver
- * ProveedoresPanel) -- mismo patrón de sub-pestañas que ya usa
- * CotizacionesPage.
+ * Contenedor del ítem de menú "Maestro de Materiales": tres sub-vistas,
+ * materiales (MaestroProductos, ya existía), proveedores (ProveedoresPanel)
+ * y partidas (PartidasPanel, nombre + código de integración Clay por
+ * partida -- antes "Familia"/CategoriaGasto) -- mismo patrón de
+ * sub-pestañas que ya usa CotizacionesPage.
  */
 export const MaestroPage: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('materiales');
@@ -17,6 +19,7 @@ export const MaestroPage: React.FC = () => {
   const tabs: { id: SubTab; label: string; icon: React.ElementType }[] = [
     { id: 'materiales', label: 'Materiales', icon: Boxes },
     { id: 'proveedores', label: 'Proveedores', icon: Building2 },
+    { id: 'partidas', label: 'Partidas', icon: Tags },
   ];
 
   return (
@@ -42,7 +45,9 @@ export const MaestroPage: React.FC = () => {
         })}
       </div>
 
-      {activeSubTab === 'materiales' ? <MaestroProductos /> : <ProveedoresPanel />}
+      {activeSubTab === 'materiales' && <MaestroProductos />}
+      {activeSubTab === 'proveedores' && <ProveedoresPanel />}
+      {activeSubTab === 'partidas' && <PartidasPanel />}
     </div>
   );
 };

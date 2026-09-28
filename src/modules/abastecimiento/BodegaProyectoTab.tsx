@@ -178,7 +178,7 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
                   <th className="px-4 py-3 font-bold">SKU</th>
                   <th className="px-4 py-3 font-bold">Material</th>
                   {!proyectoId && <th className="px-4 py-3 font-bold">Obra</th>}
-                  <th className="px-4 py-3 font-bold">Familia</th>
+                  <th className="px-4 py-3 font-bold">Partida</th>
                   <th className="px-4 py-3 font-bold text-right">Cantidad</th>
                   {mostrarAcciones && <th className="px-4 py-3 font-bold text-right">Acciones</th>}
                 </tr>

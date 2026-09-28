@@ -57,7 +57,7 @@ export const MaestroProductos: React.FC = () => {
       conteo.set(familia, (conteo.get(familia) || 0) + 1);
     }
     return [
-      { id: 'ALL', label: 'Todas las Familias', total: materiales.length },
+      { id: 'ALL', label: 'Todas las Partidas', total: materiales.length },
       ...[...conteo.entries()]
         .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'))
         .map(([familia, total]) => ({ id: familia, label: familia, total })),
@@ -137,7 +137,7 @@ export const MaestroProductos: React.FC = () => {
             </Badge>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Catálogo con SKU, familia, unidad de medida, divisa y precio de origen para cotización.
+            Catálogo con SKU, partida, unidad de medida, divisa y precio de origen para cotización.
           </p>
         </div>
 
@@ -164,7 +164,7 @@ export const MaestroProductos: React.FC = () => {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por SKU, descripción o familia..."
+              placeholder="Buscar por SKU, descripción o partida..."
               className="w-full pl-10 pr-9 py-2.5 sm:py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[#E34A26] transition-all"
             />
             {searchTerm && (
@@ -199,7 +199,7 @@ export const MaestroProductos: React.FC = () => {
         <div className="hidden md:flex items-center gap-1.5 overflow-x-auto pb-1.5 pt-1 -mx-1 px-1 scrollbar-thin">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1 flex items-center gap-1">
             <Filter className="w-3 h-3" />
-            Familia:
+            Partida:
           </span>
           {familiasChips.map((chip) => {
             const isActive = selectedFamilia === chip.id;
@@ -244,7 +244,7 @@ export const MaestroProductos: React.FC = () => {
           </h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
             {searchTerm || selectedFamilia !== 'ALL'
-              ? 'Intenta ajustar los filtros de búsqueda o familia de materiales.'
+              ? 'Intenta ajustar los filtros de búsqueda o partida de materiales.'
               : 'Aún no hay artículos registrados en el maestro. Comienza creando el primero.'}
           </p>
           <div className="pt-2 flex justify-center gap-2 flex-wrap">
@@ -281,7 +281,7 @@ export const MaestroProductos: React.FC = () => {
                   <tr>
                     <th className="px-5 py-3.5 w-36">SKU / Código</th>
                     <th className="px-5 py-3.5">Descripción</th>
-                    <th className="px-5 py-3.5 w-36">Familia</th>
+                    <th className="px-5 py-3.5 w-36">Partida</th>
                     <th className="px-5 py-3.5 w-36">Proveedor</th>
                     <th className="px-5 py-3.5 text-center w-20">Unidad</th>
                     <th className="px-5 py-3.5 text-center w-24">Divisa</th>
