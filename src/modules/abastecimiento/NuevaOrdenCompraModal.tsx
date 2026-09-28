@@ -209,11 +209,11 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
       });
     },
     onSuccess: () => {
+      // Nace en BORRADOR (una solicitud) -- todavia no es un pendiente de
+      // aprobacion gerencial, asi que no hace falta invalidar
+      // misAprobacionesPendientes aca (eso lo dispara Compras al emitirla,
+      // ver "Solicitar aprobación" en OrdenesCompraList).
       queryClient.invalidateQueries({ queryKey: ['ordenesCompra'] });
-      // Toda OC nueva nace pendiente de aprobacion gerencial -- se invalida
-      // para que la campanita/Centro de Notificaciones/Compras lo vean al
-      // toque.
-      queryClient.invalidateQueries({ queryKey: ['misAprobacionesPendientes'] });
       handleClose();
     },
     onError: (err: any) => {
@@ -380,8 +380,9 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
           />
 
           <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5">
-            Esta OC va a quedar pendiente de aprobación gerencial -- desde ahí, quien la aprueba también la envía al
-            proveedor desde el módulo Compras.
+            {proyectoIdFijo
+              ? 'Esta queda como una solicitud -- Compras la revisa y decide cuándo pedirle la aprobación a Gerencia y enviarla al proveedor.'
+              : 'Esta queda en Borrador -- pedile la aprobación a Gerencia y envíala al proveedor desde el listado cuando esté lista.'}
           </p>
 
           <div className="space-y-1.5">
