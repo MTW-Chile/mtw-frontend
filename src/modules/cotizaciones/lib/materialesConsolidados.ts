@@ -223,6 +223,10 @@ export function computeMaterialesConsolidados(
     m.cantidadTotal = cantidadResumen;
     m.factorBarra = LARGO_BARRA_METROS[familiaCruda];
     m.precioCLP *= m.factorBarra;
+    // La cantidad ya esta en barras (arriba), no en la unidad cruda del
+    // Maestro (normalmente "UN") -- mismo criterio que ya usa
+    // computeMaterialesFasePorProveedor mas abajo para generar OC.
+    m.unidadMedida = 'BARRA';
   });
 
   return consolidados;
