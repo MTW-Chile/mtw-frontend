@@ -208,7 +208,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                           {oc.numero}
                         </button>
                       </td>
-                      {!proyectoId && <td className="px-4 py-3 text-slate-700">{oc.proyecto?.obra || '—'}</td>}
+                      {!proyectoId && <td className="px-4 py-3 text-slate-700">{oc.proyecto?.obra || oc.centroCosto?.nombre || '—'}</td>}
                       <td className="px-4 py-3 text-slate-700">{oc.proveedor?.nombre || '—'}</td>
                       <td className="px-4 py-3">
                         <Badge variant={ESTADO_OC_VARIANT[oc.estado]} size="sm">

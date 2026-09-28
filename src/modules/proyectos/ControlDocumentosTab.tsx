@@ -21,13 +21,17 @@ const formatFecha = (iso: string) => new Date(iso).toLocaleDateString('es-CL');
 // cercania de monto, y una persona confirma cual es. El estado de pago
 // (pagada/montoPagado) tambien viene de Clay -- "Refrescar" lo vuelve a
 // consultar (nada lo hace solo todavia, no hay cron ni webhook).
-export const ControlDocumentosTab: React.FC<{ proyectoId: string }> = ({ proyectoId }) => {
+//
+// Sin proyectoId: vista global (todas las obras + "Obras Mayores" juntas)
+// -- para el modulo Compras de primer nivel. Con proyectoId: acotada a
+// esa obra (ficha de proyecto).
+export const ControlDocumentosTab: React.FC<{ proyectoId?: string }> = ({ proyectoId }) => {
   const queryClient = useQueryClient();
   const [buscandoEnId, setBuscandoEnId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['ordenesCompra', { proyectoId, estado: '' }],
+    queryKey: ['ordenesCompra', { proyectoId: proyectoId ?? 'global', estado: '' }],
     queryFn: () => getOrdenesCompra({ proyectoId, limit: 200 }),
   });
 
@@ -90,7 +94,7 @@ export const ControlDocumentosTab: React.FC<{ proyectoId: string }> = ({ proyect
       {ordenes.length === 0 ? (
         <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
           <FileCheck2 className="w-6 h-6 mx-auto mb-2 text-slate-300" />
-          Todavía no hay OC recibidas de este proyecto para vincular.
+          Todavía no hay OC recibidas {proyectoId ? 'de este proyecto' : ''} para vincular.
         </div>
       ) : (
         <div className="space-y-3">
@@ -107,6 +111,9 @@ export const ControlDocumentosTab: React.FC<{ proyectoId: string }> = ({ proyect
                   <div className="flex items-center gap-2.5">
                     <span className="font-mono font-bold text-sm text-slate-900">{oc.numero}</span>
                     <span className="text-xs text-slate-500">{oc.proveedor?.nombre}</span>
+                    {!proyectoId && (
+                      <span className="text-xs text-slate-400">· {oc.proyecto?.obra || oc.centroCosto?.nombre || 'Obras Mayores'}</span>
+                    )}
                     <Badge variant={oc.estado === 'CONCILIADA' ? 'success' : 'warning'} size="sm">
                       {oc.estado === 'CONCILIADA' ? 'Conciliada' : 'Recibida'}
                     </Badge>

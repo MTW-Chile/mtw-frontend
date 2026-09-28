@@ -7,6 +7,7 @@ import { CotizacionesPage } from './modules/cotizaciones/CotizacionesPage';
 import { MaestroPage } from './modules/cotizaciones/MaestroPage';
 import { ConfiguracionPage } from './modules/configuracion/ConfiguracionPage';
 import { ProyectosPage } from './modules/proyectos/ProyectosPage';
+import { ComprasPage } from './modules/abastecimiento/ComprasPage';
 import { BodegaPage } from './modules/abastecimiento/BodegaPage';
 import { CentroNotificacionesPage } from './modules/notificaciones/CentroNotificacionesPage';
 import { getProyectos, getMisPermisos } from './api/client';
@@ -204,6 +205,8 @@ const AppContent: React.FC = () => {
           {activeTab === 'proyectos' && (
             <ProyectosPage proyectoAAbrir={proyectoAAbrir} onProyectoAbierto={() => setProyectoAAbrir(null)} />
           )}
+
+          {activeTab === 'compras' && <ComprasPage />}
 
           {activeTab === 'bodega' && <BodegaPage />}
 
