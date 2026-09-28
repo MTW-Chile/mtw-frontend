@@ -14,6 +14,7 @@ export const CATEGORIA_GASTO_OPTIONS: { value: CategoriaGasto; label: string }[]
   { value: 'FLETE', label: 'Flete' },
   { value: 'INSTALACION', label: 'Instalación' },
   { value: 'OTROS', label: 'Otros' },
+  { value: 'INSUMOS_GENERALES', label: 'Insumos Generales' },
 ];
 
 export const CATEGORIA_GASTO_LABEL: Record<CategoriaGasto, string> = Object.fromEntries(

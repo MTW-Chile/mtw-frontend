@@ -447,7 +447,8 @@ export type CategoriaGasto =
   | 'MANO_DE_OBRA'
   | 'FLETE'
   | 'INSTALACION'
-  | 'OTROS';
+  | 'OTROS'
+  | 'INSUMOS_GENERALES';
 
 // Config editable por partida (nombre "estandarizado" + codigo de
 // integracion con Clay) -- una fila fija por valor de CategoriaGasto, ver
