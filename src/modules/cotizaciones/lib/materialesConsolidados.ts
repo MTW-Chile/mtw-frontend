@@ -310,39 +310,84 @@ export function computeCostoTotalYVenta(
  * da su costo correcto sin necesitar el resumen de barras a nivel de
  * proyecto. NO usar esta función para una ventana de origen HETMO.
  */
+type AjustePrecioMaterial = { precioPersonalizado?: number | null; monedaPersonalizada?: string | null; familiaPersonalizada?: string | null };
+
+// Precio CLP (precio_origen convertido × cantidad) de UN material de una
+// ventana -- misma fórmula que usa computeMaterialesConsolidados para el
+// resto de la Analítica, extraída acá para no duplicarla entre
+// computeCostoVentanaCLP (todos los materiales de una línea) y
+// computeCostoMaterialesPersonalizadosCLP (solo los agregados a mano).
+function precioMaterialCLP(
+  mv: MaterialVentana,
+  ajuste: AjustePrecioMaterial | undefined,
+  tasaDolar: number,
+  tasaEuro: number,
+  tasaUf: number,
+  monedas: MonedaHetmo[]
+): number {
+  const mat = mv.material;
+  const familiaCruda = (ajuste?.familiaPersonalizada || mat?.familia || 'ACCESORIOS').toUpperCase().trim();
+  const familia = normalizarFamilia(familiaCruda);
+  const cantidad = familiaCruda === 'JUNTAS' || familiaCruda === 'VIDRIOS' ? Number(mv.longitudMm) || 0 : Number(mv.cantidad) || 0;
+  const precioOrigen = ajuste?.precioPersonalizado ?? mv.precioOrigen ?? 0;
+  const monedaBase = MONEDA_POR_FAMILIA[familia] || 'CLP';
+  const monedaOrigen =
+    familia === 'VIDRIOS'
+      ? 'CLP'
+      : ajuste?.precioPersonalizado != null
+      ? ajuste.monedaPersonalizada || monedaBase
+      : mv.origen === 'PERSONALIZADO' && mv.monedaOrigen
+      ? mv.monedaOrigen
+      : monedaBase;
+  const iso = resolverMoneda(monedaOrigen, monedas).iso;
+  let factorCLP = 1;
+  if (iso === 'USD') factorCLP = tasaDolar;
+  else if (iso === 'EUR') factorCLP = tasaEuro;
+  else if (iso === 'UF') factorCLP = tasaUf;
+  return precioOrigen * factorCLP * cantidad;
+}
+
 export function computeCostoVentanaCLP(
   ventana: Ventana,
-  ajustesPorMaterial: Map<string, { precioPersonalizado?: number | null; monedaPersonalizada?: string | null; familiaPersonalizada?: string | null }>,
+  ajustesPorMaterial: Map<string, AjustePrecioMaterial>,
   tasaDolar: number,
   tasaEuro: number,
   tasaUf: number,
   monedas: MonedaHetmo[]
 ): number {
   const mats: MaterialVentana[] = ventana.materiales || [];
-  return mats.reduce((acc, mv) => {
-    const mat = mv.material;
-    const ajuste = ajustesPorMaterial.get(mv.materialId);
-    const familiaCruda = (ajuste?.familiaPersonalizada || mat?.familia || 'ACCESORIOS').toUpperCase().trim();
-    const familia = normalizarFamilia(familiaCruda);
-    const cantidad =
-      familiaCruda === 'JUNTAS' || familiaCruda === 'VIDRIOS' ? Number(mv.longitudMm) || 0 : Number(mv.cantidad) || 0;
-    const precioOrigen = ajuste?.precioPersonalizado ?? mv.precioOrigen ?? 0;
-    const monedaBase = MONEDA_POR_FAMILIA[familia] || 'CLP';
-    const monedaOrigen =
-      familia === 'VIDRIOS'
-        ? 'CLP'
-        : ajuste?.precioPersonalizado != null
-        ? ajuste.monedaPersonalizada || monedaBase
-        : mv.origen === 'PERSONALIZADO' && mv.monedaOrigen
-        ? mv.monedaOrigen
-        : monedaBase;
-    const iso = resolverMoneda(monedaOrigen, monedas).iso;
-    let factorCLP = 1;
-    if (iso === 'USD') factorCLP = tasaDolar;
-    else if (iso === 'EUR') factorCLP = tasaEuro;
-    else if (iso === 'UF') factorCLP = tasaUf;
-    return acc + precioOrigen * factorCLP * cantidad;
-  }, 0);
+  return mats.reduce(
+    (acc, mv) => acc + precioMaterialCLP(mv, ajustesPorMaterial.get(mv.materialId), tasaDolar, tasaEuro, tasaUf, monedas),
+    0
+  );
+}
+
+/**
+ * Costo real (CLP) de SOLO los materiales agregados a mano (origen
+ * PERSONALIZADO) dentro de una ventana de origen HETMO -- ej. un herraje
+ * especial sumado desde "Revisión de líneas" (MaterialesLineaModal) a una
+ * línea que por lo demás sigue siendo de HETMO. A diferencia de
+ * computeCostoVentanaCLP (pensada para una línea 100% PERSONALIZADO, sin
+ * receta HETMO de fondo), acá NO hay que sumar los materiales HETMO de la
+ * línea -- ese costo ya está adentro de v.importeUnitario (el precio que
+ * HETMO le puso a esa línea) y sumarlo de nuevo lo contaría dos veces.
+ * Ver computePreciosVenta en presupuesto.ts: sin esto, el costo del
+ * material agregado a mano quedaba diluido en el peso de prorrateo de
+ * TODO el proyecto (por m²/importe HETMO) en vez de cargarse a la ventana
+ * a la que se le agregó.
+ */
+export function computeCostoMaterialesPersonalizadosCLP(
+  ventana: Ventana,
+  ajustesPorMaterial: Map<string, AjustePrecioMaterial>,
+  tasaDolar: number,
+  tasaEuro: number,
+  tasaUf: number,
+  monedas: MonedaHetmo[]
+): number {
+  const mats: MaterialVentana[] = ventana.materiales || [];
+  return mats
+    .filter((mv) => mv.origen === 'PERSONALIZADO')
+    .reduce((acc, mv) => acc + precioMaterialCLP(mv, ajustesPorMaterial.get(mv.materialId), tasaDolar, tasaEuro, tasaUf, monedas), 0);
 }
 
 /**

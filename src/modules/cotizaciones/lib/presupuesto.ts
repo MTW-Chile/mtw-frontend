@@ -44,6 +44,19 @@ export interface PrecioVentaLinea {
  * calculados en Step5 via computeCostoTotalYVenta) antes de compararlo con
  * importeUnitario.
  *
+ * Un material agregado a mano (origen PERSONALIZADO) DENTRO de una línea
+ * que por lo demás sigue siendo HETMO (ej. un herraje especial sumado
+ * desde "Revisión de líneas" a una ventana real) es otro caso que
+ * importeUnitario no refleja -- ese precio lo fijó HETMO antes de que
+ * existiera el material agregado. Sin costoMaterialesPersonalizadosCLP,
+ * su costo entraba igual a ventaTotalCLP (via computeCostoTotalYVenta,
+ * que sí lo suma) pero el peso de esa ventana no crecía nada, así que la
+ * venta extra se repartía entre TODAS las ventanas por su peso HETMO
+ * normal -- la ventana a la que en realidad se le agregó el material no
+ * se llevaba nada de esa parte. Se corrige sumando ese costo (a la misma
+ * escala de venta, con el mismo margenMultiplicador) al peso HETMO de
+ * esa ventana puntual.
+ *
  * importeUnitario en si tambien viene en una escala distinta a como se
  * maneja el resto de la plata en esta app: HETMO lo entrega en UF (no en
  * CLP como todos los demas montos internos), practica comun en cotizacion
@@ -63,7 +76,8 @@ export function computePreciosVenta(
   ventaTotalCLP: number,
   costoLineaManualCLP?: (v: Ventana) => number,
   costoTotalProyectoCLP?: number,
-  tasaUf?: number
+  tasaUf?: number,
+  costoMaterialesPersonalizadosCLP?: (v: Ventana) => number
 ): Map<string, PrecioVentaLinea> {
   const resultado = new Map<string, PrecioVentaLinea>();
   if (!ventanas.length || !(ventaTotalCLP > 0)) return resultado;
@@ -73,11 +87,14 @@ export function computePreciosVenta(
   const margenMultiplicador = Number(costoTotalProyectoCLP) > 0 ? ventaTotalCLP / Number(costoTotalProyectoCLP) : 1;
   const pesos = ventanas.map((v) => {
     const importeHetmo = Math.max(0, Number(v.importeUnitario) || 0) * factorUf * (v.unidades || 1);
-    if (importeHetmo > 0) return importeHetmo;
+    const extraPersonalizado = costoMaterialesPersonalizadosCLP
+      ? Math.max(0, costoMaterialesPersonalizadosCLP(v)) * margenMultiplicador
+      : 0;
+    if (importeHetmo > 0) return importeHetmo + extraPersonalizado;
     if (v.origen === 'PERSONALIZADO' && costoLineaManualCLP) {
       return Math.max(0, costoLineaManualCLP(v)) * margenMultiplicador;
     }
-    return 0;
+    return extraPersonalizado;
   });
   const pesoTotal = pesos.reduce((acc, p) => acc + p, 0);
 
