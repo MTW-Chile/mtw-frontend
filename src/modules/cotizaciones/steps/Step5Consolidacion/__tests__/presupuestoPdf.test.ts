@@ -117,3 +117,63 @@ describe('buildDocumentoHtml — el cupo de una página nunca es mayor que las v
     expect(alturaTarjeta).toBeLessThan(400);
   });
 });
+
+describe('buildDocumentoHtml — el cupo de página es fijo (2 en portada, 3 en las demás), nunca por escala', () => {
+  // Requisito explícito, reafirmado varias veces: SIEMPRE 2 en la portada y
+  // 3 en cada página siguiente -- el único motivo para bajar ese cupo es
+  // que de verdad no queden más ventanas (la última página del documento,
+  // que reparte su espacio proporcionalmente, ver el describe de arriba) o
+  // que el TEXTO no entre sin cortarse (altoMinimoTarjeta, caso límite
+  // real pero rarísimo). Una página completa (cupo lleno) nunca se parte
+  // por la escala del dibujo que le toque a cada ventana -- se probó y
+  // descartó un freno de legibilidad por escala (ver PR #42): aunque
+  // evitaba ventanas angostas ilegibles, partía páginas normales sin que
+  // faltaran ventanas, cambiando cupos fijos por cupos variables. Eso es
+  // justo lo que no puede pasar.
+  const ventana = (id: string, modelo: string, anchoMm: number, altoMm: number): Ventana =>
+    ({ id, modelo, descripcionCorta: 'Línea Efficient', anchoMm, altoMm, unidades: 1, acabadoCodigo: '7310', materiales: [], comentarioPresupuesto: null }) as unknown as Ventana;
+
+  it('una ventana angosta comparte página con ventanas altas igual (cupo 3 completo, no se parte)', () => {
+    // Mismo caso real de Casa La Aurora (V19/V20/V21) que en algún momento
+    // se usó para justificar partir la página -- ahora debe seguir junta.
+    const ventanas = [
+      ventana('a', 'V1', 1200, 1350), ventana('b', 'V2', 1200, 1550),
+      ventana('c', 'V19', 2500, 1800), ventana('d', 'V20', 2000, 2600), ventana('e', 'V21', 500, 1400),
+    ];
+    const pngPorVentana = new Map(ventanas.map((v) => [v.id, 'data:image/png;base64,AA==']));
+    const preciosVenta = new Map<string, PrecioVentaLinea>(ventanas.map((v) => [v.id, { precioUnitarioCLP: 1, precioVentaCLP: 1 }]));
+    const html = buildDocumentoHtml({
+      proyecto: { obra: 'TEST', codigoInterno: 'T', numeroPresupuesto: 1 } as unknown as Proyecto,
+      ventanas, texto: '', condiciones: '', venta: 1, iva: 1, totalConIva: 1, ivaPct: 19, tasaUf: 38500,
+      logoDataUrl: null, logoMuchtekDataUrl: null, preciosVenta, pngPorVentana,
+    });
+    const idxV21 = html.indexOf('>V21<');
+    const inicioPagina = html.lastIndexOf('height:1006px', idxV21);
+    const finPagina = html.indexOf('height:1006px', idxV21 + 1);
+    const bloquePagina = html.slice(inicioPagina, finPagina === -1 ? undefined : finPagina);
+    expect(bloquePagina.includes('>V19<')).toBe(true);
+    expect(bloquePagina.includes('>V20<')).toBe(true);
+  });
+
+  it('7 ventanas de tamaño normal se reparten 2+3+2, nunca menos de 3 por partir de más', () => {
+    const ventanas = [
+      ventana('a', 'V1', 1200, 1350), ventana('b', 'V2', 1200, 1550),
+      ventana('c', 'V3', 1200, 1350), ventana('d', 'V4', 1200, 1550), ventana('e', 'V5', 1200, 1350),
+      ventana('f', 'V6', 1200, 1550), ventana('g', 'V7', 1200, 1350),
+    ];
+    const pngPorVentana = new Map(ventanas.map((v) => [v.id, 'data:image/png;base64,AA==']));
+    const preciosVenta = new Map<string, PrecioVentaLinea>(ventanas.map((v) => [v.id, { precioUnitarioCLP: 1, precioVentaCLP: 1 }]));
+    const html = buildDocumentoHtml({
+      proyecto: { obra: 'TEST', codigoInterno: 'T', numeroPresupuesto: 1 } as unknown as Proyecto,
+      ventanas, texto: '', condiciones: '', venta: 1, iva: 1, totalConIva: 1, ivaPct: 19, tasaUf: 38500,
+      logoDataUrl: null, logoMuchtekDataUrl: null, preciosVenta, pngPorVentana,
+    });
+    const marker = /<div style="width:100%;height:1006px[^>]*>([\s\S]*?)(?=<div style="width:100%;height:1006px|$)/g;
+    const conteos: number[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = marker.exec(html))) {
+      conteos.push((m[1].match(/>V\d</g) || []).length);
+    }
+    expect(conteos).toEqual([2, 3, 2]);
+  });
+});
