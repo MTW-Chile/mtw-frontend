@@ -389,14 +389,19 @@ export interface ItemFaseProveedor {
   // en la pestaña Fases sin recalcular nada (ver FasesTab.tsx).
   familia: string;
   unidadMedida: string;
-  // Ya neta de stock disponible (ver stockDisponiblePorMaterial mas
-  // abajo) -- es lo que efectivamente hay que comprar, no la necesidad
-  // bruta de la fase.
+  // Ya neta de stock disponible (ver stockProyectoPorMaterial/
+  // stockObrasMayoresPorMaterial mas abajo) -- es lo que efectivamente hay
+  // que comprar, no la necesidad bruta de la fase.
   cantidad: number;
-  // Cuanto de la necesidad bruta se cubrio con stock ya disponible
-  // (bodega propia + Obras Mayores) antes de llegar a `cantidad`. Puramente
+  // Cuanto de la necesidad bruta se cubrio con stock ya disponible (bodega
+  // propia + Obras Mayores) antes de llegar a `cantidad`. Puramente
   // informativo, para mostrar "ya tenías X, se pide Y".
   stockDisponible: number;
+  // Cuanto de `stockDisponible` especificamente vino de Obras Mayores (no
+  // de la bodega propia) -- ese stock hay que trasladarlo a la bodega de
+  // esta obra al crear la OC, para que quede reservado (que otra obra no
+  // lo vea tambien como disponible). Ver mtw-api POST /ordenes-compra.
+  cantidadDesdeObrasMayores: number;
   // Valor teorico antes de redondear a la unidad de compra -- solo se
   // completa para Perfileria/Refuerzos (se compran por barra entera).
   // Puramente informativo: no se usa en ningun otro calculo, ver
@@ -409,6 +414,25 @@ export interface GrupoFaseProveedor {
   proveedorId: string | null; // null = material sin proveedor asignado en el Maestro
   proveedorNombre: string;
   items: ItemFaseProveedor[];
+}
+
+// Material que hay que trasladar de la bodega de Obras Mayores a la de
+// esta obra al crear la OC, para "reservar" ese stock de verdad (mover
+// StockMaterial en el momento, no restarlo solo en el calculo) -- ver
+// POST /ordenes-compra en mtw-api. Independiente de si todavia hace falta
+// comprar algo mas de ese mismo material (puede que el traslado cubra
+// toda la necesidad, o solo una parte).
+export interface TrasladoDesdeObrasMayores {
+  materialId: string;
+  descripcion: string;
+  cantidad: number;
+  unidadMedida: string;
+  familia: string;
+}
+
+export interface ResultadoMaterialesFase {
+  grupos: GrupoFaseProveedor[];
+  trasladosDesdeObrasMayores: TrasladoDesdeObrasMayores[];
 }
 
 const FAMILIAS_BARRA = new Set(['PERFILERIA', 'REFUERZOS']);
@@ -438,17 +462,19 @@ const FAMILIAS_BARRA = new Set(['PERFILERIA', 'REFUERZOS']);
  * para ese subconjunto -- cantidadCalculada guarda el valor sin redondear
  * para poder auditar despues cuanto "de mas" se compro.
  *
- * stockDisponiblePorMaterial (materialId -> cantidad, en la MISMA unidad
- * de compra que cantidadTotal -- barras para Perfileria/Refuerzos) resta
- * lo que ya hay en bodega (propia + Obras Mayores, ver
- * GET /proyectos/:id/bodega en mtw-api) ANTES de redondear a la unidad de
- * compra: necesidad NETA, no bruta -- no tiene sentido comprar de nuevo
- * algo que ya esta disponible para trasladar. Un material totalmente
- * cubierto por stock no aparece en el resultado. Limitacion conocida: no
- * "reserva" el stock entre dos calculos -- generar OC para dos fases
- * seguidas sin recepcionar nada entre medio puede restar el mismo stock
- * dos veces (ver conversacion en la tarea, queda fuera de esta primera
- * version).
+ * stockProyectoPorMaterial / stockObrasMayoresPorMaterial (materialId ->
+ * cantidad, en la MISMA unidad de compra que cantidadTotal -- barras para
+ * Perfileria/Refuerzos) restan lo que ya hay en bodega ANTES de redondear
+ * a la unidad de compra: necesidad NETA, no bruta -- no tiene sentido
+ * comprar de nuevo algo que ya esta disponible. Un material totalmente
+ * cubierto por stock no aparece en el resultado. Se usa primero el stock
+ * de la bodega PROPIA (gratis, ya esta ahi) y recien despues el de Obras
+ * Mayores -- ese segundo tramo queda registrado en
+ * ItemFaseProveedor.cantidadDesdeObrasMayores porque, a diferencia del
+ * propio, ESE stock hay que trasladarlo a la bodega de esta obra al crear
+ * la OC (ver POST /ordenes-compra en mtw-api): asi queda reservado de
+ * verdad -- StockMaterial se mueve en el momento, no una resta teorica --
+ * y otra obra que calcule despues ya no lo ve disponible.
  */
 export function computeMaterialesFasePorProveedor(
   activeVersion: ProyectoVersion | undefined,
@@ -457,9 +483,10 @@ export function computeMaterialesFasePorProveedor(
   tasaEuro: number,
   tasaUf: number,
   monedas: MonedaHetmo[],
-  stockDisponiblePorMaterial?: Map<string, number>
-): GrupoFaseProveedor[] {
-  if (!activeVersion || !fase) return [];
+  stockProyectoPorMaterial?: Map<string, number>,
+  stockObrasMayoresPorMaterial?: Map<string, number>
+): ResultadoMaterialesFase {
+  if (!activeVersion || !fase) return { grupos: [], trasladosDesdeObrasMayores: [] };
 
   const consolidados = computeMaterialesConsolidados(activeVersion, tasaDolar, tasaEuro, tasaUf, monedas);
   const consolidadoPorMaterial = new Map(consolidados.filter((m) => !m.excluido).map((m) => [m.materialId, m]));
@@ -502,6 +529,7 @@ export function computeMaterialesFasePorProveedor(
   });
 
   const porProveedor = new Map<string, GrupoFaseProveedor>();
+  const trasladosDesdeObrasMayores: TrasladoDesdeObrasMayores[] = [];
   baseFasePorMaterial.forEach((baseFase, materialId) => {
     if (baseFase <= 0) return;
     const consolidado = consolidadoPorMaterial.get(materialId);
@@ -511,10 +539,34 @@ export function computeMaterialesFasePorProveedor(
     const proporcion = Math.min(1, baseFase / baseVersion);
 
     const cantidadTeorica = consolidado.cantidadTotal * proporcion;
-    const disponible = Math.max(0, stockDisponiblePorMaterial?.get(materialId) || 0);
-    const cantidadNetaTeorica = Math.max(0, cantidadTeorica - disponible);
-    if (cantidadNetaTeorica <= 0.0001) return; // stock ya cubre toda la necesidad de esta fase -- no hay que comprar nada
     const esBarra = FAMILIAS_BARRA.has(consolidado.familiaCruda);
+
+    // Se gasta primero el stock propio (gratis, ya esta en esta bodega),
+    // despues el de Obras Mayores -- ese segundo tramo se registra aparte
+    // en trasladosDesdeObrasMayores porque hay que moverlo de verdad,
+    // independiente de si todavia queda algo por comprar o no.
+    const disponibleProyecto = Math.max(0, stockProyectoPorMaterial?.get(materialId) || 0);
+    const usadoDeProyecto = Math.min(cantidadTeorica, disponibleProyecto);
+    const trasStockPropio = cantidadTeorica - usadoDeProyecto;
+    const disponibleObrasMayores = Math.max(0, stockObrasMayoresPorMaterial?.get(materialId) || 0);
+    // Si se compra por unidad entera (barra), solo se puede reservar
+    // unidades enteras de Obras Mayores -- lo fraccionario queda para
+    // comprar, no se puede trasladar media barra.
+    const usadoDeObrasMayoresBruto = Math.min(trasStockPropio, disponibleObrasMayores);
+    const usadoDeObrasMayores = esBarra ? Math.floor(usadoDeObrasMayoresBruto + 0.0001) : Math.round(usadoDeObrasMayoresBruto * 100) / 100;
+
+    if (usadoDeObrasMayores > 0.0001) {
+      trasladosDesdeObrasMayores.push({
+        materialId,
+        descripcion: `${consolidado.skuInterno} · ${consolidado.descripcion}`,
+        cantidad: usadoDeObrasMayores,
+        unidadMedida: esBarra ? 'BARRA' : consolidado.unidadMedida,
+        familia: consolidado.familia,
+      });
+    }
+
+    const cantidadNetaTeorica = Math.max(0, cantidadTeorica - usadoDeProyecto - usadoDeObrasMayores);
+    if (cantidadNetaTeorica <= 0.0001) return; // stock (propio + trasladado) ya cubre todo -- nada que comprar
     const cantidad = esBarra ? Math.ceil(cantidadNetaTeorica - 0.0001) : Math.round(cantidadNetaTeorica * 100) / 100;
 
     const aprobacion = aprobacionesPorFamilia.get(consolidado.familia);
@@ -533,11 +585,15 @@ export function computeMaterialesFasePorProveedor(
       familia: consolidado.familia,
       unidadMedida: esBarra ? 'BARRA' : consolidado.unidadMedida,
       cantidad,
-      stockDisponible: Math.round(disponible * 1000) / 1000,
+      stockDisponible: Math.round((usadoDeProyecto + usadoDeObrasMayores) * 1000) / 1000,
+      cantidadDesdeObrasMayores: Math.round(usadoDeObrasMayores * 1000) / 1000,
       cantidadCalculada: esBarra && Math.abs(cantidad - cantidadNetaTeorica) > 0.0001 ? Math.round(cantidadNetaTeorica * 1000) / 1000 : null,
       precioUnitario: Math.round(precioUnitario),
     });
   });
 
-  return [...porProveedor.values()].sort((a, b) => a.proveedorNombre.localeCompare(b.proveedorNombre));
+  return {
+    grupos: [...porProveedor.values()].sort((a, b) => a.proveedorNombre.localeCompare(b.proveedorNombre)),
+    trasladosDesdeObrasMayores,
+  };
 }

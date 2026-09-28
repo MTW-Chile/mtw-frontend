@@ -6,7 +6,7 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { createOrdenCompra, getProyectos, getProveedores, getProyectoById, getBodegaProyecto } from '../../api/client';
 import { useMonedas } from '../../lib/monedas';
-import { computeMaterialesFasePorProveedor, type GrupoFaseProveedor } from '../cotizaciones/lib/materialesConsolidados';
+import { computeMaterialesFasePorProveedor, type GrupoFaseProveedor, type TrasladoDesdeObrasMayores } from '../cotizaciones/lib/materialesConsolidados';
 import { CATEGORIA_GASTO_OPTIONS, CATEGORIA_GASTO_LABEL } from './categoriaGasto';
 import type { CategoriaGasto, Fase } from '../../types';
 
@@ -122,22 +122,22 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   const fasesReales = (activeVersion?.fases || []).filter((f) => f.numeroFase > 0).sort((a, b) => a.numeroFase - b.numeroFase);
   const opcionesFase: Fase[] = fasesReales.length > 0 ? fasesReales : (activeVersion?.fases || []).filter((f) => f.numeroFase === 0);
 
-  // Stock ya disponible (bodega propia + Obras Mayores) para no sugerir
-  // comprar de nuevo algo que ya esta ahi -- ver
-  // stockDisponiblePorMaterial en computeMaterialesFasePorProveedor.
+  // Stock ya disponible -- bodega propia (gratis) y Obras Mayores (hay
+  // que trasladarlo al crear la OC para reservarlo de verdad, ver
+  // trasladosDesdeObrasMayores mas abajo) -- para no sugerir comprar de
+  // nuevo algo que ya esta ahi.
   const { data: bodegaData } = useQuery({
     queryKey: ['bodegaProyecto', proyectoId],
     queryFn: () => getBodegaProyecto(proyectoId),
     enabled: isOpen && !!proyectoId,
   });
-  const stockDisponiblePorMaterial = useMemo(() => {
+  const mapaStock = (rows: { materialId: string; cantidad: number }[] | undefined) => {
     const mapa = new Map<string, number>();
-    const sumar = (rows: { materialId: string; cantidad: number }[] | undefined) =>
-      (rows || []).forEach((s) => mapa.set(s.materialId, (mapa.get(s.materialId) || 0) + Number(s.cantidad)));
-    sumar(bodegaData?.stock);
-    sumar(bodegaData?.stockObrasMayores);
+    (rows || []).forEach((s) => mapa.set(s.materialId, (mapa.get(s.materialId) || 0) + Number(s.cantidad)));
     return mapa;
-  }, [bodegaData]);
+  };
+  const stockProyectoPorMaterial = useMemo(() => mapaStock(bodegaData?.stock), [bodegaData]);
+  const stockObrasMayoresPorMaterial = useMemo(() => mapaStock(bodegaData?.stockObrasMayores), [bodegaData]);
 
   // Materiales necesarios para fabricar la fase elegida, agrupados por
   // proveedor -- reusa EXACTAMENTE la misma logica de precio/cantidad que
@@ -149,14 +149,26 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   const tasaDolar = Number(activeVersion?.tipoCambioDolar) || 950;
   const tasaUf = Number(activeVersion?.tipoCambioUF) || 38500;
   const tasaEuro = Number(activeVersion?.tipoCambioEuro) || 1030;
-  const gruposPorProveedor: GrupoFaseProveedor[] = useMemo(() => {
+  const { gruposPorProveedor, trasladosDesdeObrasMayores }: { gruposPorProveedor: GrupoFaseProveedor[]; trasladosDesdeObrasMayores: TrasladoDesdeObrasMayores[] } = useMemo(() => {
     const fase = (activeVersion?.fases || []).find((f) => f.id === faseId);
-    const grupos = computeMaterialesFasePorProveedor(activeVersion, fase, tasaDolar, tasaEuro, tasaUf, monedas, stockDisponiblePorMaterial);
-    if (!categoriaFiltro) return grupos;
-    return grupos
-      .map((g) => ({ ...g, items: g.items.filter((it) => it.familia === categoriaFiltro) }))
-      .filter((g) => g.items.length > 0);
-  }, [activeVersion, faseId, tasaDolar, tasaEuro, tasaUf, monedas, categoriaFiltro, stockDisponiblePorMaterial]);
+    const { grupos, trasladosDesdeObrasMayores } = computeMaterialesFasePorProveedor(
+      activeVersion,
+      fase,
+      tasaDolar,
+      tasaEuro,
+      tasaUf,
+      monedas,
+      stockProyectoPorMaterial,
+      stockObrasMayoresPorMaterial
+    );
+    if (!categoriaFiltro) return { gruposPorProveedor: grupos, trasladosDesdeObrasMayores };
+    return {
+      gruposPorProveedor: grupos
+        .map((g) => ({ ...g, items: g.items.filter((it) => it.familia === categoriaFiltro) }))
+        .filter((g) => g.items.length > 0),
+      trasladosDesdeObrasMayores: trasladosDesdeObrasMayores.filter((t) => t.familia === categoriaFiltro),
+    };
+  }, [activeVersion, faseId, tasaDolar, tasaEuro, tasaUf, monedas, categoriaFiltro, stockProyectoPorMaterial, stockObrasMayoresPorMaterial]);
 
   // Cambiar de proyecto o de fase invalida cualquier proveedor/items que ya
   // se hubieran elegido -- evita mezclar items de una fase con el proveedor
@@ -228,6 +240,15 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
           precioUnitario: parseFloat(i.precioUnitario),
           categoria: i.materialId ? undefined : (i.categoria as CategoriaGasto),
         })),
+        // Todo lo que esta fase/categoria ya tiene disponible en Obras
+        // Mayores se traslada a la bodega del proyecto al generar la OC
+        // (queda reservado ahi), independiente de a que proveedor se le
+        // este comprando el resto -- ver computeMaterialesFasePorProveedor.
+        // Si otra OC de la misma fase se crea despues, el stock de Obras
+        // Mayores ya estara descontado y no se vuelve a trasladar.
+        trasladosDesdeObrasMayores: proyectoId
+          ? trasladosDesdeObrasMayores.map((t) => ({ materialId: t.materialId, cantidad: t.cantidad }))
+          : undefined,
       });
     },
     onSuccess: () => {

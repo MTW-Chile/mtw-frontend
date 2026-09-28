@@ -554,6 +554,10 @@ export async function createOrdenCompra(payload: {
     // externa) -- con materialId, mtw-api la deriva sola de la familia.
     categoria?: CategoriaGasto;
   }[];
+  // Material que ya esta disponible en la bodega de Obras Mayores y se
+  // reserva para este proyecto trasladandolo a su bodega al generar la OC
+  // -- ver ejecutarTraslado en mtw-api. Ignorado si no hay proyectoId.
+  trasladosDesdeObrasMayores?: { materialId: string; cantidad: number }[];
 }): Promise<{ success: boolean; ordenCompra: OrdenCompra }> {
   const response = await apiClient.post<{ success: boolean; ordenCompra: OrdenCompra }>('/ordenes-compra', payload);
   return response.data;

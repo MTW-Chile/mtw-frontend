@@ -114,25 +114,26 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
     return { totalUnidades, planificado, sinPlanificar: totalUnidades - planificado };
   }, [filas]);
 
-  // Stock ya disponible (bodega propia + Obras Mayores) para no sugerir
-  // comprar de nuevo algo que ya esta ahi -- ver
-  // stockDisponiblePorMaterial en computeMaterialesFasePorProveedor. Ojo:
-  // se calcula UNA vez y se resta igual para cada fase de abajo -- si dos
-  // fases necesitan el mismo material, ambas ven el mismo stock
-  // disponible sin "reservarlo" entre si (limitacion conocida, ver
-  // comentario de computeMaterialesFasePorProveedor).
+  // Stock ya disponible para no sugerir comprar de nuevo algo que ya esta
+  // ahi -- bodega propia (ya reservado, no requiere accion) y Obras
+  // Mayores (se reserva de verdad con un traslado real al generar la OC,
+  // ver computeMaterialesFasePorProveedor y trasladosDesdeObrasMayores en
+  // NuevaOrdenCompraModal). Ojo: estos mapas se calculan UNA vez y se
+  // restan igual para cada fase de abajo -- si dos fases necesitan el
+  // mismo material, ambas ven el mismo stock disponible sin "reservarlo"
+  // entre si a nivel de este resumen (el traslado real solo ocurre cuando
+  // se genera una OC puntual).
   const { data: bodegaData } = useQuery({
     queryKey: ['bodegaProyecto', proyecto.id],
     queryFn: () => getBodegaProyecto(proyecto.id),
   });
-  const stockDisponiblePorMaterial = useMemo(() => {
-    const map = new Map<string, number>();
-    const sumar = (rows: { materialId: string; cantidad: number }[] | undefined) =>
-      (rows || []).forEach((s) => map.set(s.materialId, (map.get(s.materialId) || 0) + Number(s.cantidad)));
-    sumar(bodegaData?.stock);
-    sumar(bodegaData?.stockObrasMayores);
-    return map;
-  }, [bodegaData]);
+  const mapaStock = (rows: { materialId: string; cantidad: number }[] | undefined) => {
+    const mapa = new Map<string, number>();
+    (rows || []).forEach((s) => mapa.set(s.materialId, (mapa.get(s.materialId) || 0) + Number(s.cantidad)));
+    return mapa;
+  };
+  const stockProyectoPorMaterial = useMemo(() => mapaStock(bodegaData?.stock), [bodegaData]);
+  const stockObrasMayoresPorMaterial = useMemo(() => mapaStock(bodegaData?.stockObrasMayores), [bodegaData]);
 
   // Materiales calculados por fase real (misma logica que Abastecimiento >
   // Nueva OC, ver computeMaterialesFasePorProveedor) -- de aca sale tanto el
@@ -150,7 +151,16 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
       { montoTotal: number; categorias: { familia: string; monto: number; items: ItemFase[] }[] }
     >();
     fasesReales.forEach((fase) => {
-      const grupos = computeMaterialesFasePorProveedor(activeVersion, fase, tasaDolar, tasaEuro, tasaUf, monedas, stockDisponiblePorMaterial);
+      const { grupos } = computeMaterialesFasePorProveedor(
+        activeVersion,
+        fase,
+        tasaDolar,
+        tasaEuro,
+        tasaUf,
+        monedas,
+        stockProyectoPorMaterial,
+        stockObrasMayoresPorMaterial
+      );
       const itemsFlat = grupos.flatMap((g) => g.items.map((it) => ({ ...it, proveedorNombre: g.proveedorNombre })));
       const porCategoria = new Map<string, { monto: number; items: ItemFase[] }>();
       itemsFlat.forEach((it) => {
@@ -169,7 +179,7 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
     });
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fasesReales, activeVersion, tasaDolar, tasaEuro, tasaUf, monedas, stockDisponiblePorMaterial]);
+  }, [fasesReales, activeVersion, tasaDolar, tasaEuro, tasaUf, monedas, stockProyectoPorMaterial, stockObrasMayoresPorMaterial]);
 
   // Expandidas se guarda como "faseId:familia" -- cada categoria se
   // despliega de forma independiente, no toda la fase junta.
