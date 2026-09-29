@@ -155,6 +155,60 @@ describe('buildDocumentoHtml — el cupo de página es fijo (2 en portada, 3 en 
     expect(bloquePagina.includes('>V20<')).toBe(true);
   });
 
+  it('en una página con cupo completo, las 3 tarjetas llenan el slot entero (sin aire debajo)', () => {
+    // Esto "ya funcionaba antes" y se rompió sin querer al hacer el alto de
+    // cada tarjeta dependiente de su propio contenido (alturaContenidoTarjeta)
+    // -- esa lógica es correcta SOLO para la última página con menos
+    // ventanas que el cupo (ver el describe de arriba, L01); en una página
+    // con el cupo lleno (2 o 3, el caso normal) cada tarjeta tiene que
+    // llenar su parte pareja del alto útil, sin dejar espacio en blanco
+    // debajo de la última tarjeta.
+    const ventanas = [
+      ventana('a', 'V1', 1200, 1350), ventana('b', 'V2', 1200, 1550),
+      ventana('c', 'V19', 2500, 1800), ventana('d', 'V20', 2000, 2600), ventana('e', 'V21', 500, 1400),
+    ];
+    const pngPorVentana = new Map(ventanas.map((v) => [v.id, 'data:image/png;base64,AA==']));
+    const preciosVenta = new Map<string, PrecioVentaLinea>(ventanas.map((v) => [v.id, { precioUnitarioCLP: 1, precioVentaCLP: 1 }]));
+    const html = buildDocumentoHtml({
+      proyecto: { obra: 'TEST', codigoInterno: 'T', numeroPresupuesto: 1 } as unknown as Proyecto,
+      ventanas, texto: '', condiciones: '', venta: 1, iva: 1, totalConIva: 1, ivaPct: 19, tasaUf: 38500,
+      logoDataUrl: null, logoMuchtekDataUrl: null, preciosVenta, pngPorVentana,
+    });
+    const alturas = ['V19', 'V20', 'V21'].map((modelo) => {
+      const idx = html.indexOf(`>${modelo}<`);
+      const inicioTarjeta = html.lastIndexOf('<div style="border:1px solid', idx);
+      return Number(/height:(\d+)px/.exec(html.slice(inicioTarjeta, inicioTarjeta + 200))![1]);
+    });
+    // Las 3 comparten el mismo slot -- deben salir con exactamente el mismo alto.
+    expect(alturas[0]).toBe(alturas[1]);
+    expect(alturas[1]).toBe(alturas[2]);
+  });
+
+  it('V21 no queda ilegible por compartir página con ventanas mucho más altas (escala propia, no compartida)', () => {
+    // V21 (500×1400mm) ya no hereda la escala reducida que necesitan V19 y
+    // sobre todo V20 (2000×2600mm) -- cada tarjeta calcula su propia
+    // escala con el alto que le toca (el slot, ahora que cada tarjeta lo
+    // llena completo). Antes de este fix, V21 quedaba en un rectángulo de
+    // ~40×112px por heredar la escala de V20 (confirmado real, Casa La
+    // Aurora 1679-3).
+    const ventanas = [
+      ventana('a', 'V1', 1200, 1350), ventana('b', 'V2', 1200, 1550),
+      ventana('c', 'V19', 2500, 1800), ventana('d', 'V20', 2000, 2600), ventana('e', 'V21', 500, 1400),
+    ];
+    const pngPorVentana = new Map(ventanas.map((v) => [v.id, 'data:image/png;base64,AA==']));
+    const preciosVenta = new Map<string, PrecioVentaLinea>(ventanas.map((v) => [v.id, { precioUnitarioCLP: 1, precioVentaCLP: 1 }]));
+    const html = buildDocumentoHtml({
+      proyecto: { obra: 'TEST', codigoInterno: 'T', numeroPresupuesto: 1 } as unknown as Proyecto,
+      ventanas, texto: '', condiciones: '', venta: 1, iva: 1, totalConIva: 1, ivaPct: 19, tasaUf: 38500,
+      logoDataUrl: null, logoMuchtekDataUrl: null, preciosVenta, pngPorVentana,
+    });
+    const idxV21 = html.indexOf('>V21<');
+    const inicioTarjeta = html.lastIndexOf('<div style="border:1px solid', idxV21);
+    const bloque = html.slice(inicioTarjeta, inicioTarjeta + 1400);
+    const maxHeightImg = Number(/max-height:(\d+)px/.exec(bloque)![1]);
+    expect(maxHeightImg).toBeGreaterThanOrEqual(150);
+  });
+
   it('7 ventanas de tamaño normal se reparten 2+3+2, nunca menos de 3 por partir de más', () => {
     const ventanas = [
       ventana('a', 'V1', 1200, 1350), ventana('b', 'V2', 1200, 1550),
