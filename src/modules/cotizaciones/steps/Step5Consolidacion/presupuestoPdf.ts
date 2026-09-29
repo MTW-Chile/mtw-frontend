@@ -703,7 +703,7 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
 
   const calcularSlot = (cupo: number, altoDisponible: number) => (altoDisponible - GAP_TARJETAS * (cupo - 1)) / cupo;
 
-  const paginas: { ventanas: Ventana[]; slot: number }[] = [];
+  const paginas: { ventanas: Ventana[]; slot: number; cupoMax: number }[] = [];
   {
     let idx = 0;
     while (idx < ventanas.length) {
@@ -735,12 +735,12 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
         cupo -= 1;
         slot = calcularSlot(cupo, altoDisponible);
       }
-      paginas.push({ ventanas: ventanas.slice(idx, idx + cupo), slot });
+      paginas.push({ ventanas: ventanas.slice(idx, idx + cupo), slot, cupoMax });
       idx += cupo;
     }
     if (paginas.length === 0) {
       const altoDisponible = ALTO_UTIL_PAGINA - PADDING_INFERIOR_PAGINA - altoHeaderPortada - ALTO_RESUMEN;
-      paginas.push({ ventanas: [], slot: calcularSlot(CUPO_PORTADA, altoDisponible) });
+      paginas.push({ ventanas: [], slot: calcularSlot(CUPO_PORTADA, altoDisponible), cupoMax: CUPO_PORTADA });
     }
   }
 
@@ -751,31 +751,32 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
   // hace falta -- si sigue Condiciones Comerciales, esa sección ya trae
   // su propio page-break-before). height+overflow:hidden en cada página
   // es un margen de seguridad, no lo que reparte el alto.
-  // La escala es POR PÁGINA, no global al documento entero -- una sola
-  // ventana fuera de lo común en OTRA página (mucho más ancha o alta que el
-  // resto del proyecto, ej. un paño gigante o una puerta corredera de
-  // varias hojas) no debe achicar el dibujo de TODAS las demás tarjetas del
-  // presupuesto, muchas veces páginas completas de ventanas normales que no
-  // tienen nada que ver con esa. Las ventanas que sí importa comparar entre
-  // sí -- que quede claro cuál es más grande que cuál -- son las que el
-  // cliente ve juntas en la misma página, no las de todo el documento.
-  const contenidoVentanasHtml = paginas.map(({ ventanas: cardsPagina, slot }, idx) => {
+  // La escala es POR TARJETA, no compartida con el resto de la página --
+  // una ventana angosta (ej. V21, 500×1400mm) que comparte página con una
+  // mucho más alta (ej. V20, 2000×2600mm) no tiene por qué heredar la
+  // escala reducida que esa vecina necesita: eso la dejaba en un
+  // rectángulo minúsculo aunque su propia tarjeta tuviera espacio de sobra
+  // (confirmado real, Casa La Aurora 1679-3). Cada ventana usa lo más
+  // grande que le permite SU PROPIA tarjeta, sin mirar a las de al lado.
+  //
+  // El cupo de página es fijo (2 portada, 3 siguientes, ver arriba) salvo
+  // que de verdad no queden más ventanas -- así que, salvo en esa última
+  // página con menos ventanas que el cupo, TODAS las tarjetas llenan su
+  // slot completo (reparto parejo del alto útil de la página, sin dejar
+  // aire debajo). Solo en la última página, con cupo real menor al máximo,
+  // el alto de cada tarjeta es lo que su contenido necesita (ver
+  // alturaContenidoTarjeta) -- forzarla a llenar el slot ahí no agranda su
+  // dibujo (una ventana ancha y baja no crece más alto solo porque le
+  // sobra página) y solo infla una caja vacía alrededor (confirmado real,
+  // L01, 800×500mm).
+  const contenidoVentanasHtml = paginas.map(({ ventanas: cardsPagina, slot, cupoMax }, idx) => {
     const esPortada = idx === 0;
     const esUltima = idx === paginas.length - 1;
-    const escalaPxPorMm = calcularEscalaDibujos(
-      cardsPagina.map((ventana) => ({ ventana, altoTarjeta: slot })),
-      pngPorVentana
-    );
-    // El slot es el PRESUPUESTO máximo de alto (usado arriba para fijar la
-    // escala común de la página) -- el alto REAL de cada tarjeta es lo que
-    // su propio contenido necesita a esa escala, nunca más (ver
-    // alturaContenidoTarjeta). Cuando cupo == cupoMax esto normalmente
-    // coincide con el slot (las tarjetas llenan su parte pareja); cuando
-    // sobra slot (última página con menos ventanas que el cupo máximo) ya
-    // no se fuerza a cada tarjeta a esa altura completa.
+    const cupoCompleto = cardsPagina.length >= cupoMax;
     const tarjetasHtml = cardsPagina.map((v, i) => {
-      const altoTarjeta = Math.min(slot, alturaContenidoTarjeta(v, analizarVentana(v), escalaPxPorMm));
-      return cardHtml(v, altoTarjeta, i === cardsPagina.length - 1, escalaPxPorMm);
+      const escalaPropia = calcularEscalaDibujos([{ ventana: v, altoTarjeta: slot }], pngPorVentana);
+      const altoTarjeta = cupoCompleto ? slot : Math.min(slot, alturaContenidoTarjeta(v, analizarVentana(v), escalaPropia));
+      return cardHtml(v, altoTarjeta, i === cardsPagina.length - 1, escalaPropia);
     }).join('');
     return `
       <div style="width:100%;height:${ALTO_UTIL_PAGINA}px;box-sizing:border-box;overflow:hidden;font-family:Helvetica,Arial,sans-serif;background:#ffffff;${esUltima ? '' : 'page-break-after:always;'}">
