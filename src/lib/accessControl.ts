@@ -15,12 +15,12 @@ export interface EntradaAcceso {
 // modificar el panel de Roles cada vez.
 export const SECCIONES_FRONTEND: EntradaAcceso[] = [
   { id: 'inicio', label: 'Inicio', icon: LayoutDashboard },
-  { id: 'maestro', label: 'Maestro de Materiales', icon: Boxes },
   { id: 'clientes', label: 'Clientes', icon: Users },
   { id: 'cotizaciones', label: 'Cotizaciones', icon: Building2 },
   { id: 'proyectos', label: 'Proyectos', icon: FolderKanban },
   { id: 'compras', label: 'Compras', icon: ShoppingCart },
   { id: 'bodega', label: 'Bodega', icon: Warehouse },
+  { id: 'maestro', label: 'Maestro de Materiales', icon: Boxes },
   { id: 'configuracion', label: 'Configuración', icon: Settings },
 ];
 
