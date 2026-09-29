@@ -763,20 +763,27 @@ export async function getCheckoutFactura(
 }
 
 // Confirma el checkout: contabiliza la factura en Clay (con el token del
-// usuario) y la vincula a la OC. ajustarOC: si no cuadra, escala la OC al
-// neto facturado y la deja CONCILIADA (si no, queda PARCIALMENTE_CONCILIADA).
+// usuario) y la vincula a la OC item a item. items: los vinculos que la
+// persona confirmo/edito a partir de las sugerencias del checkout.
+// ajustarOC: ajusta al monto vinculado los items que hayan quedado
+// completos con precio distinto al comprometido.
 export async function vincularFactura(
   ordenCompraId: string,
-  payload: { clayTransactionId: string; ajustarOC?: boolean; permitirOtroRut?: boolean; notas?: string }
+  payload: {
+    clayTransactionId: string;
+    items: { ordenCompraItemId: string; facturaLineaIndex: number; cantidad: number; monto: number }[];
+    ajustarOC?: boolean;
+    permitirOtroRut?: boolean;
+    notas?: string;
+  }
 ): Promise<{ success: boolean; conciliacion: ConciliacionFactura; estadoOC: EstadoOC; clayAsientoId: string }> {
   const response = await apiClient.post(`/ordenes-compra/${ordenCompraId}/facturas`, payload);
   return response.data;
 }
 
-// Ajuste posterior de una OC PARCIALMENTE_CONCILIADA al neto ya facturado.
-export async function ajustarOCAFacturado(
-  ordenCompraId: string
-): Promise<{ success: boolean; totalAnterior: number; totalAjustado: number }> {
+// Cierre forzado de una OC PARCIALMENTE_CONCILIADA: lo que quedo sin
+// vincular se da por no facturable.
+export async function ajustarOCAFacturado(ordenCompraId: string): Promise<{ success: boolean; ordenCompra: OrdenCompra }> {
   const response = await apiClient.post(`/ordenes-compra/${ordenCompraId}/ajustar-a-facturado`);
   return response.data;
 }

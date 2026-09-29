@@ -501,6 +501,22 @@ export interface OrdenCompraItem {
   // null en una solicitud sin completar -- ver OrdenCompra.proveedorId.
   precioUnitario: number | null;
   recepciones?: RecepcionOCItem[];
+  conciliacionItems?: ConciliacionFacturaItem[];
+}
+
+// Cuanto de lo pedido de un item sigue sin vincular a una factura /
+// sin recibir todavia -- mismo calculo que mtw-api (pendienteConciliarItem/
+// pendienteRecepcionarItem en index.ts), hecho aca para no pedirle al
+// backend un campo calculado en cada listado que ya trae recepciones/
+// conciliacionItems crudos.
+export function pendienteConciliarItem(item: Pick<OrdenCompraItem, 'cantidad' | 'conciliacionItems'>): number {
+  const vinculado = (item.conciliacionItems || []).reduce((s, v) => s + v.cantidad, 0);
+  return Math.max(0, item.cantidad - vinculado);
+}
+
+export function pendienteRecepcionarItem(item: Pick<OrdenCompraItem, 'cantidad' | 'recepciones'>): number {
+  const recibido = (item.recepciones || []).reduce((s, r) => s + r.cantidadRecibida, 0);
+  return Math.max(0, item.cantidad - recibido);
 }
 
 export interface RecepcionOCItem {
@@ -729,6 +745,24 @@ export interface ConciliacionFactura {
   clayAsientoId: string | null;
   contabilizadaEn: string | null;
   creadoEn: string;
+  items?: ConciliacionFacturaItem[];
+}
+
+// Vinculo item a item: que parte de un OrdenCompraItem quedo cubierta por
+// que linea (por posicion, facturaLineaIndex) de esta factura puntual --
+// ver ConciliacionFacturaItem en mtw-api/prisma/schema.prisma.
+export interface ConciliacionFacturaItem {
+  id: string;
+  conciliacionFacturaId: string;
+  ordenCompraItemId: string;
+  facturaLineaIndex: number;
+  facturaLineaDescripcion: string;
+  facturaLineaCantidad: number | null;
+  facturaLineaPrecioUnitario: number | null;
+  cantidad: number;
+  monto: number;
+  creadoPorId: string | null;
+  creadoEn: string;
 }
 
 // Neto de una factura vinculada. Las vinculadas antes de guardar el neto no
@@ -793,6 +827,40 @@ export interface LineaAsientoClay {
   centroCosto: string | null;
 }
 
+// Una linea de la factura ya normalizada por mtw-api (ver ClayDteLinea en
+// clay-client.ts) -- reconocida:false significa que Clay no la trajo en
+// ninguno de los formatos de campo conocidos (parseo defensivo, el shape
+// real de una factura tipo DTE no estaba 100% confirmado al escribir esto).
+export interface ClayDteLinea {
+  indice: number;
+  descripcion: string;
+  cantidad: number | null;
+  precioUnitario: number | null;
+  monto: number;
+  reconocida: boolean;
+}
+
+// Item de la OC con su pendiente ya calculado, tal como lo arma el
+// checkout (no es OrdenCompraItem completo, es la vista para vincular).
+export interface ItemOCCheckout {
+  id: string;
+  descripcion: string;
+  categoria: CategoriaGasto;
+  unidadMedida: string;
+  cantidad: number;
+  precioUnitario: number | null;
+  pendienteCantidad: number;
+  pendienteMonto: number;
+  pendienteRecepcionar: number;
+}
+
+export interface VinculoSugerido {
+  facturaLineaIndex: number;
+  ordenCompraItemId: string;
+  cantidad: number;
+  monto: number;
+}
+
 // GET /api/ordenes-compra/:id/facturas/:clayTransactionId/checkout -- lo
 // que va a pasar al confirmar, sin escribir nada todavia.
 export interface CheckoutFactura {
@@ -803,9 +871,13 @@ export interface CheckoutFactura {
   totalOC: number;
   facturadoPrevio: number;
   facturadoTotal: number;
-  diferencia: number; // facturadoTotal - totalOC (neto)
-  cuadra: boolean;
-  // Sin ajuste. Con ajuste siempre queda CONCILIADA.
+  diferencia: number; // facturadoTotal - totalOC (neto), informativo
+  cuadra: boolean; // informativo -- el estado real lo decide la cobertura por item
+  lineasFactura: ClayDteLinea[];
+  itemsOC: ItemOCCheckout[];
+  sugerencias: VinculoSugerido[];
+  // Preview con las sugerencias por defecto -- el estado real se decide con
+  // lo que la persona termine confirmando.
   estadoResultante: EstadoOC;
   asiento: {
     fecha: string;

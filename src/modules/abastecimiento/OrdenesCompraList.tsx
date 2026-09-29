@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { getOrdenesCompra, updateOrdenCompraEstado, eliminarOrdenCompra, getMisPermisos, renderPdf } from '../../api/client';
 import { loadImageDataUrl } from '../cotizaciones/lib/pdfTheme';
 import type { EstadoOC, OrdenCompra } from '../../types';
+import { pendienteConciliarItem, pendienteRecepcionarItem } from '../../types';
 import { NuevaOrdenCompraModal } from './NuevaOrdenCompraModal';
 import { CATEGORIA_GASTO_LABEL } from './categoriaGasto';
 import { buildOrdenCompraHtml } from './ordenCompraPdf';
@@ -42,9 +43,86 @@ export const ESTADO_OC_VARIANT: Record<EstadoOC, BadgeVariant> = {
 
 const totalOC = (oc: OrdenCompra) => oc.items.reduce((sum, i) => sum + Number(i.cantidad) * Number(i.precioUnitario ?? 0), 0);
 
-const formatoMoneda = (valor: number, moneda: string) =>
+export const formatoMoneda = (valor: number, moneda: string) =>
   valor.toLocaleString('es-CL', { style: moneda === 'CLP' ? 'currency' : 'decimal', currency: moneda === 'CLP' ? 'CLP' : undefined, maximumFractionDigits: 0 }) +
   (moneda !== 'CLP' ? ` ${moneda}` : '');
+
+// Detalle de los items de una OC -- usado tanto en la propia lista
+// (expandible por fila) como en Control de Documentos (Compras >
+// Conciliación), donde ademas importa el estado de conciliacion/recepcion
+// de cada item. mostrarConciliacion agrega esas dos columnas sin duplicar
+// la tabla entera en el otro lugar.
+export const DetalleItemsOC: React.FC<{ oc: OrdenCompra; mostrarConciliacion?: boolean }> = ({ oc, mostrarConciliacion = false }) => (
+  <>
+    {oc.comentarios && (
+      <p className="text-[11px] text-slate-600 mb-2 pb-2 border-b border-slate-200">
+        <span className="font-bold text-slate-700">Comentarios: </span>
+        {oc.comentarios}
+      </p>
+    )}
+    {oc.items.length === 0 ? (
+      <p className="text-[11px] text-slate-400">Esta OC no tiene items.</p>
+    ) : (
+      <table className="w-full text-[11px]">
+        <thead>
+          <tr className="text-left text-slate-400 uppercase tracking-wider">
+            <th className="pb-1.5 font-bold">Item</th>
+            <th className="pb-1.5 font-bold">Categoría</th>
+            <th className="pb-1.5 font-bold text-right">Cantidad</th>
+            <th className="pb-1.5 font-bold text-right">Precio unit.</th>
+            <th className="pb-1.5 font-bold text-right">Subtotal</th>
+            {mostrarConciliacion && <th className="pb-1.5 font-bold text-right">Conciliación</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {oc.items.map((item) => {
+            const pendienteConciliar = mostrarConciliacion ? pendienteConciliarItem(item) : 0;
+            const pendienteRecepcionar = mostrarConciliacion ? pendienteRecepcionarItem(item) : 0;
+            return (
+              <tr key={item.id} className="border-t border-slate-100/80">
+                <td className="py-1.5 pr-2 text-slate-700">
+                  <span className="flex items-center gap-1.5">
+                    {item.materialId && <Package className="w-3 h-3 text-sky-500 shrink-0" />}
+                    {item.descripcion}
+                  </span>
+                </td>
+                <td className="py-1.5 pr-2 text-slate-500">{CATEGORIA_GASTO_LABEL[item.categoria] || item.categoria}</td>
+                <td className="py-1.5 text-right font-mono text-slate-700">
+                  {Number(item.cantidad).toLocaleString('es-CL', { maximumFractionDigits: 2 })} {item.unidadMedida}
+                </td>
+                <td className="py-1.5 text-right font-mono text-slate-700">{formatoMoneda(Number(item.precioUnitario), oc.moneda)}</td>
+                <td className="py-1.5 text-right font-mono font-semibold text-slate-900">
+                  {formatoMoneda(Number(item.cantidad) * Number(item.precioUnitario), oc.moneda)}
+                </td>
+                {mostrarConciliacion && (
+                  <td className="py-1.5 text-right">
+                    {pendienteConciliar <= 0 ? (
+                      <Badge variant="success" size="sm">
+                        Conciliado
+                      </Badge>
+                    ) : (
+                      <div className="flex flex-col items-end gap-0.5">
+                        <Badge variant={pendienteConciliar < Number(item.cantidad) ? 'warning' : 'subtle'} size="sm">
+                          {pendienteConciliar < Number(item.cantidad) ? 'Parcial' : 'Pendiente'} ·{' '}
+                          {pendienteConciliar.toLocaleString('es-CL', { maximumFractionDigits: 2 })} {item.unidadMedida}
+                        </Badge>
+                        {pendienteRecepcionar > 0 && (
+                          <span className="text-[10px] text-slate-400">
+                            También pendiente de recepcionar ({pendienteRecepcionar.toLocaleString('es-CL', { maximumFractionDigits: 2 })})
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </td>
+                )}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    )}
+  </>
+);
 
 interface OrdenesCompraListProps {
   // Sin proyectoId: vista global (todas las obras, tab "Abastecimiento").
@@ -279,52 +357,6 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
         </Button>
       )}
     </div>
-  );
-
-  const DetalleItemsOC: React.FC<{ oc: OrdenCompra }> = ({ oc }) => (
-    <>
-      {oc.comentarios && (
-        <p className="text-[11px] text-slate-600 mb-2 pb-2 border-b border-slate-200">
-          <span className="font-bold text-slate-700">Comentarios: </span>
-          {oc.comentarios}
-        </p>
-      )}
-      {oc.items.length === 0 ? (
-        <p className="text-[11px] text-slate-400">Esta OC no tiene items.</p>
-      ) : (
-        <table className="w-full text-[11px]">
-          <thead>
-            <tr className="text-left text-slate-400 uppercase tracking-wider">
-              <th className="pb-1.5 font-bold">Item</th>
-              <th className="pb-1.5 font-bold">Categoría</th>
-              <th className="pb-1.5 font-bold text-right">Cantidad</th>
-              <th className="pb-1.5 font-bold text-right">Precio unit.</th>
-              <th className="pb-1.5 font-bold text-right">Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>
-            {oc.items.map((item) => (
-              <tr key={item.id} className="border-t border-slate-100/80">
-                <td className="py-1.5 pr-2 text-slate-700">
-                  <span className="flex items-center gap-1.5">
-                    {item.materialId && <Package className="w-3 h-3 text-sky-500 shrink-0" />}
-                    {item.descripcion}
-                  </span>
-                </td>
-                <td className="py-1.5 pr-2 text-slate-500">{CATEGORIA_GASTO_LABEL[item.categoria] || item.categoria}</td>
-                <td className="py-1.5 text-right font-mono text-slate-700">
-                  {Number(item.cantidad).toLocaleString('es-CL', { maximumFractionDigits: 2 })} {item.unidadMedida}
-                </td>
-                <td className="py-1.5 text-right font-mono text-slate-700">{formatoMoneda(Number(item.precioUnitario), oc.moneda)}</td>
-                <td className="py-1.5 text-right font-mono font-semibold text-slate-900">
-                  {formatoMoneda(Number(item.cantidad) * Number(item.precioUnitario), oc.moneda)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </>
   );
 
   const RechazoInline: React.FC<{ oc: OrdenCompra }> = ({ oc }) => (

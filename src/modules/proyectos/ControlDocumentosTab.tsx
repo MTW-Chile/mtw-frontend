@@ -1,11 +1,24 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, FileCheck2, AlertCircle, Search, RefreshCw, CheckCircle2, X as XIcon, Plus, KeyRound, Scale } from 'lucide-react';
+import {
+  Loader2,
+  FileCheck2,
+  AlertCircle,
+  Search,
+  RefreshCw,
+  CheckCircle2,
+  X as XIcon,
+  Plus,
+  KeyRound,
+  Scale,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { getOrdenesCompra, getFacturasSugeridas, refrescarConciliacion, getMisPermisos, ajustarOCAFacturado } from '../../api/client';
 import { netoConciliacion, type EstadoConciliacionFactura, type EstadoOC, type FiltrosFacturas } from '../../types';
-import { ESTADO_OC_LABEL, ESTADO_OC_VARIANT } from '../abastecimiento/OrdenesCompraList';
+import { ESTADO_OC_LABEL, ESTADO_OC_VARIANT, DetalleItemsOC } from '../abastecimiento/OrdenesCompraList';
 import { CheckoutFacturaModal } from './CheckoutFacturaModal';
 
 const ESTADO_CUADRE_VARIANT: Record<EstadoConciliacionFactura, BadgeVariant> = {
@@ -68,6 +81,7 @@ const ChipFiltro: React.FC<{ activo: boolean; label: string; onToggle: () => voi
 export const ControlDocumentosTab: React.FC = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
+  const [expandidas, setExpandidas] = useState<Set<string>>(new Set());
   const [buscandoEnId, setBuscandoEnId] = useState<string | null>(null);
   const [filtros, setFiltros] = useState<FiltrosFacturas>(FILTROS_DEFAULT);
   const [checkout, setCheckout] = useState<{
@@ -124,6 +138,15 @@ export const ControlDocumentosTab: React.FC = () => {
         (oc.proyecto?.obra || oc.centroCosto?.nombre || '').toLowerCase().includes(term)
     );
   }, [ordenes, searchTerm]);
+
+  const toggleExpandida = (ordenCompraId: string) => {
+    setExpandidas((prev) => {
+      const next = new Set(prev);
+      if (next.has(ordenCompraId)) next.delete(ordenCompraId);
+      else next.add(ordenCompraId);
+      return next;
+    });
+  };
 
   const abrirBusqueda = (ordenCompraId: string) => {
     setError(null);
@@ -204,20 +227,35 @@ export const ControlDocumentosTab: React.FC = () => {
             return (
               <div key={oc.id} className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
                 <div className="px-4 py-3.5 flex items-center justify-between gap-3 flex-wrap border-b border-slate-50">
-                  <div className="flex items-center gap-2.5 flex-wrap">
+                  <button
+                    onClick={() => toggleExpandida(oc.id)}
+                    className="flex items-center gap-2.5 flex-wrap text-left"
+                    title="Ver items y su estado de conciliación"
+                  >
+                    {expandidas.has(oc.id) ? (
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    ) : (
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    )}
                     <span className="font-mono font-bold text-sm text-slate-900">{oc.numero}</span>
                     <span className="text-xs text-slate-500">{oc.proveedor?.nombre}</span>
                     <span className="text-xs text-slate-400">· {oc.proyecto?.obra || oc.centroCosto?.nombre || 'Obras Mayores'}</span>
                     <Badge variant={ESTADO_OC_VARIANT[oc.estado]} size="sm">
                       {ESTADO_OC_LABEL[oc.estado]}
                     </Badge>
-                  </div>
+                  </button>
                   <div className="text-xs text-slate-600">
                     OC (neto): <span className="font-bold text-slate-900">{formatCLP(totalOC)}</span> · Facturado (neto):{' '}
                     <span className="font-bold text-slate-900">{formatCLP(totalFacturado)}</span> · Pagado:{' '}
                     <span className="font-bold text-emerald-700">{formatCLP(totalPagado)}</span>
                   </div>
                 </div>
+
+                {expandidas.has(oc.id) && (
+                  <div className="px-4 py-3 bg-slate-50/70 border-b border-slate-100">
+                    <DetalleItemsOC oc={oc} mostrarConciliacion />
+                  </div>
+                )}
 
                 {oc.estado === 'PARCIALMENTE_CONCILIADA' && (
                   <div className="px-4 py-2.5 bg-amber-50/60 border-b border-amber-100 flex items-center justify-between gap-3 flex-wrap text-xs">
