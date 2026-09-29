@@ -380,6 +380,18 @@ export async function createCliente(payload: Partial<Cliente>): Promise<{ data: 
   return response.data;
 }
 
+export async function updateCliente(id: string, payload: Partial<Cliente>): Promise<{ data: Cliente }> {
+  const response = await apiClient.patch<{ data: Cliente }>(`/clientes/${id}`, payload);
+  return response.data;
+}
+
+// Solo administrador (ver requireAdmin en mtw-api) -- el backend responde
+// 409 si el cliente todavia tiene proyectos enlazados.
+export async function eliminarCliente(id: string): Promise<{ success: boolean }> {
+  const response = await apiClient.post<{ success: boolean }>(`/clientes/${id}/eliminar`);
+  return response.data;
+}
+
 // Config editable por partida (nombre + codigo de integracion Clay) --
 // ver PartidaConfig en mtw-api.
 export async function getPartidas(): Promise<{ data: PartidaConfig[] }> {

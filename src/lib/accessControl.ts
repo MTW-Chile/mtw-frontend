@@ -1,5 +1,5 @@
 import type { ElementType } from 'react';
-import { LayoutDashboard, Boxes, Building2, FolderKanban, Settings, FileText, DoorClosed, ShieldCheck, Wrench, Landmark, Warehouse, ShoppingCart } from 'lucide-react';
+import { LayoutDashboard, Boxes, Building2, FolderKanban, Settings, FileText, DoorClosed, ShieldCheck, Wrench, Landmark, Warehouse, ShoppingCart, Users } from 'lucide-react';
 
 export interface EntradaAcceso {
   id: string;
@@ -16,6 +16,7 @@ export interface EntradaAcceso {
 export const SECCIONES_FRONTEND: EntradaAcceso[] = [
   { id: 'inicio', label: 'Inicio', icon: LayoutDashboard },
   { id: 'maestro', label: 'Maestro de Materiales', icon: Boxes },
+  { id: 'clientes', label: 'Clientes', icon: Users },
   { id: 'cotizaciones', label: 'Cotizaciones', icon: Building2 },
   { id: 'proyectos', label: 'Proyectos', icon: FolderKanban },
   { id: 'compras', label: 'Compras', icon: ShoppingCart },

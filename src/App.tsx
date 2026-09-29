@@ -5,6 +5,7 @@ import { Header } from './components/layout/Header';
 import { InicioPage } from './modules/inicio/InicioPage';
 import { CotizacionesPage } from './modules/cotizaciones/CotizacionesPage';
 import { MaestroPage } from './modules/cotizaciones/MaestroPage';
+import { ClientesPage } from './modules/clientes/ClientesPage';
 import { ConfiguracionPage } from './modules/configuracion/ConfiguracionPage';
 import { ProyectosPage } from './modules/proyectos/ProyectosPage';
 import { ComprasPage } from './modules/abastecimiento/ComprasPage';
@@ -184,6 +185,8 @@ const AppContent: React.FC = () => {
           )}
 
           {activeTab === 'maestro' && <MaestroPage />}
+
+          {activeTab === 'clientes' && <ClientesPage />}
 
           {activeTab === 'cotizaciones' && (
             <CotizacionesPage
