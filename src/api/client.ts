@@ -950,12 +950,12 @@ export async function updateMiUsuario(nombre: string): Promise<{ success: boolea
 // Token personal de Clay del usuario actual -- se valida contra Clay y se
 // guarda cifrado; nunca vuelve al frontend.
 export async function setMiClayToken(token: string): Promise<{ success: boolean; tieneTokenClay: boolean }> {
-  const response = await apiClient.put('/mi-clay-token', { token });
+  const response = await apiClient.post('/mi-clay-token', { token });
   return response.data;
 }
 
 export async function deleteMiClayToken(): Promise<{ success: boolean; tieneTokenClay: boolean }> {
-  const response = await apiClient.delete('/mi-clay-token');
+  const response = await apiClient.post('/mi-clay-token/eliminar');
   return response.data;
 }
 
