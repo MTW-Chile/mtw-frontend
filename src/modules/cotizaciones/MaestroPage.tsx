@@ -3,6 +3,7 @@ import { Boxes, Building2, Tags } from 'lucide-react';
 import { MaestroProductos } from './components/MaestroProductos';
 import { ProveedoresPanel } from './components/ProveedoresPanel';
 import { PartidasPanel } from './components/PartidasPanel';
+import { PAGE_CONTAINER_CLASS } from '../../lib/designSystem';
 
 type SubTab = 'materiales' | 'proveedores' | 'partidas';
 
@@ -23,7 +24,7 @@ export const MaestroPage: React.FC = () => {
   ];
 
   return (
-    <div className="p-3 sm:p-5 md:p-8 space-y-4 sm:space-y-5 max-w-7xl mx-auto animate-fade-in">
+    <div className={PAGE_CONTAINER_CLASS}>
       <div className="flex items-center gap-1.5 border-b border-slate-200 pb-3">
         {tabs.map((tab) => {
           const Icon = tab.icon;

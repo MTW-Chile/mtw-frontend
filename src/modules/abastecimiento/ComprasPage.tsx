@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ShoppingCart, FileCheck2 } from 'lucide-react';
 import { OrdenesCompraList } from './OrdenesCompraList';
 import { ControlDocumentosTab } from '../proyectos/ControlDocumentosTab';
+import { PAGE_CONTAINER_CLASS } from '../../lib/designSystem';
 
 type SubTab = 'ordenes' | 'conciliacion';
 
@@ -23,7 +24,7 @@ export const ComprasPage: React.FC = () => {
   ];
 
   return (
-    <div className="p-3 sm:p-5 md:p-8 space-y-4 sm:space-y-5 max-w-7xl mx-auto animate-fade-in">
+    <div className={PAGE_CONTAINER_CLASS}>
       <div>
         <h1 className="text-base font-black text-slate-900">Compras</h1>
         <p className="text-xs text-slate-500">Órdenes de Compra y conciliación con Clay de todas las obras, en un solo lugar.</p>

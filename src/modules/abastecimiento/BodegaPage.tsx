@@ -3,6 +3,7 @@ import { PackageCheck, ClipboardList, Boxes } from 'lucide-react';
 import { RecepcionesPendientesSection } from './RecepcionesPendientesSection';
 import { RequisicionesSection } from '../proyectos/RequisicionesSection';
 import { BodegaProyectoTab } from './BodegaProyectoTab';
+import { PAGE_CONTAINER_CLASS } from '../../lib/designSystem';
 
 type SubTab = 'recepciones' | 'requisiciones' | 'stock';
 
@@ -24,7 +25,7 @@ export const BodegaPage: React.FC = () => {
   ];
 
   return (
-    <div className="p-3 sm:p-5 md:p-8 space-y-4 sm:space-y-5 max-w-7xl mx-auto animate-fade-in">
+    <div className={PAGE_CONTAINER_CLASS}>
       <div>
         <h1 className="text-base font-black text-slate-900">Bodega</h1>
         <p className="text-xs text-slate-500">Recepciones, requisiciones y stock de todas las obras, en un solo lugar.</p>

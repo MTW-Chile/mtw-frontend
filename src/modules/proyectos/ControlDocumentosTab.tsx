@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, FileCheck2, AlertCircle, Search, RefreshCw, CheckCircle2, X as XIcon, Plus, KeyRound, Scale } from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
@@ -62,11 +62,12 @@ const ChipFiltro: React.FC<{ activo: boolean; label: string; onToggle: () => voi
 // va a crear en Clay y, al confirmar, contabiliza la factura y concilia la
 // OC. Todo lo que toca Clay va con el token de Clay del usuario.
 //
-// Sin proyectoId: vista global (todas las obras + "Obras Mayores" juntas)
-// -- para el modulo Compras de primer nivel. Con proyectoId: acotada a
-// esa obra (ficha de proyecto).
-export const ControlDocumentosTab: React.FC<{ proyectoId?: string }> = ({ proyectoId }) => {
+// Vista global (todas las obras + "Obras Mayores" juntas) -- vive solo en
+// Compras > Conciliación de Facturas (ver ComprasPage), ya no dentro de
+// la ficha de un proyecto puntual (esa conciliación se centralizó acá).
+export const ControlDocumentosTab: React.FC = () => {
   const queryClient = useQueryClient();
+  const [searchTerm, setSearchTerm] = useState('');
   const [buscandoEnId, setBuscandoEnId] = useState<string | null>(null);
   const [filtros, setFiltros] = useState<FiltrosFacturas>(FILTROS_DEFAULT);
   const [checkout, setCheckout] = useState<{
@@ -81,8 +82,8 @@ export const ControlDocumentosTab: React.FC<{ proyectoId?: string }> = ({ proyec
   const sinTokenClay = permisos ? !permisos.tieneTokenClay : false;
 
   const { data, isLoading } = useQuery({
-    queryKey: ['ordenesCompra', { proyectoId: proyectoId ?? 'global', estado: '' }],
-    queryFn: () => getOrdenesCompra({ proyectoId, limit: 200 }),
+    queryKey: ['ordenesCompra', { proyectoId: undefined, estado: '' }],
+    queryFn: () => getOrdenesCompra({ limit: 200 }),
   });
 
   const {
@@ -107,7 +108,22 @@ export const ControlDocumentosTab: React.FC<{ proyectoId?: string }> = ({ proyec
     onError: (err: any) => setError(err?.response?.data?.error || 'No se pudo ajustar la OC.'),
   });
 
-  const ordenes = (data?.data || []).filter((oc) => ESTADOS_CONCILIABLES.includes(oc.estado));
+  const ordenes = useMemo(() => (data?.data || []).filter((oc) => ESTADOS_CONCILIABLES.includes(oc.estado)), [data]);
+
+  // Busqueda global, mismo patron que el resto de las listas (ClientesPage,
+  // ProveedoresPanel, etc.) -- esta pantalla es una lista de tarjetas, no
+  // una tabla, asi que no le corresponde filtro por columna (ver
+  // useColumnFilters), pero si el buscador estandar.
+  const ordenesFiltradas = useMemo(() => {
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return ordenes;
+    return ordenes.filter(
+      (oc) =>
+        oc.numero.toLowerCase().includes(term) ||
+        (oc.proveedor?.nombre || '').toLowerCase().includes(term) ||
+        (oc.proyecto?.obra || oc.centroCosto?.nombre || '').toLowerCase().includes(term)
+    );
+  }, [ordenes, searchTerm]);
 
   const abrirBusqueda = (ordenCompraId: string) => {
     setError(null);
@@ -124,13 +140,32 @@ export const ControlDocumentosTab: React.FC<{ proyectoId?: string }> = ({ proyec
   }
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h2 className="text-sm font-black text-slate-900">Control de documentos</h2>
-        <p className="text-xs text-slate-500">
-          Conciliación de Órdenes de Compra con la factura real del proveedor en Clay -- se buscan facturas sin contabilizar,
-          revisas el asiento y al confirmar se contabiliza en Clay y la OC queda conciliada.
-        </p>
+    <div className="space-y-4">
+      <p className="text-xs text-slate-500">
+        Conciliación de Órdenes de Compra con la factura real del proveedor en Clay -- se buscan facturas sin contabilizar,
+        revisas el asiento y al confirmar se contabiliza en Clay y la OC queda conciliada.
+      </p>
+
+      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="relative">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar por número de OC, proveedor u obra..."
+            className="w-full pl-10 pr-9 py-2.5 sm:py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[#E34A26] transition-all"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+              aria-label="Limpiar búsqueda"
+            >
+              <XIcon className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {sinTokenClay && (
@@ -150,11 +185,15 @@ export const ControlDocumentosTab: React.FC<{ proyectoId?: string }> = ({ proyec
       {ordenes.length === 0 ? (
         <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
           <FileCheck2 className="w-6 h-6 mx-auto mb-2 text-slate-300" />
-          Todavía no hay OC recibidas {proyectoId ? 'de este proyecto' : ''} para conciliar.
+          Todavía no hay OC recibidas para conciliar.
+        </div>
+      ) : ordenesFiltradas.length === 0 ? (
+        <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
+          Ninguna OC coincide con la búsqueda.
         </div>
       ) : (
         <div className="space-y-3">
-          {ordenes.map((oc) => {
+          {ordenesFiltradas.map((oc) => {
             const totalOC = oc.items.reduce((sum, i) => sum + Number(i.cantidad) * Number(i.precioUnitario), 0);
             const conciliaciones = oc.conciliaciones || [];
             const totalFacturado = conciliaciones.reduce((sum, c) => sum + netoConciliacion(c), 0);
@@ -168,9 +207,7 @@ export const ControlDocumentosTab: React.FC<{ proyectoId?: string }> = ({ proyec
                   <div className="flex items-center gap-2.5 flex-wrap">
                     <span className="font-mono font-bold text-sm text-slate-900">{oc.numero}</span>
                     <span className="text-xs text-slate-500">{oc.proveedor?.nombre}</span>
-                    {!proyectoId && (
-                      <span className="text-xs text-slate-400">· {oc.proyecto?.obra || oc.centroCosto?.nombre || 'Obras Mayores'}</span>
-                    )}
+                    <span className="text-xs text-slate-400">· {oc.proyecto?.obra || oc.centroCosto?.nombre || 'Obras Mayores'}</span>
                     <Badge variant={ESTADO_OC_VARIANT[oc.estado]} size="sm">
                       {ESTADO_OC_LABEL[oc.estado]}
                     </Badge>
