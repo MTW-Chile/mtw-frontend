@@ -17,6 +17,9 @@ import { NuevoMaterialModal } from './NuevoMaterialModal';
 import { useMonedas, resolverMoneda, formatMonto } from '../../../lib/monedas';
 import type { Material } from '../../../types';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
+import { useColumnFilters, type ColumnFilterDef } from '../../../lib/useColumnFilters';
+import { ColumnFilterHeader } from '../../../components/ui/ColumnFilterHeader';
+import { BREAKPOINT_DESKTOP, TABLE_CLASS } from '../../../lib/designSystem';
 
 // El catálogo trae hasta ~2000 materiales -- volcar esa cantidad de filas al
 // DOM de una sola vez (tabla + cards, sin virtualizar) es lo que hacía que
@@ -33,7 +36,7 @@ export const MaestroProductos: React.FC = () => {
   // Monta sólo la vista de escritorio o la de mobile, nunca las dos -- el
   // maestro puede traer hasta ~2000 materiales, así que duplicar el DOM acá
   // pesa más que en cualquier otra lista de la app. Ver useMediaQuery.ts.
-  const isDesktop = useMediaQuery('(min-width: 768px)');
+  const isDesktop = useMediaQuery(BREAKPOINT_DESKTOP);
 
   const { data, isLoading, isError, refetch } = useQuery<Material[]>({
     queryKey: ['materiales'],
@@ -81,17 +84,33 @@ export const MaestroProductos: React.FC = () => {
     });
   }, [materiales, searchTerm, selectedFamilia]);
 
+  const columnas: ColumnFilterDef<Material>[] = useMemo(
+    () => [
+      { key: 'sku', tipo: 'texto', label: 'SKU / Código', accessor: (m) => m.skuInterno },
+      { key: 'descripcion', tipo: 'texto', label: 'Descripción', accessor: (m) => m.descripcion },
+      { key: 'proveedor', tipo: 'texto', label: 'Proveedor', accessor: (m) => m.proveedor?.nombre || '' },
+    ],
+    []
+  );
+  const {
+    valores,
+    setValor,
+    limpiar: limpiarFiltrosColumna,
+    hayFiltrosActivos: hayFiltrosColumnaActivos,
+    datosFiltrados: materialesFiltradosPorColumna,
+  } = useColumnFilters(filteredMateriales, columnas);
+
   // Al cambiar el filtro se vuelve a arrancar desde la primera tanda --
   // si no, "Mostrar más" quedaría pedido sobre un filtro que ya no aplica.
   React.useEffect(() => {
     setCantidadVisible(TANDA_INICIAL);
-  }, [searchTerm, selectedFamilia]);
+  }, [searchTerm, selectedFamilia, valores]);
 
   const materialesVisibles = useMemo(
-    () => filteredMateriales.slice(0, cantidadVisible),
-    [filteredMateriales, cantidadVisible]
+    () => materialesFiltradosPorColumna.slice(0, cantidadVisible),
+    [materialesFiltradosPorColumna, cantidadVisible]
   );
-  const hayMasPorMostrar = cantidadVisible < filteredMateriales.length;
+  const hayMasPorMostrar = cantidadVisible < materialesFiltradosPorColumna.length;
 
   // Mismas familias que familyOrder en MaterialesLineaModal.tsx y
   // FAMILIAS_CATALOGO en NuevoMaterialModal.tsx -- las claves van en
@@ -133,7 +152,7 @@ export const MaestroProductos: React.FC = () => {
               <span>Maestro de Productos & Materiales</span>
             </h2>
             <Badge variant="brand" size="sm">
-              {filteredMateriales.length} ítems
+              {materialesFiltradosPorColumna.length} ítems
             </Badge>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -234,7 +253,7 @@ export const MaestroProductos: React.FC = () => {
             Reintentar
           </Button>
         </div>
-      ) : filteredMateriales.length === 0 ? (
+      ) : materialesFiltradosPorColumna.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-10 sm:p-14 text-center space-y-3 shadow-xs">
           <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-400">
             <Boxes className="w-6 h-6" />
@@ -243,18 +262,19 @@ export const MaestroProductos: React.FC = () => {
             No se encontraron materiales
           </h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            {searchTerm || selectedFamilia !== 'ALL'
-              ? 'Intenta ajustar los filtros de búsqueda o partida de materiales.'
+            {searchTerm || selectedFamilia !== 'ALL' || hayFiltrosColumnaActivos
+              ? 'Intenta ajustar los filtros de búsqueda, partida o columna.'
               : 'Aún no hay artículos registrados en el maestro. Comienza creando el primero.'}
           </p>
           <div className="pt-2 flex justify-center gap-2 flex-wrap">
-            {(searchTerm || selectedFamilia !== 'ALL') && (
+            {(searchTerm || selectedFamilia !== 'ALL' || hayFiltrosColumnaActivos) && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
                   setSearchTerm('');
                   setSelectedFamilia('ALL');
+                  limpiarFiltrosColumna();
                 }}
               >
                 Limpiar Filtros
@@ -276,7 +296,7 @@ export const MaestroProductos: React.FC = () => {
           {isDesktop && (
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left text-xs text-slate-700">
+              <table className={TABLE_CLASS + ' text-left text-slate-700'}>
                 <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
                   <tr>
                     <th className="px-5 py-3.5 w-36">SKU / Código</th>
@@ -286,6 +306,19 @@ export const MaestroProductos: React.FC = () => {
                     <th className="px-5 py-3.5 text-center w-20">Unidad</th>
                     <th className="px-5 py-3.5 text-center w-24">Divisa</th>
                     <th className="px-5 py-3.5 text-right w-32">Precio Origen</th>
+                  </tr>
+                  <tr className="bg-white border-b border-slate-100">
+                    <th className="px-5 pb-2.5">
+                      <ColumnFilterHeader columna={columnas[0]} valor={valores.sku || ''} onChange={(v) => setValor('sku', v)} />
+                    </th>
+                    <th className="px-5 pb-2.5">
+                      <ColumnFilterHeader columna={columnas[1]} valor={valores.descripcion || ''} onChange={(v) => setValor('descripcion', v)} />
+                    </th>
+                    <th className="px-5 pb-2.5" />
+                    <th className="px-5 pb-2.5">
+                      <ColumnFilterHeader columna={columnas[2]} valor={valores.proveedor || ''} onChange={(v) => setValor('proveedor', v)} />
+                    </th>
+                    <th className="px-5 pb-2.5" colSpan={3} />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -398,7 +431,7 @@ export const MaestroProductos: React.FC = () => {
           {hayMasPorMostrar && (
             <div className="flex flex-col items-center gap-2 pt-1 pb-2">
               <p className="text-[11px] text-slate-400">
-                Mostrando {materialesVisibles.length} de {filteredMateriales.length} materiales
+                Mostrando {materialesVisibles.length} de {materialesFiltradosPorColumna.length} materiales
               </p>
               <Button variant="outline" size="sm" onClick={() => setCantidadVisible((n) => n + TANDA_INCREMENTO)}>
                 Mostrar más

@@ -16,11 +16,15 @@ import {
 import { getProyectos, getSyncLogs, triggerManualSync, createProyectoManual, eliminarProyecto } from '../../api/client';
 import { formatNumber } from '../../lib/utils';
 import { useMediaQuery } from '../../lib/useMediaQuery';
+import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilters';
+import { ColumnFilterHeader } from '../../components/ui/ColumnFilterHeader';
+import { PAGE_CONTAINER_CLASS, BREAKPOINT_DESKTOP, TABLE_CLASS } from '../../lib/designSystem';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { CotizacionDetalleModal } from './CotizacionDetalleModal';
 import { CotizadorWorkspace } from './CotizadorWorkspace';
+import type { Proyecto } from '../../types';
 
 type EstadoFiltro = 'TERMINADOS' | 'PEDIDOS' | 'TODOS';
 
@@ -80,7 +84,7 @@ export const CotizacionesPage: React.FC<{
   };
   // Monta sólo la vista de escritorio o la de mobile, nunca las dos -- ver
   // useMediaQuery.ts.
-  const isDesktop = useMediaQuery('(min-width: 768px)');
+  const isDesktop = useMediaQuery(BREAKPOINT_DESKTOP);
 
   useEffect(() => {
     if (externalSearch) {
@@ -159,6 +163,16 @@ export const CotizacionesPage: React.FC<{
     });
   }, [proyectos, effectiveSearch, statusFilter]);
 
+  const columnas: ColumnFilterDef<Proyecto>[] = useMemo(
+    () => [
+      { key: 'codigo', tipo: 'texto', label: 'Código', accessor: (p) => p.codigoInterno || `PRJ-${p.numeroPresupuesto}` },
+      { key: 'obra', tipo: 'texto', label: 'Obra / Proyecto', accessor: (p) => p.obra || '' },
+      { key: 'cliente', tipo: 'texto', label: 'Cliente', accessor: (p) => p.clienteNombreRaw || '' },
+    ],
+    []
+  );
+  const { valores, setValor, datosFiltrados: proyectosVisibles } = useColumnFilters(filteredProyectos, columnas);
+
   if (cotizarProyectoId) {
     return (
       <CotizadorWorkspace
@@ -174,7 +188,7 @@ export const CotizacionesPage: React.FC<{
   }
 
   return (
-    <div className="p-3 sm:p-5 md:p-8 space-y-4 sm:space-y-5 max-w-7xl mx-auto animate-fade-in">
+    <div className={PAGE_CONTAINER_CLASS}>
       {/* ENCABEZADO: TITULO + SINCRONIZACIÓN RELAY / HETMO */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
         <div className="flex items-center gap-2">
@@ -350,13 +364,17 @@ export const CotizacionesPage: React.FC<{
                 </Button>
               )}
             </div>
+          ) : proyectosVisibles.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-200 p-10 sm:p-12 text-center space-y-3 shadow-xs">
+              <h3 className="text-sm font-bold text-slate-800">Ningún proyecto coincide con los filtros de columna</h3>
+            </div>
           ) : (
             <>
               {/* 1. VISTA TABLA AUTOMÁTICA EN DESKTOP/TABLET (System-Wide) */}
               {isDesktop && (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[850px] text-left text-xs text-slate-700">
+                  <table className={TABLE_CLASS + ' text-left text-slate-700'}>
                     <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
                       <tr>
                         <th className="px-5 py-3.5 w-32">Código</th>
@@ -368,9 +386,17 @@ export const CotizacionesPage: React.FC<{
                         <th className="px-5 py-3.5 text-center w-36">Estado</th>
                         <th className="px-5 py-3.5 text-center w-36">Acciones</th>
                       </tr>
+                      <tr className="bg-white border-b border-slate-100">
+                        {columnas.map((c) => (
+                          <th key={c.key} className="px-5 pb-2.5">
+                            <ColumnFilterHeader columna={c} valor={valores[c.key] || ''} onChange={(v) => setValor(c.key, v)} />
+                          </th>
+                        ))}
+                        <th className="px-5 pb-2.5" colSpan={5} />
+                      </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {filteredProyectos.map((p) => {
+                      {proyectosVisibles.map((p) => {
                         const activeVersion = p.versiones[0];
                         const isPedido =
                           activeVersion?.estadoHetmo === 30 ||
@@ -474,7 +500,7 @@ export const CotizacionesPage: React.FC<{
               {/* 2. VISTA TARJETAS AUTOMÁTICA EN MÓVILES (System-Wide por defecto) */}
               {!isDesktop && (
               <div className="space-y-3.5">
-                {filteredProyectos.map((p) => {
+                {proyectosVisibles.map((p) => {
                   const activeVersion = p.versiones[0];
                   const isPedido =
                     activeVersion?.estadoHetmo === 30 ||
