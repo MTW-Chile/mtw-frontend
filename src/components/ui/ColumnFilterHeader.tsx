@@ -1,4 +1,3 @@
-import React from 'react';
 import type { ColumnFilterDef } from '../../lib/useColumnFilters';
 
 interface ColumnFilterHeaderProps<T> {

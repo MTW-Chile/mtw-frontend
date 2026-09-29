@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Loader2, Check, Send, X as XIcon, Ban, ChevronDown, ChevronRight, Package, Undo2, FileDown, Trash2, ClipboardList } from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
@@ -9,6 +9,10 @@ import type { EstadoOC, OrdenCompra } from '../../types';
 import { NuevaOrdenCompraModal } from './NuevaOrdenCompraModal';
 import { CATEGORIA_GASTO_LABEL } from './categoriaGasto';
 import { buildOrdenCompraHtml } from './ordenCompraPdf';
+import { useMediaQuery } from '../../lib/useMediaQuery';
+import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilters';
+import { ColumnFilterHeader } from '../../components/ui/ColumnFilterHeader';
+import { BREAKPOINT_DESKTOP, TABLE_CLASS } from '../../lib/designSystem';
 
 export const ESTADO_OC_LABEL: Record<EstadoOC, string> = {
   BORRADOR: 'Borrador',
@@ -152,6 +156,208 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
 
   const ordenes = data?.data || [];
   const colSpan = proyectoId ? 6 : 7;
+  const isDesktop = useMediaQuery(BREAKPOINT_DESKTOP);
+
+  const columnas: ColumnFilterDef<OrdenCompra>[] = useMemo(
+    () => [
+      { key: 'numero', tipo: 'texto', label: 'Número', accessor: (oc) => oc.numero },
+      ...(!proyectoId
+        ? ([{ key: 'obra', tipo: 'texto', label: 'Obra', accessor: (oc) => oc.proyecto?.obra || oc.centroCosto?.nombre || '' }] as ColumnFilterDef<OrdenCompra>[])
+        : []),
+      { key: 'proveedor', tipo: 'texto', label: 'Proveedor', accessor: (oc) => oc.proveedor?.nombre || '' },
+    ],
+    [proyectoId]
+  );
+  const { valores, setValor, datosFiltrados: ordenesFiltradas } = useColumnFilters(ordenes, columnas);
+
+  // Reusado en la fila de escritorio y en la tarjeta de mobile -- toda la
+  // logica de que boton mostrar segun estado/permiso vive en un solo
+  // lugar.
+  const AccionesOC: React.FC<{ oc: OrdenCompra }> = ({ oc }) => (
+    <div className="flex flex-wrap items-center justify-end gap-1.5">
+      <Button
+        size="sm"
+        variant="ghost"
+        leftIcon={<FileDown className="w-3.5 h-3.5" />}
+        isLoading={generandoPdfId === oc.id}
+        onClick={() => descargarPdf(oc)}
+      >
+        PDF
+      </Button>
+      {/* Aprobar/enviar es trabajo del módulo Compras (revisión
+          centralizada), no de la ficha de un proyecto puntual --
+          ver modoRestringido. */}
+      {!modoRestringido && oc.estado === 'BORRADOR' && !oc.proveedorId && (
+        <Button size="sm" leftIcon={<ClipboardList className="w-3.5 h-3.5" />} onClick={() => setSolicitudIdParaCompletar(oc.id)}>
+          Completar
+        </Button>
+      )}
+      {!modoRestringido && oc.estado === 'BORRADOR' && !!oc.proveedorId && oc.requiereAprobacion && (
+        <Button
+          size="sm"
+          variant="outline"
+          isLoading={transicion.isPending && transicion.variables?.id === oc.id}
+          onClick={() => transicion.mutate({ id: oc.id, estado: 'PENDIENTE_APROBACION' })}
+        >
+          Solicitar aprobación
+        </Button>
+      )}
+      {!modoRestringido && oc.estado === 'BORRADOR' && !oc.requiereAprobacion && (
+        <Button
+          size="sm"
+          leftIcon={<Send className="w-3.5 h-3.5" />}
+          isLoading={transicion.isPending && transicion.variables?.id === oc.id}
+          onClick={() => transicion.mutate({ id: oc.id, estado: 'ENVIADA' })}
+        >
+          Enviar
+        </Button>
+      )}
+      {!modoRestringido && oc.estado === 'PENDIENTE_APROBACION' && (
+        <>
+          <Button
+            size="sm"
+            leftIcon={<Check className="w-3.5 h-3.5" />}
+            isLoading={transicion.isPending && transicion.variables?.id === oc.id}
+            onClick={() => transicion.mutate({ id: oc.id, estado: 'APROBADA' })}
+          >
+            Aprobar
+          </Button>
+          <Button size="sm" variant="danger" leftIcon={<XIcon className="w-3.5 h-3.5" />} onClick={() => setRechazandoId(oc.id)}>
+            Rechazar
+          </Button>
+        </>
+      )}
+      {!modoRestringido && oc.estado === 'APROBADA' && (
+        <Button
+          size="sm"
+          leftIcon={<Send className="w-3.5 h-3.5" />}
+          isLoading={transicion.isPending && transicion.variables?.id === oc.id}
+          onClick={() => transicion.mutate({ id: oc.id, estado: 'ENVIADA' })}
+        >
+          Enviar
+        </Button>
+      )}
+      {!modoRestringido && oc.estado === 'ENVIADA' && (
+        <Button
+          size="sm"
+          variant="outline"
+          leftIcon={<Undo2 className="w-3.5 h-3.5" />}
+          isLoading={transicion.isPending && transicion.variables?.id === oc.id}
+          onClick={() => {
+            if (window.confirm(`¿Revertir el envío de la OC ${oc.numero}? Vuelve a Borrador para poder editarla y reenviarla.`)) {
+              transicion.mutate({ id: oc.id, estado: 'BORRADOR' });
+            }
+          }}
+        >
+          Revertir envío
+        </Button>
+      )}
+      {['BORRADOR', 'PENDIENTE_APROBACION', 'APROBADA'].includes(oc.estado) && (
+        <Button
+          size="sm"
+          variant="ghost"
+          leftIcon={<Ban className="w-3.5 h-3.5" />}
+          isLoading={transicion.isPending && transicion.variables?.id === oc.id}
+          onClick={() => transicion.mutate({ id: oc.id, estado: 'CANCELADA' })}
+        >
+          Cancelar
+        </Button>
+      )}
+      {permisos?.esAdmin && (
+        <Button
+          size="sm"
+          variant="danger"
+          leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+          isLoading={eliminarMutation.isPending && eliminarMutation.variables?.id === oc.id}
+          onClick={() => {
+            if (window.confirm(`¿Eliminar definitivamente la OC ${oc.numero}? Esta acción no se puede deshacer y libera su número.`)) {
+              eliminarMutation.mutate({ id: oc.id });
+            }
+          }}
+        >
+          Eliminar
+        </Button>
+      )}
+    </div>
+  );
+
+  const DetalleItemsOC: React.FC<{ oc: OrdenCompra }> = ({ oc }) => (
+    <>
+      {oc.comentarios && (
+        <p className="text-[11px] text-slate-600 mb-2 pb-2 border-b border-slate-200">
+          <span className="font-bold text-slate-700">Comentarios: </span>
+          {oc.comentarios}
+        </p>
+      )}
+      {oc.items.length === 0 ? (
+        <p className="text-[11px] text-slate-400">Esta OC no tiene items.</p>
+      ) : (
+        <table className="w-full text-[11px]">
+          <thead>
+            <tr className="text-left text-slate-400 uppercase tracking-wider">
+              <th className="pb-1.5 font-bold">Item</th>
+              <th className="pb-1.5 font-bold">Categoría</th>
+              <th className="pb-1.5 font-bold text-right">Cantidad</th>
+              <th className="pb-1.5 font-bold text-right">Precio unit.</th>
+              <th className="pb-1.5 font-bold text-right">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            {oc.items.map((item) => (
+              <tr key={item.id} className="border-t border-slate-100/80">
+                <td className="py-1.5 pr-2 text-slate-700">
+                  <span className="flex items-center gap-1.5">
+                    {item.materialId && <Package className="w-3 h-3 text-sky-500 shrink-0" />}
+                    {item.descripcion}
+                  </span>
+                </td>
+                <td className="py-1.5 pr-2 text-slate-500">{CATEGORIA_GASTO_LABEL[item.categoria] || item.categoria}</td>
+                <td className="py-1.5 text-right font-mono text-slate-700">
+                  {Number(item.cantidad).toLocaleString('es-CL', { maximumFractionDigits: 2 })} {item.unidadMedida}
+                </td>
+                <td className="py-1.5 text-right font-mono text-slate-700">{formatoMoneda(Number(item.precioUnitario), oc.moneda)}</td>
+                <td className="py-1.5 text-right font-mono font-semibold text-slate-900">
+                  {formatoMoneda(Number(item.cantidad) * Number(item.precioUnitario), oc.moneda)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </>
+  );
+
+  const RechazoInline: React.FC<{ oc: OrdenCompra }> = ({ oc }) => (
+    <div className="flex items-center gap-2.5 flex-wrap">
+      <span className="text-xs font-semibold text-rose-700 shrink-0">Motivo del rechazo:</span>
+      <input
+        autoFocus
+        value={motivoRechazo}
+        onChange={(e) => setMotivoRechazo(e.target.value)}
+        placeholder="Ej: precio fuera de rango, proveedor no homologado..."
+        className="flex-1 min-w-[180px] text-xs border border-rose-200 rounded-lg px-3 py-1.5 outline-none focus:border-rose-400 bg-white"
+      />
+      <Button
+        size="sm"
+        variant="danger"
+        disabled={!motivoRechazo.trim()}
+        isLoading={transicion.isPending}
+        onClick={() => transicion.mutate({ id: oc.id, estado: 'RECHAZADA', motivo: motivoRechazo.trim() })}
+      >
+        Confirmar rechazo
+      </Button>
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={() => {
+          setRechazandoId(null);
+          setMotivoRechazo('');
+        }}
+      >
+        Cancelar
+      </Button>
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -191,10 +397,14 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
           No hay Órdenes de Compra{filtroEstado ? ` en estado "${ESTADO_OC_LABEL[filtroEstado]}"` : ''}
           {proyectoId ? ' para este proyecto' : ''} todavía.
         </div>
-      ) : (
+      ) : ordenesFiltradas.length === 0 ? (
+        <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
+          Ninguna OC coincide con los filtros.
+        </div>
+      ) : isDesktop ? (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-xs">
+            <table className={TABLE_CLASS}>
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
                   <th className="px-4 py-3 font-bold">Número</th>
@@ -205,9 +415,17 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                   <th className="px-4 py-3 font-bold">Creada</th>
                   <th className="px-4 py-3 font-bold text-right">Acciones</th>
                 </tr>
+                <tr className="border-b border-slate-100 bg-white">
+                  {columnas.map((c) => (
+                    <th key={c.key} className="px-4 pb-2">
+                      <ColumnFilterHeader columna={c} valor={valores[c.key] || ''} onChange={(v) => setValor(c.key, v)} />
+                    </th>
+                  ))}
+                  <th className="px-4 pb-2" colSpan={colSpan - columnas.length} />
+                </tr>
               </thead>
               <tbody>
-                {ordenes.map((oc) => (
+                {ordenesFiltradas.map((oc) => (
                   <React.Fragment key={oc.id}>
                     <tr className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-3">
@@ -224,8 +442,12 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                           {oc.numero}
                         </button>
                       </td>
-                      {!proyectoId && <td className="px-4 py-3 text-slate-700">{oc.proyecto?.obra || oc.centroCosto?.nombre || '—'}</td>}
-                      <td className="px-4 py-3 text-slate-700">
+                      {!proyectoId && (
+                        <td className="px-4 py-3 text-slate-700 truncate max-w-0" title={oc.proyecto?.obra || oc.centroCosto?.nombre || ''}>
+                          {oc.proyecto?.obra || oc.centroCosto?.nombre || '—'}
+                        </td>
+                      )}
+                      <td className="px-4 py-3 text-slate-700 truncate max-w-0" title={oc.proveedor?.nombre}>
                         {oc.proveedor?.nombre || (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold uppercase tracking-wide">
                             Solicitud
@@ -237,205 +459,23 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                           {ESTADO_OC_LABEL[oc.estado]}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatoMoneda(totalOC(oc), oc.moneda)}</td>
-                      <td className="px-4 py-3 text-slate-500">{new Date(oc.creadoEn).toLocaleDateString('es-CL')}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-slate-900 whitespace-nowrap">{formatoMoneda(totalOC(oc), oc.moneda)}</td>
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{new Date(oc.creadoEn).toLocaleDateString('es-CL')}</td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            leftIcon={<FileDown className="w-3.5 h-3.5" />}
-                            isLoading={generandoPdfId === oc.id}
-                            onClick={() => descargarPdf(oc)}
-                          >
-                            PDF
-                          </Button>
-                          {/* Aprobar/enviar es trabajo del módulo Compras (revisión
-                              centralizada), no de la ficha de un proyecto puntual --
-                              ver modoRestringido. */}
-                          {!modoRestringido && oc.estado === 'BORRADOR' && !oc.proveedorId && (
-                            <Button
-                              size="sm"
-                              leftIcon={<ClipboardList className="w-3.5 h-3.5" />}
-                              onClick={() => setSolicitudIdParaCompletar(oc.id)}
-                            >
-                              Completar
-                            </Button>
-                          )}
-                          {!modoRestringido && oc.estado === 'BORRADOR' && !!oc.proveedorId && oc.requiereAprobacion && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              isLoading={transicion.isPending && transicion.variables?.id === oc.id}
-                              onClick={() => transicion.mutate({ id: oc.id, estado: 'PENDIENTE_APROBACION' })}
-                            >
-                              Solicitar aprobación
-                            </Button>
-                          )}
-                          {!modoRestringido && oc.estado === 'BORRADOR' && !oc.requiereAprobacion && (
-                            <Button
-                              size="sm"
-                              leftIcon={<Send className="w-3.5 h-3.5" />}
-                              isLoading={transicion.isPending && transicion.variables?.id === oc.id}
-                              onClick={() => transicion.mutate({ id: oc.id, estado: 'ENVIADA' })}
-                            >
-                              Enviar
-                            </Button>
-                          )}
-                          {!modoRestringido && oc.estado === 'PENDIENTE_APROBACION' && (
-                            <>
-                              <Button
-                                size="sm"
-                                leftIcon={<Check className="w-3.5 h-3.5" />}
-                                isLoading={transicion.isPending && transicion.variables?.id === oc.id}
-                                onClick={() => transicion.mutate({ id: oc.id, estado: 'APROBADA' })}
-                              >
-                                Aprobar
-                              </Button>
-                              <Button size="sm" variant="danger" leftIcon={<XIcon className="w-3.5 h-3.5" />} onClick={() => setRechazandoId(oc.id)}>
-                                Rechazar
-                              </Button>
-                            </>
-                          )}
-                          {!modoRestringido && oc.estado === 'APROBADA' && (
-                            <Button
-                              size="sm"
-                              leftIcon={<Send className="w-3.5 h-3.5" />}
-                              isLoading={transicion.isPending && transicion.variables?.id === oc.id}
-                              onClick={() => transicion.mutate({ id: oc.id, estado: 'ENVIADA' })}
-                            >
-                              Enviar
-                            </Button>
-                          )}
-                          {!modoRestringido && oc.estado === 'ENVIADA' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              leftIcon={<Undo2 className="w-3.5 h-3.5" />}
-                              isLoading={transicion.isPending && transicion.variables?.id === oc.id}
-                              onClick={() => {
-                                if (window.confirm(`¿Revertir el envío de la OC ${oc.numero}? Vuelve a Borrador para poder editarla y reenviarla.`)) {
-                                  transicion.mutate({ id: oc.id, estado: 'BORRADOR' });
-                                }
-                              }}
-                            >
-                              Revertir envío
-                            </Button>
-                          )}
-                          {['BORRADOR', 'PENDIENTE_APROBACION', 'APROBADA'].includes(oc.estado) && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              leftIcon={<Ban className="w-3.5 h-3.5" />}
-                              isLoading={transicion.isPending && transicion.variables?.id === oc.id}
-                              onClick={() => transicion.mutate({ id: oc.id, estado: 'CANCELADA' })}
-                            >
-                              Cancelar
-                            </Button>
-                          )}
-                          {permisos?.esAdmin && (
-                            <Button
-                              size="sm"
-                              variant="danger"
-                              leftIcon={<Trash2 className="w-3.5 h-3.5" />}
-                              isLoading={eliminarMutation.isPending && eliminarMutation.variables?.id === oc.id}
-                              onClick={() => {
-                                if (
-                                  window.confirm(
-                                    `¿Eliminar definitivamente la OC ${oc.numero}? Esta acción no se puede deshacer y libera su número.`
-                                  )
-                                ) {
-                                  eliminarMutation.mutate({ id: oc.id });
-                                }
-                              }}
-                            >
-                              Eliminar
-                            </Button>
-                          )}
-                        </div>
+                        <AccionesOC oc={oc} />
                       </td>
                     </tr>
                     {expandidas.has(oc.id) && (
                       <tr className="bg-slate-50/60 border-b border-slate-100">
                         <td colSpan={colSpan} className="px-4 py-3">
-                          {oc.comentarios && (
-                            <p className="text-[11px] text-slate-600 mb-2 pb-2 border-b border-slate-200">
-                              <span className="font-bold text-slate-700">Comentarios: </span>
-                              {oc.comentarios}
-                            </p>
-                          )}
-                          {oc.items.length === 0 ? (
-                            <p className="text-[11px] text-slate-400">Esta OC no tiene items.</p>
-                          ) : (
-                            <table className="w-full text-[11px]">
-                              <thead>
-                                <tr className="text-left text-slate-400 uppercase tracking-wider">
-                                  <th className="pb-1.5 font-bold">Item</th>
-                                  <th className="pb-1.5 font-bold">Categoría</th>
-                                  <th className="pb-1.5 font-bold text-right">Cantidad</th>
-                                  <th className="pb-1.5 font-bold text-right">Precio unit.</th>
-                                  <th className="pb-1.5 font-bold text-right">Subtotal</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {oc.items.map((item) => (
-                                  <tr key={item.id} className="border-t border-slate-100/80">
-                                    <td className="py-1.5 pr-2 text-slate-700">
-                                      <span className="flex items-center gap-1.5">
-                                        {item.materialId && <Package className="w-3 h-3 text-sky-500 shrink-0" />}
-                                        {item.descripcion}
-                                      </span>
-                                    </td>
-                                    <td className="py-1.5 pr-2 text-slate-500">{CATEGORIA_GASTO_LABEL[item.categoria] || item.categoria}</td>
-                                    <td className="py-1.5 text-right font-mono text-slate-700">
-                                      {Number(item.cantidad).toLocaleString('es-CL', { maximumFractionDigits: 2 })} {item.unidadMedida}
-                                    </td>
-                                    <td className="py-1.5 text-right font-mono text-slate-700">
-                                      {formatoMoneda(Number(item.precioUnitario), oc.moneda)}
-                                    </td>
-                                    <td className="py-1.5 text-right font-mono font-semibold text-slate-900">
-                                      {formatoMoneda(Number(item.cantidad) * Number(item.precioUnitario), oc.moneda)}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          )}
+                          <DetalleItemsOC oc={oc} />
                         </td>
                       </tr>
                     )}
                     {rechazandoId === oc.id && (
                       <tr className="bg-rose-50/50 border-b border-rose-100">
                         <td colSpan={colSpan} className="px-4 py-3">
-                          <div className="flex items-center gap-2.5">
-                            <span className="text-xs font-semibold text-rose-700 shrink-0">Motivo del rechazo:</span>
-                            <input
-                              autoFocus
-                              value={motivoRechazo}
-                              onChange={(e) => setMotivoRechazo(e.target.value)}
-                              placeholder="Ej: precio fuera de rango, proveedor no homologado..."
-                              className="flex-1 text-xs border border-rose-200 rounded-lg px-3 py-1.5 outline-none focus:border-rose-400 bg-white"
-                            />
-                            <Button
-                              size="sm"
-                              variant="danger"
-                              disabled={!motivoRechazo.trim()}
-                              isLoading={transicion.isPending}
-                              onClick={() => transicion.mutate({ id: oc.id, estado: 'RECHAZADA', motivo: motivoRechazo.trim() })}
-                            >
-                              Confirmar rechazo
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                setRechazandoId(null);
-                                setMotivoRechazo('');
-                              }}
-                            >
-                              Cancelar
-                            </Button>
-                          </div>
+                          <RechazoInline oc={oc} />
                         </td>
                       </tr>
                     )}
@@ -444,6 +484,52 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
               </tbody>
             </table>
           </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {ordenesFiltradas.map((oc) => (
+            <div key={oc.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2.5">
+              <button type="button" onClick={() => toggleExpandida(oc.id)} className="w-full flex items-start justify-between gap-2 text-left cursor-pointer">
+                <div className="min-w-0 space-y-0.5">
+                  <div className="flex items-center gap-1.5 font-mono font-bold text-xs text-slate-900">
+                    {expandidas.has(oc.id) ? (
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    ) : (
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    )}
+                    {oc.numero}
+                  </div>
+                  {!proyectoId && <p className="text-[11px] text-slate-500 truncate pl-5">{oc.proyecto?.obra || oc.centroCosto?.nombre || '—'}</p>}
+                  <p className="text-[11px] text-slate-500 truncate pl-5">
+                    {oc.proveedor?.nombre || (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold uppercase tracking-wide">
+                        Solicitud
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <div className="text-right shrink-0 space-y-1">
+                  <Badge variant={ESTADO_OC_VARIANT[oc.estado]} size="sm">
+                    {ESTADO_OC_LABEL[oc.estado]}
+                  </Badge>
+                  <div className="text-xs font-bold text-slate-900">{formatoMoneda(totalOC(oc), oc.moneda)}</div>
+                </div>
+              </button>
+              {expandidas.has(oc.id) && (
+                <div className="pt-2 border-t border-slate-100">
+                  <DetalleItemsOC oc={oc} />
+                </div>
+              )}
+              {rechazandoId === oc.id && (
+                <div className="pt-2 border-t border-rose-100">
+                  <RechazoInline oc={oc} />
+                </div>
+              )}
+              <div className="pt-2 border-t border-slate-100">
+                <AccionesOC oc={oc} />
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
