@@ -240,11 +240,11 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
                   </tr>
                   <tr className="border-b border-slate-100 bg-white">
                     {columnas.map((c) => (
-                      <th key={c.key} className="px-4 pb-2">
+                      <th key={c.key} className="px-4 py-2">
                         <ColumnFilterHeader columna={c} valor={valores[c.key] || ''} onChange={(v) => setValor(c.key, v)} />
                       </th>
                     ))}
-                    <th className="px-4 pb-2" colSpan={colSpanDetalle - columnas.length} />
+                    <th className="px-4 py-2" colSpan={colSpanDetalle - columnas.length} />
                   </tr>
                 </thead>
                 <tbody>

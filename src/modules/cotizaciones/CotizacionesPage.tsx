@@ -388,11 +388,11 @@ export const CotizacionesPage: React.FC<{
                       </tr>
                       <tr className="bg-white border-b border-slate-100">
                         {columnas.map((c) => (
-                          <th key={c.key} className="px-5 pb-2.5">
+                          <th key={c.key} className="px-5 py-2.5">
                             <ColumnFilterHeader columna={c} valor={valores[c.key] || ''} onChange={(v) => setValor(c.key, v)} />
                           </th>
                         ))}
-                        <th className="px-5 pb-2.5" colSpan={5} />
+                        <th className="px-5 py-2.5" colSpan={5} />
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">

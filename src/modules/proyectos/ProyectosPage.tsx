@@ -115,13 +115,13 @@ export const ProyectosPage: React.FC<ProyectosPageProps> = ({ proyectoAAbrir, on
                   <th className="px-4 py-3 font-bold w-10"></th>
                 </tr>
                 <tr className="border-b border-slate-100 bg-white">
-                  <th className="px-4 pb-2">
+                  <th className="px-4 py-2">
                     <ColumnFilterHeader columna={columnas[0]} valor={valores.obra || ''} onChange={(v) => setValor('obra', v)} />
                   </th>
-                  <th className="px-4 pb-2">
+                  <th className="px-4 py-2">
                     <ColumnFilterHeader columna={columnas[1]} valor={valores.cliente || ''} onChange={(v) => setValor('cliente', v)} />
                   </th>
-                  <th className="px-4 pb-2" colSpan={4} />
+                  <th className="px-4 py-2" colSpan={4} />
                 </tr>
               </thead>
               <tbody>

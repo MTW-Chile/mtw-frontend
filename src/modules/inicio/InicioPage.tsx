@@ -76,19 +76,22 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
                 <span>MTW ERP</span>
               </h1>
 
-              {/* Fecha y Feriados debajo del título */}
+              {/* Fecha y Feriados debajo del título -- sin whitespace-nowrap:
+                  una fecha larga o un nombre de feriado largo tienen que
+                  poder partirse en dos líneas en vez de forzar scroll
+                  horizontal en toda la página en mobile. */}
               <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                <span className="text-xs sm:text-sm text-slate-300 font-medium capitalize whitespace-nowrap flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-[#E34A26]" />
+                <span className="text-xs sm:text-sm text-slate-300 font-medium capitalize flex items-center gap-1.5 min-w-0">
+                  <Calendar className="w-3.5 h-3.5 text-[#E34A26] shrink-0" />
                   {todayStr}
                 </span>
                 {feriadoInfo?.hoyFeriado && (
-                  <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold whitespace-nowrap">
+                  <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">
                     {feriadoInfo.hoyFeriado}
                   </span>
                 )}
                 {feriadoInfo?.proximoFeriado && (
-                  <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 font-mono whitespace-nowrap">
+                  <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 font-mono">
                     {feriadoInfo.proximoFeriado}
                   </span>
                 )}
@@ -123,35 +126,39 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
               )}
             </div>
 
+            {/* min-w-0 en cada celda: una grilla de 1fr por default no deja
+                que la columna se achique mas alla del contenido (el valor
+                con whitespace-nowrap), y eso es lo que empujaba toda la
+                pagina mas ancha que la pantalla en mobile. */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               {/* UF */}
-              <div className="px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2">
-                <span className="text-[11px] font-bold text-slate-400">UF</span>
-                <span className="font-mono font-bold text-xs sm:text-sm text-[#00F2FE] whitespace-nowrap">
+              <div className="min-w-0 px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold text-slate-400 shrink-0">UF</span>
+                <span className="font-mono font-bold text-xs sm:text-sm text-[#00F2FE] whitespace-nowrap truncate">
                   {indicadores ? `$${formatNumber(indicadores.uf, 2)}` : '—'}
                 </span>
               </div>
 
               {/* Dólar */}
-              <div className="px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2">
-                <span className="text-[11px] font-bold text-slate-400">DÓLAR</span>
-                <span className="font-mono font-bold text-xs sm:text-sm text-emerald-400 whitespace-nowrap">
+              <div className="min-w-0 px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold text-slate-400 shrink-0">DÓLAR</span>
+                <span className="font-mono font-bold text-xs sm:text-sm text-emerald-400 whitespace-nowrap truncate">
                   {indicadores ? `$${formatNumber(indicadores.dolar, 2)}` : '—'}
                 </span>
               </div>
 
               {/* Euro */}
-              <div className="px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2">
-                <span className="text-[11px] font-bold text-slate-400">EURO</span>
-                <span className="font-mono font-bold text-xs sm:text-sm text-sky-400 whitespace-nowrap">
+              <div className="min-w-0 px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold text-slate-400 shrink-0">EURO</span>
+                <span className="font-mono font-bold text-xs sm:text-sm text-sky-400 whitespace-nowrap truncate">
                   {indicadores ? `$${formatNumber(indicadores.euro, 2)}` : '—'}
                 </span>
               </div>
 
               {/* UTM */}
-              <div className="px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2">
-                <span className="text-[11px] font-bold text-slate-400">UTM</span>
-                <span className="font-mono font-bold text-xs sm:text-sm text-amber-400 whitespace-nowrap">
+              <div className="min-w-0 px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold text-slate-400 shrink-0">UTM</span>
+                <span className="font-mono font-bold text-xs sm:text-sm text-amber-400 whitespace-nowrap truncate">
                   {indicadores ? `$${formatNumber(indicadores.utm, 0)}` : '—'}
                 </span>
               </div>

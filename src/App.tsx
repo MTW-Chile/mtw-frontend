@@ -23,8 +23,16 @@ const TAB_CENTRO_NOTIFICACIONES = 'centro-notificaciones';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5,
-      refetchOnWindowFocus: false,
+      // Antes: 5 min sin refetch al volver a la pestaña -- la info se veia
+      // desactualizada por minutos con varias personas usando la app a la
+      // vez. Ahora: stale a los 60s (una query en pantalla vuelve a pedirse
+      // sola al remontar/reenfocar si paso ese tiempo) + refetchInterval
+      // de fondo cada 60s mientras la pantalla siga abierta +
+      // refetchOnWindowFocus. Una pantalla puntual puede pisar cualquiera
+      // de estos tres pasando sus propias opciones a useQuery.
+      staleTime: 1000 * 60,
+      refetchInterval: 1000 * 60,
+      refetchOnWindowFocus: true,
     },
   },
 });

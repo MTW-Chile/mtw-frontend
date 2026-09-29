@@ -133,17 +133,17 @@ export const ProveedoresPanel: React.FC = () => {
                     <th className="px-5 py-3.5 text-right">Acciones</th>
                   </tr>
                   <tr className="bg-white border-b border-slate-100">
-                    <th className="px-5 pb-2.5">
+                    <th className="px-5 py-2.5">
                       <ColumnFilterHeader columna={columnas[0]} valor={valores.nombre || ''} onChange={(v) => setValor('nombre', v)} />
                     </th>
-                    <th className="px-5 pb-2.5" />
-                    <th className="px-5 pb-2.5">
+                    <th className="px-5 py-2.5" />
+                    <th className="px-5 py-2.5">
                       <ColumnFilterHeader columna={columnas[1]} valor={valores.rut || ''} onChange={(v) => setValor('rut', v)} />
                     </th>
-                    <th className="px-5 pb-2.5">
+                    <th className="px-5 py-2.5">
                       <ColumnFilterHeader columna={columnas[2]} valor={valores.email || ''} onChange={(v) => setValor('email', v)} />
                     </th>
-                    <th className="px-5 pb-2.5" colSpan={3} />
+                    <th className="px-5 py-2.5" colSpan={3} />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
