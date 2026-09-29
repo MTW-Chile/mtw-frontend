@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Save, Loader2 } from 'lucide-react';
 import { getPartidas, updatePartida, getMisPermisos } from '../../../api/client';
+import { TABLE_CLASS } from '../../../lib/designSystem';
 import type { PartidaConfig, CategoriaGasto } from '../../../types';
 
 /**
@@ -75,7 +76,7 @@ export const PartidasPanel: React.FC = () => {
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-left text-xs text-slate-700">
+          <table className={TABLE_CLASS + ' text-left text-slate-700'}>
             <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
               <tr>
                 <th className="px-5 py-3.5">Partida</th>

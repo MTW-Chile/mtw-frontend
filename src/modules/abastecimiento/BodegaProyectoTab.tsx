@@ -5,6 +5,10 @@ import { getBodegaProyecto, getBodegaGlobal, getUnidadesMaterial, eliminarStockM
 import { Button } from '../../components/ui/Button';
 import { TrasladoBodegaModal } from './TrasladoBodegaModal';
 import type { TipoMovimientoBodega, EstadoUnidadMaterial, Bodega, StockMaterial, BodegaProyectoResponse, BodegaGlobalResponse } from '../../types';
+import { useMediaQuery } from '../../lib/useMediaQuery';
+import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilters';
+import { ColumnFilterHeader } from '../../components/ui/ColumnFilterHeader';
+import { BREAKPOINT_DESKTOP, TABLE_CLASS } from '../../lib/designSystem';
 
 const TIPO_MOVIMIENTO: Record<TipoMovimientoBodega, { label: string; icon: React.ReactNode; color: string }> = {
   INGRESO_OC: { label: 'Ingreso (OC)', icon: <ArrowDownToLine className="w-3.5 h-3.5" />, color: 'text-emerald-600' },
@@ -109,17 +113,11 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
     });
   };
 
-  if (isLoading) {
-    return (
-      <div className="p-12 flex items-center justify-center text-slate-400">
-        <Loader2 className="w-5 h-5 animate-spin" />
-      </div>
-    );
-  }
-
   // Normaliza las dos formas de respuesta (por-proyecto trae una sola
   // bodega, global trae varias) a una lista comun -- el resto del render
-  // no necesita saber cual vino.
+  // no necesita saber cual vino. Se calcula ANTES de cualquier return
+  // condicional porque los hooks de abajo (useMediaQuery/useColumnFilters)
+  // tienen que llamarse siempre, en el mismo orden, en cada render.
   const global = esGlobal(data);
   const stock = data ? (global ? data.stock : data.stock.map((s) => ({ ...s, bodega: data.bodega ?? undefined }))) : [];
   const movimientos = data
@@ -133,6 +131,26 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
   const mostrarAcciones = !proyectoId || !!permisos?.esAdmin;
   const colSpanDetalle = 4 + (!proyectoId ? 1 : 0) + (mostrarAcciones ? 1 : 0);
 
+  const isDesktop = useMediaQuery(BREAKPOINT_DESKTOP);
+  const columnas: ColumnFilterDef<(typeof stock)[number]>[] = React.useMemo(
+    () => [
+      { key: 'sku', tipo: 'texto', label: 'SKU', accessor: (s) => s.material.skuInterno },
+      { key: 'material', tipo: 'texto', label: 'Material', accessor: (s) => s.material.descripcion },
+      ...(!proyectoId ? ([{ key: 'obra', tipo: 'texto', label: 'Obra', accessor: (s) => labelBodega(s.bodega) }] as ColumnFilterDef<(typeof stock)[number]>[]) : []),
+      { key: 'partida', tipo: 'texto', label: 'Partida', accessor: (s) => s.material.familia },
+    ],
+    [proyectoId]
+  );
+  const { valores, setValor, datosFiltrados: stockVisible } = useColumnFilters(stock, columnas);
+
+  if (isLoading) {
+    return (
+      <div className="p-12 flex items-center justify-center text-slate-400">
+        <Loader2 className="w-5 h-5 animate-spin" />
+      </div>
+    );
+  }
+
   if (proyectoId && (!data || global || !data.bodega)) {
     return (
       <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs space-y-1">
@@ -141,6 +159,41 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
       </div>
     );
   }
+
+  // Reusado en la fila de escritorio y en la tarjeta de mobile.
+  const AccionesStock: React.FC<{ s: (typeof stock)[number] }> = ({ s }) => (
+    <div className="flex items-center justify-end gap-1 flex-wrap">
+      {!proyectoId && (
+        <Button
+          size="sm"
+          variant="ghost"
+          leftIcon={<Send className="w-3.5 h-3.5" />}
+          onClick={() => setTrasladando({ stock: s, bodegasDestino: bodegasDisponibles.filter((b) => b.id !== s.bodegaId) })}
+        >
+          Enviar a obra
+        </Button>
+      )}
+      {permisos?.esAdmin && (
+        <Button
+          size="sm"
+          variant="danger"
+          leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+          isLoading={eliminarMutation.isPending && eliminarMutation.variables === s.id}
+          onClick={() => {
+            if (
+              window.confirm(
+                `¿Eliminar el stock de "${s.material.descripcion}" en ${labelBodega(s.bodega)}? Esto borra la fila completa (y sus unidades individualizadas si corresponde) sin dejar movimiento de kardex.`
+              )
+            ) {
+              eliminarMutation.mutate(s.id);
+            }
+          }}
+        >
+          Eliminar
+        </Button>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-5">
@@ -170,105 +223,137 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Stock actual</h3>
         {stock.length === 0 ? (
           <div className="p-8 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">Sin stock por ahora.</div>
-        ) : (
-          <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
-                  <th className="px-4 py-3 font-bold">SKU</th>
-                  <th className="px-4 py-3 font-bold">Material</th>
-                  {!proyectoId && <th className="px-4 py-3 font-bold">Obra</th>}
-                  <th className="px-4 py-3 font-bold">Partida</th>
-                  <th className="px-4 py-3 font-bold text-right">Cantidad</th>
-                  {mostrarAcciones && <th className="px-4 py-3 font-bold text-right">Acciones</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {stock.map((s) => {
-                  const abierto = expandido.has(s.materialId);
-                  return (
-                    <React.Fragment key={s.id}>
-                      <tr
-                        className={`border-b border-slate-50 transition-colors ${s.material.individualizado ? 'cursor-pointer hover:bg-slate-50' : 'hover:bg-slate-50/50'}`}
-                        onClick={() => s.material.individualizado && toggleExpandido(s.materialId)}
-                      >
-                        <td className="px-4 py-3 font-mono text-slate-500">
-                          <div className="flex items-center gap-1.5">
-                            {s.material.individualizado &&
-                              (abierto ? (
-                                <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                              ) : (
-                                <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                              ))}
-                            {s.material.skuInterno}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-slate-800 font-semibold">
-                          <div className="flex items-center gap-1.5">
-                            {s.material.descripcion}
-                            {s.material.individualizado && (
-                              <span
-                                title="Se controla por unidad individual"
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-600 text-[9px] font-bold uppercase tracking-wide"
-                              >
-                                <Tags className="w-2.5 h-2.5" /> Individualizado
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        {!proyectoId && <td className="px-4 py-3 text-slate-600">{labelBodega(s.bodega)}</td>}
-                        <td className="px-4 py-3 text-slate-500">{s.material.familia}</td>
-                        <td className="px-4 py-3 text-right font-bold text-slate-900">
-                          {Number(s.cantidad).toLocaleString('es-CL')} {s.material.unidadMedida}
-                        </td>
-                        {mostrarAcciones && (
-                          <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-end gap-1">
-                              {!proyectoId && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  leftIcon={<Send className="w-3.5 h-3.5" />}
-                                  onClick={() => setTrasladando({ stock: s, bodegasDestino: bodegasDisponibles.filter((b) => b.id !== s.bodegaId) })}
+        ) : stockVisible.length === 0 ? (
+          <div className="p-8 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">Ningún ítem coincide con los filtros.</div>
+        ) : isDesktop ? (
+          <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className={TABLE_CLASS}>
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                    <th className="px-4 py-3 font-bold">SKU</th>
+                    <th className="px-4 py-3 font-bold">Material</th>
+                    {!proyectoId && <th className="px-4 py-3 font-bold">Obra</th>}
+                    <th className="px-4 py-3 font-bold">Partida</th>
+                    <th className="px-4 py-3 font-bold text-right">Cantidad</th>
+                    {mostrarAcciones && <th className="px-4 py-3 font-bold text-right">Acciones</th>}
+                  </tr>
+                  <tr className="border-b border-slate-100 bg-white">
+                    {columnas.map((c) => (
+                      <th key={c.key} className="px-4 pb-2">
+                        <ColumnFilterHeader columna={c} valor={valores[c.key] || ''} onChange={(v) => setValor(c.key, v)} />
+                      </th>
+                    ))}
+                    <th className="px-4 pb-2" colSpan={colSpanDetalle - columnas.length} />
+                  </tr>
+                </thead>
+                <tbody>
+                  {stockVisible.map((s) => {
+                    const abierto = expandido.has(s.materialId);
+                    return (
+                      <React.Fragment key={s.id}>
+                        <tr
+                          className={`border-b border-slate-50 transition-colors ${s.material.individualizado ? 'cursor-pointer hover:bg-slate-50' : 'hover:bg-slate-50/50'}`}
+                          onClick={() => s.material.individualizado && toggleExpandido(s.materialId)}
+                        >
+                          <td className="px-4 py-3 font-mono text-slate-500">
+                            <div className="flex items-center gap-1.5">
+                              {s.material.individualizado &&
+                                (abierto ? (
+                                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                ) : (
+                                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                ))}
+                              {s.material.skuInterno}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-slate-800 font-semibold truncate max-w-0" title={s.material.descripcion}>
+                            <div className="flex items-center gap-1.5">
+                              {s.material.descripcion}
+                              {s.material.individualizado && (
+                                <span
+                                  title="Se controla por unidad individual"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-600 text-[9px] font-bold uppercase tracking-wide shrink-0"
                                 >
-                                  Enviar a obra
-                                </Button>
-                              )}
-                              {permisos?.esAdmin && (
-                                <Button
-                                  size="sm"
-                                  variant="danger"
-                                  leftIcon={<Trash2 className="w-3.5 h-3.5" />}
-                                  isLoading={eliminarMutation.isPending && eliminarMutation.variables === s.id}
-                                  onClick={() => {
-                                    if (
-                                      window.confirm(
-                                        `¿Eliminar el stock de "${s.material.descripcion}" en ${labelBodega(s.bodega)}? Esto borra la fila completa (y sus unidades individualizadas si corresponde) sin dejar movimiento de kardex.`
-                                      )
-                                    ) {
-                                      eliminarMutation.mutate(s.id);
-                                    }
-                                  }}
-                                >
-                                  Eliminar
-                                </Button>
+                                  <Tags className="w-2.5 h-2.5" /> Individualizado
+                                </span>
                               )}
                             </div>
                           </td>
-                        )}
-                      </tr>
-                      {abierto && s.material.individualizado && (
-                        <tr className="bg-slate-50/60">
-                          <td colSpan={colSpanDetalle} className="p-0">
-                            <UnidadesMaterialDetalle bodegaId={s.bodegaId} materialId={s.materialId} />
+                          {!proyectoId && <td className="px-4 py-3 text-slate-600 truncate max-w-0">{labelBodega(s.bodega)}</td>}
+                          <td className="px-4 py-3 text-slate-500">{s.material.familia}</td>
+                          <td className="px-4 py-3 text-right font-bold text-slate-900 whitespace-nowrap">
+                            {Number(s.cantidad).toLocaleString('es-CL')} {s.material.unidadMedida}
                           </td>
+                          {mostrarAcciones && (
+                            <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                              <AccionesStock s={s} />
+                            </td>
+                          )}
                         </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
+                        {abierto && s.material.individualizado && (
+                          <tr className="bg-slate-50/60">
+                            <td colSpan={colSpanDetalle} className="p-0">
+                              <UnidadesMaterialDetalle bodegaId={s.bodegaId} materialId={s.materialId} />
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {stockVisible.map((s) => {
+              const abierto = expandido.has(s.materialId);
+              return (
+                <div key={s.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => s.material.individualizado && toggleExpandido(s.materialId)}
+                    className="w-full flex items-start justify-between gap-2 text-left cursor-pointer"
+                  >
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-500">
+                        {s.material.individualizado &&
+                          (abierto ? (
+                            <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          ) : (
+                            <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          ))}
+                        {s.material.skuInterno}
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-bold text-slate-900">{s.material.descripcion}</span>
+                        {s.material.individualizado && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-600 text-[9px] font-bold uppercase tracking-wide">
+                            <Tags className="w-2.5 h-2.5" /> Individualizado
+                          </span>
+                        )}
+                      </div>
+                      {!proyectoId && <p className="text-[11px] text-slate-500">{labelBodega(s.bodega)}</p>}
+                      <p className="text-[11px] text-slate-400">{s.material.familia}</p>
+                    </div>
+                    <div className="text-right shrink-0 text-xs font-bold text-slate-900 whitespace-nowrap">
+                      {Number(s.cantidad).toLocaleString('es-CL')} {s.material.unidadMedida}
+                    </div>
+                  </button>
+                  {abierto && s.material.individualizado && (
+                    <div className="pt-2 border-t border-slate-100 -mx-4">
+                      <UnidadesMaterialDetalle bodegaId={s.bodegaId} materialId={s.materialId} />
+                    </div>
+                  )}
+                  {mostrarAcciones && (
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-1">
+                      <AccionesStock s={s} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
