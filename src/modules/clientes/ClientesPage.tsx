@@ -8,6 +8,9 @@ import { Button } from '../../components/ui/Button';
 import type { Cliente } from '../../types';
 import { ClienteFormModal } from './ClienteFormModal';
 import { useMediaQuery } from '../../lib/useMediaQuery';
+import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilters';
+import { ColumnFilterHeader } from '../../components/ui/ColumnFilterHeader';
+import { PAGE_CONTAINER_CLASS, BREAKPOINT_DESKTOP, TABLE_CLASS } from '../../lib/designSystem';
 
 /**
  * Maestro de Clientes: quién es cada cliente y sus datos de contacto/
@@ -24,7 +27,7 @@ export const ClientesPage: React.FC = () => {
   const [creando, setCreando] = useState(false);
   // Monta sólo la vista de escritorio o la de mobile, nunca las dos -- ver
   // useMediaQuery.ts (mismo patrón que ProveedoresPanel/MaestroProductos).
-  const isDesktop = useMediaQuery('(min-width: 768px)');
+  const isDesktop = useMediaQuery(BREAKPOINT_DESKTOP);
 
   const { data, isLoading, isError, refetch } = useQuery<Cliente[]>({
     queryKey: ['clientes'],
@@ -56,6 +59,17 @@ export const ClientesPage: React.FC = () => {
     );
   }, [clientes, searchTerm]);
 
+  const columnas: ColumnFilterDef<Cliente>[] = useMemo(
+    () => [
+      { key: 'nombre', tipo: 'texto', label: 'Razón Social', accessor: (c) => c.nombre },
+      { key: 'rut', tipo: 'texto', label: 'RUT', accessor: (c) => c.rut || '' },
+      { key: 'giro', tipo: 'texto', label: 'Giro', accessor: (c) => c.giro || '' },
+      { key: 'contacto', tipo: 'texto', label: 'Contacto', accessor: (c) => c.contacto || '' },
+    ],
+    []
+  );
+  const { valores, setValor, datosFiltrados: visibles } = useColumnFilters(filtrados, columnas);
+
   const CobranzaBadge = () => (
     <span
       title="Todavía no conectado con Finanzas"
@@ -66,7 +80,7 @@ export const ClientesPage: React.FC = () => {
   );
 
   return (
-    <div className="p-3 sm:p-5 md:p-8 space-y-4 sm:space-y-5 max-w-7xl mx-auto animate-fade-in">
+    <div className={PAGE_CONTAINER_CLASS}>
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-base font-black text-slate-900">Clientes</h1>
@@ -117,12 +131,16 @@ export const ClientesPage: React.FC = () => {
           </div>
           <h3 className="text-sm font-bold text-slate-800">No se encontraron clientes</h3>
         </div>
+      ) : visibles.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200 p-10 sm:p-14 text-center space-y-3 shadow-xs">
+          <h3 className="text-sm font-bold text-slate-800">Ningún cliente coincide con los filtros de columna</h3>
+        </div>
       ) : (
         <>
           {isDesktop && (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px] text-left text-xs text-slate-700">
+                <table className={TABLE_CLASS + ' text-left text-slate-700'}>
                   <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
                     <tr>
                       <th className="px-5 py-3.5">Razón Social</th>
@@ -133,9 +151,17 @@ export const ClientesPage: React.FC = () => {
                       <th className="px-5 py-3.5">Cobranza</th>
                       <th className="px-5 py-3.5 text-right">Acciones</th>
                     </tr>
+                    <tr className="bg-white border-b border-slate-100">
+                      {columnas.map((c) => (
+                        <th key={c.key} className="px-5 pb-2.5">
+                          <ColumnFilterHeader columna={c} valor={valores[c.key] || ''} onChange={(v) => setValor(c.key, v)} />
+                        </th>
+                      ))}
+                      <th className="px-5 pb-2.5" colSpan={3} />
+                    </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filtrados.map((c) => {
+                    {visibles.map((c) => {
                       const sinUso = !!c._count && c._count.proyectos === 0;
                       return (
                         <tr key={c.id} className="hover:bg-slate-50/80 transition-colors">
@@ -201,7 +227,7 @@ export const ClientesPage: React.FC = () => {
 
           {!isDesktop && (
             <div className="space-y-3">
-              {filtrados.map((c) => {
+              {visibles.map((c) => {
                 const sinUso = !!c._count && c._count.proyectos === 0;
                 return (
                   <div key={c.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2.5">

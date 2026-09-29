@@ -8,6 +8,9 @@ import type { Proveedor } from '../../../types';
 import { ProveedorEditModal } from './ProveedorEditModal';
 import { FusionarProveedorModal } from './FusionarProveedorModal';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
+import { useColumnFilters, type ColumnFilterDef } from '../../../lib/useColumnFilters';
+import { ColumnFilterHeader } from '../../../components/ui/ColumnFilterHeader';
+import { BREAKPOINT_DESKTOP, TABLE_CLASS } from '../../../lib/designSystem';
 
 /**
  * Maestro de Proveedores: quién es cada proveedor y sus datos de
@@ -23,7 +26,7 @@ export const ProveedoresPanel: React.FC = () => {
   const [fusionando, setFusionando] = useState<Proveedor | null>(null);
   // Monta sólo la vista de escritorio o la de mobile, nunca las dos -- ver
   // useMediaQuery.ts (mismo patrón que MaestroProductos y CotizacionesPage).
-  const isDesktop = useMediaQuery('(min-width: 768px)');
+  const isDesktop = useMediaQuery(BREAKPOINT_DESKTOP);
 
   const { data, isLoading, isError, refetch } = useQuery<Proveedor[]>({
     queryKey: ['proveedores'],
@@ -55,6 +58,16 @@ export const ProveedoresPanel: React.FC = () => {
         (p.email || '').toLowerCase().includes(term)
     );
   }, [proveedores, searchTerm]);
+
+  const columnas: ColumnFilterDef<Proveedor>[] = useMemo(
+    () => [
+      { key: 'nombre', tipo: 'texto', label: 'Nombre', accessor: (p) => p.nombre },
+      { key: 'rut', tipo: 'texto', label: 'RUT', accessor: (p) => p.rut || '' },
+      { key: 'email', tipo: 'texto', label: 'Email', accessor: (p) => p.email || '' },
+    ],
+    []
+  );
+  const { valores, setValor, datosFiltrados: visibles } = useColumnFilters(filtrados, columnas);
 
   return (
     <div className="space-y-4 sm:space-y-5 animate-fade-in">
@@ -98,13 +111,17 @@ export const ProveedoresPanel: React.FC = () => {
           </div>
           <h3 className="text-sm font-bold text-slate-800">No se encontraron proveedores</h3>
         </div>
+      ) : visibles.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200 p-10 sm:p-14 text-center space-y-3 shadow-xs">
+          <h3 className="text-sm font-bold text-slate-800">Ningún proveedor coincide con los filtros de columna</h3>
+        </div>
       ) : (
         <>
           {/* 1. VISTA TABLA AUTOMÁTICA EN DESKTOP/TABLET (System-Wide) */}
           {isDesktop && (
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-xs text-slate-700">
+              <table className={TABLE_CLASS + ' text-left text-slate-700'}>
                 <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
                   <tr>
                     <th className="px-5 py-3.5">Nombre</th>
@@ -115,9 +132,22 @@ export const ProveedoresPanel: React.FC = () => {
                     <th className="px-5 py-3.5">Uso</th>
                     <th className="px-5 py-3.5 text-right">Acciones</th>
                   </tr>
+                  <tr className="bg-white border-b border-slate-100">
+                    <th className="px-5 pb-2.5">
+                      <ColumnFilterHeader columna={columnas[0]} valor={valores.nombre || ''} onChange={(v) => setValor('nombre', v)} />
+                    </th>
+                    <th className="px-5 pb-2.5" />
+                    <th className="px-5 pb-2.5">
+                      <ColumnFilterHeader columna={columnas[1]} valor={valores.rut || ''} onChange={(v) => setValor('rut', v)} />
+                    </th>
+                    <th className="px-5 pb-2.5">
+                      <ColumnFilterHeader columna={columnas[2]} valor={valores.email || ''} onChange={(v) => setValor('email', v)} />
+                    </th>
+                    <th className="px-5 pb-2.5" colSpan={3} />
+                  </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filtrados.map((p) => {
+                  {visibles.map((p) => {
                     const sinUso = !!p._count && p._count.materiales === 0 && p._count.ordenesCompra === 0;
                     return (
                     <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
@@ -197,7 +227,7 @@ export const ProveedoresPanel: React.FC = () => {
           {/* 2. VISTA TARJETAS AUTOMÁTICA EN MÓVILES (System-Wide por defecto) */}
           {!isDesktop && (
           <div className="space-y-3">
-            {filtrados.map((p) => {
+            {visibles.map((p) => {
               const sinUso = !!p._count && p._count.materiales === 0 && p._count.ordenesCompra === 0;
               return (
               <div
