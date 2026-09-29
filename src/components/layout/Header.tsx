@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Menu, User, Settings, LogOut, ChevronDown, Bell, Landmark, ShoppingCart, ChevronRight } from 'lucide-react';
+import { Menu, User, Settings, LogOut, ChevronDown, Bell, Landmark, ShoppingCart, ChevronRight, UserCog } from 'lucide-react';
+import { MiUsuarioModal } from './MiUsuarioModal';
 import { useSession, displayName } from '../../lib/useCloudflareAccessSession';
 import { getMisPermisos, getMisAprobacionesPendientes } from '../../api/client';
 
@@ -28,6 +30,7 @@ export const Header: React.FC<HeaderProps> = ({
   const nombreUsuario = displayName(usuario);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isMiUsuarioOpen, setIsMiUsuarioOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
 
@@ -291,6 +294,23 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
               )}
               <button
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  setIsMiUsuarioOpen(true);
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer text-left group"
+              >
+                <div className="w-7 h-7 rounded-lg bg-slate-100 group-hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors shrink-0">
+                  <UserCog className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <div className="font-semibold text-slate-800">Editar mi usuario</div>
+                  <div className={`text-[10px] ${permisos?.tieneTokenClay ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {permisos?.tieneTokenClay ? 'Nombre y token de Clay' : 'Token de Clay sin configurar'}
+                  </div>
+                </div>
+              </button>
+              <button
                 onClick={handleConfig}
                 className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer text-left group"
               >
@@ -323,6 +343,14 @@ export const Header: React.FC<HeaderProps> = ({
         )}
         </div>
       </div>
+      {/* Portal: el backdrop-blur del header crea un containing block que
+          atraparia el modal "fixed" dentro de sus 64px de alto. */}
+      {isMiUsuarioOpen &&
+        permisos &&
+        createPortal(
+          <MiUsuarioModal permisos={permisos} onClose={() => setIsMiUsuarioOpen(false)} />,
+          document.body
+        )}
     </header>
   );
 };

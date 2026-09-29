@@ -18,6 +18,7 @@ export const ESTADO_OC_LABEL: Record<EstadoOC, string> = {
   ENVIADA: 'Enviada',
   RECIBIDA_PARCIAL: 'Recibida (parcial)',
   RECIBIDA_TOTAL: 'Recibida (total)',
+  PARCIALMENTE_CONCILIADA: 'Conciliada (parcial)',
   CONCILIADA: 'Conciliada',
   CANCELADA: 'Cancelada',
 };
@@ -30,6 +31,7 @@ export const ESTADO_OC_VARIANT: Record<EstadoOC, BadgeVariant> = {
   ENVIADA: 'brand',
   RECIBIDA_PARCIAL: 'warning',
   RECIBIDA_TOTAL: 'success',
+  PARCIALMENTE_CONCILIADA: 'warning',
   CONCILIADA: 'success',
   CANCELADA: 'outline',
 };
