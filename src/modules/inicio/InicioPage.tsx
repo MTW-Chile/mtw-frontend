@@ -65,7 +65,10 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
 
       {/* HERO OPERATIVO MTW ERP */}
       <div className="relative overflow-hidden bg-linear-to-r from-slate-950 via-slate-900 to-slate-950 rounded-3xl p-5 sm:p-7 md:p-8 text-white shadow-xl border border-slate-800">
-        <div className="relative z-10 space-y-5">
+        {/* El panel llena el ancho del contenedor (se ve bien como banner
+            full-bleed), pero el contenido interno se centra con un cap
+            propio -- si no, en monitores grandes se ve vacío/estirado. */}
+        <div className="relative z-10 space-y-5 max-w-5xl mx-auto">
           {/* Header Superior del Hero */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-2 max-w-2xl">

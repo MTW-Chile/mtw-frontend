@@ -409,6 +409,17 @@ export interface Proyecto {
   versiones: ProyectoVersion[];
   creadoEn: string;
   actualizadoEn: string;
+  // Resumen para la lista de "Proyectos en curso" -- ver GET /api/proyectos
+  // en mtw-api. montoComprometidoOC es la suma real de items de OC de este
+  // proyecto (cualquier estado); fasesResumen cuenta las fases reales
+  // (numeroFase > 0) de la version mas reciente. No hay "presupuestado"
+  // ajustado por familia ni % de avance de fabricacion real todavia -- ver
+  // comentario en el handler.
+  montoComprometidoOC?: number;
+  // Monedas de OC de este proyecto que NO son CLP (no se suman a
+  // montoComprometidoOC para no mezclar monedas distintas en un total).
+  otrasMonedasOC?: string[];
+  fasesResumen?: { total: number; enProduccionOCompletadas: number };
 }
 
 export interface ProyectosResponse {

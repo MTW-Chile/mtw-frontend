@@ -1,23 +1,25 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Building2, Loader2, Wallet, ShoppingCart, FileCheck2, Warehouse, Layers } from 'lucide-react';
+import { ArrowLeft, Building2, Loader2, Wallet, ShoppingCart, Warehouse, Layers } from 'lucide-react';
 import { getProyectoById } from '../../api/client';
 import { OrdenesCompraList } from '../abastecimiento/OrdenesCompraList';
 import { BodegaProyectoTab } from '../abastecimiento/BodegaProyectoTab';
 import { RecepcionesPendientesSection } from '../abastecimiento/RecepcionesPendientesSection';
 import { RequisicionesSection } from './RequisicionesSection';
 import { ControlPresupuestoTab } from './ControlPresupuestoTab';
-import { ControlDocumentosTab } from './ControlDocumentosTab';
 import { FasesTab } from './FasesTab';
 import { ClayCentroCostoEditor } from './ClayCentroCostoEditor';
 
-type Seccion = 'presupuesto' | 'fases' | 'abastecimiento' | 'documentos' | 'bodega';
+// "Control de documentos" (conciliacion de OC contra facturas de Clay) se
+// saco de aca -- vive solo en Compras (ComprasPage > sub-tab
+// Conciliacion, ControlDocumentosTab sin proyectoId) para todas las obras
+// juntas, en vez de repetido obra por obra.
+type Seccion = 'presupuesto' | 'fases' | 'abastecimiento' | 'bodega';
 
 const SECCIONES: { id: Seccion; label: string; hint: string; icon: React.ReactNode }[] = [
   { id: 'presupuesto', label: 'Control de presupuesto', hint: 'Revisión por partida de gastos', icon: <Wallet className="w-4 h-4" /> },
   { id: 'fases', label: 'Fases', hint: 'Distribuir unidades por etapa', icon: <Layers className="w-4 h-4" /> },
   { id: 'abastecimiento', label: 'Abastecimiento', hint: 'Generación y gestión de OC', icon: <ShoppingCart className="w-4 h-4" /> },
-  { id: 'documentos', label: 'Control de documentos', hint: 'OC vinculadas con facturas', icon: <FileCheck2 className="w-4 h-4" /> },
   { id: 'bodega', label: 'Bodega', hint: 'Requisiciones, stock y movimientos', icon: <Warehouse className="w-4 h-4" /> },
 ];
 
@@ -71,36 +73,23 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
         )}
       </div>
 
-      <div className="flex-1 flex flex-col sm:flex-row min-h-0 overflow-hidden">
-        {/* Sub-nav lateral: solo existe una vez adentro de un proyecto */}
-        <aside className="w-56 shrink-0 border-r border-slate-200 bg-slate-50/50 p-3 space-y-1 overflow-y-auto hidden sm:block">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        {/* Menu superior -- unica nav, para cualquier ancho (antes era un
+            sidebar lateral en escritorio + esta misma fila solo en
+            mobile; reemplazado por pedido explicito). overflow-x-auto
+            cubre el caso de que no entren todos los tabs en una pantalla
+            angosta. */}
+        <div className="border-b border-slate-200 bg-white overflow-x-auto flex shrink-0 px-2 sm:px-5">
           {SECCIONES.map((s) => (
             <button
               key={s.id}
               onClick={() => setSeccion(s.id)}
-              className={`w-full text-left px-3 py-2.5 rounded-xl transition-colors cursor-pointer ${
-                seccion === s.id ? 'bg-[#E34A26]/10 border border-[#E34A26]/20' : 'hover:bg-slate-100 border border-transparent'
+              title={s.hint}
+              className={`flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+                seccion === s.id ? 'border-[#E34A26] text-[#E34A26]' : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
-              <div className={`flex items-center gap-2 text-xs font-bold ${seccion === s.id ? 'text-[#E34A26]' : 'text-slate-700'}`}>
-                {s.icon}
-                {s.label}
-              </div>
-              <div className="text-[10px] text-slate-400 mt-0.5 pl-6">{s.hint}</div>
-            </button>
-          ))}
-        </aside>
-
-        {/* Selector de seccion en mobile (la sidebar lateral se oculta) */}
-        <div className="sm:hidden border-b border-slate-200 bg-white overflow-x-auto flex shrink-0">
-          {SECCIONES.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => setSeccion(s.id)}
-              className={`px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 ${
-                seccion === s.id ? 'border-[#E34A26] text-[#E34A26]' : 'border-transparent text-slate-500'
-              }`}
-            >
+              {s.icon}
               {s.label}
             </button>
           ))}
@@ -118,7 +107,6 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
               {seccion === 'presupuesto' && <ControlPresupuestoTab proyecto={proyecto} activeVersion={activeVersion} />}
               {seccion === 'fases' && <FasesTab proyecto={proyecto} activeVersion={activeVersion} />}
               {seccion === 'abastecimiento' && <OrdenesCompraList proyectoId={proyectoId} proyectoLabel={proyecto.obra} />}
-              {seccion === 'documentos' && <ControlDocumentosTab proyectoId={proyectoId} />}
               {seccion === 'bodega' && (
                 <div className="space-y-8">
                   <RecepcionesPendientesSection proyectoId={proyectoId} />
