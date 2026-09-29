@@ -30,6 +30,10 @@ export interface MisPermisos {
   secciones: string[];
   configTabs: string[];
   aprobaciones: string[];
+  // Si el usuario ya cargo su token personal de Clay (el token en si nunca
+  // vuelve del backend). Sin token no se puede buscar ni contabilizar
+  // facturas en Clay.
+  tieneTokenClay: boolean;
 }
 
 export interface AprobacionPendienteCotizacion {
@@ -399,6 +403,9 @@ export interface Proyecto {
   // Version (ProyectoVersion.hetmoId) elegida para cotizar. null = nunca
   // se eligio y hay que caer de vuelta a la de versionNumero mas alto.
   versionActivaHetmoId: number | null;
+  // Nombre EXACTO del centro de costo de esta obra en Clay -- se usa al
+  // contabilizar las facturas de sus OC. null = sin centro de costo.
+  clayCentroCosto: string | null;
   versiones: ProyectoVersion[];
   creadoEn: string;
   actualizadoEn: string;
@@ -435,6 +442,7 @@ export type EstadoOC =
   | 'ENVIADA'
   | 'RECIBIDA_PARCIAL'
   | 'RECIBIDA_TOTAL'
+  | 'PARCIALMENTE_CONCILIADA'
   | 'CONCILIADA'
   | 'CANCELADA';
 
@@ -695,7 +703,10 @@ export interface ConciliacionFactura {
   folio: string;
   proveedorRutEmisor: string;
   fechaFactura: string | null;
-  montoFactura: number;
+  montoFactura: number; // total con IVA
+  // Neto (lo que se compara contra la OC, cuyos precios son netos). null =
+  // vinculada antes de guardarlo -- ver netoConciliacion.
+  montoNetoFactura: number | null;
   estadoCuadre: EstadoConciliacionFactura;
   pagada: boolean;
   montoPagado: number;
@@ -703,7 +714,16 @@ export interface ConciliacionFactura {
   vinculadoPorId: string | null;
   fechaVinculacion: string | null;
   notas: string | null;
+  // Asiento creado en Clay al confirmar el checkout. null = sin contabilizar.
+  clayAsientoId: string | null;
+  contabilizadaEn: string | null;
   creadoEn: string;
+}
+
+// Neto de una factura vinculada. Las vinculadas antes de guardar el neto no
+// lo tienen: se aproxima quitando el 19% de IVA (mismo criterio que mtw-api).
+export function netoConciliacion(c: Pick<ConciliacionFactura, 'montoNetoFactura' | 'montoFactura'>): number {
+  return c.montoNetoFactura != null ? Number(c.montoNetoFactura) : Number(c.montoFactura) / 1.19;
 }
 
 // Contraparte (emisor/receptor) de un documento de Clay.
@@ -724,12 +744,64 @@ export interface ClayDteItem {
   issuer: ClayContraparte;
   is_received: boolean;
   is_paid: boolean;
+  accounted_ok: boolean;
   outstanding_balance: number;
   total: { net: number; exempt: number; vat: number; total: number };
 }
 
 export interface FacturaSugerida {
   factura: ClayDteItem;
+  netoFactura: number;
+  // Contra lo que FALTA facturar de la OC (neto).
   diferenciaVsOC: number;
   cuadra: boolean;
+  // Emisor = proveedor de la OC. false solo puede aparecer buscando sin el
+  // filtro de RUT.
+  mismoProveedor: boolean;
+}
+
+export interface FiltrosFacturas {
+  rut: boolean;
+  monto: boolean;
+}
+
+export interface FacturasSugeridasResponse {
+  totalOC: number;
+  pendienteFacturar: number;
+  filtros: FiltrosFacturas & { toleranciaMonto: number };
+  sugeridas: FacturaSugerida[];
+}
+
+// Una linea del asiento que se va a crear en Clay (checkout).
+export interface LineaAsientoClay {
+  cuenta: string;
+  nombreCuenta: string;
+  partidas: string[];
+  debe: number;
+  haber: number;
+  centroCosto: string | null;
+}
+
+// GET /api/ordenes-compra/:id/facturas/:clayTransactionId/checkout -- lo
+// que va a pasar al confirmar, sin escribir nada todavia.
+export interface CheckoutFactura {
+  factura: ClayDteItem;
+  netoFactura: number;
+  mismoProveedor: boolean;
+  ordenCompra: { id: string; numero: string; estado: EstadoOC };
+  totalOC: number;
+  facturadoPrevio: number;
+  facturadoTotal: number;
+  diferencia: number; // facturadoTotal - totalOC (neto)
+  cuadra: boolean;
+  // Sin ajuste. Con ajuste siempre queda CONCILIADA.
+  estadoResultante: EstadoOC;
+  asiento: {
+    fecha: string;
+    glosa: string;
+    lineas: LineaAsientoClay[];
+    // errores != [] bloquea la confirmacion.
+    errores: string[];
+    advertencias: string[];
+  };
 }

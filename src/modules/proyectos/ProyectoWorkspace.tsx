@@ -9,6 +9,7 @@ import { RequisicionesSection } from './RequisicionesSection';
 import { ControlPresupuestoTab } from './ControlPresupuestoTab';
 import { ControlDocumentosTab } from './ControlDocumentosTab';
 import { FasesTab } from './FasesTab';
+import { ClayCentroCostoEditor } from './ClayCentroCostoEditor';
 
 type Seccion = 'presupuesto' | 'fases' | 'abastecimiento' | 'documentos' | 'bodega';
 
@@ -63,6 +64,11 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
           </div>
           <p className="text-xs text-slate-500 truncate">{proyecto?.clienteNombreRaw}</p>
         </div>
+        {proyecto && (
+          <div className="ml-auto hidden sm:block">
+            <ClayCentroCostoEditor proyectoId={proyecto.id} valor={proyecto.clayCentroCosto} />
+          </div>
+        )}
       </div>
 
       <div className="flex-1 flex flex-col sm:flex-row min-h-0 overflow-hidden">

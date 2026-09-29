@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, FileCheck2, AlertCircle, Search, RefreshCw, CheckCircle2, X as XIcon } from 'lucide-react';
+import { Loader2, FileCheck2, AlertCircle, Search, RefreshCw, CheckCircle2, X as XIcon, Plus, KeyRound, Scale } from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { getOrdenesCompra, getFacturasSugeridas, vincularFactura, refrescarConciliacion } from '../../api/client';
-import type { EstadoConciliacionFactura } from '../../types';
+import { getOrdenesCompra, getFacturasSugeridas, refrescarConciliacion, getMisPermisos, ajustarOCAFacturado } from '../../api/client';
+import { netoConciliacion, type EstadoConciliacionFactura, type EstadoOC, type FiltrosFacturas } from '../../types';
+import { ESTADO_OC_LABEL, ESTADO_OC_VARIANT } from '../abastecimiento/OrdenesCompraList';
+import { CheckoutFacturaModal } from './CheckoutFacturaModal';
 
 const ESTADO_CUADRE_VARIANT: Record<EstadoConciliacionFactura, BadgeVariant> = {
   PENDIENTE: 'subtle',
@@ -13,14 +15,52 @@ const ESTADO_CUADRE_VARIANT: Record<EstadoConciliacionFactura, BadgeVariant> = {
 };
 
 const formatCLP = (v: number) => v.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
-const formatFecha = (iso: string) => new Date(iso).toLocaleDateString('es-CL');
+const formatFecha = (iso: string) => new Date(iso).toLocaleDateString('es-CL', { timeZone: 'UTC' });
 
-// "Control de documentos": vincula cada OC ya recibida con su factura RECIBIDA
-// real, que vive en Clay (sistema contable) -- mtw-api nunca la genera ni la
-// edita. Se busca por RUT del proveedor, se sugiere el mejor calce por
-// cercania de monto, y una persona confirma cual es. El estado de pago
-// (pagada/montoPagado) tambien viene de Clay -- "Refrescar" lo vuelve a
-// consultar (nada lo hace solo todavia, no hay cron ni webhook).
+// Solo tiene sentido vincular una OC que ya se recibio (parcial o total)
+// -- antes de eso no hay contra que comparar la factura.
+const ESTADOS_CONCILIABLES: EstadoOC[] = ['RECIBIDA_PARCIAL', 'RECIBIDA_TOTAL', 'PARCIALMENTE_CONCILIADA', 'CONCILIADA'];
+
+const FILTROS_DEFAULT: FiltrosFacturas = { rut: true, monto: true };
+
+// Chip de un prefiltro de la busqueda: activo se quita con la X; quitado
+// queda punteado para volver a ponerlo.
+const ChipFiltro: React.FC<{ activo: boolean; label: string; onToggle: () => void; disabled?: boolean }> = ({
+  activo,
+  label,
+  onToggle,
+  disabled,
+}) =>
+  activo ? (
+    <span className="inline-flex items-center gap-1 pl-2.5 pr-1 py-0.5 rounded-full bg-[#E34A26]/10 border border-[#E34A26]/25 text-[11px] font-semibold text-[#B8391B]">
+      {label}
+      <button
+        onClick={onToggle}
+        disabled={disabled}
+        title="Quitar filtro"
+        className="w-4 h-4 rounded-full hover:bg-[#E34A26]/20 flex items-center justify-center disabled:opacity-50"
+      >
+        <XIcon className="w-3 h-3" />
+      </button>
+    </span>
+  ) : (
+    <button
+      onClick={onToggle}
+      disabled={disabled}
+      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-dashed border-slate-300 text-[11px] font-semibold text-slate-400 hover:text-slate-700 hover:border-slate-400 disabled:opacity-50"
+    >
+      <Plus className="w-3 h-3" />
+      {label}
+    </button>
+  );
+
+// "Control de documentos": concilia cada OC ya recibida con su factura
+// RECIBIDA real, que vive en Clay (sistema contable). La busqueda trae solo
+// facturas SIN CONTABILIZAR (o con asientos pendientes), prefiltradas por
+// RUT del proveedor y por monto -- cada filtro se quita con su X. Al elegir
+// una se abre el checkout (CheckoutFacturaModal): muestra el asiento que se
+// va a crear en Clay y, al confirmar, contabiliza la factura y concilia la
+// OC. Todo lo que toca Clay va con el token de Clay del usuario.
 //
 // Sin proyectoId: vista global (todas las obras + "Obras Mayores" juntas)
 // -- para el modulo Compras de primer nivel. Con proyectoId: acotada a
@@ -28,7 +68,17 @@ const formatFecha = (iso: string) => new Date(iso).toLocaleDateString('es-CL');
 export const ControlDocumentosTab: React.FC<{ proyectoId?: string }> = ({ proyectoId }) => {
   const queryClient = useQueryClient();
   const [buscandoEnId, setBuscandoEnId] = useState<string | null>(null);
+  const [filtros, setFiltros] = useState<FiltrosFacturas>(FILTROS_DEFAULT);
+  const [checkout, setCheckout] = useState<{
+    ordenCompraId: string;
+    ordenCompraNumero: string;
+    clayTransactionId: string;
+    permitirOtroRut: boolean;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const { data: permisos } = useQuery({ queryKey: ['misPermisos'], queryFn: getMisPermisos });
+  const sinTokenClay = permisos ? !permisos.tieneTokenClay : false;
 
   const { data, isLoading } = useQuery({
     queryKey: ['ordenesCompra', { proyectoId: proyectoId ?? 'global', estado: '' }],
@@ -40,20 +90,9 @@ export const ControlDocumentosTab: React.FC<{ proyectoId?: string }> = ({ proyec
     isFetching: buscandoFacturas,
     error: errorSugerencias,
   } = useQuery({
-    queryKey: ['facturasSugeridas', buscandoEnId],
-    queryFn: () => getFacturasSugeridas(buscandoEnId!),
-    enabled: !!buscandoEnId,
-  });
-
-  const vincularMutation = useMutation({
-    mutationFn: ({ ordenCompraId, clayTransactionId }: { ordenCompraId: string; clayTransactionId: string }) =>
-      vincularFactura(ordenCompraId, { clayTransactionId }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ordenesCompra'] });
-      setBuscandoEnId(null);
-      setError(null);
-    },
-    onError: (err: any) => setError(err?.response?.data?.error || 'No se pudo vincular la factura.'),
+    queryKey: ['facturasSugeridas', buscandoEnId, filtros],
+    queryFn: () => getFacturasSugeridas(buscandoEnId!, filtros),
+    enabled: !!buscandoEnId && !sinTokenClay,
   });
 
   const refrescarMutation = useMutation({
@@ -62,9 +101,19 @@ export const ControlDocumentosTab: React.FC<{ proyectoId?: string }> = ({ proyec
     onError: (err: any) => setError(err?.response?.data?.error || 'No se pudo refrescar el estado de pago.'),
   });
 
-  // Solo tiene sentido vincular una OC que ya se recibio (parcial o
-  // total) -- antes de eso no hay contra que comparar la factura.
-  const ordenes = (data?.data || []).filter((oc) => ['RECIBIDA_PARCIAL', 'RECIBIDA_TOTAL', 'CONCILIADA'].includes(oc.estado));
+  const ajustarMutation = useMutation({
+    mutationFn: (ordenCompraId: string) => ajustarOCAFacturado(ordenCompraId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ordenesCompra'] }),
+    onError: (err: any) => setError(err?.response?.data?.error || 'No se pudo ajustar la OC.'),
+  });
+
+  const ordenes = (data?.data || []).filter((oc) => ESTADOS_CONCILIABLES.includes(oc.estado));
+
+  const abrirBusqueda = (ordenCompraId: string) => {
+    setError(null);
+    setFiltros(FILTROS_DEFAULT);
+    setBuscandoEnId(ordenCompraId);
+  };
 
   if (isLoading) {
     return (
@@ -79,10 +128,17 @@ export const ControlDocumentosTab: React.FC<{ proyectoId?: string }> = ({ proyec
       <div>
         <h2 className="text-sm font-black text-slate-900">Control de documentos</h2>
         <p className="text-xs text-slate-500">
-          Vinculación de Órdenes de Compra con la factura real del proveedor en Clay -- se busca por RUT y se sugiere el
-          mejor calce, tú confirmas cuál es.
+          Conciliación de Órdenes de Compra con la factura real del proveedor en Clay -- se buscan facturas sin contabilizar,
+          revisas el asiento y al confirmar se contabiliza en Clay y la OC queda conciliada.
         </p>
       </div>
+
+      {sinTokenClay && (
+        <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
+          <KeyRound className="w-3.5 h-3.5 shrink-0" />
+          Para buscar y contabilizar facturas necesitas tu token de Clay. Cárgalo en el menú de usuario (arriba a la derecha) &gt; Editar mi usuario.
+        </div>
+      )}
 
       {error && (
         <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
@@ -94,45 +150,70 @@ export const ControlDocumentosTab: React.FC<{ proyectoId?: string }> = ({ proyec
       {ordenes.length === 0 ? (
         <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
           <FileCheck2 className="w-6 h-6 mx-auto mb-2 text-slate-300" />
-          Todavía no hay OC recibidas {proyectoId ? 'de este proyecto' : ''} para vincular.
+          Todavía no hay OC recibidas {proyectoId ? 'de este proyecto' : ''} para conciliar.
         </div>
       ) : (
         <div className="space-y-3">
           {ordenes.map((oc) => {
             const totalOC = oc.items.reduce((sum, i) => sum + Number(i.cantidad) * Number(i.precioUnitario), 0);
             const conciliaciones = oc.conciliaciones || [];
-            const totalFacturado = conciliaciones.reduce((sum, c) => sum + Number(c.montoFactura), 0);
+            const totalFacturado = conciliaciones.reduce((sum, c) => sum + netoConciliacion(c), 0);
             const totalPagado = conciliaciones.reduce((sum, c) => sum + Number(c.montoPagado), 0);
             const buscandoAqui = buscandoEnId === oc.id;
+            const rutProveedor = oc.proveedor?.rut;
 
             return (
               <div key={oc.id} className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
                 <div className="px-4 py-3.5 flex items-center justify-between gap-3 flex-wrap border-b border-slate-50">
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2.5 flex-wrap">
                     <span className="font-mono font-bold text-sm text-slate-900">{oc.numero}</span>
                     <span className="text-xs text-slate-500">{oc.proveedor?.nombre}</span>
                     {!proyectoId && (
                       <span className="text-xs text-slate-400">· {oc.proyecto?.obra || oc.centroCosto?.nombre || 'Obras Mayores'}</span>
                     )}
-                    <Badge variant={oc.estado === 'CONCILIADA' ? 'success' : 'warning'} size="sm">
-                      {oc.estado === 'CONCILIADA' ? 'Conciliada' : 'Recibida'}
+                    <Badge variant={ESTADO_OC_VARIANT[oc.estado]} size="sm">
+                      {ESTADO_OC_LABEL[oc.estado]}
                     </Badge>
                   </div>
                   <div className="text-xs text-slate-600">
-                    OC: <span className="font-bold text-slate-900">{formatCLP(totalOC)}</span> · Facturado:{' '}
+                    OC (neto): <span className="font-bold text-slate-900">{formatCLP(totalOC)}</span> · Facturado (neto):{' '}
                     <span className="font-bold text-slate-900">{formatCLP(totalFacturado)}</span> · Pagado:{' '}
                     <span className="font-bold text-emerald-700">{formatCLP(totalPagado)}</span>
                   </div>
                 </div>
 
+                {oc.estado === 'PARCIALMENTE_CONCILIADA' && (
+                  <div className="px-4 py-2.5 bg-amber-50/60 border-b border-amber-100 flex items-center justify-between gap-3 flex-wrap text-xs">
+                    <span className="text-amber-800">
+                      Lo facturado no cuadra con la OC (diferencia {formatCLP(totalFacturado - totalOC)}). Puedes vincular otra factura o
+                      ajustar la OC al monto facturado.
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      leftIcon={<Scale className="w-3.5 h-3.5" />}
+                      isLoading={ajustarMutation.isPending && ajustarMutation.variables === oc.id}
+                      onClick={() => {
+                        setError(null);
+                        ajustarMutation.mutate(oc.id);
+                      }}
+                    >
+                      Ajustar OC a {formatCLP(totalFacturado)}
+                    </Button>
+                  </div>
+                )}
+
                 {conciliaciones.length > 0 && (
                   <div className="divide-y divide-slate-50">
                     {conciliaciones.map((c) => (
-                      <div key={c.id} className="px-4 py-2.5 flex items-center justify-between gap-3 text-xs">
-                        <div className="flex items-center gap-2.5">
+                      <div key={c.id} className="px-4 py-2.5 flex items-center justify-between gap-3 text-xs flex-wrap">
+                        <div className="flex items-center gap-2.5 flex-wrap">
                           <span className="font-mono text-slate-700">Factura {c.folio}</span>
                           <Badge variant={ESTADO_CUADRE_VARIANT[c.estadoCuadre]} size="sm">
                             {c.estadoCuadre}
+                          </Badge>
+                          <Badge variant={c.clayAsientoId ? 'info' : 'subtle'} size="sm">
+                            {c.clayAsientoId ? 'Contabilizada en Clay' : 'Sin contabilizar'}
                           </Badge>
                           <Badge variant={c.pagada ? 'success' : 'subtle'} size="sm">
                             {c.pagada ? 'Pagada' : 'Pendiente de pago'}
@@ -140,7 +221,7 @@ export const ControlDocumentosTab: React.FC<{ proyectoId?: string }> = ({ proyec
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="font-mono font-semibold text-slate-800">
-                            {formatCLP(Number(c.montoFactura))}
+                            {formatCLP(netoConciliacion(c))} <span className="text-slate-400 font-normal">neto</span>
                             {!c.pagada && Number(c.montoPagado) > 0 && (
                               <span className="text-slate-400 font-normal"> · pagado {formatCLP(Number(c.montoPagado))}</span>
                             )}
@@ -148,7 +229,7 @@ export const ControlDocumentosTab: React.FC<{ proyectoId?: string }> = ({ proyec
                           <button
                             title="Refrescar estado de pago desde Clay"
                             onClick={() => refrescarMutation.mutate(c.id)}
-                            disabled={refrescarMutation.isPending}
+                            disabled={refrescarMutation.isPending || sinTokenClay}
                             className="w-6 h-6 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center shrink-0 disabled:opacity-50"
                           >
                             {refrescarMutation.isPending && refrescarMutation.variables === c.id ? (
@@ -165,11 +246,33 @@ export const ControlDocumentosTab: React.FC<{ proyectoId?: string }> = ({ proyec
 
                 {buscandoAqui ? (
                   <div className="p-4 bg-slate-50/70 border-t border-slate-100 space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Facturas sugeridas en Clay</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        Facturas sin contabilizar en Clay
+                      </span>
                       <button onClick={() => setBuscandoEnId(null)} className="text-slate-400 hover:text-slate-700">
                         <XIcon className="w-3.5 h-3.5" />
                       </button>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[11px] text-slate-400 mr-0.5">Filtros:</span>
+                      <ChipFiltro
+                        activo={filtros.rut}
+                        label={filtros.rut ? `RUT ${rutProveedor || 'del proveedor'}` : 'RUT del proveedor'}
+                        disabled={buscandoFacturas}
+                        onToggle={() => setFiltros((f) => ({ ...f, rut: !f.rut }))}
+                      />
+                      <ChipFiltro
+                        activo={filtros.monto}
+                        label={
+                          filtros.monto && sugerenciasData
+                            ? `Monto ±${Math.round(sugerenciasData.filtros.toleranciaMonto * 100)}% de ${formatCLP(sugerenciasData.pendienteFacturar)}`
+                            : 'Monto similar'
+                        }
+                        disabled={buscandoFacturas}
+                        onToggle={() => setFiltros((f) => ({ ...f, monto: !f.monto }))}
+                      />
                     </div>
 
                     {buscandoFacturas && (
@@ -178,45 +281,61 @@ export const ControlDocumentosTab: React.FC<{ proyectoId?: string }> = ({ proyec
                       </div>
                     )}
 
-                    {errorSugerencias && (
+                    {errorSugerencias && !buscandoFacturas && (
                       <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
                         <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                         {(errorSugerencias as any)?.response?.data?.error || 'Error consultando Clay.'}
                       </div>
                     )}
 
-                    {sugerenciasData && sugerenciasData.sugeridas.length === 0 && (
+                    {sugerenciasData && !buscandoFacturas && sugerenciasData.sugeridas.length === 0 && (
                       <p className="text-xs text-slate-400 px-1 py-3">
-                        No se encontraron facturas recibidas de este proveedor en Clay en el rango de fechas de la OC.
+                        No hay facturas sin contabilizar {filtros.rut ? 'de este proveedor ' : ''}
+                        {filtros.monto ? 'por un monto similar ' : ''}en el rango de fechas de la OC.
+                        {(filtros.rut || filtros.monto) && ' Prueba quitando un filtro.'}
                       </p>
                     )}
 
-                    {sugerenciasData?.sugeridas.map((s) => (
-                      <div
-                        key={s.factura.id}
-                        className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-white border border-slate-200"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0 text-xs">
-                          <span className="font-mono font-bold text-slate-700 shrink-0">Folio {s.factura.number}</span>
-                          <span className="text-slate-400 shrink-0">{formatFecha(s.factura.issue_date)}</span>
-                          <span className="text-slate-500 truncate">{s.factura.issuer.company_name}</span>
-                          <Badge variant={s.cuadra ? 'success' : 'warning'} size="sm">
-                            {s.cuadra ? 'Calza con la OC' : `Difiere ${formatCLP(s.diferenciaVsOC)}`}
-                          </Badge>
+                    {!buscandoFacturas &&
+                      sugerenciasData?.sugeridas.map((s) => (
+                        <div
+                          key={s.factura.id}
+                          className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-white border border-slate-200 flex-wrap"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 text-xs flex-wrap">
+                            <span className="font-mono font-bold text-slate-700 shrink-0">Folio {s.factura.number}</span>
+                            <span className="text-slate-400 shrink-0">{formatFecha(s.factura.issue_date)}</span>
+                            <span className="text-slate-500 truncate">{s.factura.issuer.company_name}</span>
+                            {!s.mismoProveedor && (
+                              <Badge variant="warning" size="sm">
+                                Otro RUT
+                              </Badge>
+                            )}
+                            <Badge variant={s.cuadra ? 'success' : 'subtle'} size="sm">
+                              {s.cuadra ? 'Calza con la OC' : `Difiere ${formatCLP(s.diferenciaVsOC)}`}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="font-mono font-semibold text-slate-800">
+                              {formatCLP(s.netoFactura)} <span className="text-slate-400 font-normal">neto</span>
+                            </span>
+                            <Button
+                              size="sm"
+                              leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
+                              onClick={() =>
+                                setCheckout({
+                                  ordenCompraId: oc.id,
+                                  ordenCompraNumero: oc.numero,
+                                  clayTransactionId: s.factura.id,
+                                  permitirOtroRut: !s.mismoProveedor,
+                                })
+                              }
+                            >
+                              Conciliar
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-mono font-semibold text-slate-800">{formatCLP(s.factura.total.total)}</span>
-                          <Button
-                            size="sm"
-                            leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
-                            isLoading={vincularMutation.isPending && vincularMutation.variables?.clayTransactionId === s.factura.id}
-                            onClick={() => vincularMutation.mutate({ ordenCompraId: oc.id, clayTransactionId: s.factura.id })}
-                          >
-                            Vincular
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 ) : (
                   <div className="px-4 py-2.5 border-t border-slate-50">
@@ -224,10 +343,8 @@ export const ControlDocumentosTab: React.FC<{ proyectoId?: string }> = ({ proyec
                       variant="ghost"
                       size="sm"
                       leftIcon={<Search className="w-3.5 h-3.5" />}
-                      onClick={() => {
-                        setError(null);
-                        setBuscandoEnId(oc.id);
-                      }}
+                      disabled={sinTokenClay}
+                      onClick={() => abrirBusqueda(oc.id)}
                     >
                       Buscar factura en Clay
                     </Button>
@@ -237,6 +354,17 @@ export const ControlDocumentosTab: React.FC<{ proyectoId?: string }> = ({ proyec
             );
           })}
         </div>
+      )}
+
+      {checkout && (
+        <CheckoutFacturaModal
+          {...checkout}
+          onClose={() => setCheckout(null)}
+          onConciliada={() => {
+            setCheckout(null);
+            setBuscandoEnId(null);
+          }}
+        />
       )}
     </div>
   );

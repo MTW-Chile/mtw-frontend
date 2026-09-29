@@ -28,7 +28,9 @@ import type {
   MovimientoBodega,
   UnidadesMaterialResponse,
   ConciliacionFactura,
-  FacturaSugerida,
+  FiltrosFacturas,
+  FacturasSugeridasResponse,
+  CheckoutFactura,
   CategoriaGasto,
   Rol,
   Usuario,
@@ -175,6 +177,17 @@ export async function updateCodigoInterno(
   const response = await apiClient.patch<{ success: boolean; proyecto: Omit<Proyecto, 'versiones'> }>(
     `/proyectos/${id}/codigo-interno`,
     { codigoInterno }
+  );
+  return response.data;
+}
+
+export async function updateClayCentroCosto(
+  id: string,
+  clayCentroCosto: string | null
+): Promise<{ success: boolean; proyecto: Omit<Proyecto, 'versiones'> }> {
+  const response = await apiClient.patch<{ success: boolean; proyecto: Omit<Proyecto, 'versiones'> }>(
+    `/proyectos/${id}/clay-centro-costo`,
+    { clayCentroCosto }
   );
   return response.data;
 }
@@ -723,16 +736,48 @@ export async function getSolicitudesMaterial(params?: {
 // cercania de monto -- no un match automatico, la persona confirma cual
 // es con vincularFactura(). Falla con el error de mtw-api si el proveedor
 // no tiene RUT cargado (necesario para buscar en Clay).
-export async function getFacturasSugeridas(ordenCompraId: string): Promise<{ totalOC: number; sugeridas: FacturaSugerida[] }> {
-  const response = await apiClient.get(`/ordenes-compra/${ordenCompraId}/facturas-sugeridas`);
+// Facturas de Clay SIN CONTABILIZAR, prefiltradas por RUT del proveedor y
+// por monto (+-10% de lo que falta facturar) -- cada filtro se puede apagar.
+export async function getFacturasSugeridas(
+  ordenCompraId: string,
+  filtros: FiltrosFacturas = { rut: true, monto: true }
+): Promise<FacturasSugeridasResponse> {
+  const response = await apiClient.get<FacturasSugeridasResponse>(`/ordenes-compra/${ordenCompraId}/facturas-sugeridas`, {
+    params: { filtroRut: filtros.rut, filtroMonto: filtros.monto },
+  });
   return response.data;
 }
 
+// Vista previa (sin escribir nada) de conciliar esta factura: como queda la
+// OC y el asiento que se va a crear en Clay.
+export async function getCheckoutFactura(
+  ordenCompraId: string,
+  clayTransactionId: string,
+  permitirOtroRut = false
+): Promise<CheckoutFactura> {
+  const response = await apiClient.get<CheckoutFactura>(
+    `/ordenes-compra/${ordenCompraId}/facturas/${encodeURIComponent(clayTransactionId)}/checkout`,
+    { params: { permitirOtroRut } }
+  );
+  return response.data;
+}
+
+// Confirma el checkout: contabiliza la factura en Clay (con el token del
+// usuario) y la vincula a la OC. ajustarOC: si no cuadra, escala la OC al
+// neto facturado y la deja CONCILIADA (si no, queda PARCIALMENTE_CONCILIADA).
 export async function vincularFactura(
   ordenCompraId: string,
-  payload: { clayTransactionId: string; notas?: string }
-): Promise<{ success: boolean; conciliacion: ConciliacionFactura; totalOC: number }> {
+  payload: { clayTransactionId: string; ajustarOC?: boolean; permitirOtroRut?: boolean; notas?: string }
+): Promise<{ success: boolean; conciliacion: ConciliacionFactura; estadoOC: EstadoOC; clayAsientoId: string }> {
   const response = await apiClient.post(`/ordenes-compra/${ordenCompraId}/facturas`, payload);
+  return response.data;
+}
+
+// Ajuste posterior de una OC PARCIALMENTE_CONCILIADA al neto ya facturado.
+export async function ajustarOCAFacturado(
+  ordenCompraId: string
+): Promise<{ success: boolean; totalAnterior: number; totalAjustado: number }> {
+  const response = await apiClient.post(`/ordenes-compra/${ordenCompraId}/ajustar-a-facturado`);
   return response.data;
 }
 
@@ -893,6 +938,24 @@ export async function eliminarLineaManual(ventanaId: string): Promise<{ success:
 
 export async function getMisPermisos(): Promise<MisPermisos> {
   const response = await apiClient.get<MisPermisos>('/mi-permisos');
+  return response.data;
+}
+
+// "Editar mi usuario": solo el nombre propio (rol/correo/estado son del admin).
+export async function updateMiUsuario(nombre: string): Promise<{ success: boolean; nombre: string }> {
+  const response = await apiClient.patch('/mi-usuario', { nombre });
+  return response.data;
+}
+
+// Token personal de Clay del usuario actual -- se valida contra Clay y se
+// guarda cifrado; nunca vuelve al frontend.
+export async function setMiClayToken(token: string): Promise<{ success: boolean; tieneTokenClay: boolean }> {
+  const response = await apiClient.put('/mi-clay-token', { token });
+  return response.data;
+}
+
+export async function deleteMiClayToken(): Promise<{ success: boolean; tieneTokenClay: boolean }> {
+  const response = await apiClient.delete('/mi-clay-token');
   return response.data;
 }
 
