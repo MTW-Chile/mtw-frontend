@@ -854,9 +854,14 @@ export interface ItemOCCheckout {
   pendienteRecepcionar: number;
 }
 
+// null en facturaLineaIndex: la sugerencia no vino de una linea real de
+// Clay (varias facturas reales no traen NINGUN detalle en Clay, ni en el
+// dashboard de Clay mismo) -- cayo al fallback de "1 vinculo por item
+// pendiente, al precio comprometido", puramente informativo.
 export interface VinculoSugerido {
-  facturaLineaIndex: number;
+  facturaLineaIndex: number | null;
   ordenCompraItemId: string;
+  descripcion: string;
   cantidad: number;
   monto: number;
 }

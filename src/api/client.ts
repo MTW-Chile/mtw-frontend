@@ -771,7 +771,7 @@ export async function vincularFactura(
   ordenCompraId: string,
   payload: {
     clayTransactionId: string;
-    items: { ordenCompraItemId: string; facturaLineaIndex: number; cantidad: number; monto: number }[];
+    items: { ordenCompraItemId: string; descripcion: string; cantidad: number; monto: number }[];
     ajustarOC?: boolean;
     permitirOtroRut?: boolean;
     notas?: string;

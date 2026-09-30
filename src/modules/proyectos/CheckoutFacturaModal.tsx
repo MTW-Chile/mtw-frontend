@@ -12,7 +12,10 @@ const formatFecha = (iso: string) => new Date(iso).toLocaleDateString('es-CL', {
 
 interface VinculoEditable {
   ordenCompraItemId: string;
-  facturaLineaIndex: number;
+  // Texto libre -- NO es un indice de una linea de Clay (varias facturas
+  // reales no traen ningun detalle en Clay). Una linea de Clay, cuando
+  // existe, es solo un atajo para copiar descripcion/cantidad/monto aca.
+  descripcion: string;
   cantidad: number;
   monto: number;
 }
@@ -79,13 +82,15 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
   useEffect(() => {
     if (data && !inicializado.current) {
       inicializado.current = true;
-      setVinculos(data.sugerencias.map((s) => ({ ...s })));
+      setVinculos(data.sugerencias.map((s) => ({ ordenCompraItemId: s.ordenCompraItemId, descripcion: s.descripcion, cantidad: s.cantidad, monto: s.monto })));
     }
   }, [data]);
 
   const mutation = useMutation({
     mutationFn: () => {
-      const items = vinculos.filter((v) => v.ordenCompraItemId && v.facturaLineaIndex != null && v.cantidad > 0 && v.monto > 0);
+      const items = vinculos
+        .filter((v) => v.ordenCompraItemId && v.descripcion.trim() && v.cantidad > 0 && v.monto > 0)
+        .map((v) => ({ ordenCompraItemId: v.ordenCompraItemId, descripcion: v.descripcion.trim(), cantidad: v.cantidad, monto: v.monto }));
       return vincularFactura(ordenCompraId, { clayTransactionId, items, ajustarOC, permitirOtroRut });
     },
     onSuccess: () => {
@@ -98,37 +103,43 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
 
   const itemsOC = data?.itemsOC ?? [];
   const lineasFactura = data?.lineasFactura ?? [];
-  const vinculosValidos = vinculos.filter((v) => v.ordenCompraItemId && v.facturaLineaIndex != null && v.cantidad > 0 && v.monto > 0);
+  const vinculosValidos = vinculos.filter((v) => v.ordenCompraItemId && v.descripcion.trim() && v.cantidad > 0 && v.monto > 0);
   const cantidadUsadaPorItem = new Map<string, number>();
-  const montoUsadoPorLinea = new Map<number, number>();
   for (const v of vinculosValidos) {
     cantidadUsadaPorItem.set(v.ordenCompraItemId, (cantidadUsadaPorItem.get(v.ordenCompraItemId) ?? 0) + v.cantidad);
-    montoUsadoPorLinea.set(v.facturaLineaIndex, (montoUsadoPorLinea.get(v.facturaLineaIndex) ?? 0) + v.monto);
   }
   const itemsPendientes = itemsOC.filter((i) => i.pendienteCantidad - (cantidadUsadaPorItem.get(i.id) ?? 0) > 0.001);
-  const lineasSinVincular = lineasFactura.filter((l) => l.monto - (montoUsadoPorLinea.get(l.indice) ?? 0) > 1);
 
   const actualizarVinculo = (idx: number, cambios: Partial<VinculoEditable>) => {
     setVinculos((prev) => {
       const next = [...prev];
       const actual = { ...next[idx], ...cambios };
-      // Al elegir item/linea nuevos, prellenar cantidad/monto con lo
-      // pendiente -- la persona los puede seguir editando a mano.
+      // Al elegir un item nuevo, prellenar cantidad (y descripcion, si
+      // todavia estaba vacia) con lo pendiente -- la persona lo puede
+      // seguir editando a mano.
       if (cambios.ordenCompraItemId !== undefined) {
         const item = itemsOC.find((i) => i.id === cambios.ordenCompraItemId);
-        if (item) actual.cantidad = item.pendienteCantidad;
-      }
-      if (cambios.facturaLineaIndex !== undefined) {
-        const linea = lineasFactura.find((l) => l.indice === cambios.facturaLineaIndex);
-        if (linea) actual.monto = linea.monto;
+        if (item) {
+          actual.cantidad = item.pendienteCantidad;
+          if (!actual.descripcion.trim()) actual.descripcion = item.descripcion;
+        }
       }
       next[idx] = actual;
       return next;
     });
   };
 
+  // Atajo: copiar descripcion/cantidad/monto de una linea real de Clay a
+  // un vinculo -- no "consume" la linea (Clay no es una fuente confiable
+  // de a cuanto suma cada una, ver comentario grande en sugerirVinculos()
+  // del backend), asi que la misma linea se puede copiar mas de una vez.
+  const copiarDeLinea = (idx: number, facturaLineaIndex: number) => {
+    const linea = lineasFactura.find((l) => l.indice === facturaLineaIndex);
+    if (linea) actualizarVinculo(idx, { descripcion: linea.descripcion, cantidad: linea.cantidad ?? vinculos[idx].cantidad, monto: linea.monto });
+  };
+
   const quitarVinculo = (idx: number) => setVinculos((prev) => prev.filter((_, i) => i !== idx));
-  const agregarVinculo = () => setVinculos((prev) => [...prev, { ordenCompraItemId: '', facturaLineaIndex: -1, cantidad: 0, monto: 0 }]);
+  const agregarVinculo = () => setVinculos((prev) => [...prev, { ordenCompraItemId: '', descripcion: '', cantidad: 0, monto: 0 }]);
 
   const asiento = data?.asiento;
   const totalDebe = asiento?.lineas.reduce((s, l) => s + l.debe, 0) ?? 0;
@@ -228,20 +239,23 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                   <span className="text-[11px] text-slate-400">Sugerido por monto -- revisa y ajusta antes de confirmar.</span>
                 </div>
 
+                {lineasFactura.length === 0 && (
+                  <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+                    Clay no tiene el detalle línea a línea de esta factura. Completa la descripción y el monto de cada vínculo a mano,
+                    usando la factura real (PDF/papel) como referencia -- se prellenó un vínculo por cada ítem pendiente de la OC, al
+                    precio comprometido, como punto de partida.
+                  </p>
+                )}
+
                 {vinculos.length === 0 ? (
                   <p className="text-xs text-slate-400 p-3 rounded-xl border border-dashed border-slate-200">
-                    No se encontró ninguna sugerencia automática. Agrega un vínculo a mano.
+                    No hay ningún vínculo todavía. Agrega uno a mano.
                   </p>
                 ) : (
                   <div className="rounded-xl border border-slate-200 divide-y divide-slate-100">
                     {vinculos.map((v, idx) => {
-                      const itemSeleccionado = itemsOC.find((i) => i.id === v.ordenCompraItemId);
-                      const lineaSeleccionada = lineasFactura.find((l) => l.indice === v.facturaLineaIndex);
                       const opcionesItem = itemsOC.filter(
                         (i) => i.id === v.ordenCompraItemId || i.pendienteCantidad - (cantidadUsadaPorItem.get(i.id) ?? 0) > 0.001
-                      );
-                      const opcionesLinea = lineasFactura.filter(
-                        (l) => l.indice === v.facturaLineaIndex || l.monto - (montoUsadoPorLinea.get(l.indice) ?? 0) > 1
                       );
                       return (
                         <div key={idx} className="p-2.5 flex items-center gap-2 flex-wrap text-xs">
@@ -258,18 +272,13 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                             ))}
                           </select>
                           <span className="text-slate-300">↔</span>
-                          <select
-                            value={v.facturaLineaIndex}
-                            onChange={(e) => actualizarVinculo(idx, { facturaLineaIndex: Number(e.target.value) })}
-                            className="flex-1 min-w-[160px] rounded-lg border border-slate-200 px-2 py-1.5 text-xs bg-white"
-                          >
-                            <option value={-1}>Línea de la factura...</option>
-                            {opcionesLinea.map((l) => (
-                              <option key={l.indice} value={l.indice}>
-                                {l.descripcion} ({formatCLP(l.monto)}){!l.reconocida ? ' ⚠' : ''}
-                              </option>
-                            ))}
-                          </select>
+                          <input
+                            type="text"
+                            value={v.descripcion}
+                            onChange={(e) => actualizarVinculo(idx, { descripcion: e.target.value })}
+                            placeholder="Descripción"
+                            className="flex-1 min-w-[140px] rounded-lg border border-slate-200 px-2 py-1.5 text-xs bg-white"
+                          />
                           <input
                             type="number"
                             value={v.cantidad || ''}
@@ -291,10 +300,19 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
-                          {itemSeleccionado && lineaSeleccionada && !lineaSeleccionada.reconocida && (
-                            <p className="w-full text-[11px] text-amber-700">
-                              Clay no trajo esta línea en un formato reconocido -- revisa la descripción/monto a mano.
-                            </p>
+                          {lineasFactura.length > 0 && (
+                            <select
+                              value=""
+                              onChange={(e) => e.target.value && copiarDeLinea(idx, Number(e.target.value))}
+                              className="w-full rounded-lg border border-dashed border-slate-200 px-2 py-1 text-[11px] bg-slate-50 text-slate-500"
+                            >
+                              <option value="">Copiar de una línea de Clay...</option>
+                              {lineasFactura.map((l) => (
+                                <option key={l.indice} value={l.indice}>
+                                  {l.descripcion} ({formatCLP(l.monto)}){!l.reconocida ? ' ⚠' : ''}
+                                </option>
+                              ))}
+                            </select>
                           )}
                         </div>
                       );
@@ -309,38 +327,21 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                   <Plus className="w-3.5 h-3.5" /> Agregar vínculo manual
                 </button>
 
-                {(itemsPendientes.length > 0 || lineasSinVincular.length > 0) && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {itemsPendientes.length > 0 && (
-                      <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
-                        <p className="text-[11px] font-bold text-slate-500 mb-1">Items de la OC sin vincular</p>
-                        <ul className="space-y-0.5">
-                          {itemsPendientes.map((i) => (
-                            <li key={i.id} className="text-[11px] text-slate-600 flex items-center justify-between gap-2">
-                              <span className="truncate">{i.descripcion}</span>
-                              <span className="font-mono shrink-0">
-                                {(i.pendienteCantidad - (cantidadUsadaPorItem.get(i.id) ?? 0)).toLocaleString('es-CL', { maximumFractionDigits: 2 })}{' '}
-                                {i.unidadMedida}
-                                {i.pendienteRecepcionar > 0 && <span className="text-amber-600"> · sin recepcionar</span>}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {lineasSinVincular.length > 0 && (
-                      <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
-                        <p className="text-[11px] font-bold text-slate-500 mb-1">Líneas de la factura sin vincular</p>
-                        <ul className="space-y-0.5">
-                          {lineasSinVincular.map((l) => (
-                            <li key={l.indice} className="text-[11px] text-slate-600 flex items-center justify-between gap-2">
-                              <span className="truncate">{l.descripcion}</span>
-                              <span className="font-mono shrink-0">{formatCLP(l.monto - (montoUsadoPorLinea.get(l.indice) ?? 0))}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                {itemsPendientes.length > 0 && (
+                  <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                    <p className="text-[11px] font-bold text-slate-500 mb-1">Items de la OC sin vincular</p>
+                    <ul className="space-y-0.5">
+                      {itemsPendientes.map((i) => (
+                        <li key={i.id} className="text-[11px] text-slate-600 flex items-center justify-between gap-2">
+                          <span className="truncate">{i.descripcion}</span>
+                          <span className="font-mono shrink-0">
+                            {(i.pendienteCantidad - (cantidadUsadaPorItem.get(i.id) ?? 0)).toLocaleString('es-CL', { maximumFractionDigits: 2 })}{' '}
+                            {i.unidadMedida}
+                            {i.pendienteRecepcionar > 0 && <span className="text-amber-600"> · sin recepcionar</span>}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </section>
