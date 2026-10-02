@@ -1,4 +1,5 @@
 import React from 'react';
+import { mostrarToast } from '../../lib/toast';
 
 interface Props {
   children: React.ReactNode;
@@ -24,6 +25,11 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error('[ErrorBoundary] Error no capturado en la UI:', error, info.componentStack);
+    // El toast queda montado fuera de este boundary (ver main.tsx), asi que
+    // sigue visible aunque esta pantalla reemplace al resto de la app.
+    mostrarToast(error.message || 'Error inesperado en la interfaz', {
+      detalle: info.componentStack?.trim().split('\n')[0],
+    });
   }
 
   render() {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, QueryCache, MutationCache, useQuery } from '@tanstack/react-query';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { InicioPage } from './modules/inicio/InicioPage';
@@ -14,13 +14,38 @@ import { CentroNotificacionesPage } from './modules/notificaciones/CentroNotific
 import { getProyectos, getMisPermisos } from './api/client';
 import { useCloudflareAccessSession, SessionContext } from './lib/useCloudflareAccessSession';
 import { SECCIONES_FRONTEND } from './lib/accessControl';
+import { mostrarToast, extraerErrorParaToast } from './lib/toast';
 
 // Tab especial, fuera de SECCIONES_FRONTEND a proposito (no va en el
 // Sidebar -- solo se llega ahi desde la campanita del Header o el link de
 // un correo de aprobacion pendiente, ver puedeVerCentro mas abajo).
 const TAB_CENTRO_NOTIFICACIONES = 'centro-notificaciones';
 
+// Debug global: CUALQUIER query o mutation que falle en cualquier parte de
+// la app dispara un toast (ver ToastContainer, montado en main.tsx) --
+// ademas del manejo de error puntual que ya tenga esa pantalla, no en vez
+// de. No reemplaza el interceptor de axios en api/client.ts (ese cubre un
+// caso distinto: sesion de Cloudflare Access vencida, sin response HTTP --
+// ahi la promesa nunca llega a rechazarse, asi que esto nunca se dispara
+// para ese caso).
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      const { mensaje, detalle } = extraerErrorParaToast(error);
+      // El toast desaparece solo a los 10s -- esto es lo que queda
+      // despues, buscable en la consola del navegador (F12) mientras dure
+      // la pestaña abierta.
+      console.error('[queryCache]', query.queryKey, error);
+      mostrarToast(mensaje, { detalle });
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error, _variables, _context, mutation) => {
+      const { mensaje, detalle } = extraerErrorParaToast(error);
+      console.error('[mutationCache]', mutation.options.mutationKey, error);
+      mostrarToast(mensaje, { detalle });
+    },
+  }),
   defaultOptions: {
     queries: {
       // Antes: 5 min sin refetch al volver a la pestaña -- la info se veia
