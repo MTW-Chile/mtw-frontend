@@ -78,3 +78,17 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Sin flechas de incrementar/decrementar en los input type="number" de toda
+   la app -- junto con el blur-on-wheel global en main.tsx, evita que
+   scrollear la pagina con el mouse sobre un campo numerico cambie su valor
+   sin que la persona se de cuenta (bug reportado en Nueva OC, pero el mismo
+   <input type="number"> se repite en toda la app). */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}

@@ -16,26 +16,32 @@ import {
   type ItemOrdenCompraPayload,
 } from '../../api/client';
 import { useMonedas } from '../../lib/monedas';
-import { computeMaterialesFasePorProveedor, type GrupoFaseProveedor, type TrasladoDesdeObrasMayores } from '../cotizaciones/lib/materialesConsolidados';
+import {
+  computeMaterialesFasePorProveedor,
+  computeMaterialesConsolidados,
+  MONEDA_POR_FAMILIA,
+  normalizarFamilia,
+  type GrupoFaseProveedor,
+  type TrasladoDesdeObrasMayores,
+} from '../cotizaciones/lib/materialesConsolidados';
 import { CATEGORIA_GASTO_OPTIONS, CATEGORIA_GASTO_LABEL } from './categoriaGasto';
 import type { CategoriaGasto, Fase, Material } from '../../types';
 
-// Convierte un precio de origen (Material.precioOrigen/monedaOrigen) a CLP
-// con las mismas tasas que ya usa el calculo por fase -- no replica el
-// ajuste fino de esa logica (descuento/recargo por familia, barra entera
-// de Perfileria/Refuerzos), es solo un precio referencial para partir al
-// elegir un producto a mano, editable igual que cualquier otro.
-function convertirACLP(monto: number, moneda: string | null | undefined, tasaDolar: number, tasaEuro: number, tasaUf: number): number {
-  switch ((moneda || 'CLP').toUpperCase()) {
-    case 'USD':
-      return monto * tasaDolar;
-    case 'EUR':
-      return monto * tasaEuro;
-    case 'UF':
-      return monto * tasaUf;
-    default:
-      return monto;
-  }
+// Convierte el precio de catalogo de un Material (Material.precioOrigen) a
+// CLP para sugerirlo al elegirlo a mano -- "precio del maestro", usado para
+// Obras Mayores y para items marcados como Adicional (ver esAdicional).
+// OJO: la moneda NO sale de Material.monedaOrigen -- ese campo es el
+// moneda_origen_codigo crudo de HETMO, que viene hardcodeado en "2" para
+// todo material (nunca fue un dato real, confirmado en
+// materialesConsolidados.ts). La divisa real depende de la familia
+// (MONEDA_POR_FAMILIA), igual que en la Analitica de Materiales -- comparar
+// contra el codigo de HETMO directamente siempre daba CLP sin convertir.
+function precioMaestroCLP(material: Material, tasaDolar: number, tasaEuro: number): number | null {
+  if (material.precioOrigen == null) return null;
+  const familia = normalizarFamilia((material.familia || '').toUpperCase().trim());
+  const moneda = MONEDA_POR_FAMILIA[familia] || 'CLP';
+  const factor = moneda === 'USD' ? tasaDolar : moneda === 'EUR' ? tasaEuro : 1;
+  return material.precioOrigen * factor;
 }
 
 // Campo de descripcion de un item manual: con proveedor elegido, busca en
@@ -124,7 +130,8 @@ const BuscadorProductoProveedor: React.FC<{
                 <div className="text-[11px] font-semibold text-slate-800 leading-tight">{m.descripcion}</div>
                 <div className="text-[10px] text-slate-400">
                   {m.skuInterno} · {m.unidadMedida}
-                  {m.precioOrigen != null && ` · ${m.precioOrigen.toLocaleString('es-CL')} ${m.monedaOrigen || 'CLP'}`}
+                  {m.precioOrigen != null &&
+                    ` · ${m.precioOrigen.toLocaleString('es-CL')} ${MONEDA_POR_FAMILIA[normalizarFamilia((m.familia || '').toUpperCase().trim())] || 'CLP'}`}
                 </div>
               </button>
             ))
@@ -201,6 +208,7 @@ const itemFormDesdeCalculo = (item: GrupoFaseProveedor['items'][number]): ItemFo
 });
 
 const fmtCantidad = (n: number | undefined) => (n ?? 0).toLocaleString('es-CL', { maximumFractionDigits: 2 });
+const formatCLP = (v: number) => v.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
 export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   isOpen,
@@ -227,6 +235,13 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   const [comentarios, setComentarios] = useState('');
   const [items, setItems] = useState<ItemForm[]>([itemVacio()]);
   const [generalError, setGeneralError] = useState<string | null>(null);
+  // Un Adicional es trabajo fuera de lo que el cliente ya aprobo en el
+  // presupuesto -- al elegir un producto a mano para un item nuevo, no
+  // corresponde sugerirle el precio comprometido de esa obra (ese precio es
+  // del alcance original), se sugiere el precio del maestro, igual que
+  // Obras Mayores. Se vuelve a preguntar cada vez que se elige una obra
+  // distinta (ver el useEffect que resetea proveedor/items mas abajo).
+  const [esAdicional, setEsAdicional] = useState(false);
 
   // Solo modo "completar": la solicitud que se esta completando.
   const { data: solicitud, isLoading: cargandoSolicitud } = useQuery({
@@ -329,11 +344,26 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
     };
   }, [activeVersion, faseId, tasaDolar, tasaEuro, tasaUf, monedas, categoriaFiltro, stockProyectoPorMaterial, stockObrasMayoresPorMaterial]);
 
+  // Precio comprometido por material: el mismo que ya usa gruposPorProveedor
+  // arriba, pero para TODA la version del proyecto (no solo lo que necesita
+  // la fase elegida) -- un material del presupuesto aprobado que no sea
+  // parte de esta fase igual tiene un precio ya comprometido con el
+  // cliente. Se usa al elegir un producto a mano (ver seleccionarMaterialEnItem)
+  // cuando la obra no es Adicional; sin proyecto, o marcado Adicional, se
+  // usa el precio del maestro en su lugar.
+  const preciosComprometidosPorMaterial = useMemo(() => {
+    if (!activeVersion) return new Map<string, { precioCLP: number; unidadMedida: string }>();
+    const consolidado = computeMaterialesConsolidados(activeVersion, tasaDolar, tasaEuro, tasaUf, monedas);
+    return new Map(consolidado.map((m) => [m.materialId, { precioCLP: m.precioCLP, unidadMedida: m.unidadMedida }]));
+  }, [activeVersion, tasaDolar, tasaEuro, tasaUf, monedas]);
+
   // Cambiar de proyecto o de fase invalida cualquier proveedor/items que ya
   // se hubieran elegido -- evita mezclar items de una fase con el proveedor
-  // armado para otra.
+  // armado para otra. Adicional se vuelve a preguntar por cada obra (ver
+  // selector mas abajo) en vez de arrastrarse de una obra a otra.
   useEffect(() => {
     setFaseId('');
+    setEsAdicional(false);
   }, [proyectoId]);
 
   // Precarga de fase al abrir desde "Generar OC" (ver faseIdInicial) --
@@ -509,6 +539,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
     setProveedorId('');
     setComentarios('');
     setItems([itemVacio()]);
+    setEsAdicional(false);
     setGeneralError(null);
     solicitudPobladaRef.current = null;
     onClose();
@@ -522,11 +553,18 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   const quitarItem = (index: number) => setItems((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
 
   // Elegir un producto sugerido del buscador: lo liga al catalogo (igual
-  // que un item que ya venia calculado por fase) y precarga unidad/precio
-  // referencial -- la persona los puede seguir editando igual.
+  // que un item que ya venia calculado por fase) y precarga unidad/precio.
+  // Con una obra elegida y SIN marcar Adicional, el precio sugerido es el
+  // ya comprometido con el cliente en el presupuesto aprobado (si ese
+  // material esta en el); en cualquier otro caso (Obras Mayores, o
+  // Adicional) se sugiere el precio del maestro. La persona puede seguir
+  // editando el precio igual en ambos casos.
   const seleccionarMaterialEnItem = (index: number, material: Material) => {
-    const precioReferencial =
-      material.precioOrigen != null ? Math.round(convertirACLP(material.precioOrigen, material.monedaOrigen, tasaDolar, tasaEuro, tasaUf)) : null;
+    const comprometido = proyectoId && !esAdicional ? preciosComprometidosPorMaterial.get(material.id) : undefined;
+    const precioReferencial = comprometido ? Math.round(comprometido.precioCLP) : (() => {
+      const maestro = precioMaestroCLP(material, tasaDolar, tasaEuro);
+      return maestro != null ? Math.round(maestro) : null;
+    })();
     setItems((prev) =>
       prev.map((it, i) =>
         i === index
@@ -534,7 +572,11 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
               ...it,
               materialId: material.id,
               descripcion: material.descripcion,
-              unidadMedida: material.unidadMedida,
+              // El precio comprometido viene por la unidad de compra real
+              // (ej. BARRA para Perfileria, no el metro de catalogo) -- usar
+              // esa unidad junto con ese precio, nunca mezclar con la del
+              // maestro.
+              unidadMedida: comprometido?.unidadMedida || material.unidadMedida,
               categoria: '',
               precioUnitario: precioReferencial != null ? String(precioReferencial) : it.precioUnitario,
             }
@@ -581,7 +623,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
       <div
-        className="w-full sm:max-w-2xl bg-white rounded-t-2xl sm:rounded-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[94vh] sm:max-h-[88vh] animate-slide-up sm:animate-none"
+        className="w-full sm:max-w-4xl bg-white rounded-t-2xl sm:rounded-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[94vh] sm:max-h-[88vh] animate-slide-up sm:animate-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
@@ -663,6 +705,21 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
                 helperText={cargandoDetalle ? 'Cargando fases del proyecto...' : undefined}
               />
             </div>
+          )}
+
+          {modo !== 'completar' && proyectoId && (
+            <label className="flex items-start gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={esAdicional}
+                onChange={(e) => setEsAdicional(e.target.checked)}
+                className="mt-0.5 accent-[#E34A26]"
+              />
+              <span className="text-xs text-slate-700">
+                <strong>Es un Adicional</strong> -- trabajo fuera del presupuesto aprobado para esta obra. Al elegir productos a mano se
+                sugiere el precio del maestro en vez del precio ya comprometido con el cliente.
+              </span>
+            </label>
           )}
 
           {modo !== 'completar' && faseId && (
@@ -748,94 +805,117 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
           </div>
 
           <div className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="block text-xs font-bold uppercase tracking-wider text-slate-700">Items</span>
-              <Button type="button" variant="ghost" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={agregarItem}>
-                Agregar item
-              </Button>
+            <span className="block text-xs font-bold uppercase tracking-wider text-slate-700">Items</span>
+
+            <div className="rounded-xl border border-slate-200 overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                    <th className="px-3 py-2 font-bold">Descripción</th>
+                    <th className="px-3 py-2 font-bold w-36">Categoría</th>
+                    <th className="px-3 py-2 font-bold w-20">Unidad</th>
+                    <th className="px-3 py-2 font-bold text-right w-24">Cantidad</th>
+                    {modo !== 'solicitar' && <th className="px-3 py-2 font-bold text-right w-28">Precio unit.</th>}
+                    <th className="px-3 py-2 font-bold text-right w-28">Subtotal</th>
+                    <th className="w-10"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item, index) => {
+                    const subtotal = (parseFloat(item.cantidad) || 0) * (parseFloat(item.precioUnitario) || 0);
+                    return (
+                      <tr key={index} className="border-b border-slate-50 align-top">
+                        <td className="px-3 py-2 min-w-[200px]">
+                          <BuscadorProductoProveedor
+                            proveedorId={proveedorId}
+                            descripcion={item.descripcion}
+                            seleccionado={!!item.materialId}
+                            onCambiarTexto={(valor) => setItemField(index, 'descripcion', valor)}
+                            onSeleccionar={(material) => seleccionarMaterialEnItem(index, material)}
+                            onQuitarSeleccion={() => quitarMaterialDeItem(index)}
+                          />
+                          {modo === 'completar' && item.materialId && (
+                            <p className="text-[10px] text-slate-500 mt-1">
+                              Solicitado {fmtCantidad(item.cantidadSolicitada)} · Obra: {fmtCantidad(item.disponibleObra)} · Obras Mayores:{' '}
+                              {fmtCantidad(item.disponibleObrasMayores)}
+                            </p>
+                          )}
+                          {modo !== 'completar' && !!item.stockDisponible && (
+                            <p className="text-[10px] text-slate-400 mt-1">Ya tenías {fmtCantidad(item.stockDisponible)} en stock</p>
+                          )}
+                          {modo === 'solicitar' && item.precioUnitario && (
+                            <p className="text-[10px] text-slate-400 mt-1">Precio referencial: {formatCLP(Number(item.precioUnitario))}</p>
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          {item.materialId ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-sky-50 border border-sky-200 text-[10px] font-bold text-sky-700 whitespace-nowrap">
+                              <Package className="w-3 h-3 shrink-0" /> Del catálogo
+                            </span>
+                          ) : (
+                            <Select
+                              options={[{ value: '', label: 'Categoría...' }, ...CATEGORIA_GASTO_OPTIONS]}
+                              value={item.categoria}
+                              onChange={(e) => setItemField(index, 'categoria', e.target.value as CategoriaGasto)}
+                            />
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="text"
+                            value={item.unidadMedida}
+                            onChange={(e) => setItemField(index, 'unidadMedida', e.target.value)}
+                            className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="number"
+                            value={item.cantidad}
+                            onChange={(e) => setItemField(index, 'cantidad', e.target.value)}
+                            className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-mono text-right"
+                          />
+                        </td>
+                        {modo !== 'solicitar' && (
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              value={item.precioUnitario}
+                              onChange={(e) => setItemField(index, 'precioUnitario', e.target.value)}
+                              className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-mono text-right"
+                            />
+                          </td>
+                        )}
+                        <td className="px-3 py-2 text-right font-mono font-semibold text-slate-900">{formatCLP(subtotal)}</td>
+                        <td className="px-3 py-2">
+                          <button
+                            type="button"
+                            onClick={() => quitarItem(index)}
+                            disabled={items.length === 1}
+                            className="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-slate-50/70 font-bold">
+                    <td className="px-3 py-2 text-slate-600" colSpan={modo === 'solicitar' ? 4 : 5}>
+                      {modo === 'solicitar' ? 'Total referencial' : 'Total estimado'}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-slate-900">{formatCLP(total)}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
 
-            <div className="space-y-2">
-              {items.map((item, index) => (
-                <div key={index} className="space-y-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                  <div className="flex gap-2 items-start">
-                    <div className="flex-1">
-                      <BuscadorProductoProveedor
-                        proveedorId={proveedorId}
-                        descripcion={item.descripcion}
-                        seleccionado={!!item.materialId}
-                        onCambiarTexto={(valor) => setItemField(index, 'descripcion', valor)}
-                        onSeleccionar={(material) => seleccionarMaterialEnItem(index, material)}
-                        onQuitarSeleccion={() => quitarMaterialDeItem(index)}
-                      />
-                    </div>
-                    <div className="w-44 shrink-0">
-                      {item.materialId ? (
-                        <div className="h-[38px] flex items-center justify-center gap-1 px-3 rounded-xl bg-sky-50 border border-sky-200 text-[11px] font-bold text-sky-700">
-                          <Package className="w-3.5 h-3.5" />
-                          Del catálogo
-                        </div>
-                      ) : (
-                        <Select
-                          options={[{ value: '', label: 'Categoría...' }, ...CATEGORIA_GASTO_OPTIONS]}
-                          value={item.categoria}
-                          onChange={(e) => setItemField(index, 'categoria', e.target.value as CategoriaGasto)}
-                        />
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => quitarItem(index)}
-                      disabled={items.length === 1}
-                      className="w-9 h-9 mt-0.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors disabled:opacity-30 disabled:pointer-events-none shrink-0"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  {modo === 'completar' && item.materialId && (
-                    <p className="text-[10px] text-slate-500 -mt-1">
-                      Solicitado {fmtCantidad(item.cantidadSolicitada)} · En bodega de la obra: {fmtCantidad(item.disponibleObra)} · En Obras
-                      Mayores: {fmtCantidad(item.disponibleObrasMayores)}
-                    </p>
-                  )}
-                  <div className={modo === 'solicitar' ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-3 gap-2'}>
-                    <Input placeholder="Unidad" value={item.unidadMedida} onChange={(e) => setItemField(index, 'unidadMedida', e.target.value)} />
-                    <Input
-                      type="number"
-                      placeholder="Cantidad"
-                      value={item.cantidad}
-                      onChange={(e) => setItemField(index, 'cantidad', e.target.value)}
-                      helperText={
-                        modo !== 'completar' && item.stockDisponible
-                          ? `Ya tenías ${fmtCantidad(item.stockDisponible)} en stock`
-                          : undefined
-                      }
-                    />
-                    {modo !== 'solicitar' && (
-                      <Input
-                        type="number"
-                        placeholder="Precio unit."
-                        value={item.precioUnitario}
-                        onChange={(e) => setItemField(index, 'precioUnitario', e.target.value)}
-                      />
-                    )}
-                  </div>
-                  {modo === 'solicitar' && item.precioUnitario && (
-                    <p className="text-[10px] text-slate-400">
-                      Precio referencial:{' '}
-                      {Number(item.precioUnitario).toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div className="text-right text-xs text-slate-600">
-              {modo === 'solicitar' ? 'Total referencial' : 'Total estimado'}:{' '}
-              <span className="font-bold text-slate-900">
-                {total.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })}
-              </span>
-            </div>
+            <Button type="button" variant="ghost" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={agregarItem}>
+              Agregar item
+            </Button>
           </div>
         </form>
 
