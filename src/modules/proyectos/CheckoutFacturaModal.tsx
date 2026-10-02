@@ -1,14 +1,26 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { X, Receipt, AlertCircle, AlertTriangle, Loader2, CheckCircle2, Plus, Trash2 } from 'lucide-react';
+import { X, Receipt, AlertCircle, AlertTriangle, Loader2, CheckCircle2, Plus, Trash2, Upload, FileCode2 } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { getCheckoutFactura, vincularFactura } from '../../api/client';
+import { getCheckoutFactura, vincularFactura, importarXmlFactura } from '../../api/client';
 import { ESTADO_OC_LABEL } from '../abastecimiento/OrdenesCompraList';
-import type { ItemOCCheckout } from '../../types';
+import type { ItemOCCheckout, ClayDteLinea } from '../../types';
 
 const formatCLP = (v: number) => v.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 const formatFecha = (iso: string) => new Date(iso).toLocaleDateString('es-CL', { timeZone: 'UTC' });
+
+// Browser-only (sin Buffer): base64 en chunks para no reventar el stack con
+// String.fromCharCode(...bytes) en un XML grande (tope 1MB, pero igual).
+function arrayBufferABase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binario = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binario += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binario);
+}
 
 interface VinculoEditable {
   ordenCompraItemId: string;
@@ -64,10 +76,17 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
   onConciliada,
 }) => {
   const queryClient = useQueryClient();
+  const [modo, setModo] = useState<'item' | 'monto'>('item');
   const [ajustarOC, setAjustarOC] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [vinculos, setVinculos] = useState<VinculoEditable[]>([]);
+  // itemsOC/lineasFactura empiezan con lo que trae el checkout (desde
+  // Clay), pero se reemplazan enteros si se importa un XML (fuente mas
+  // confiable -- ver importarXmlMutation).
+  const [fuente, setFuente] = useState<{ itemsOC: ItemOCCheckout[]; lineasFactura: ClayDteLinea[] } | null>(null);
+  const [xmlNombre, setXmlNombre] = useState<string | null>(null);
   const inicializado = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data, isLoading, error: errorCheckout } = useQuery({
     queryKey: ['checkoutFactura', ordenCompraId, clayTransactionId, permitirOtroRut],
@@ -82,16 +101,34 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
   useEffect(() => {
     if (data && !inicializado.current) {
       inicializado.current = true;
+      setFuente({ itemsOC: data.itemsOC, lineasFactura: data.lineasFactura });
       setVinculos(data.sugerencias.map((s) => ({ ordenCompraItemId: s.ordenCompraItemId, descripcion: s.descripcion, cantidad: s.cantidad, monto: s.monto })));
     }
   }, [data]);
 
+  const importarXmlMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const buffer = await file.arrayBuffer();
+      return { file, resp: await importarXmlFactura(ordenCompraId, clayTransactionId, arrayBufferABase64(buffer), permitirOtroRut) };
+    },
+    onSuccess: ({ file, resp }) => {
+      setFuente({ itemsOC: resp.itemsOC, lineasFactura: resp.lineasFactura });
+      setVinculos(resp.sugerencias.map((s) => ({ ordenCompraItemId: s.ordenCompraItemId, descripcion: s.descripcion, cantidad: s.cantidad, monto: s.monto })));
+      setXmlNombre(file.name);
+      setError(null);
+    },
+    onError: (err: any) => setError(err?.response?.data?.error || 'No se pudo leer el XML.'),
+  });
+
   const mutation = useMutation({
     mutationFn: () => {
+      if (modo === 'monto') {
+        return vincularFactura(ordenCompraId, { clayTransactionId, modo: 'monto', ajustarOC, permitirOtroRut });
+      }
       const items = vinculos
         .filter((v) => v.ordenCompraItemId && v.descripcion.trim() && v.cantidad > 0 && v.monto > 0)
         .map((v) => ({ ordenCompraItemId: v.ordenCompraItemId, descripcion: v.descripcion.trim(), cantidad: v.cantidad, monto: v.monto }));
-      return vincularFactura(ordenCompraId, { clayTransactionId, items, ajustarOC, permitirOtroRut });
+      return vincularFactura(ordenCompraId, { clayTransactionId, modo: 'item', items, ajustarOC, permitirOtroRut });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ordenesCompra'] });
@@ -101,8 +138,8 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
     onError: (err: any) => setError(err?.response?.data?.error || 'No se pudo conciliar la factura.'),
   });
 
-  const itemsOC = data?.itemsOC ?? [];
-  const lineasFactura = data?.lineasFactura ?? [];
+  const itemsOC = fuente?.itemsOC ?? [];
+  const lineasFactura = fuente?.lineasFactura ?? [];
   const vinculosValidos = vinculos.filter((v) => v.ordenCompraItemId && v.descripcion.trim() && v.cantidad > 0 && v.monto > 0);
   const cantidadUsadaPorItem = new Map<string, number>();
   for (const v of vinculosValidos) {
@@ -144,9 +181,28 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
   const asiento = data?.asiento;
   const totalDebe = asiento?.lineas.reduce((s, l) => s + l.debe, 0) ?? 0;
   const totalHaber = asiento?.lineas.reduce((s, l) => s + l.haber, 0) ?? 0;
-  const estadoLocal = data ? simularEstadoLocal(itemsOC, vinculos) : 'sinCambios';
-  const estadoFinal = data ? (estadoLocal === 'completa' ? 'CONCILIADA' : 'PARCIALMENTE_CONCILIADA') : null;
-  const bloqueado = !data || (asiento?.errores.length ?? 0) > 0 || vinculosValidos.length === 0;
+  // modo "monto": mismo criterio de antes de la conciliacion item a item
+  // (cuadra el total, o se fuerza con el ajuste). modo "item": cobertura
+  // real por item, calculada en vivo mientras se edita.
+  const estadoFinal = !data
+    ? null
+    : modo === 'monto'
+      ? data.cuadra || ajustarOC
+        ? 'CONCILIADA'
+        : 'PARCIALMENTE_CONCILIADA'
+      : simularEstadoLocal(itemsOC, vinculos) === 'completa'
+        ? 'CONCILIADA'
+        : 'PARCIALMENTE_CONCILIADA';
+  const bloqueado = !data || (asiento?.errores.length ?? 0) > 0 || (modo === 'item' && vinculosValidos.length === 0);
+
+  const onArchivoXml = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // permite volver a elegir el mismo archivo despues
+    if (file) {
+      setError(null);
+      importarXmlMutation.mutate(file);
+    }
+  };
 
   return (
     <div
@@ -232,6 +288,28 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                 </div>
               </section>
 
+              {/* Modo de conciliación */}
+              <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 w-fit">
+                <button
+                  onClick={() => setModo('item')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                    modo === 'item' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Por ítem (XML)
+                </button>
+                <button
+                  onClick={() => setModo('monto')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                    modo === 'monto' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Por monto
+                </button>
+              </div>
+
+              {modo === 'item' && (
+              <>
               {/* Vinculación item a item */}
               <section className="space-y-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -239,11 +317,33 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                   <span className="text-[11px] text-slate-400">Sugerido por monto -- revisa y ajusta antes de confirmar.</span>
                 </div>
 
+                <div className="flex items-center gap-2.5 flex-wrap p-2.5 rounded-xl border border-dashed border-slate-300 bg-slate-50/70">
+                  <input ref={fileInputRef} type="file" accept=".xml,text/xml,application/xml" onChange={onArchivoXml} className="hidden" />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    leftIcon={importarXmlMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                    disabled={importarXmlMutation.isPending}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Importar XML del SII
+                  </Button>
+                  {xmlNombre ? (
+                    <span className="text-[11px] text-emerald-700 flex items-center gap-1">
+                      <FileCode2 className="w-3.5 h-3.5" /> {xmlNombre}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-slate-500">
+                      Sube el XML original del documento para traer sus líneas reales.
+                    </span>
+                  )}
+                </div>
+
                 {lineasFactura.length === 0 && (
                   <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
-                    Clay no tiene el detalle línea a línea de esta factura. Completa la descripción y el monto de cada vínculo a mano,
-                    usando la factura real (PDF/papel) como referencia -- se prellenó un vínculo por cada ítem pendiente de la OC, al
-                    precio comprometido, como punto de partida.
+                    Todavía no hay detalle línea a línea de esta factura (ni en Clay ni importado). Completa la descripción y el monto de
+                    cada vínculo a mano, usando la factura real (PDF/papel) como referencia, o importa el XML de arriba -- se prellenó un
+                    vínculo por cada ítem pendiente de la OC, al precio comprometido, como punto de partida.
                   </p>
                 )}
 
@@ -345,6 +445,15 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                   </div>
                 )}
               </section>
+              </>
+              )}
+
+              {modo === 'monto' && (
+                <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-2.5">
+                  Conciliación por monto total -- sin vínculo item a item. Compara el neto de la factura contra el neto de la OC completa
+                  (mismo mecanismo de antes).
+                </p>
+              )}
 
               {/* Cuadre con la OC */}
               <section className="space-y-2">

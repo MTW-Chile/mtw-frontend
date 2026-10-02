@@ -866,6 +866,16 @@ export interface VinculoSugerido {
   monto: number;
 }
 
+// POST /api/ordenes-compra/:id/facturas/:clayTransactionId/importar-xml --
+// mismo shape que el checkout para lineasFactura/itemsOC/sugerencias, pero
+// con las lineas leidas del XML real del SII (siempre reconocida:true, no
+// dependen de que Clay tenga el detalle).
+export interface ImportarXmlResponse {
+  lineasFactura: ClayDteLinea[];
+  itemsOC: ItemOCCheckout[];
+  sugerencias: VinculoSugerido[];
+}
+
 // GET /api/ordenes-compra/:id/facturas/:clayTransactionId/checkout -- lo
 // que va a pasar al confirmar, sin escribir nada todavia.
 export interface CheckoutFactura {

@@ -31,6 +31,7 @@ import type {
   FiltrosFacturas,
   FacturasSugeridasResponse,
   CheckoutFactura,
+  ImportarXmlResponse,
   CategoriaGasto,
   Rol,
   Usuario,
@@ -762,16 +763,39 @@ export async function getCheckoutFactura(
   return response.data;
 }
 
+// Sube el XML original del SII de esta factura puntual y devuelve sus
+// lineas reales + sugerencia de vinculo -- mismo shape que el checkout,
+// pero sin depender de que Clay tenga el detalle (ver ClayDteLinea).
+// xmlBase64: el archivo leido como ArrayBuffer y codificado en base64 (no
+// como texto -- el XML puede venir en ISO-8859-1, el backend detecta la
+// codificación real desde la declaración <?xml ... encoding=...?>).
+export async function importarXmlFactura(
+  ordenCompraId: string,
+  clayTransactionId: string,
+  xmlBase64: string,
+  permitirOtroRut = false
+): Promise<ImportarXmlResponse> {
+  const response = await apiClient.post<ImportarXmlResponse>(
+    `/ordenes-compra/${ordenCompraId}/facturas/${encodeURIComponent(clayTransactionId)}/importar-xml`,
+    { xmlBase64, permitirOtroRut }
+  );
+  return response.data;
+}
+
 // Confirma el checkout: contabiliza la factura en Clay (con el token del
-// usuario) y la vincula a la OC item a item. items: los vinculos que la
-// persona confirmo/edito a partir de las sugerencias del checkout.
-// ajustarOC: ajusta al monto vinculado los items que hayan quedado
-// completos con precio distinto al comprometido.
+// usuario) y la vincula a la OC. modo "item": items es obligatorio (los
+// vinculos que la persona confirmo/edito, desde las sugerencias del
+// checkout o desde un XML importado). modo "monto": el mecanismo de antes
+// (compara el neto total de la factura contra el de la OC), sin items.
+// ajustarOC: en modo item, ajusta al monto vinculado los items que hayan
+// quedado completos; en modo monto, escala TODOS los precios de la OC al
+// monto facturado.
 export async function vincularFactura(
   ordenCompraId: string,
   payload: {
     clayTransactionId: string;
-    items: { ordenCompraItemId: string; descripcion: string; cantidad: number; monto: number }[];
+    modo: 'item' | 'monto';
+    items?: { ordenCompraItemId: string; descripcion: string; cantidad: number; monto: number }[];
     ajustarOC?: boolean;
     permitirOtroRut?: boolean;
     notas?: string;
