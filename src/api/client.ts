@@ -425,6 +425,7 @@ export async function updatePartida(
 export async function getMateriales(params?: {
   q?: string;
   familia?: string;
+  proveedorId?: string;
   limit?: number;
 }): Promise<Material[]> {
   // El catálogo vive en la tabla Material del relay, que el sync llena con

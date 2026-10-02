@@ -12,12 +12,128 @@ import {
   getProyectoById,
   getBodegaProyecto,
   getOrdenCompraById,
+  getMateriales,
   type ItemOrdenCompraPayload,
 } from '../../api/client';
 import { useMonedas } from '../../lib/monedas';
 import { computeMaterialesFasePorProveedor, type GrupoFaseProveedor, type TrasladoDesdeObrasMayores } from '../cotizaciones/lib/materialesConsolidados';
 import { CATEGORIA_GASTO_OPTIONS, CATEGORIA_GASTO_LABEL } from './categoriaGasto';
-import type { CategoriaGasto, Fase } from '../../types';
+import type { CategoriaGasto, Fase, Material } from '../../types';
+
+// Convierte un precio de origen (Material.precioOrigen/monedaOrigen) a CLP
+// con las mismas tasas que ya usa el calculo por fase -- no replica el
+// ajuste fino de esa logica (descuento/recargo por familia, barra entera
+// de Perfileria/Refuerzos), es solo un precio referencial para partir al
+// elegir un producto a mano, editable igual que cualquier otro.
+function convertirACLP(monto: number, moneda: string | null | undefined, tasaDolar: number, tasaEuro: number, tasaUf: number): number {
+  switch ((moneda || 'CLP').toUpperCase()) {
+    case 'USD':
+      return monto * tasaDolar;
+    case 'EUR':
+      return monto * tasaEuro;
+    case 'UF':
+      return monto * tasaUf;
+    default:
+      return monto;
+  }
+}
+
+// Campo de descripcion de un item manual: con proveedor elegido, busca en
+// vivo en el catalogo filtrado a ESE proveedor (Material.proveedorId) para
+// sugerir productos ya comprados en vez de escribir todo a mano. Si no hay
+// match (o no hay proveedor todavia) sigue funcionando como texto libre --
+// el item queda igual como partida externa, solo que sin sugerencias.
+const BuscadorProductoProveedor: React.FC<{
+  proveedorId: string;
+  descripcion: string;
+  seleccionado: boolean;
+  onCambiarTexto: (valor: string) => void;
+  onSeleccionar: (material: Material) => void;
+  onQuitarSeleccion: () => void;
+}> = ({ proveedorId, descripcion, seleccionado, onCambiarTexto, onSeleccionar, onQuitarSeleccion }) => {
+  const [resultados, setResultados] = useState<Material[]>([]);
+  const [buscando, setBuscando] = useState(false);
+  const [abierto, setAbierto] = useState(false);
+
+  useEffect(() => {
+    if (seleccionado || !proveedorId || descripcion.trim().length < 2) {
+      setResultados([]);
+      return;
+    }
+    let cancelado = false;
+    setBuscando(true);
+    const timer = setTimeout(async () => {
+      try {
+        const data = await getMateriales({ q: descripcion.trim(), proveedorId, limit: 8 });
+        if (!cancelado) setResultados(data);
+      } catch {
+        if (!cancelado) setResultados([]);
+      } finally {
+        if (!cancelado) setBuscando(false);
+      }
+    }, 300);
+    return () => {
+      cancelado = true;
+      clearTimeout(timer);
+    };
+  }, [descripcion, proveedorId, seleccionado]);
+
+  if (seleccionado) {
+    return (
+      <div className="h-[38px] flex items-center justify-between gap-1.5 px-3 rounded-xl bg-sky-50 border border-sky-200 text-[11px] font-bold text-sky-700">
+        <span className="flex items-center gap-1.5 truncate">
+          <Package className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">{descripcion}</span>
+        </span>
+        <button type="button" onClick={onQuitarSeleccion} title="Quitar del catálogo" className="text-sky-400 hover:text-sky-700 shrink-0">
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <Input
+        placeholder={proveedorId ? 'Buscar producto de este proveedor o escribir uno nuevo...' : 'Descripción'}
+        value={descripcion}
+        onChange={(e) => onCambiarTexto(e.target.value)}
+        onFocus={() => setAbierto(true)}
+        onBlur={() => setTimeout(() => setAbierto(false), 150)}
+      />
+      {abierto && proveedorId && descripcion.trim().length >= 2 && (
+        <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100 bg-white shadow-lg">
+          {buscando ? (
+            <div className="p-2.5 text-[11px] text-slate-400 flex items-center gap-1.5">
+              <Loader2 className="w-3 h-3 animate-spin" /> Buscando...
+            </div>
+          ) : resultados.length === 0 ? (
+            <div className="p-2.5 text-[11px] text-slate-400">Sin productos de este proveedor que coincidan -- se guarda como item nuevo.</div>
+          ) : (
+            resultados.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  onSeleccionar(m);
+                  setAbierto(false);
+                }}
+                className="w-full text-left px-3 py-2 hover:bg-slate-50 cursor-pointer"
+              >
+                <div className="text-[11px] font-semibold text-slate-800 leading-tight">{m.descripcion}</div>
+                <div className="text-[10px] text-slate-400">
+                  {m.skuInterno} · {m.unidadMedida}
+                  {m.precioOrigen != null && ` · ${m.precioOrigen.toLocaleString('es-CL')} ${m.monedaOrigen || 'CLP'}`}
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface NuevaOrdenCompraModalProps {
   isOpen: boolean;
@@ -405,6 +521,33 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   const agregarItem = () => setItems((prev) => [...prev, itemVacio()]);
   const quitarItem = (index: number) => setItems((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
 
+  // Elegir un producto sugerido del buscador: lo liga al catalogo (igual
+  // que un item que ya venia calculado por fase) y precarga unidad/precio
+  // referencial -- la persona los puede seguir editando igual.
+  const seleccionarMaterialEnItem = (index: number, material: Material) => {
+    const precioReferencial =
+      material.precioOrigen != null ? Math.round(convertirACLP(material.precioOrigen, material.monedaOrigen, tasaDolar, tasaEuro, tasaUf)) : null;
+    setItems((prev) =>
+      prev.map((it, i) =>
+        i === index
+          ? {
+              ...it,
+              materialId: material.id,
+              descripcion: material.descripcion,
+              unidadMedida: material.unidadMedida,
+              categoria: '',
+              precioUnitario: precioReferencial != null ? String(precioReferencial) : it.precioUnitario,
+            }
+          : it
+      )
+    );
+  };
+  // Vuelve el item a texto libre (partida externa) -- la descripcion queda
+  // como estaba, solo se desliga del material para poder elegir categoria.
+  const quitarMaterialDeItem = (index: number) => {
+    setItems((prev) => prev.map((it, i) => (i === index ? { ...it, materialId: undefined } : it)));
+  };
+
   const total = items.reduce((sum, i) => sum + (parseFloat(i.cantidad) || 0) * (parseFloat(i.precioUnitario) || 0), 0);
 
   if (!isOpen) return null;
@@ -617,10 +760,13 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
                 <div key={index} className="space-y-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200">
                   <div className="flex gap-2 items-start">
                     <div className="flex-1">
-                      <Input
-                        placeholder="Descripción"
-                        value={item.descripcion}
-                        onChange={(e) => setItemField(index, 'descripcion', e.target.value)}
+                      <BuscadorProductoProveedor
+                        proveedorId={proveedorId}
+                        descripcion={item.descripcion}
+                        seleccionado={!!item.materialId}
+                        onCambiarTexto={(valor) => setItemField(index, 'descripcion', valor)}
+                        onSeleccionar={(material) => seleccionarMaterialEnItem(index, material)}
+                        onQuitarSeleccion={() => quitarMaterialDeItem(index)}
                       />
                     </div>
                     <div className="w-44 shrink-0">
