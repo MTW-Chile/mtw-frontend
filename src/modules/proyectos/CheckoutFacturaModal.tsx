@@ -209,6 +209,23 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
     return s + f.cantidad * Number(item?.precioUnitario ?? 0);
   }, 0);
   const totalFacturado = itemsParaEnviar.reduce((s, i) => s + i.monto, 0);
+  // Solo lo efectivamente emparejado (a diferencia de totalComprometido de
+  // arriba, que incluye items sin seleccionar todavia con su cantidad
+  // pendiente por defecto) -- esto es lo que va al resumen de abajo.
+  const comprometidoPareado = itemsParaEnviar.reduce((s, i) => {
+    const item = itemsOC.find((x) => x.id === i.ordenCompraItemId);
+    return s + i.cantidad * Number(item?.precioUnitario ?? 0);
+  }, 0);
+  const facturadoPareado = totalFacturado;
+  const itemsSinParear = filas
+    .map((f) => {
+      const item = itemsOC.find((i) => i.id === f.ordenCompraItemId);
+      if (!item) return null;
+      const parejado = resolverFila(f, lineasFactura) ? f.cantidad : 0;
+      const restante = item.pendienteCantidad - parejado;
+      return restante > 0.001 ? { item, restante } : null;
+    })
+    .filter((x): x is { item: ItemOCCheckout; restante: number } => x !== null);
 
   const asiento = data?.asiento;
   const totalDebe = asiento?.lineas.reduce((s, l) => s + l.debe, 0) ?? 0;
@@ -388,6 +405,7 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                               <th className="px-3 py-2 font-bold">Item de la OC</th>
                               <th className="px-3 py-2 font-bold text-right">Cantidad</th>
                               <th className="px-3 py-2 font-bold">Línea de la factura</th>
+                              <th className="px-3 py-2 font-bold text-right">Cant. factura</th>
                               <th className="px-3 py-2 font-bold text-right">Comprometido</th>
                               <th className="px-3 py-2 font-bold text-right">Facturado</th>
                               <th className="px-3 py-2 font-bold text-right">Dif. %</th>
@@ -462,6 +480,21 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                                       </div>
                                     )}
                                   </td>
+                                  <td className="px-3 py-2 text-right">
+                                    <input
+                                      type="text"
+                                      readOnly
+                                      value={
+                                        fila.fuente === 'xml'
+                                          ? (lineasFactura.find((l) => l.indice === fila.facturaLineaIndex)?.cantidad?.toLocaleString('es-CL', {
+                                              maximumFractionDigits: 2,
+                                            }) ?? '—')
+                                          : ''
+                                      }
+                                      placeholder="—"
+                                      className="w-20 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-mono text-right text-slate-500"
+                                    />
+                                  </td>
                                   <td className="px-3 py-2 text-right font-mono text-slate-700">{formatCLP(montoComprometido)}</td>
                                   <td className="px-3 py-2 text-right font-mono font-semibold text-slate-900">
                                     {montoFacturado != null ? formatCLP(montoFacturado) : <span className="text-slate-300">—</span>}
@@ -479,7 +512,7 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                           </tbody>
                           <tfoot>
                             <tr className="bg-slate-50/70 font-bold">
-                              <td className="px-3 py-2 text-slate-600" colSpan={3}>
+                              <td className="px-3 py-2 text-slate-600" colSpan={4}>
                                 Totales
                               </td>
                               <td className="px-3 py-2 text-right font-mono text-slate-900">{formatCLP(totalComprometido)}</td>
@@ -490,101 +523,149 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                         </table>
                       </div>
                     )}
-
-                    {lineasSinUsar.length > 0 && (
-                      <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
-                        <p className="text-[11px] font-bold text-slate-500 mb-1">Líneas de la factura sin usar</p>
-                        <ul className="space-y-0.5">
-                          {lineasSinUsar.map((l) => (
-                            <li key={l.indice} className="text-[11px] text-slate-600 flex items-center justify-between gap-2">
-                              <span className="truncate">{l.descripcion}</span>
-                              <span className="font-mono shrink-0">{formatCLP(l.monto)}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
                   </section>
                 </>
               )}
 
               {modo === 'monto' && (
                 <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-2.5">
-                  Conciliación por monto total -- sin vínculo item a item. Compara el neto de la factura contra el neto de la OC completa
-                  (mismo mecanismo de antes).
+                  Conciliación por monto total, sin vincular ítem a ítem: compara el neto de la factura contra el neto de la OC completa.
                 </p>
               )}
 
-              {/* Cuadre con la OC */}
+              {/* Resumen */}
               <section className="space-y-2">
-                <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Cuadre con la OC (montos netos)</h3>
-                <div className="p-3 rounded-xl border border-slate-200 space-y-2.5 text-xs">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div>
-                      <span className="block text-[11px] text-slate-400">Total OC</span>
-                      <span className="font-mono font-semibold text-slate-800">{formatCLP(data.totalOC)}</span>
-                    </div>
-                    <div>
-                      <span className="block text-[11px] text-slate-400">Ya facturado</span>
-                      <span className="font-mono text-slate-700">{formatCLP(data.facturadoPrevio)}</span>
-                    </div>
-                    <div>
-                      <span className="block text-[11px] text-slate-400">Facturado con esta</span>
-                      <span className="font-mono font-semibold text-slate-800">{formatCLP(data.facturadoTotal)}</span>
-                    </div>
-                    <div>
-                      <span className="block text-[11px] text-slate-400">Diferencia</span>
-                      <span className={`font-mono font-bold ${data.cuadra ? 'text-emerald-700' : 'text-amber-700'}`}>
-                        {data.diferencia > 0 ? '+' : ''}
-                        {formatCLP(data.diferencia)}
-                      </span>
-                    </div>
-                  </div>
+                {modo === 'monto' ? (
+                  <>
+                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Cuadre con la OC (montos netos)</h3>
+                    <div className="p-3 rounded-xl border border-slate-200 space-y-2.5 text-xs">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div>
+                          <span className="block text-[11px] text-slate-400">Total OC</span>
+                          <span className="font-mono font-semibold text-slate-800">{formatCLP(data.totalOC)}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[11px] text-slate-400">Ya facturado</span>
+                          <span className="font-mono text-slate-700">{formatCLP(data.facturadoPrevio)}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[11px] text-slate-400">Facturado con esta</span>
+                          <span className="font-mono font-semibold text-slate-800">{formatCLP(data.facturadoTotal)}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[11px] text-slate-400">Diferencia</span>
+                          <span className={`font-mono font-bold ${data.cuadra ? 'text-emerald-700' : 'text-amber-700'}`}>
+                            {data.diferencia > 0 ? '+' : ''}
+                            {formatCLP(data.diferencia)}
+                          </span>
+                        </div>
+                      </div>
 
-                  {data.cuadra ? (
-                    <p className="flex items-center gap-1.5 text-emerald-700">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> El monto total cuadra con la OC.
-                    </p>
-                  ) : (
-                    <p className="text-amber-700">
-                      El monto total no cuadra exactamente
-                      {modo === 'item'
-                        ? ' -- ya no bloquea nada: el estado final de la OC lo decide la vinculación item a item de arriba, no este total.'
-                        : '.'}
-                    </p>
-                  )}
-
-                  <label className="flex items-start gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-200 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={ajustarOC}
-                      onChange={(e) => setAjustarOC(e.target.checked)}
-                      className="mt-0.5 accent-[#E34A26]"
-                    />
-                    <span className="text-slate-700">
-                      {modo === 'item' ? (
-                        <>
-                          <strong>Ajustar precios al monto vinculado</strong> -- por cada item que quede completo con esta vinculación, su
-                          precio unitario se actualiza al monto realmente vinculado (si difiere del comprometido en la OC).
-                        </>
+                      {data.cuadra ? (
+                        <p className="flex items-center gap-1.5 text-emerald-700">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> El monto total cuadra con la OC.
+                        </p>
                       ) : (
-                        <>
+                        <p className="text-amber-700">El monto total no cuadra exactamente.</p>
+                      )}
+
+                      <label className="flex items-start gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-200 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={ajustarOC}
+                          onChange={(e) => setAjustarOC(e.target.checked)}
+                          className="mt-0.5 accent-[#E34A26]"
+                        />
+                        <span className="text-slate-700">
                           <strong>Ajustar la OC al monto facturado</strong> -- los precios de la OC se escalan proporcionalmente de{' '}
                           {formatCLP(data.totalOC)} a {formatCLP(data.facturadoTotal)}.
-                        </>
-                      )}
-                    </span>
-                  </label>
+                        </span>
+                      </label>
 
-                  {estadoFinal && (
-                    <p className="text-slate-600">
-                      La OC quedará:{' '}
-                      <Badge variant={estadoFinal === 'CONCILIADA' ? 'success' : 'warning'} size="sm">
-                        {ESTADO_OC_LABEL[estadoFinal]}
-                      </Badge>
-                    </p>
-                  )}
-                </div>
+                      {estadoFinal && (
+                        <p className="text-slate-600">
+                          La OC quedará:{' '}
+                          <Badge variant={estadoFinal === 'CONCILIADA' ? 'success' : 'warning'} size="sm">
+                            {ESTADO_OC_LABEL[estadoFinal]}
+                          </Badge>
+                        </p>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Resumen de la conciliación</h3>
+                    <div className="p-3 rounded-xl border border-slate-200 space-y-3 text-xs">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <span className="block text-[11px] text-slate-400">Comprometido emparejado</span>
+                          <span className="font-mono font-semibold text-slate-800">{formatCLP(comprometidoPareado)}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[11px] text-slate-400">Facturado emparejado</span>
+                          <span className="font-mono font-semibold text-slate-800">{formatCLP(facturadoPareado)}</span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                          <p className="text-[11px] font-bold text-slate-500 mb-1">Items de la OC pendientes</p>
+                          {itemsSinParear.length === 0 ? (
+                            <p className="text-[11px] text-slate-400">Todos los items quedan cubiertos con esta factura.</p>
+                          ) : (
+                            <ul className="space-y-0.5">
+                              {itemsSinParear.map(({ item, restante }) => (
+                                <li key={item.id} className="flex items-center justify-between gap-2 text-slate-600">
+                                  <span className="truncate">{item.descripcion}</span>
+                                  <span className="font-mono shrink-0">
+                                    {restante.toLocaleString('es-CL', { maximumFractionDigits: 2 })} {item.unidadMedida}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                          <p className="text-[11px] font-bold text-slate-500 mb-1">Líneas de la factura por asignar</p>
+                          {lineasSinUsar.length === 0 ? (
+                            <p className="text-[11px] text-slate-400">No quedan líneas sin asignar.</p>
+                          ) : (
+                            <ul className="space-y-0.5">
+                              {lineasSinUsar.map((l) => (
+                                <li key={l.indice} className="flex items-center justify-between gap-2 text-slate-600">
+                                  <span className="truncate">{l.descripcion}</span>
+                                  <span className="font-mono shrink-0">{formatCLP(l.monto)}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      </div>
+
+                      <label className="flex items-start gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-200 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={ajustarOC}
+                          onChange={(e) => setAjustarOC(e.target.checked)}
+                          className="mt-0.5 accent-[#E34A26]"
+                        />
+                        <span className="text-slate-700">
+                          <strong>Ajustar precios al monto facturado</strong> -- en los items que queden completos, el precio unitario se
+                          actualiza al monto realmente facturado.
+                        </span>
+                      </label>
+
+                      {estadoFinal && (
+                        <p className="text-slate-600">
+                          La OC quedará:{' '}
+                          <Badge variant={estadoFinal === 'CONCILIADA' ? 'success' : 'warning'} size="sm">
+                            {ESTADO_OC_LABEL[estadoFinal]}
+                          </Badge>
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
               </section>
 
               {/* Asiento */}
