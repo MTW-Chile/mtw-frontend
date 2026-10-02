@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { X, Receipt, AlertCircle, AlertTriangle, Loader2, CheckCircle2, Plus, Trash2, Upload, FileCode2 } from 'lucide-react';
+import { X, Receipt, AlertCircle, AlertTriangle, Loader2, CheckCircle2, Upload, FileCode2, Wand2 } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { getCheckoutFactura, vincularFactura, importarXmlFactura } from '../../api/client';
 import { ESTADO_OC_LABEL } from '../abastecimiento/OrdenesCompraList';
-import type { ItemOCCheckout, ClayDteLinea } from '../../types';
+import type { ItemOCCheckout, ClayDteLinea, VinculoSugerido } from '../../types';
 
 const formatCLP = (v: number) => v.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 const formatFecha = (iso: string) => new Date(iso).toLocaleDateString('es-CL', { timeZone: 'UTC' });
@@ -22,26 +22,54 @@ function arrayBufferABase64(buffer: ArrayBuffer): string {
   return btoa(binario);
 }
 
-interface VinculoEditable {
+type FuenteFila = 'ninguna' | 'xml' | 'manual';
+
+// Una fila por item PENDIENTE de la OC (no una lista libre de "vinculos") --
+// cantidad es editable (recepcion/facturacion parcial), y se empareja con a
+// lo sumo una linea de la factura (del XML importado, o de Clay si no se
+// importo nada) o con una entrada manual.
+interface FilaConciliacion {
   ordenCompraItemId: string;
-  // Texto libre -- NO es un indice de una linea de Clay (varias facturas
-  // reales no traen ningun detalle en Clay). Una linea de Clay, cuando
-  // existe, es solo un atajo para copiar descripcion/cantidad/monto aca.
-  descripcion: string;
   cantidad: number;
-  monto: number;
+  fuente: FuenteFila;
+  facturaLineaIndex: number | null;
+  descripcionManual: string;
+  montoManual: number;
 }
 
-// Cobertura resultante si se aplicaran estos vinculos -- mismo criterio que
+function filasIniciales(itemsOC: ItemOCCheckout[]): FilaConciliacion[] {
+  return itemsOC
+    .filter((i) => i.pendienteCantidad > 0.001)
+    .map((i) => ({
+      ordenCompraItemId: i.id,
+      cantidad: i.pendienteCantidad,
+      fuente: 'ninguna' as const,
+      facturaLineaIndex: null,
+      descripcionManual: '',
+      montoManual: 0,
+    }));
+}
+
+// Descripcion/monto que efectivamente se van a mandar para esta fila, segun
+// su fuente -- null si todavia no tiene con que emparejarse.
+function resolverFila(fila: FilaConciliacion, lineasFactura: ClayDteLinea[]): { descripcion: string; monto: number } | null {
+  if (fila.fuente === 'xml' && fila.facturaLineaIndex != null) {
+    const linea = lineasFactura.find((l) => l.indice === fila.facturaLineaIndex);
+    return linea ? { descripcion: linea.descripcion, monto: linea.monto } : null;
+  }
+  if (fila.fuente === 'manual') {
+    return fila.descripcionManual.trim() && fila.montoManual > 0 ? { descripcion: fila.descripcionManual.trim(), monto: fila.montoManual } : null;
+  }
+  return null;
+}
+
+// Cobertura resultante si se aplicaran estos pares -- mismo criterio que
 // simularCobertura() en mtw-api/src/index.ts, hecho aca en vivo para que la
 // persona vea el estado final mientras edita (el que devuelve el checkout
 // es solo un preview con las sugerencias por defecto).
-function simularEstadoLocal(itemsOC: ItemOCCheckout[], vinculos: VinculoEditable[]): 'completa' | 'parcial' | 'sinCambios' {
+function calcularEstado(itemsOC: ItemOCCheckout[], pares: { ordenCompraItemId: string; cantidad: number }[]): 'completa' | 'parcial' | 'sinCambios' {
   const propuestoPorItem = new Map<string, number>();
-  for (const v of vinculos) {
-    if (!v.ordenCompraItemId || !(v.cantidad > 0)) continue;
-    propuestoPorItem.set(v.ordenCompraItemId, (propuestoPorItem.get(v.ordenCompraItemId) ?? 0) + v.cantidad);
-  }
+  for (const p of pares) propuestoPorItem.set(p.ordenCompraItemId, (propuestoPorItem.get(p.ordenCompraItemId) ?? 0) + p.cantidad);
   let algoVinculado = false;
   let completa = true;
   for (const item of itemsOC) {
@@ -79,11 +107,12 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
   const [modo, setModo] = useState<'item' | 'monto'>('item');
   const [ajustarOC, setAjustarOC] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [vinculos, setVinculos] = useState<VinculoEditable[]>([]);
+  const [filas, setFilas] = useState<FilaConciliacion[]>([]);
+  const [sugerencias, setSugerencias] = useState<VinculoSugerido[]>([]);
   // itemsOC/lineasFactura empiezan con lo que trae el checkout (desde
-  // Clay), pero se reemplazan enteros si se importa un XML (fuente mas
+  // Clay), pero se reemplazan enteras si se importa un XML (fuente mas
   // confiable -- ver importarXmlMutation).
-  const [fuente, setFuente] = useState<{ itemsOC: ItemOCCheckout[]; lineasFactura: ClayDteLinea[] } | null>(null);
+  const [fuenteDatos, setFuenteDatos] = useState<{ itemsOC: ItemOCCheckout[]; lineasFactura: ClayDteLinea[] } | null>(null);
   const [xmlNombre, setXmlNombre] = useState<string | null>(null);
   const inicializado = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -96,13 +125,14 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
     gcTime: 0,
   });
 
-  // Precarga con las sugerencias por monto -- una sola vez (si la query se
-  // refresca despues, no se pisan los vinculos que la persona ya edito).
+  // Carga inicial: una fila por item pendiente, SIN aplicar sugerencias --
+  // la persona las pide a mano con el botón "Sugerir por monto".
   useEffect(() => {
     if (data && !inicializado.current) {
       inicializado.current = true;
-      setFuente({ itemsOC: data.itemsOC, lineasFactura: data.lineasFactura });
-      setVinculos(data.sugerencias.map((s) => ({ ordenCompraItemId: s.ordenCompraItemId, descripcion: s.descripcion, cantidad: s.cantidad, monto: s.monto })));
+      setFuenteDatos({ itemsOC: data.itemsOC, lineasFactura: data.lineasFactura });
+      setFilas(filasIniciales(data.itemsOC));
+      setSugerencias(data.sugerencias);
     }
   }, [data]);
 
@@ -112,23 +142,34 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
       return { file, resp: await importarXmlFactura(ordenCompraId, clayTransactionId, arrayBufferABase64(buffer), permitirOtroRut) };
     },
     onSuccess: ({ file, resp }) => {
-      setFuente({ itemsOC: resp.itemsOC, lineasFactura: resp.lineasFactura });
-      setVinculos(resp.sugerencias.map((s) => ({ ordenCompraItemId: s.ordenCompraItemId, descripcion: s.descripcion, cantidad: s.cantidad, monto: s.monto })));
+      setFuenteDatos({ itemsOC: resp.itemsOC, lineasFactura: resp.lineasFactura });
+      // Los indices de linea de antes (si habia) ya no son validos contra
+      // este nuevo set de lineas -- se resetean las filas.
+      setFilas(filasIniciales(resp.itemsOC));
+      setSugerencias(resp.sugerencias);
       setXmlNombre(file.name);
       setError(null);
     },
     onError: (err: any) => setError(err?.response?.data?.error || 'No se pudo leer el XML.'),
   });
 
+  const itemsOC = fuenteDatos?.itemsOC ?? [];
+  const lineasFactura = fuenteDatos?.lineasFactura ?? [];
+
+  const itemsParaEnviar = filas
+    .map((fila) => {
+      const resuelto = resolverFila(fila, lineasFactura);
+      if (!resuelto || !(fila.cantidad > 0)) return null;
+      return { ordenCompraItemId: fila.ordenCompraItemId, descripcion: resuelto.descripcion, cantidad: fila.cantidad, monto: resuelto.monto };
+    })
+    .filter((x): x is { ordenCompraItemId: string; descripcion: string; cantidad: number; monto: number } => x !== null);
+
   const mutation = useMutation({
     mutationFn: () => {
       if (modo === 'monto') {
         return vincularFactura(ordenCompraId, { clayTransactionId, modo: 'monto', ajustarOC, permitirOtroRut });
       }
-      const items = vinculos
-        .filter((v) => v.ordenCompraItemId && v.descripcion.trim() && v.cantidad > 0 && v.monto > 0)
-        .map((v) => ({ ordenCompraItemId: v.ordenCompraItemId, descripcion: v.descripcion.trim(), cantidad: v.cantidad, monto: v.monto }));
-      return vincularFactura(ordenCompraId, { clayTransactionId, modo: 'item', items, ajustarOC, permitirOtroRut });
+      return vincularFactura(ordenCompraId, { clayTransactionId, modo: 'item', items: itemsParaEnviar, ajustarOC, permitirOtroRut });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ordenesCompra'] });
@@ -138,45 +179,36 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
     onError: (err: any) => setError(err?.response?.data?.error || 'No se pudo conciliar la factura.'),
   });
 
-  const itemsOC = fuente?.itemsOC ?? [];
-  const lineasFactura = fuente?.lineasFactura ?? [];
-  const vinculosValidos = vinculos.filter((v) => v.ordenCompraItemId && v.descripcion.trim() && v.cantidad > 0 && v.monto > 0);
-  const cantidadUsadaPorItem = new Map<string, number>();
-  for (const v of vinculosValidos) {
-    cantidadUsadaPorItem.set(v.ordenCompraItemId, (cantidadUsadaPorItem.get(v.ordenCompraItemId) ?? 0) + v.cantidad);
-  }
-  const itemsPendientes = itemsOC.filter((i) => i.pendienteCantidad - (cantidadUsadaPorItem.get(i.id) ?? 0) > 0.001);
-
-  const actualizarVinculo = (idx: number, cambios: Partial<VinculoEditable>) => {
-    setVinculos((prev) => {
+  const actualizarFila = (idx: number, cambios: Partial<FilaConciliacion>) => {
+    setFilas((prev) => {
       const next = [...prev];
-      const actual = { ...next[idx], ...cambios };
-      // Al elegir un item nuevo, prellenar cantidad (y descripcion, si
-      // todavia estaba vacia) con lo pendiente -- la persona lo puede
-      // seguir editando a mano.
-      if (cambios.ordenCompraItemId !== undefined) {
-        const item = itemsOC.find((i) => i.id === cambios.ordenCompraItemId);
-        if (item) {
-          actual.cantidad = item.pendienteCantidad;
-          if (!actual.descripcion.trim()) actual.descripcion = item.descripcion;
-        }
-      }
-      next[idx] = actual;
+      next[idx] = { ...next[idx], ...cambios };
       return next;
     });
   };
 
-  // Atajo: copiar descripcion/cantidad/monto de una linea real de Clay a
-  // un vinculo -- no "consume" la linea (Clay no es una fuente confiable
-  // de a cuanto suma cada una, ver comentario grande en sugerirVinculos()
-  // del backend), asi que la misma linea se puede copiar mas de una vez.
-  const copiarDeLinea = (idx: number, facturaLineaIndex: number) => {
-    const linea = lineasFactura.find((l) => l.indice === facturaLineaIndex);
-    if (linea) actualizarVinculo(idx, { descripcion: linea.descripcion, cantidad: linea.cantidad ?? vinculos[idx].cantidad, monto: linea.monto });
+  // "Sugerir por monto": aplica las sugerencias del backend (por linea real
+  // si hay, o "1 vinculo por item pendiente al precio comprometido" si no
+  // hay ninguna linea) sobre las filas actuales -- accion explicita, no
+  // automatica, para no pisar lo que la persona ya haya tocado sin avisar.
+  const aplicarSugerencias = () => {
+    setFilas((prev) =>
+      prev.map((fila) => {
+        const sug = sugerencias.find((s) => s.ordenCompraItemId === fila.ordenCompraItemId);
+        if (!sug) return fila;
+        return sug.facturaLineaIndex != null
+          ? { ...fila, cantidad: sug.cantidad, fuente: 'xml', facturaLineaIndex: sug.facturaLineaIndex, descripcionManual: '', montoManual: 0 }
+          : { ...fila, cantidad: sug.cantidad, fuente: 'manual', facturaLineaIndex: null, descripcionManual: sug.descripcion, montoManual: sug.monto };
+      })
+    );
   };
 
-  const quitarVinculo = (idx: number) => setVinculos((prev) => prev.filter((_, i) => i !== idx));
-  const agregarVinculo = () => setVinculos((prev) => [...prev, { ordenCompraItemId: '', descripcion: '', cantidad: 0, monto: 0 }]);
+  const lineasSinUsar = lineasFactura.filter((l) => !filas.some((f) => f.fuente === 'xml' && f.facturaLineaIndex === l.indice));
+  const totalComprometido = filas.reduce((s, f) => {
+    const item = itemsOC.find((i) => i.id === f.ordenCompraItemId);
+    return s + f.cantidad * Number(item?.precioUnitario ?? 0);
+  }, 0);
+  const totalFacturado = itemsParaEnviar.reduce((s, i) => s + i.monto, 0);
 
   const asiento = data?.asiento;
   const totalDebe = asiento?.lineas.reduce((s, l) => s + l.debe, 0) ?? 0;
@@ -190,10 +222,10 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
       ? data.cuadra || ajustarOC
         ? 'CONCILIADA'
         : 'PARCIALMENTE_CONCILIADA'
-      : simularEstadoLocal(itemsOC, vinculos) === 'completa'
+      : calcularEstado(itemsOC, itemsParaEnviar) === 'completa'
         ? 'CONCILIADA'
         : 'PARCIALMENTE_CONCILIADA';
-  const bloqueado = !data || (asiento?.errores.length ?? 0) > 0 || (modo === 'item' && vinculosValidos.length === 0);
+  const bloqueado = !data || (asiento?.errores.length ?? 0) > 0 || (modo === 'item' && itemsParaEnviar.length === 0);
 
   const onArchivoXml = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -210,7 +242,7 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
       onClick={mutation.isPending ? undefined : onClose}
     >
       <div
-        className="w-full sm:max-w-3xl bg-white rounded-t-2xl sm:rounded-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[94vh] sm:max-h-[88vh] animate-slide-up sm:animate-none"
+        className="w-full sm:max-w-5xl bg-white rounded-t-2xl sm:rounded-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[94vh] sm:max-h-[88vh] animate-slide-up sm:animate-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
@@ -309,143 +341,171 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
               </div>
 
               {modo === 'item' && (
-              <>
-              {/* Vinculación item a item */}
-              <section className="space-y-2">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Vinculación con la factura</h3>
-                  <span className="text-[11px] text-slate-400">Sugerido por monto -- revisa y ajusta antes de confirmar.</span>
-                </div>
+                <>
+                  {/* Vinculación item a item */}
+                  <section className="space-y-2">
+                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Vinculación con la factura</h3>
 
-                <div className="flex items-center gap-2.5 flex-wrap p-2.5 rounded-xl border border-dashed border-slate-300 bg-slate-50/70">
-                  <input ref={fileInputRef} type="file" accept=".xml,text/xml,application/xml" onChange={onArchivoXml} className="hidden" />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    leftIcon={importarXmlMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                    disabled={importarXmlMutation.isPending}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    Importar XML del SII
-                  </Button>
-                  {xmlNombre ? (
-                    <span className="text-[11px] text-emerald-700 flex items-center gap-1">
-                      <FileCode2 className="w-3.5 h-3.5" /> {xmlNombre}
-                    </span>
-                  ) : (
-                    <span className="text-[11px] text-slate-500">
-                      Sube el XML original del documento para traer sus líneas reales.
-                    </span>
-                  )}
-                </div>
+                    <div className="flex items-center gap-2.5 flex-wrap p-2.5 rounded-xl border border-dashed border-slate-300 bg-slate-50/70">
+                      <input ref={fileInputRef} type="file" accept=".xml,text/xml,application/xml" onChange={onArchivoXml} className="hidden" />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        leftIcon={importarXmlMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                        disabled={importarXmlMutation.isPending}
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        Importar XML del SII
+                      </Button>
+                      <Button size="sm" variant="ghost" leftIcon={<Wand2 className="w-3.5 h-3.5" />} onClick={aplicarSugerencias}>
+                        Sugerir por monto
+                      </Button>
+                      {xmlNombre ? (
+                        <span className="text-[11px] text-emerald-700 flex items-center gap-1">
+                          <FileCode2 className="w-3.5 h-3.5" /> {xmlNombre}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-slate-500">Sube el XML original del documento para traer sus líneas reales.</span>
+                      )}
+                    </div>
 
-                {lineasFactura.length === 0 && (
-                  <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
-                    Todavía no hay detalle línea a línea de esta factura (ni en Clay ni importado). Completa la descripción y el monto de
-                    cada vínculo a mano, usando la factura real (PDF/papel) como referencia, o importa el XML de arriba -- se prellenó un
-                    vínculo por cada ítem pendiente de la OC, al precio comprometido, como punto de partida.
-                  </p>
-                )}
+                    {lineasFactura.length === 0 && (
+                      <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+                        Todavía no hay detalle línea a línea de esta factura (ni en Clay ni importado). Importa el XML de arriba, o completa
+                        la descripción y el monto de cada fila a mano usando la factura real (PDF/papel) como referencia.
+                      </p>
+                    )}
 
-                {vinculos.length === 0 ? (
-                  <p className="text-xs text-slate-400 p-3 rounded-xl border border-dashed border-slate-200">
-                    No hay ningún vínculo todavía. Agrega uno a mano.
-                  </p>
-                ) : (
-                  <div className="rounded-xl border border-slate-200 divide-y divide-slate-100">
-                    {vinculos.map((v, idx) => {
-                      const opcionesItem = itemsOC.filter(
-                        (i) => i.id === v.ordenCompraItemId || i.pendienteCantidad - (cantidadUsadaPorItem.get(i.id) ?? 0) > 0.001
-                      );
-                      return (
-                        <div key={idx} className="p-2.5 flex items-center gap-2 flex-wrap text-xs">
-                          <select
-                            value={v.ordenCompraItemId}
-                            onChange={(e) => actualizarVinculo(idx, { ordenCompraItemId: e.target.value })}
-                            className="flex-1 min-w-[160px] rounded-lg border border-slate-200 px-2 py-1.5 text-xs bg-white"
-                          >
-                            <option value="">Item de la OC...</option>
-                            {opcionesItem.map((i) => (
-                              <option key={i.id} value={i.id}>
-                                {i.descripcion} ({i.pendienteCantidad.toLocaleString('es-CL', { maximumFractionDigits: 2 })} {i.unidadMedida} pend.)
-                              </option>
-                            ))}
-                          </select>
-                          <span className="text-slate-300">↔</span>
-                          <input
-                            type="text"
-                            value={v.descripcion}
-                            onChange={(e) => actualizarVinculo(idx, { descripcion: e.target.value })}
-                            placeholder="Descripción"
-                            className="flex-1 min-w-[140px] rounded-lg border border-slate-200 px-2 py-1.5 text-xs bg-white"
-                          />
-                          <input
-                            type="number"
-                            value={v.cantidad || ''}
-                            onChange={(e) => actualizarVinculo(idx, { cantidad: Number(e.target.value) })}
-                            placeholder="Cantidad"
-                            className="w-24 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-mono text-right"
-                          />
-                          <input
-                            type="number"
-                            value={v.monto || ''}
-                            onChange={(e) => actualizarVinculo(idx, { monto: Number(e.target.value) })}
-                            placeholder="Monto"
-                            className="w-28 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-mono text-right"
-                          />
-                          <button
-                            onClick={() => quitarVinculo(idx)}
-                            title="Quitar vínculo"
-                            className="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                          {lineasFactura.length > 0 && (
-                            <select
-                              value=""
-                              onChange={(e) => e.target.value && copiarDeLinea(idx, Number(e.target.value))}
-                              className="w-full rounded-lg border border-dashed border-slate-200 px-2 py-1 text-[11px] bg-slate-50 text-slate-500"
-                            >
-                              <option value="">Copiar de una línea de Clay...</option>
-                              {lineasFactura.map((l) => (
-                                <option key={l.indice} value={l.indice}>
-                                  {l.descripcion} ({formatCLP(l.monto)}){!l.reconocida ? ' ⚠' : ''}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                    {filas.length === 0 ? (
+                      <p className="text-xs text-slate-400 p-3 rounded-xl border border-dashed border-slate-200">
+                        No hay items pendientes de conciliar en esta OC.
+                      </p>
+                    ) : (
+                      <div className="rounded-xl border border-slate-200 overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-slate-200 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                              <th className="px-3 py-2 font-bold">Item de la OC</th>
+                              <th className="px-3 py-2 font-bold text-right">Cantidad</th>
+                              <th className="px-3 py-2 font-bold">Línea de la factura</th>
+                              <th className="px-3 py-2 font-bold text-right">Comprometido</th>
+                              <th className="px-3 py-2 font-bold text-right">Facturado</th>
+                              <th className="px-3 py-2 font-bold text-right">Dif. %</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filas.map((fila, idx) => {
+                              const item = itemsOC.find((i) => i.id === fila.ordenCompraItemId);
+                              if (!item) return null;
+                              const resuelto = resolverFila(fila, lineasFactura);
+                              const montoComprometido = fila.cantidad * Number(item.precioUnitario ?? 0);
+                              const montoFacturado = resuelto?.monto ?? null;
+                              const diffPct = montoFacturado != null && montoComprometido > 0 ? (montoFacturado - montoComprometido) / montoComprometido : null;
+                              const usadasPorOtras = new Set(
+                                filas.filter((f, i) => i !== idx && f.fuente === 'xml' && f.facturaLineaIndex != null).map((f) => f.facturaLineaIndex)
+                              );
+                              const lineasDisponibles = lineasFactura.filter((l) => l.indice === fila.facturaLineaIndex || !usadasPorOtras.has(l.indice));
+                              const valorSelect = fila.fuente === 'xml' ? String(fila.facturaLineaIndex) : fila.fuente === 'manual' ? 'manual' : '';
 
-                <button
-                  onClick={agregarVinculo}
-                  className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#E34A26] hover:text-[#B8391B]"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Agregar vínculo manual
-                </button>
+                              return (
+                                <tr key={fila.ordenCompraItemId} className="border-b border-slate-50 align-top">
+                                  <td className="px-3 py-2">
+                                    <span className="font-semibold text-slate-800">{item.descripcion}</span>
+                                    <span className="block text-[10px] text-slate-400">
+                                      {item.unidadMedida} · {formatCLP(Number(item.precioUnitario ?? 0))} c/u
+                                      {item.pendienteRecepcionar > 0 && <span className="text-amber-600"> · sin recepcionar</span>}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-2 text-right">
+                                    <input
+                                      type="number"
+                                      value={fila.cantidad || ''}
+                                      onChange={(e) => actualizarFila(idx, { cantidad: Number(e.target.value) })}
+                                      className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-xs font-mono text-right"
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2 min-w-[220px]">
+                                    <select
+                                      value={valorSelect}
+                                      onChange={(e) => {
+                                        const v = e.target.value;
+                                        if (v === '') actualizarFila(idx, { fuente: 'ninguna', facturaLineaIndex: null });
+                                        else if (v === 'manual') actualizarFila(idx, { fuente: 'manual', facturaLineaIndex: null });
+                                        else actualizarFila(idx, { fuente: 'xml', facturaLineaIndex: Number(v) });
+                                      }}
+                                      className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs bg-white"
+                                    >
+                                      <option value="">Sin seleccionar</option>
+                                      {lineasDisponibles.map((l) => (
+                                        <option key={l.indice} value={l.indice}>
+                                          {l.descripcion} ({l.cantidad ?? '—'} · {formatCLP(l.monto)}){!l.reconocida ? ' ⚠' : ''}
+                                        </option>
+                                      ))}
+                                      <option value="manual">Entrada manual...</option>
+                                    </select>
+                                    {fila.fuente === 'manual' && (
+                                      <div className="flex gap-1.5 mt-1.5">
+                                        <input
+                                          type="text"
+                                          value={fila.descripcionManual}
+                                          onChange={(e) => actualizarFila(idx, { descripcionManual: e.target.value })}
+                                          placeholder="Descripción"
+                                          className="flex-1 min-w-0 rounded-lg border border-slate-200 px-2 py-1 text-[11px]"
+                                        />
+                                        <input
+                                          type="number"
+                                          value={fila.montoManual || ''}
+                                          onChange={(e) => actualizarFila(idx, { montoManual: Number(e.target.value) })}
+                                          placeholder="Monto"
+                                          className="w-24 rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-mono text-right"
+                                        />
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="px-3 py-2 text-right font-mono text-slate-700">{formatCLP(montoComprometido)}</td>
+                                  <td className="px-3 py-2 text-right font-mono font-semibold text-slate-900">
+                                    {montoFacturado != null ? formatCLP(montoFacturado) : <span className="text-slate-300">—</span>}
+                                  </td>
+                                  <td
+                                    className={`px-3 py-2 text-right font-mono font-bold ${
+                                      diffPct == null ? 'text-slate-300' : Math.abs(diffPct) > 0.05 ? 'text-rose-600' : 'text-emerald-700'
+                                    }`}
+                                  >
+                                    {diffPct == null ? '—' : `${diffPct > 0 ? '+' : ''}${(diffPct * 100).toFixed(1)}%`}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                          <tfoot>
+                            <tr className="bg-slate-50/70 font-bold">
+                              <td className="px-3 py-2 text-slate-600" colSpan={3}>
+                                Totales
+                              </td>
+                              <td className="px-3 py-2 text-right font-mono text-slate-900">{formatCLP(totalComprometido)}</td>
+                              <td className="px-3 py-2 text-right font-mono text-slate-900">{formatCLP(totalFacturado)}</td>
+                              <td></td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    )}
 
-                {itemsPendientes.length > 0 && (
-                  <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
-                    <p className="text-[11px] font-bold text-slate-500 mb-1">Items de la OC sin vincular</p>
-                    <ul className="space-y-0.5">
-                      {itemsPendientes.map((i) => (
-                        <li key={i.id} className="text-[11px] text-slate-600 flex items-center justify-between gap-2">
-                          <span className="truncate">{i.descripcion}</span>
-                          <span className="font-mono shrink-0">
-                            {(i.pendienteCantidad - (cantidadUsadaPorItem.get(i.id) ?? 0)).toLocaleString('es-CL', { maximumFractionDigits: 2 })}{' '}
-                            {i.unidadMedida}
-                            {i.pendienteRecepcionar > 0 && <span className="text-amber-600"> · sin recepcionar</span>}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </section>
-              </>
+                    {lineasSinUsar.length > 0 && (
+                      <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                        <p className="text-[11px] font-bold text-slate-500 mb-1">Líneas de la factura sin usar</p>
+                        <ul className="space-y-0.5">
+                          {lineasSinUsar.map((l) => (
+                            <li key={l.indice} className="text-[11px] text-slate-600 flex items-center justify-between gap-2">
+                              <span className="truncate">{l.descripcion}</span>
+                              <span className="font-mono shrink-0">{formatCLP(l.monto)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </section>
+                </>
               )}
 
               {modo === 'monto' && (
@@ -487,8 +547,10 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                     </p>
                   ) : (
                     <p className="text-amber-700">
-                      El monto total no cuadra exactamente -- ya no bloquea nada: el estado final de la OC lo decide la vinculación item a
-                      item de arriba, no este total.
+                      El monto total no cuadra exactamente
+                      {modo === 'item'
+                        ? ' -- ya no bloquea nada: el estado final de la OC lo decide la vinculación item a item de arriba, no este total.'
+                        : '.'}
                     </p>
                   )}
 
@@ -500,8 +562,17 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                       className="mt-0.5 accent-[#E34A26]"
                     />
                     <span className="text-slate-700">
-                      <strong>Ajustar precios al monto vinculado</strong> -- por cada item que quede completo con esta vinculación, su
-                      precio unitario se actualiza al monto realmente vinculado (si difiere del comprometido en la OC).
+                      {modo === 'item' ? (
+                        <>
+                          <strong>Ajustar precios al monto vinculado</strong> -- por cada item que quede completo con esta vinculación, su
+                          precio unitario se actualiza al monto realmente vinculado (si difiere del comprometido en la OC).
+                        </>
+                      ) : (
+                        <>
+                          <strong>Ajustar la OC al monto facturado</strong> -- los precios de la OC se escalan proporcionalmente de{' '}
+                          {formatCLP(data.totalOC)} a {formatCLP(data.facturadoTotal)}.
+                        </>
+                      )}
                     </span>
                   </label>
 
