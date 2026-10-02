@@ -90,7 +90,7 @@ const PrecioEditable: React.FC<{
       onKeyDown={(e) => {
         if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
       }}
-      className="w-20 px-1.5 py-1 rounded-md border border-slate-200 bg-white text-right font-mono text-xs text-slate-800 focus:outline-none focus:border-[#E34A26] disabled:bg-slate-50 disabled:text-slate-400 disabled:border-transparent"
+      className="w-20 px-1.5 py-1 rounded-md border border-slate-200 bg-white text-right font-mono text-xs text-slate-800 focus:outline-none focus:border-brand-600 disabled:bg-slate-50 disabled:text-slate-400 disabled:border-transparent"
     />
   );
 };
@@ -502,7 +502,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                 <button
                   onClick={() => aprobarTodoMutation.mutate()}
                   disabled={gruposPorFamilia.length === 0 || aprobarTodoMutation.isPending}
-                  className="px-3.5 py-2 rounded-xl bg-[#E34A26] text-white text-xs font-bold flex items-center gap-1.5 hover:bg-[#c93f1f] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-3.5 py-2 rounded-xl bg-brand-600 text-white text-xs font-bold flex items-center gap-1.5 hover:bg-brand-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   title="Aprueba todas las categorías que falten"
                 >
                   {aprobarTodoMutation.isPending ? (
@@ -550,7 +550,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
       <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#E34A26]/10 text-[#E34A26] border border-[#E34A26]/20 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-brand-600/10 text-brand-600 border border-brand-600/20 flex items-center justify-center shrink-0">
               <Boxes className="w-5 h-5" />
             </div>
             <div>
@@ -570,7 +570,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
               className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm"
               title="Exportar materiales a PDF"
             >
-              <FileDown className="w-4 h-4 text-[#E34A26]" />
+              <FileDown className="w-4 h-4 text-brand-600" />
               <span>Exportar PDF</span>
             </button>
 
@@ -623,7 +623,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar SKU o descripción..."
-            className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-[#E34A26] focus:bg-white"
+            className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white"
           />
         </div>
 

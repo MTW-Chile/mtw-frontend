@@ -43,7 +43,7 @@ export const CotizacionDetalleModal: React.FC<{
         {/* Header Modal */}
         <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#E34A26]/10 border border-[#E34A26]/20 flex items-center justify-center text-[#E34A26] shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-brand-600/10 border border-brand-600/20 flex items-center justify-center text-brand-600 shrink-0">
               <Building2 className="w-5 h-5" />
             </div>
             <div>
@@ -76,7 +76,7 @@ export const CotizacionDetalleModal: React.FC<{
         {/* Modal Body */}
         {isLoading ? (
           <div className="p-12 flex flex-col items-center justify-center gap-3 text-slate-500">
-            <div className="w-8 h-8 border-2 border-[#E34A26] border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin"></div>
             <span className="text-xs font-mono">Cargando desglose de ventanas y cotas...</span>
           </div>
         ) : (
@@ -86,7 +86,7 @@ export const CotizacionDetalleModal: React.FC<{
               {/* Version Picker */}
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
                 <div className="text-[10px] uppercase tracking-wider font-bold text-slate-500 flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5 text-[#E34A26]" />
+                  <Layers className="w-3.5 h-3.5 text-brand-600" />
                   <span>Versión HETMO</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -96,7 +96,7 @@ export const CotizacionDetalleModal: React.FC<{
                       onClick={() => setSelectedVersionIdx(idx)}
                       className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                         selectedVersionIdx === idx
-                          ? 'bg-[#E34A26] text-white shadow-xs'
+                          ? 'bg-brand-600 text-white shadow-xs'
                           : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
                       }`}
                     >
@@ -191,7 +191,7 @@ export const CotizacionDetalleModal: React.FC<{
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3 font-mono text-[#E34A26] font-bold">
+                        <td className="px-4 py-3 font-mono text-brand-600 font-bold">
                           {formatNumber(v.anchoMm, 0)} × {formatNumber(v.altoMm, 0)}{' '}
                           <span className="text-[10px] text-slate-400 font-normal">mm</span>
                         </td>

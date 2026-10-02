@@ -26,7 +26,7 @@ export const Badge: React.FC<BadgeProps> = ({
 }) => {
   const variantStyles: Record<BadgeVariant, string> = {
     default: 'bg-slate-100 text-slate-700 border-slate-200',
-    brand: 'bg-[#E34A26]/10 text-[#E34A26] border-[#E34A26]/20 font-bold',
+    brand: 'bg-brand-600/10 text-brand-600 border-brand-600/20 font-bold',
     success: 'bg-emerald-50 text-emerald-700 border-emerald-200 font-semibold',
     warning: 'bg-amber-50 text-amber-700 border-amber-200 font-semibold',
     info: 'bg-sky-50 text-sky-700 border-sky-200 font-semibold',
@@ -37,7 +37,7 @@ export const Badge: React.FC<BadgeProps> = ({
 
   const dotColors: Record<BadgeVariant, string> = {
     default: 'bg-slate-400',
-    brand: 'bg-[#E34A26]',
+    brand: 'bg-brand-600',
     success: 'bg-emerald-500',
     warning: 'bg-amber-500',
     info: 'bg-sky-500',

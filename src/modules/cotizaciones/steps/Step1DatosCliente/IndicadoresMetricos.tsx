@@ -48,7 +48,7 @@ export const IndicadoresMetricos: React.FC<IndicadoresMetricosProps> = ({ active
     <div className="space-y-3 sm:space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-[#E34A26] shrink-0" />
+          <Sparkles className="w-4 h-4 text-brand-600 shrink-0" />
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
             Indicadores Técnicos y Métricos de la Obra
           </h3>
@@ -74,7 +74,7 @@ export const IndicadoresMetricos: React.FC<IndicadoresMetricosProps> = ({ active
 
         {/* Superficie Total Ventanas */}
         <div className="p-3 sm:p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex items-center gap-2.5 sm:gap-3.5 hover:border-slate-300 transition-all min-w-0">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-[#E34A26]/10 text-[#E34A26] border border-[#E34A26]/20 flex items-center justify-center shrink-0">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-brand-600/10 text-brand-600 border border-brand-600/20 flex items-center justify-center shrink-0">
             <Ruler className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div className="min-w-0 flex-1">

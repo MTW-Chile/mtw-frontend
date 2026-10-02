@@ -628,7 +628,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
       >
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#E34A26]/10 border border-[#E34A26]/20 flex items-center justify-center text-[#E34A26] shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-brand-600/10 border border-brand-600/20 flex items-center justify-center text-brand-600 shrink-0">
               <ShoppingCart className="w-5 h-5" />
             </div>
             <div>
@@ -713,7 +713,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
                 type="checkbox"
                 checked={esAdicional}
                 onChange={(e) => setEsAdicional(e.target.checked)}
-                className="mt-0.5 accent-[#E34A26]"
+                className="mt-0.5 accent-brand-600"
               />
               <span className="text-xs text-slate-700">
                 <strong>Es un Adicional</strong> -- trabajo fuera del presupuesto aprobado para esta obra. Al elegir productos a mano se
@@ -749,7 +749,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
                         title={sinProveedor ? 'Asígnale un proveedor a estos materiales en el Maestro para poder generar una OC' : undefined}
                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-colors ${
                           activo
-                            ? 'bg-[#E34A26]/10 text-[#E34A26] border-[#E34A26]/30'
+                            ? 'bg-brand-600/10 text-brand-600 border-brand-600/30'
                             : sinProveedor
                               ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed'
                               : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50 cursor-pointer'
@@ -800,7 +800,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
               onChange={(e) => setComentarios(e.target.value)}
               placeholder="Ej: entregar en horario de mañana, coordinar con bodega antes de despachar..."
               rows={3}
-              className="w-full py-2.5 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[#E34A26] focus:ring-2 focus:ring-[#E34A26]/10 transition-all resize-none"
+              className="w-full py-2.5 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-brand-600 focus:ring-2 focus:ring-brand-600/10 transition-all resize-none"
             />
           </div>
 

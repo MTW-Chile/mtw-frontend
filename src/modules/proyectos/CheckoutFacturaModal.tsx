@@ -270,7 +270,7 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
       >
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#E34A26]/10 border border-[#E34A26]/20 flex items-center justify-center text-[#E34A26] shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-brand-600/10 border border-brand-600/20 flex items-center justify-center text-brand-600 shrink-0">
               <Receipt className="w-5 h-5" />
             </div>
             <div>
@@ -591,7 +591,7 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                           type="checkbox"
                           checked={ajustarOC}
                           onChange={(e) => setAjustarOC(e.target.checked)}
-                          className="mt-0.5 accent-[#E34A26]"
+                          className="mt-0.5 accent-brand-600"
                         />
                         <span className="text-slate-700">
                           <strong>Ajustar la OC al monto facturado</strong> -- los precios de la OC se escalan proporcionalmente de{' '}
@@ -664,7 +664,7 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                           type="checkbox"
                           checked={ajustarOC}
                           onChange={(e) => setAjustarOC(e.target.checked)}
-                          className="mt-0.5 accent-[#E34A26]"
+                          className="mt-0.5 accent-brand-600"
                         />
                         <span className="text-slate-700">
                           <strong>Ajustar precios al monto facturado</strong> -- en los items que queden completos, el precio unitario se

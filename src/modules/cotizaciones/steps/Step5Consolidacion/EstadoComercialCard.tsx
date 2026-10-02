@@ -170,7 +170,7 @@ export const EstadoComercialCard: React.FC<EstadoComercialCardProps> = ({
               value={hetmoIdInput}
               onChange={(e) => setHetmoIdInput(e.target.value)}
               placeholder="ID de versión HETMO"
-              className="w-40 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-[#E34A26]"
+              className="w-40 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600"
             />
             <button
               onClick={handleCrearVersion}

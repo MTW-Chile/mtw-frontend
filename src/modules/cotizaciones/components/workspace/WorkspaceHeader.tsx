@@ -43,7 +43,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
           <div className="h-5 w-px bg-slate-200 hidden sm:block" />
 
           <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#E34A26]/10 text-[#E34A26] border border-[#E34A26]/20 flex items-center justify-center font-bold text-xs shrink-0">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-brand-600/10 text-brand-600 border border-brand-600/20 flex items-center justify-center font-bold text-xs shrink-0">
               <Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
 
@@ -68,7 +68,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                     <span>{ESTADO_LABEL[activeVersion.estadoAprobacion] || activeVersion.estadoAprobacion}</span>
                   </span>
                 ) : (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-[#E34A26]/10 border border-[#E34A26]/30 text-[#E34A26] shrink-0">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-brand-600/10 border border-brand-600/30 text-brand-600 shrink-0">
                     {activeVersion ? ESTADO_LABEL[activeVersion.estadoAprobacion] || activeVersion.estadoAprobacion : 'En Cotización'}
                   </span>
                 )}

@@ -43,7 +43,7 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
     <div className="p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-3">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#E34A26]/10 text-[#E34A26] border border-[#E34A26]/20 flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-brand-600/10 text-brand-600 border border-brand-600/20 flex items-center justify-center shrink-0">
             <GitBranch className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div>
@@ -71,7 +71,7 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
                   disabled={isSaving}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 cursor-pointer ${
                     selectedVersionIdx === idx
-                      ? 'bg-[#E34A26] text-white font-bold shadow-xs'
+                      ? 'bg-brand-600 text-white font-bold shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -109,7 +109,7 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
                 if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
               }}
               placeholder="Ej: 4521"
-              className="w-28 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-[#E34A26] focus:bg-white"
+              className="w-28 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white"
             />
             {isSavingNumeroInterno && <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin shrink-0" />}
             {draftNumero.trim() && (

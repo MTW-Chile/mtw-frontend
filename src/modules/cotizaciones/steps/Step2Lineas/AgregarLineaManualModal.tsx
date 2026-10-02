@@ -123,7 +123,7 @@ export const AgregarLineaManualModal: React.FC<AgregarLineaManualModalProps> = (
       >
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#E34A26]/10 border border-[#E34A26]/20 flex items-center justify-center text-[#E34A26] shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-brand-600/10 border border-brand-600/20 flex items-center justify-center text-brand-600 shrink-0">
               <PanelTop className="w-5 h-5" />
             </div>
             <div>
@@ -153,10 +153,10 @@ export const AgregarLineaManualModal: React.FC<AgregarLineaManualModalProps> = (
               type="button"
               onClick={() => setTipo('DVH_FIJO')}
               className={`p-3 rounded-xl border text-left transition-colors cursor-pointer ${
-                tipo === 'DVH_FIJO' ? 'border-[#E34A26] bg-orange-50' : 'border-slate-200 hover:bg-slate-50'
+                tipo === 'DVH_FIJO' ? 'border-brand-600 bg-brand-50' : 'border-slate-200 hover:bg-slate-50'
               }`}
             >
-              <PanelTop className={`w-5 h-5 mb-1.5 ${tipo === 'DVH_FIJO' ? 'text-[#E34A26]' : 'text-slate-400'}`} />
+              <PanelTop className={`w-5 h-5 mb-1.5 ${tipo === 'DVH_FIJO' ? 'text-brand-600' : 'text-slate-400'}`} />
               <div className="text-xs font-bold text-slate-900">Vidrio DVH Fijo</div>
               <div className="text-[10px] text-slate-500">Paño de vidrio sin marco</div>
             </button>
@@ -164,10 +164,10 @@ export const AgregarLineaManualModal: React.FC<AgregarLineaManualModalProps> = (
               type="button"
               onClick={() => setTipo('PROTEX')}
               className={`p-3 rounded-xl border text-left transition-colors cursor-pointer ${
-                tipo === 'PROTEX' ? 'border-[#E34A26] bg-orange-50' : 'border-slate-200 hover:bg-slate-50'
+                tipo === 'PROTEX' ? 'border-brand-600 bg-brand-50' : 'border-slate-200 hover:bg-slate-50'
               }`}
             >
-              <DoorClosed className={`w-5 h-5 mb-1.5 ${tipo === 'PROTEX' ? 'text-[#E34A26]' : 'text-slate-400'}`} />
+              <DoorClosed className={`w-5 h-5 mb-1.5 ${tipo === 'PROTEX' ? 'text-brand-600' : 'text-slate-400'}`} />
               <div className="text-xs font-bold text-slate-900">Puerta Protex</div>
               <div className="text-[10px] text-slate-500">Vidrio + herrajes por hoja</div>
             </button>
@@ -203,13 +203,13 @@ export const AgregarLineaManualModal: React.FC<AgregarLineaManualModalProps> = (
                 <button
                   type="button"
                   onClick={() => setVidrio(null)}
-                  className="text-[10px] font-semibold text-[#E34A26] hover:underline shrink-0 cursor-pointer"
+                  className="text-[10px] font-semibold text-brand-600 hover:underline shrink-0 cursor-pointer"
                 >
                   Cambiar
                 </button>
               </div>
             ) : (
-              <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-3">
+              <div className="rounded-xl border border-brand-200 bg-brand-50/40 p-3">
                 <MaterialPicker
                   placeholder="Buscar vidrio por SKU o descripción…"
                   onSelect={(m) => setVidrio(m)}
@@ -230,7 +230,7 @@ export const AgregarLineaManualModal: React.FC<AgregarLineaManualModalProps> = (
                     onClick={() => setHojasElegidas(n)}
                     disabled={plantillasQuery.isLoading}
                     className={`py-2 rounded-xl border text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 ${
-                      hojasElegidas === n ? 'border-[#E34A26] bg-orange-50 text-[#E34A26]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      hojasElegidas === n ? 'border-brand-600 bg-brand-50 text-brand-600' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
                     {n} {n === 1 ? 'Hoja' : 'Hojas'}
