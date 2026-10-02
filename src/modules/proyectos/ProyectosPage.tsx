@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, FolderKanban, ChevronRight, Layers } from 'lucide-react';
+import { Loader2, FolderKanban, ChevronRight, Layers, AlertCircle } from 'lucide-react';
 import { getProyectos } from '../../api/client';
 import { ProyectoWorkspace } from './ProyectoWorkspace';
 import { useMediaQuery } from '../../lib/useMediaQuery';
@@ -39,7 +39,7 @@ export const ProyectosPage: React.FC<ProyectosPageProps> = ({ proyectoAAbrir, on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proyectoAAbrir]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['proyectos', 'en-curso'],
     queryFn: () => getProyectos({ limit: 200 }),
   });
@@ -92,6 +92,11 @@ export const ProyectosPage: React.FC<ProyectosPageProps> = ({ proyectoAAbrir, on
       {isLoading ? (
         <div className="p-12 flex items-center justify-center text-slate-400">
           <Loader2 className="w-5 h-5 animate-spin" />
+        </div>
+      ) : isError ? (
+        <div className="p-12 text-center rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex flex-col items-center gap-2">
+          <AlertCircle className="w-5 h-5" />
+          {(error as any)?.response?.data?.error || 'No se pudo cargar la lista de proyectos. Intenta de nuevo en unos minutos.'}
         </div>
       ) : proyectosEnCurso.length === 0 ? (
         <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">

@@ -25,13 +25,18 @@ const queryClient = new QueryClient({
     queries: {
       // Antes: 5 min sin refetch al volver a la pestaña -- la info se veia
       // desactualizada por minutos con varias personas usando la app a la
-      // vez. Ahora: stale a los 60s (una query en pantalla vuelve a pedirse
-      // sola al remontar/reenfocar si paso ese tiempo) + refetchInterval
-      // de fondo cada 60s mientras la pantalla siga abierta +
-      // refetchOnWindowFocus. Una pantalla puntual puede pisar cualquiera
-      // de estos tres pasando sus propias opciones a useQuery.
-      staleTime: 1000 * 60,
-      refetchInterval: 1000 * 60,
+      // vez. Se probo con 60s de intervalo, pero con varias pestañas
+      // abiertas (cada una poleando sola, sin compartir el intervalo) el
+      // volumen de fondo llegaba a pisar el limite de 300 req/15min por
+      // usuario de apiRateLimiter (ver mtw-api/src/security.ts) -- 429
+      // "Demasiadas peticiones" en uso normal, y paginas que no muestran el
+      // error de su query (ej. ProyectosPage) se veian con datos
+      // vacios/viejos sin avisar. 3 min deja un refresco igual mucho mas
+      // seguido que antes, con bastante margen contra ese limite. Una
+      // pantalla puntual puede pisar cualquiera de estos tres pasando sus
+      // propias opciones a useQuery.
+      staleTime: 1000 * 60 * 3,
+      refetchInterval: 1000 * 60 * 3,
       refetchOnWindowFocus: true,
     },
   },
