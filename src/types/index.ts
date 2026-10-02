@@ -834,6 +834,10 @@ export interface LineaAsientoClay {
 export interface ClayDteLinea {
   indice: number;
   descripcion: string;
+  // Codigo del proveedor (CdgItem del XML del SII, cuando viene -- Clay no
+  // lo trae) -- para sugerir vinculos comparando contra el codigo interno
+  // del material (ver "Sugerir por códigos" en CheckoutFacturaModal).
+  codigo: string | null;
   cantidad: number | null;
   precioUnitario: number | null;
   monto: number;
@@ -845,6 +849,8 @@ export interface ClayDteLinea {
 export interface ItemOCCheckout {
   id: string;
   descripcion: string;
+  // skuInterno del Material del catalogo -- null para partidas externas.
+  codigo: string | null;
   categoria: CategoriaGasto;
   unidadMedida: string;
   cantidad: number;
@@ -874,6 +880,7 @@ export interface ImportarXmlResponse {
   lineasFactura: ClayDteLinea[];
   itemsOC: ItemOCCheckout[];
   sugerencias: VinculoSugerido[];
+  sugerenciasPorCodigo: VinculoSugerido[];
 }
 
 // GET /api/ordenes-compra/:id/facturas/:clayTransactionId/checkout -- lo
@@ -891,6 +898,7 @@ export interface CheckoutFactura {
   lineasFactura: ClayDteLinea[];
   itemsOC: ItemOCCheckout[];
   sugerencias: VinculoSugerido[];
+  sugerenciasPorCodigo: VinculoSugerido[];
   // Preview con las sugerencias por defecto -- el estado real se decide con
   // lo que la persona termine confirmando.
   estadoResultante: EstadoOC;

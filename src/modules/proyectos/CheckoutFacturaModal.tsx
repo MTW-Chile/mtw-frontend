@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { X, Receipt, AlertCircle, AlertTriangle, Loader2, CheckCircle2, Upload, FileCode2, Wand2 } from 'lucide-react';
+import { X, Receipt, AlertCircle, AlertTriangle, Loader2, CheckCircle2, Upload, FileCode2, Wand2, Hash } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { getCheckoutFactura, vincularFactura, importarXmlFactura } from '../../api/client';
@@ -109,6 +109,7 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [filas, setFilas] = useState<FilaConciliacion[]>([]);
   const [sugerencias, setSugerencias] = useState<VinculoSugerido[]>([]);
+  const [sugerenciasPorCodigo, setSugerenciasPorCodigo] = useState<VinculoSugerido[]>([]);
   // itemsOC/lineasFactura empiezan con lo que trae el checkout (desde
   // Clay), pero se reemplazan enteras si se importa un XML (fuente mas
   // confiable -- ver importarXmlMutation).
@@ -133,6 +134,7 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
       setFuenteDatos({ itemsOC: data.itemsOC, lineasFactura: data.lineasFactura });
       setFilas(filasIniciales(data.itemsOC));
       setSugerencias(data.sugerencias);
+      setSugerenciasPorCodigo(data.sugerenciasPorCodigo);
     }
   }, [data]);
 
@@ -147,6 +149,7 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
       // este nuevo set de lineas -- se resetean las filas.
       setFilas(filasIniciales(resp.itemsOC));
       setSugerencias(resp.sugerencias);
+      setSugerenciasPorCodigo(resp.sugerenciasPorCodigo);
       setXmlNombre(file.name);
       setError(null);
     },
@@ -187,14 +190,17 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
     });
   };
 
-  // "Sugerir por monto": aplica las sugerencias del backend (por linea real
-  // si hay, o "1 vinculo por item pendiente al precio comprometido" si no
-  // hay ninguna linea) sobre las filas actuales -- accion explicita, no
+  // "Sugerir por monto" / "Sugerir por códigos": aplica el set de
+  // sugerencias elegido sobre las filas actuales -- accion explicita, no
   // automatica, para no pisar lo que la persona ya haya tocado sin avisar.
-  const aplicarSugerencias = () => {
+  // Por monto cae a "1 vinculo por item pendiente al precio comprometido"
+  // cuando no hay ninguna linea reconocida; por codigo solo sugiere cuando
+  // encuentra un match de codigo (ver sugerirVinculosPorCodigo en el
+  // backend) -- puede no sugerir nada si ningun codigo matchea.
+  const aplicarSugerencias = (lista: VinculoSugerido[]) => {
     setFilas((prev) =>
       prev.map((fila) => {
-        const sug = sugerencias.find((s) => s.ordenCompraItemId === fila.ordenCompraItemId);
+        const sug = lista.find((s) => s.ordenCompraItemId === fila.ordenCompraItemId);
         if (!sug) return fila;
         return sug.facturaLineaIndex != null
           ? { ...fila, cantidad: sug.cantidad, fuente: 'xml', facturaLineaIndex: sug.facturaLineaIndex, descripcionManual: '', montoManual: 0 }
@@ -374,8 +380,17 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                       >
                         Importar XML del SII
                       </Button>
-                      <Button size="sm" variant="ghost" leftIcon={<Wand2 className="w-3.5 h-3.5" />} onClick={aplicarSugerencias}>
+                      <Button size="sm" variant="ghost" leftIcon={<Wand2 className="w-3.5 h-3.5" />} onClick={() => aplicarSugerencias(sugerencias)}>
                         Sugerir por monto
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        leftIcon={<Hash className="w-3.5 h-3.5" />}
+                        onClick={() => aplicarSugerencias(sugerenciasPorCodigo)}
+                        title="Compara el código del proveedor en la factura contra el código interno de cada item -- no es una regla fija, solo prueba coincidencias."
+                      >
+                        Sugerir por códigos
                       </Button>
                       {xmlNombre ? (
                         <span className="text-[11px] text-emerald-700 flex items-center gap-1">
@@ -430,6 +445,7 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                                   <td className="px-3 py-2">
                                     <span className="font-semibold text-slate-800">{item.descripcion}</span>
                                     <span className="block text-[10px] text-slate-400">
+                                      {item.codigo && <span className="font-mono">{item.codigo} · </span>}
                                       {item.unidadMedida} · {formatCLP(Number(item.precioUnitario ?? 0))} c/u
                                       {item.pendienteRecepcionar > 0 && <span className="text-amber-600"> · sin recepcionar</span>}
                                     </span>
@@ -456,6 +472,7 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                                       <option value="">Sin seleccionar</option>
                                       {lineasDisponibles.map((l) => (
                                         <option key={l.indice} value={l.indice}>
+                                          {l.codigo ? `${l.codigo} · ` : ''}
                                           {l.descripcion} ({l.cantidad ?? '—'} · {formatCLP(l.monto)}){!l.reconocida ? ' ⚠' : ''}
                                         </option>
                                       ))}
