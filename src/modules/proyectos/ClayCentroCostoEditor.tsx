@@ -53,13 +53,13 @@ export const ClayCentroCostoEditor: React.FC<{ proyectoId: string; valor: string
             if (e.key === 'Escape') setEditando(false);
           }}
           placeholder="Nombre exacto en Clay"
-          className="w-48 text-[11px] border border-slate-200 rounded-lg px-2 py-1 outline-none focus:border-[#E34A26]"
+          className="w-48 text-[11px] border border-slate-200 rounded-lg px-2 py-1 outline-none focus:border-brand-600"
         />
         <button
           onClick={() => mutation.mutate()}
           disabled={mutation.isPending}
           title="Guardar"
-          className="w-6 h-6 rounded-lg bg-[#E34A26] text-white flex items-center justify-center disabled:opacity-50"
+          className="w-6 h-6 rounded-lg bg-brand-600 text-white flex items-center justify-center disabled:opacity-50"
         >
           {mutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
         </button>

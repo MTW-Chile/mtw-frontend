@@ -66,7 +66,7 @@ export const RolEditModal: React.FC<RolEditModalProps> = ({ rol, onClose }) => {
       >
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#E34A26]/10 border border-[#E34A26]/20 flex items-center justify-center text-[#E34A26] shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-brand-600/10 border border-brand-600/20 flex items-center justify-center text-brand-600 shrink-0">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
@@ -113,7 +113,7 @@ export const RolEditModal: React.FC<RolEditModalProps> = ({ rol, onClose }) => {
                     key={s.id}
                     className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold cursor-pointer transition-colors ${
                       checked
-                        ? 'bg-[#E34A26]/10 text-[#E34A26] border-[#E34A26]/20'
+                        ? 'bg-brand-600/10 text-brand-600 border-brand-600/20'
                         : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
@@ -121,7 +121,7 @@ export const RolEditModal: React.FC<RolEditModalProps> = ({ rol, onClose }) => {
                       type="checkbox"
                       checked={checked}
                       onChange={() => toggle(secciones, setSecciones, s.id)}
-                      className="accent-[#E34A26]"
+                      className="accent-brand-600"
                     />
                     <Icon className="w-3.5 h-3.5 shrink-0" />
                     <span>{s.label}</span>
@@ -147,7 +147,7 @@ export const RolEditModal: React.FC<RolEditModalProps> = ({ rol, onClose }) => {
                     key={t.id}
                     className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold cursor-pointer transition-colors ${
                       checked
-                        ? 'bg-[#E34A26]/10 text-[#E34A26] border-[#E34A26]/20'
+                        ? 'bg-brand-600/10 text-brand-600 border-brand-600/20'
                         : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
@@ -155,7 +155,7 @@ export const RolEditModal: React.FC<RolEditModalProps> = ({ rol, onClose }) => {
                       type="checkbox"
                       checked={checked}
                       onChange={() => toggle(configTabs, setConfigTabs, t.id)}
-                      className="accent-[#E34A26]"
+                      className="accent-brand-600"
                     />
                     <Icon className="w-3.5 h-3.5 shrink-0" />
                     <span>{t.label}</span>
@@ -180,7 +180,7 @@ export const RolEditModal: React.FC<RolEditModalProps> = ({ rol, onClose }) => {
                     key={a.id}
                     className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold cursor-pointer transition-colors ${
                       checked
-                        ? 'bg-[#E34A26]/10 text-[#E34A26] border-[#E34A26]/20'
+                        ? 'bg-brand-600/10 text-brand-600 border-brand-600/20'
                         : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
@@ -188,7 +188,7 @@ export const RolEditModal: React.FC<RolEditModalProps> = ({ rol, onClose }) => {
                       type="checkbox"
                       checked={checked}
                       onChange={() => toggle(aprobaciones, setAprobaciones, a.id)}
-                      className="accent-[#E34A26]"
+                      className="accent-brand-600"
                     />
                     <Icon className="w-3.5 h-3.5 shrink-0" />
                     <span>{a.label}</span>

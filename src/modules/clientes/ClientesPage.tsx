@@ -10,7 +10,8 @@ import { ClienteFormModal } from './ClienteFormModal';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilters';
 import { ColumnFilterHeader } from '../../components/ui/ColumnFilterHeader';
-import { PAGE_CONTAINER_CLASS, BREAKPOINT_DESKTOP, TABLE_CLASS } from '../../lib/designSystem';
+import { PAGE_CONTAINER_CLASS, BREAKPOINT_DESKTOP, TABLE_CLASS, TABLE_WRAPPER_CLASS, STICKY_ACTIONS_CLASS } from '../../lib/designSystem';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 /**
  * Maestro de Clientes: quién es cada cliente y sus datos de contacto/
@@ -81,15 +82,16 @@ export const ClientesPage: React.FC = () => {
 
   return (
     <div className={PAGE_CONTAINER_CLASS}>
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-base font-black text-slate-900">Clientes</h1>
-          <p className="text-xs text-slate-500">Maestro de clientes -- datos de contacto y facturación.</p>
-        </div>
-        <Button leftIcon={<Plus className="w-4 h-4" />} onClick={() => setCreando(true)}>
-          Nuevo Cliente
-        </Button>
-      </div>
+      <PageHeader
+        title="Clientes"
+        description="Maestro de clientes: datos de contacto y facturación."
+        icon={Users}
+        actions={
+          <Button leftIcon={<Plus className="w-4 h-4" />} onClick={() => setCreando(true)}>
+            Nuevo Cliente
+          </Button>
+        }
+      />
 
       <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-xs">
         <div className="relative">
@@ -99,7 +101,7 @@ export const ClientesPage: React.FC = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por razón social, RUT, giro o contacto..."
-            className="w-full pl-10 pr-9 py-2.5 sm:py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[#E34A26] transition-all"
+            className="w-full pl-10 pr-9 py-2.5 sm:py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-brand-600 transition-all"
           />
           {searchTerm && (
             <button
@@ -120,7 +122,7 @@ export const ClientesPage: React.FC = () => {
       ) : isError ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-3 shadow-xs">
           <p className="text-sm font-bold text-rose-600">Error al consultar el maestro de clientes.</p>
-          <button onClick={() => refetch()} className="text-xs font-bold text-[#E34A26] hover:underline cursor-pointer">
+          <button onClick={() => refetch()} className="text-xs font-bold text-brand-600 hover:underline cursor-pointer">
             Reintentar
           </button>
         </div>
@@ -139,7 +141,7 @@ export const ClientesPage: React.FC = () => {
         <>
           {isDesktop && (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-              <div className="overflow-x-auto">
+              <div className={TABLE_WRAPPER_CLASS}>
                 <table className={TABLE_CLASS + ' text-left text-slate-700'}>
                   <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
                     <tr>
@@ -148,8 +150,8 @@ export const ClientesPage: React.FC = () => {
                       <th className="px-5 py-3.5">Giro</th>
                       <th className="px-5 py-3.5">Contacto</th>
                       <th className="px-5 py-3.5">Proyectos</th>
-                      <th className="px-5 py-3.5">Cobranza</th>
-                      <th className="px-5 py-3.5 text-right">Acciones</th>
+                      <th className="px-5 py-3.5 hidden 2xl:table-cell">Cobranza</th>
+                      <th className={`px-5 py-3.5 text-right ${STICKY_ACTIONS_CLASS} bg-slate-50`}>Acciones</th>
                     </tr>
                     <tr className="bg-white border-b border-slate-100">
                       {columnas.map((c) => (
@@ -157,7 +159,9 @@ export const ClientesPage: React.FC = () => {
                           <ColumnFilterHeader columna={c} valor={valores[c.key] || ''} onChange={(v) => setValor(c.key, v)} />
                         </th>
                       ))}
-                      <th className="px-5 py-2.5" colSpan={3} />
+                      <th className="px-5 py-2.5" />
+                      <th className="px-5 py-2.5 hidden 2xl:table-cell" />
+                      <th className={`px-5 py-2.5 ${STICKY_ACTIONS_CLASS} bg-white`} />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -165,14 +169,20 @@ export const ClientesPage: React.FC = () => {
                       const sinUso = !!c._count && c._count.proyectos === 0;
                       return (
                         <tr key={c.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="px-5 py-3.5 font-semibold text-slate-900">
-                            {c.nombre}
-                            {c.razonSocial && <span className="block text-[11px] text-slate-400 font-normal">{c.razonSocial}</span>}
+                          <td className="px-5 py-3.5 font-semibold text-slate-900 min-w-[14rem]">
+                            <div className="line-clamp-2 leading-snug" title={c.nombre}>{c.nombre}</div>
+                            {/* Solo si dice algo distinto al nombre -- antes se repetia
+                                tal cual en gris debajo en casi todas las filas. */}
+                            {c.razonSocial && c.razonSocial !== c.nombre && (
+                              <span className="block text-[11px] text-slate-400 font-normal truncate max-w-[18rem]" title={c.razonSocial}>
+                                {c.razonSocial}
+                              </span>
+                            )}
                           </td>
-                          <td className="px-5 py-3.5 text-slate-600 font-mono">{c.rut || <span className="text-slate-300">—</span>}</td>
-                          <td className="px-5 py-3.5 text-slate-600">{c.giro || <span className="text-slate-300">—</span>}</td>
-                          <td className="px-5 py-3.5 text-slate-600">{c.contacto || <span className="text-slate-300">—</span>}</td>
-                          <td className="px-5 py-3.5">
+                          <td className="px-5 py-3.5 text-slate-600 font-mono whitespace-nowrap">{c.rut || <span className="text-slate-300">—</span>}</td>
+                          <td className="px-5 py-3.5 text-slate-600 min-w-[9rem]"><div className="line-clamp-2">{c.giro || <span className="text-slate-300">—</span>}</div></td>
+                          <td className="px-5 py-3.5 text-slate-600 min-w-[9rem]"><div className="line-clamp-2">{c.contacto || <span className="text-slate-300">—</span>}</div></td>
+                          <td className="px-5 py-3.5 whitespace-nowrap">
                             {c._count ? (
                               sinUso ? (
                                 <Badge variant="warning" size="sm">Sin uso</Badge>
@@ -183,14 +193,14 @@ export const ClientesPage: React.FC = () => {
                               <span className="text-slate-300">—</span>
                             )}
                           </td>
-                          <td className="px-5 py-3.5">
+                          <td className="px-5 py-3.5 whitespace-nowrap hidden 2xl:table-cell">
                             <CobranzaBadge />
                           </td>
-                          <td className="px-5 py-3.5 text-right">
+                          <td className={`px-5 py-3.5 text-right whitespace-nowrap ${STICKY_ACTIONS_CLASS} bg-white`}>
                             <div className="flex items-center justify-end gap-1">
                               <button
                                 onClick={() => setEditando(c)}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:text-[#E34A26] hover:bg-orange-50 transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:text-brand-600 hover:bg-brand-50 transition-colors cursor-pointer"
                               >
                                 <Pencil className="w-3 h-3" />
                                 <span>Editar</span>
@@ -264,7 +274,7 @@ export const ClientesPage: React.FC = () => {
                     <div className="pt-2.5 border-t border-slate-100 flex justify-end gap-1 flex-wrap">
                       <button
                         onClick={() => setEditando(c)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-[#E34A26] hover:bg-orange-50 transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-brand-600 hover:bg-brand-50 transition-colors cursor-pointer"
                       >
                         <Pencil className="w-3 h-3" />
                         <span>Editar</span>

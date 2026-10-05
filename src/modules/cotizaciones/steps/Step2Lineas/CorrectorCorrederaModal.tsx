@@ -210,13 +210,13 @@ export const CorrectorCorrederaModal: React.FC<CorrectorCorrederaModalProps> = (
         {/* Header del Modal */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-100 text-[#E34A26] border border-orange-200 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-brand-100 text-brand-600 border border-brand-200 flex items-center justify-center shrink-0">
               <Sliders className="w-5 h-5" />
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <span>Ajustar Geometría de Corredera:</span>
-                <span className="text-[#E34A26]">{ventana.modelo}</span>
+                <span className="text-brand-600">{ventana.modelo}</span>
               </h3>
               <span className="text-xs text-slate-500 font-mono">
                 Línea #{ventana.lineaHetmo} · {ventana.unidades} uds ({formatNumber(ventana.anchoMm, 0)} × {formatNumber(ventana.altoMm, 0)} mm)
@@ -296,7 +296,7 @@ export const CorrectorCorrederaModal: React.FC<CorrectorCorrederaModalProps> = (
               <select
                 value={selectedAperture}
                 onChange={(e) => handleApertureChange(Number(e.target.value))}
-                className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#E34A26] focus:bg-white transition-colors cursor-pointer"
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white transition-colors cursor-pointer"
               >
                 {slidingApertures.map((ap) => (
                   <option key={ap.code} value={ap.code}>
@@ -315,7 +315,7 @@ export const CorrectorCorrederaModal: React.FC<CorrectorCorrederaModalProps> = (
                 <button
                   type="button"
                   onClick={handleEqualizeWidths}
-                  className="text-[11px] font-semibold text-[#E34A26] hover:underline cursor-pointer flex items-center gap-1"
+                  className="text-[11px] font-semibold text-brand-600 hover:underline cursor-pointer flex items-center gap-1"
                 >
                   <Maximize2 className="w-3 h-3" />
                   <span>Repartir anchos iguales</span>
@@ -375,7 +375,7 @@ export const CorrectorCorrederaModal: React.FC<CorrectorCorrederaModalProps> = (
                             value={hoja.ancho || ''}
                             onChange={(e) => updateHoja(idx, { ancho: Number(e.target.value) || 0 })}
                             disabled={isHidden}
-                            className="w-full px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-[#E34A26] focus:bg-white disabled:bg-slate-100 disabled:text-slate-400"
+                            className="w-full px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white disabled:bg-slate-100 disabled:text-slate-400"
                           />
                         </div>
 
@@ -399,7 +399,7 @@ export const CorrectorCorrederaModal: React.FC<CorrectorCorrederaModalProps> = (
                                   hoja.carril === opt.num
                                     ? opt.num === 0
                                       ? 'bg-slate-800 text-white border-slate-800 shadow-xs'
-                                      : 'bg-[#E34A26] text-white border-[#E34A26] shadow-xs'
+                                      : 'bg-brand-600 text-white border-brand-600 shadow-xs'
                                     : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
                                 }`}
                               >
@@ -484,7 +484,7 @@ export const CorrectorCorrederaModal: React.FC<CorrectorCorrederaModalProps> = (
               type="button"
               onClick={handleSave}
               disabled={isSaving}
-              className="flex-1 sm:flex-initial px-5 py-2 rounded-xl bg-[#E34A26] hover:bg-[#c93f1f] text-white font-bold text-xs transition-colors cursor-pointer shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+              className="flex-1 sm:flex-initial px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs transition-colors cursor-pointer shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isSaving ? (
                 <>

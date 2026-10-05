@@ -18,7 +18,7 @@ const Step5Consolidacion = lazy(() => import('./steps/Step5Consolidacion/Step5Co
 
 const StepFallback: React.FC = () => (
   <div className="flex items-center justify-center p-16">
-    <div className="w-6 h-6 border-2 border-[#E34A26] border-t-transparent rounded-full animate-spin" />
+    <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
   </div>
 );
 
@@ -77,7 +77,7 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
     return (
       <div className="flex-1 flex items-center justify-center p-8 bg-slate-50 text-slate-700">
         <div className="text-center space-y-3">
-          <div className="w-8 h-8 border-2 border-[#E34A26] border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto" />
           <div className="text-xs font-mono">Cargando cotizador de la obra...</div>
         </div>
       </div>

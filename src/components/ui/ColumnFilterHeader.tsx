@@ -15,7 +15,7 @@ export function ColumnFilterHeader<T>({ columna, valor, onChange }: ColumnFilter
       <select
         value={valor}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full text-[10px] font-semibold normal-case bg-white border border-slate-200 rounded-md px-1.5 py-1 outline-none focus:border-[#E34A26] text-slate-600 cursor-pointer"
+        className="w-full text-[10px] font-semibold normal-case bg-white border border-slate-200 rounded-md px-1.5 py-1 outline-none focus:border-brand-600 text-slate-600 cursor-pointer"
       >
         <option value="">Todas</option>
         {columna.opciones.map((o) => (
@@ -32,7 +32,7 @@ export function ColumnFilterHeader<T>({ columna, valor, onChange }: ColumnFilter
       value={valor}
       onChange={(e) => onChange(e.target.value)}
       placeholder="Filtrar..."
-      className="w-full text-[10px] font-normal normal-case bg-white border border-slate-200 rounded-md px-1.5 py-1 outline-none focus:border-[#E34A26] text-slate-700 placeholder:text-slate-300"
+      className="w-full text-[10px] font-normal normal-case bg-white border border-slate-200 rounded-md px-1.5 py-1 outline-none focus:border-brand-600 text-slate-700 placeholder:text-slate-300"
     />
   );
 }

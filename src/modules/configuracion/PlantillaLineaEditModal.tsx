@@ -83,7 +83,7 @@ export const PlantillaLineaEditModal: React.FC<PlantillaLineaEditModalProps> = (
       >
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#E34A26]/10 border border-[#E34A26]/20 flex items-center justify-center text-[#E34A26] shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-brand-600/10 border border-brand-600/20 flex items-center justify-center text-brand-600 shrink-0">
               <DoorClosed className="w-5 h-5" />
             </div>
             <div>
@@ -126,7 +126,7 @@ export const PlantillaLineaEditModal: React.FC<PlantillaLineaEditModalProps> = (
                   type="button"
                   onClick={() => setHojas(n)}
                   className={`py-2 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
-                    hojas === n ? 'border-[#E34A26] bg-orange-50 text-[#E34A26]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                    hojas === n ? 'border-brand-600 bg-brand-50 text-brand-600' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   {n} {n === 1 ? 'Hoja' : 'Hojas'}
@@ -158,7 +158,7 @@ export const PlantillaLineaEditModal: React.FC<PlantillaLineaEditModalProps> = (
                         const val = e.target.value;
                         setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, cantidad: val } : p)));
                       }}
-                      className="w-16 px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-mono text-right focus:outline-none focus:ring-2 focus:ring-[#E34A26]/30"
+                      className="w-16 px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-mono text-right focus:outline-none focus:ring-2 focus:ring-brand-600/30"
                     />
                     <button
                       type="button"
@@ -173,7 +173,7 @@ export const PlantillaLineaEditModal: React.FC<PlantillaLineaEditModalProps> = (
             )}
 
             {showPicker ? (
-              <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-3">
+              <div className="rounded-xl border border-brand-200 bg-brand-50/40 p-3">
                 <MaterialPicker
                   onSelect={(material) => {
                     if (!items.some((it) => it.material.id === material.id)) {
@@ -194,7 +194,7 @@ export const PlantillaLineaEditModal: React.FC<PlantillaLineaEditModalProps> = (
               <button
                 type="button"
                 onClick={() => setShowPicker(true)}
-                className="w-full py-2 rounded-lg border border-dashed border-slate-300 text-[11px] font-bold text-slate-500 hover:text-[#E34A26] hover:border-[#E34A26] transition-colors cursor-pointer"
+                className="w-full py-2 rounded-lg border border-dashed border-slate-300 text-[11px] font-bold text-slate-500 hover:text-brand-600 hover:border-brand-600 transition-colors cursor-pointer"
               >
                 + Agregar material
               </button>

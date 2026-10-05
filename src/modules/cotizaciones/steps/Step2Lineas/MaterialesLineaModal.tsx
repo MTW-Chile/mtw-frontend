@@ -134,7 +134,7 @@ export const MaterialesLineaModal: React.FC<MaterialesLineaModalProps> = ({ vent
           <div>
             <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <span>Despiece de Materiales:</span>
-              <span className="text-[#E34A26]">{v.modelo}</span>
+              <span className="text-brand-600">{v.modelo}</span>
             </h3>
             <span className="text-xs text-slate-500 font-mono">
               Línea #{v.lineaHetmo} · {v.unidades} {v.unidades === 1 ? 'unidad' : 'unidades'} ({formatNumber(v.anchoMm, 0)} × {formatNumber(v.altoMm, 0)} mm)
@@ -208,7 +208,7 @@ export const MaterialesLineaModal: React.FC<MaterialesLineaModalProps> = ({ vent
               </h4>
               <button
                 onClick={() => setEditMode(editMode?.type === 'add' ? null : { type: 'add' })}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-[#E34A26] bg-orange-50 hover:bg-orange-100 border border-orange-200 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-brand-600 bg-brand-50 hover:bg-brand-100 border border-brand-200 transition-colors cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Agregar material</span>
@@ -309,7 +309,7 @@ export const MaterialesLineaModal: React.FC<MaterialesLineaModalProps> = ({ vent
                                       {m.origen === 'HETMO' ? (
                                         <button
                                           onClick={() => setEditMode(editMode?.type === 'replace' && editMode.row.id === m.id ? null : { type: 'replace', row: m })}
-                                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold text-slate-600 hover:text-[#E34A26] hover:bg-orange-50 transition-colors cursor-pointer"
+                                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold text-slate-600 hover:text-brand-600 hover:bg-brand-50 transition-colors cursor-pointer"
                                           title="Reemplazar por otro material del maestro"
                                         >
                                           <Repeat className="w-3 h-3" />

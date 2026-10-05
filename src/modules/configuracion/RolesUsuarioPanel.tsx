@@ -80,7 +80,7 @@ const RolesSection: React.FC = () => {
         </div>
         <button
           onClick={() => setCreandoNuevo(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold text-[#E34A26] bg-orange-50 hover:bg-orange-100 border border-orange-200 transition-colors cursor-pointer shrink-0"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold text-brand-600 bg-brand-50 hover:bg-brand-100 border border-brand-200 transition-colors cursor-pointer shrink-0"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>Nuevo Rol</span>
@@ -94,7 +94,7 @@ const RolesSection: React.FC = () => {
       ) : isError ? (
         <div className="py-6 text-center space-y-2">
           <p className="text-xs font-bold text-rose-600">Error al consultar los roles.</p>
-          <button onClick={() => refetch()} className="text-xs font-bold text-[#E34A26] hover:underline cursor-pointer">
+          <button onClick={() => refetch()} className="text-xs font-bold text-brand-600 hover:underline cursor-pointer">
             Reintentar
           </button>
         </div>
@@ -119,7 +119,7 @@ const RolesSection: React.FC = () => {
                   {r.aprobaciones.length > 0 && (
                     <>
                       {' · '}
-                      <span className="font-semibold text-[#E34A26]">
+                      <span className="font-semibold text-brand-600">
                         aprueba {r.aprobaciones.join(' + ')}
                       </span>
                     </>
@@ -129,7 +129,7 @@ const RolesSection: React.FC = () => {
               <div className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => setEditando(r)}
-                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-[#E34A26] hover:bg-orange-50 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-brand-600 hover:bg-brand-50 transition-colors cursor-pointer"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                   <span>Editar</span>
@@ -196,7 +196,7 @@ const UsuariosSection: React.FC = () => {
         </div>
         <button
           onClick={() => setCreandoNuevo(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold text-[#E34A26] bg-orange-50 hover:bg-orange-100 border border-orange-200 transition-colors cursor-pointer shrink-0"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold text-brand-600 bg-brand-50 hover:bg-brand-100 border border-brand-200 transition-colors cursor-pointer shrink-0"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>Nuevo Usuario</span>
@@ -216,7 +216,7 @@ const UsuariosSection: React.FC = () => {
       ) : isError ? (
         <div className="py-6 text-center space-y-2">
           <p className="text-xs font-bold text-rose-600">Error al consultar los usuarios.</p>
-          <button onClick={() => refetch()} className="text-xs font-bold text-[#E34A26] hover:underline cursor-pointer">
+          <button onClick={() => refetch()} className="text-xs font-bold text-brand-600 hover:underline cursor-pointer">
             Reintentar
           </button>
         </div>
@@ -238,7 +238,7 @@ const UsuariosSection: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <div className="text-xs font-bold text-slate-900 truncate">{u.nombre}</div>
                   {u.esAdmin ? (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-[#E34A26]/10 text-[#E34A26] font-bold shrink-0">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-brand-600/10 text-brand-600 font-bold shrink-0">
                       Admin del sistema
                     </span>
                   ) : (
@@ -264,7 +264,7 @@ const UsuariosSection: React.FC = () => {
                 <button
                   onClick={() => setEditando(u)}
                   title={u.esAdmin ? 'Solo se puede editar el nombre' : 'Editar'}
-                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-[#E34A26] hover:bg-orange-50 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-brand-600 hover:bg-brand-50 transition-colors cursor-pointer"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                   <span>Editar</span>

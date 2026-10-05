@@ -13,7 +13,7 @@ import { buildOrdenCompraHtml } from './ordenCompraPdf';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilters';
 import { ColumnFilterHeader } from '../../components/ui/ColumnFilterHeader';
-import { BREAKPOINT_DESKTOP, TABLE_CLASS } from '../../lib/designSystem';
+import { BREAKPOINT_DESKTOP, TABLE_CLASS, TABLE_WRAPPER_CLASS, STICKY_ACTIONS_CLASS } from '../../lib/designSystem';
 
 export const ESTADO_OC_LABEL: Record<EstadoOC, string> = {
   BORRADOR: 'Borrador',
@@ -63,6 +63,7 @@ export const DetalleItemsOC: React.FC<{ oc: OrdenCompra; mostrarConciliacion?: b
     {oc.items.length === 0 ? (
       <p className="text-[11px] text-slate-400">Esta OC no tiene items.</p>
     ) : (
+      <div className="overflow-x-auto">
       <table className="w-full text-[11px]">
         <thead>
           <tr className="text-left text-slate-400 uppercase tracking-wider">
@@ -120,6 +121,7 @@ export const DetalleItemsOC: React.FC<{ oc: OrdenCompra; mostrarConciliacion?: b
           })}
         </tbody>
       </table>
+      </div>
     )}
   </>
 );
@@ -251,16 +253,22 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
   // Reusado en la fila de escritorio y en la tarjeta de mobile -- toda la
   // logica de que boton mostrar segun estado/permiso vive en un solo
   // lugar.
-  const AccionesOC: React.FC<{ oc: OrdenCompra }> = ({ oc }) => (
-    <div className="flex flex-wrap items-center justify-end gap-1.5">
+  // compacto (tabla de escritorio): las acciones secundarias (PDF,
+  // Cancelar, Eliminar) quedan como botones de solo icono, todo en UNA
+  // fila -- antes se apilaban en 3-4 renglones y cada OC ocupaba ~150px de
+  // alto, empujando Obra/Proveedor a "Edifici…".
+  const AccionesOC: React.FC<{ oc: OrdenCompra; compacto?: boolean }> = ({ oc, compacto = false }) => (
+    <div className={`flex items-center justify-end gap-1.5 ${compacto ? 'flex-nowrap' : 'flex-wrap'}`}>
       <Button
-        size="sm"
+        size={compacto ? 'icon' : 'sm'}
         variant="ghost"
         leftIcon={<FileDown className="w-3.5 h-3.5" />}
         isLoading={generandoPdfId === oc.id}
         onClick={() => descargarPdf(oc)}
+        title="Descargar PDF"
+        aria-label="Descargar PDF"
       >
-        PDF
+        {!compacto && 'PDF'}
       </Button>
       {/* Aprobar/enviar es trabajo del módulo Compras (revisión
           centralizada), no de la ficha de un proyecto puntual --
@@ -276,8 +284,9 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
           variant="outline"
           isLoading={transicion.isPending && transicion.variables?.id === oc.id}
           onClick={() => transicion.mutate({ id: oc.id, estado: 'PENDIENTE_APROBACION' })}
+          title="Solicitar aprobación"
         >
-          Solicitar aprobación
+          {compacto ? 'Solicitar' : 'Solicitar aprobación'}
         </Button>
       )}
       {!modoRestringido && oc.estado === 'BORRADOR' && !oc.requiereAprobacion && (
@@ -300,8 +309,16 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
           >
             Aprobar
           </Button>
-          <Button size="sm" variant="danger" leftIcon={<XIcon className="w-3.5 h-3.5" />} onClick={() => setRechazandoId(oc.id)}>
-            Rechazar
+          <Button
+            size={compacto ? 'icon' : 'sm'}
+            variant={compacto ? 'outline' : 'danger'}
+            className={compacto ? 'text-rose-600 hover:text-rose-700' : ''}
+            leftIcon={<XIcon className="w-3.5 h-3.5" />}
+            onClick={() => setRechazandoId(oc.id)}
+            title="Rechazar OC"
+            aria-label="Rechazar OC"
+          >
+            {!compacto && 'Rechazar'}
           </Button>
         </>
       )}
@@ -317,8 +334,10 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
       )}
       {!modoRestringido && oc.estado === 'ENVIADA' && (
         <Button
-          size="sm"
+          size={compacto ? 'icon' : 'sm'}
           variant="outline"
+          title="Revertir envío"
+          aria-label="Revertir envío"
           leftIcon={<Undo2 className="w-3.5 h-3.5" />}
           isLoading={transicion.isPending && transicion.variables?.id === oc.id}
           onClick={() => {
@@ -327,24 +346,29 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
             }
           }}
         >
-          Revertir envío
+          {!compacto && 'Revertir envío'}
         </Button>
       )}
       {['BORRADOR', 'PENDIENTE_APROBACION', 'APROBADA'].includes(oc.estado) && (
         <Button
-          size="sm"
+          size={compacto ? 'icon' : 'sm'}
           variant="ghost"
           leftIcon={<Ban className="w-3.5 h-3.5" />}
           isLoading={transicion.isPending && transicion.variables?.id === oc.id}
           onClick={() => transicion.mutate({ id: oc.id, estado: 'CANCELADA' })}
+          title="Cancelar OC"
+          aria-label="Cancelar OC"
         >
-          Cancelar
+          {!compacto && 'Cancelar'}
         </Button>
       )}
       {permisos?.esAdmin && (
         <Button
-          size="sm"
-          variant="danger"
+          size={compacto ? 'icon' : 'sm'}
+          variant={compacto ? 'ghost' : 'danger'}
+          className={compacto ? 'text-rose-600 hover:text-rose-700 hover:bg-rose-50' : ''}
+          title="Eliminar OC"
+          aria-label="Eliminar OC"
           leftIcon={<Trash2 className="w-3.5 h-3.5" />}
           isLoading={eliminarMutation.isPending && eliminarMutation.variables?.id === oc.id}
           onClick={() => {
@@ -353,7 +377,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
             }
           }}
         >
-          Eliminar
+          {!compacto && 'Eliminar'}
         </Button>
       )}
     </div>
@@ -398,7 +422,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
           <button
             onClick={() => setFiltroEstado('')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-              filtroEstado === '' ? 'bg-[#E34A26]/10 text-[#E34A26] border-[#E34A26]/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+              filtroEstado === '' ? 'bg-brand-600/10 text-brand-600 border-brand-600/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
             }`}
           >
             Todas
@@ -408,7 +432,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
               key={estado}
               onClick={() => setFiltroEstado(estado)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-                filtroEstado === estado ? 'bg-[#E34A26]/10 text-[#E34A26] border-[#E34A26]/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                filtroEstado === estado ? 'bg-brand-600/10 text-brand-600 border-brand-600/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
               }`}
             >
               {ESTADO_OC_LABEL[estado]}
@@ -435,7 +459,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
         </div>
       ) : isDesktop ? (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className={TABLE_WRAPPER_CLASS}>
             <table className={TABLE_CLASS}>
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
@@ -444,8 +468,8 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                   <th className="px-4 py-3 font-bold">Proveedor</th>
                   <th className="px-4 py-3 font-bold">Estado</th>
                   <th className="px-4 py-3 font-bold text-right">Total</th>
-                  <th className="px-4 py-3 font-bold">Creada</th>
-                  <th className="px-4 py-3 font-bold text-right">Acciones</th>
+                  <th className="px-4 py-3 font-bold hidden 2xl:table-cell">Creada</th>
+                  <th className={`px-4 py-3 font-bold text-right ${STICKY_ACTIONS_CLASS} bg-slate-50`}>Acciones</th>
                 </tr>
                 <tr className="border-b border-slate-100 bg-white">
                   {columnas.map((c) => (
@@ -464,7 +488,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                         <button
                           type="button"
                           onClick={() => toggleExpandida(oc.id)}
-                          className="flex items-center gap-1.5 font-mono font-bold text-slate-900 hover:text-[#E34A26] transition-colors cursor-pointer whitespace-nowrap"
+                          className="flex items-center gap-1.5 font-mono font-bold text-slate-900 hover:text-brand-600 transition-colors cursor-pointer whitespace-nowrap"
                         >
                           {expandidas.has(oc.id) ? (
                             <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -475,12 +499,12 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                         </button>
                       </td>
                       {!proyectoId && (
-                        <td className="px-4 py-3 text-slate-700 truncate max-w-0" title={oc.proyecto?.obra || oc.centroCosto?.nombre || ''}>
-                          {oc.proyecto?.obra || oc.centroCosto?.nombre || '—'}
+                        <td className="px-4 py-3 text-slate-700 min-w-[8rem] max-w-[20rem]" title={oc.proyecto?.obra || oc.centroCosto?.nombre || ''}>
+                          <div className="line-clamp-2 leading-snug">{oc.proyecto?.obra || oc.centroCosto?.nombre || '—'}</div>
                         </td>
                       )}
-                      <td className="px-4 py-3 text-slate-700 truncate max-w-0" title={oc.proveedor?.nombre}>
-                        {oc.proveedor?.nombre || (
+                      <td className="px-4 py-3 text-slate-700 min-w-[7rem] max-w-[16rem]" title={oc.proveedor?.nombre}>
+                        {oc.proveedor?.nombre ? <div className="line-clamp-2 leading-snug">{oc.proveedor.nombre}</div> : (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold uppercase tracking-wide">
                             Solicitud
                           </span>
@@ -492,9 +516,9 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-right font-semibold text-slate-900 whitespace-nowrap">{formatoMoneda(totalOC(oc), oc.moneda)}</td>
-                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{new Date(oc.creadoEn).toLocaleDateString('es-CL')}</td>
-                      <td className="px-4 py-3">
-                        <AccionesOC oc={oc} />
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap hidden 2xl:table-cell">{new Date(oc.creadoEn).toLocaleDateString('es-CL')}</td>
+                      <td className={`px-4 py-3 w-px ${STICKY_ACTIONS_CLASS} bg-white`}>
+                        <AccionesOC oc={oc} compacto />
                       </td>
                     </tr>
                     {expandidas.has(oc.id) && (

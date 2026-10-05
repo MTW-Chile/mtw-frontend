@@ -1,73 +1,122 @@
 @import "tailwindcss";
 
-@layer base {
-  :root {
-    --bg-main: #0B0F17;
-    --bg-card: rgba(18, 24, 38, 0.7);
-    --bg-card-hover: rgba(28, 38, 58, 0.85);
-    --border-glass: rgba(255, 255, 255, 0.08);
-    --border-glass-glow: rgba(56, 189, 248, 0.25);
-    --accent-cyan: #00F2FE;
-    --accent-blue: #4FACFE;
-    --accent-emerald: #10B981;
-    --accent-amber: #F59E0B;
-    --text-primary: #F8FAFC;
-    --text-secondary: #94A3B8;
-    --text-muted: #64748B;
+/* ==========================================================================
+   Paleta "Aluminio y Vidrio"
+   --------------------------------------------------------------------------
+   Antes, el naranja del logo (#E34A26) era también el color de TODA la
+   interfaz (botones, pestañas, links, badges): naranjo sobre blanco con
+   grises, muy cerca de la identidad de Defontana. Ahora:
+
+   - brand-*  azul petróleo: color de interacción (botones primarios,
+              pestaña activa, foco, links). Es el único color que hay que
+              usar para "acción principal".
+   - ink-*    grafito azulado: superficies oscuras (barra lateral, héroe de
+              Inicio, botón secundario).
+   - signal   rojo del logo MTW: SOLO identidad (logo, punto de
+              notificaciones). No usarlo para botones ni estados.
+
+   Cambiar la paleta completa es tocar solo este bloque: todas las
+   pantallas usan las clases bg-brand-600, text-brand-700, etc.
+   ========================================================================== */
+@theme {
+  --color-brand-50: #eff6fa;
+  --color-brand-100: #d9eaf3;
+  --color-brand-200: #b7d6e8;
+  --color-brand-300: #86b9d6;
+  --color-brand-400: #4f95bf;
+  --color-brand-500: #2f78a5;
+  --color-brand-600: #215f88;
+  --color-brand-700: #1c4d6f;
+  --color-brand-800: #1b415c;
+  --color-brand-900: #1a374d;
+  --color-brand-950: #0f2233;
+
+  --color-ink-700: #2a3a4a;
+  --color-ink-800: #1a2633;
+  --color-ink-900: #111b25;
+  --color-ink-950: #0a1118;
+
+  --color-signal: #e5331a;
+
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* animate-fade-in / animate-slide-up se usaban en ~50 lugares pero
+     nunca se habian definido (no hacian nada). */
+  --animate-fade-in: fade-in 0.25s ease-out both;
+  --animate-slide-up: slide-up 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  @keyframes slide-up {
+    from {
+      transform: translateY(24px);
+      opacity: 0;
+    }
+    to {
+      transform: none;
+      opacity: 1;
+    }
   }
 
+  /* Solo opacidad, sin transform: animate-fade-in va en el contenedor de
+     cada pagina, y un transform en un ancestro "atrapa" a los modales
+     position:fixed que viven adentro mientras dura la animacion. */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+@layer base {
   body {
-    background-color: var(--bg-main);
-    color: var(--text-primary);
-    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: #f4f6f8;
+    color: #0f172a;
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv11', 'ss01', 'tnum';
     min-height: 100vh;
     overflow-x: hidden;
   }
+
+  /* Foco visible y consistente en toda la app (antes cada componente
+     inventaba el suyo, y muchos botones no tenian ninguno). */
+  :focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+  }
 }
 
-/* Glassmorphism Classes */
-.glass-panel {
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-.glass-card {
-  background: rgba(20, 30, 48, 0.55);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.glass-card:hover {
-  background: rgba(26, 40, 65, 0.75);
-  border-color: rgba(56, 189, 248, 0.3);
-  transform: translateY(-2px);
-  box-shadow: 0 12px 30px -10px rgba(0, 242, 254, 0.12);
-}
-
-.glass-card-active {
-  background: rgba(28, 45, 75, 0.85);
-  border-color: rgba(0, 242, 254, 0.5);
-  box-shadow: 0 0 20px -5px rgba(0, 242, 254, 0.25);
+@layer components {
+  /* Contenedor de tabla: cuando el contenido no cabe (pantallas chicas,
+     muchas columnas) hace scroll horizontal DENTRO de la tarjeta en vez de
+     desbordar la pagina completa y cortar la columna Acciones. */
+  .table-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+  background-clip: padding-box;
 }
 
 /* Ocultar barra de scroll en elementos con swipe horizontal */
@@ -91,4 +140,13 @@ input[type='number']::-webkit-inner-spin-button {
 }
 input[type='number'] {
   -moz-appearance: textfield;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

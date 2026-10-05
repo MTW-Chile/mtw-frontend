@@ -36,7 +36,7 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
     <div className="p-4 sm:p-6 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
         <div className="flex items-center gap-2 font-bold text-sm text-slate-900">
-          <User className="w-4 h-4 text-[#E34A26] shrink-0" />
+          <User className="w-4 h-4 text-brand-600 shrink-0" />
           <span>1. Identificación y Asignación del Cliente</span>
         </div>
         <div className="text-xs text-slate-500 font-medium">
@@ -124,13 +124,13 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
               onClick={() => setClientMode('select')}
               className="w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 font-bold text-xs shadow-2xs flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
-              <Search className="w-3.5 h-3.5 text-[#E34A26]" />
+              <Search className="w-3.5 h-3.5 text-brand-600" />
               <span>Buscar en Maestro de Clientes</span>
             </button>
 
             <button
               onClick={() => setClientMode('create')}
-              className="w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-xl bg-[#E34A26] hover:bg-[#C13615] text-white font-bold text-xs shadow-sm shadow-[#E34A26]/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-sm shadow-brand-600/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>+ Crear y Vincular Nuevo Cliente</span>
@@ -144,13 +144,13 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
         <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-bold text-slate-900 flex items-center gap-2">
-              <Search className="w-4 h-4 text-[#E34A26]" />
+              <Search className="w-4 h-4 text-brand-600" />
               <span>Seleccionar Cliente del Maestro</span>
             </h4>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setClientMode('create')}
-                className="text-xs text-[#E34A26] font-bold hover:underline"
+                className="text-xs text-brand-600 font-bold hover:underline"
               >
                 + Crear cliente nuevo
               </button>
@@ -170,7 +170,7 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
               value={searchClientTerm}
               onChange={(e) => setSearchClientTerm(e.target.value)}
               placeholder="Buscar por Razón Social o RUT..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-[#E34A26]"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-brand-600"
             />
           </div>
 
@@ -180,7 +180,7 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
                 <p>No hay clientes registrados en el Maestro con ese criterio.</p>
                 <button
                   onClick={() => setClientMode('create')}
-                  className="px-3 py-1.5 rounded-lg bg-[#E34A26] text-white text-xs font-bold shadow-sm"
+                  className="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-bold shadow-sm"
                 >
                   Crear "{searchClientTerm || 'Nuevo Cliente'}"
                 </button>
@@ -193,12 +193,12 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
                   className="p-3.5 hover:bg-slate-50 cursor-pointer flex items-center justify-between transition-colors group"
                 >
                   <div>
-                    <div className="font-bold text-xs text-slate-900 group-hover:text-[#E34A26] transition-colors">{c.nombre}</div>
+                    <div className="font-bold text-xs text-slate-900 group-hover:text-brand-600 transition-colors">{c.nombre}</div>
                     <div className="text-[11px] text-slate-500 font-mono">
                       {c.rut || 'Sin RUT'} {c.localidad ? `· ${c.localidad}` : ''}
                     </div>
                   </div>
-                  <button className="px-3 py-1 rounded-lg bg-slate-100 group-hover:bg-[#E34A26] group-hover:text-white text-slate-700 text-xs font-semibold transition-all">
+                  <button className="px-3 py-1 rounded-lg bg-slate-100 group-hover:bg-brand-600 group-hover:text-white text-slate-700 text-xs font-semibold transition-all">
                     Asignar
                   </button>
                 </div>
@@ -213,7 +213,7 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
         <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4 animate-fade-in">
           <div className="flex items-center justify-between border-b border-slate-200 pb-2">
             <h4 className="text-xs font-bold text-slate-900 flex items-center gap-2">
-              <Plus className="w-4 h-4 text-[#E34A26]" />
+              <Plus className="w-4 h-4 text-brand-600" />
               <span>Registrar Nuevo Cliente en el Maestro</span>
             </h4>
             <button
@@ -232,7 +232,7 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
                 value={nuevoCliente.nombre}
                 onChange={(e) => onUpdateNuevoCliente('nombre', e.target.value)}
                 placeholder="Ej: Constructora San Felipe S.A."
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 font-bold focus:outline-none focus:border-[#E34A26]"
+                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 font-bold focus:outline-none focus:border-brand-600"
               />
             </div>
 
@@ -243,7 +243,7 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
                 value={nuevoCliente.rut}
                 onChange={(e) => onUpdateNuevoCliente('rut', e.target.value)}
                 placeholder="Ej: 76.543.210-K"
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 font-mono font-semibold text-slate-900 focus:outline-none focus:border-[#E34A26]"
+                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 font-mono font-semibold text-slate-900 focus:outline-none focus:border-brand-600"
               />
             </div>
 
@@ -254,7 +254,7 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
                 value={nuevoCliente.giro}
                 onChange={(e) => onUpdateNuevoCliente('giro', e.target.value)}
                 placeholder="Ej: Construcción de Edificios"
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-[#E34A26]"
+                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-brand-600"
               />
             </div>
 
@@ -265,7 +265,7 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
                 value={nuevoCliente.contacto}
                 onChange={(e) => onUpdateNuevoCliente('contacto', e.target.value)}
                 placeholder="Ej: Marcelo Morales"
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-[#E34A26]"
+                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-brand-600"
               />
             </div>
 
@@ -276,7 +276,7 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
                 value={nuevoCliente.direccion}
                 onChange={(e) => onUpdateNuevoCliente('direccion', e.target.value)}
                 placeholder="Ej: Av. Vitacura 5000, Of 301"
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-[#E34A26]"
+                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-brand-600"
               />
             </div>
 
@@ -287,7 +287,7 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
                 value={nuevoCliente.localidad}
                 onChange={(e) => onUpdateNuevoCliente('localidad', e.target.value)}
                 placeholder="Ej: Las Condes, Santiago"
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-[#E34A26]"
+                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-brand-600"
               />
             </div>
 
@@ -298,7 +298,7 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
                 value={nuevoCliente.telefono}
                 onChange={(e) => onUpdateNuevoCliente('telefono', e.target.value)}
                 placeholder="+56 9 9876 5432"
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-[#E34A26]"
+                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-brand-600"
               />
             </div>
 
@@ -309,7 +309,7 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
                 value={nuevoCliente.email}
                 onChange={(e) => onUpdateNuevoCliente('email', e.target.value)}
                 placeholder="contacto@constructora.cl"
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-[#E34A26]"
+                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-brand-600"
               />
             </div>
           </div>
@@ -325,7 +325,7 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
             <button
               onClick={onCrearCliente}
               disabled={!nuevoCliente.nombre.trim() || isCrearPending}
-              className="px-5 py-2 rounded-xl bg-[#E34A26] hover:bg-[#C13615] text-white font-bold text-xs shadow-md shadow-[#E34A26]/20 transition-all flex items-center gap-2 disabled:opacity-50"
+              className="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md shadow-brand-600/20 transition-all flex items-center gap-2 disabled:opacity-50"
             >
               <Check className="w-4 h-4" />
               <span>{isCrearPending ? 'Guardando...' : 'Guardar en Maestro y Asignar'}</span>

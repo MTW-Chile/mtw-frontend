@@ -57,7 +57,7 @@ export const MaterialPicker: React.FC<MaterialPickerProps> = ({ onSelect, placeh
           }}
           placeholder={placeholder || 'Buscar por SKU o descripción…'}
           autoFocus
-          className="w-full pl-8 pr-8 py-2 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#E34A26]/30 focus:border-[#E34A26]"
+          className="w-full pl-8 pr-8 py-2 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-brand-600/30 focus:border-brand-600"
         />
         {isLoading && (
           <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin absolute right-2.5 top-1/2 -translate-y-1/2" />

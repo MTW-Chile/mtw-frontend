@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Menu, User, Settings, LogOut, ChevronDown, Bell, Landmark, ShoppingCart, ChevronRight, UserCog } from 'lucide-react';
 import { MiUsuarioModal } from './MiUsuarioModal';
+import { BotonAtras, BotonRecargar, MigasDePan } from './NavControls';
+import { seccionDesdePath, useLocationHref } from '../../lib/navigation';
 import { useSession, displayName } from '../../lib/useCloudflareAccessSession';
 import { getMisPermisos, getMisAprobacionesPendientes } from '../../api/client';
 
@@ -27,7 +29,8 @@ export const Header: React.FC<HeaderProps> = ({
   onAbrirCotizacion,
 }) => {
   const { usuario } = useSession();
-  const nombreUsuario = displayName(usuario);
+  const seccionActual = seccionDesdePath() || 'inicio';
+  useLocationHref();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isMiUsuarioOpen, setIsMiUsuarioOpen] = useState(false);
@@ -37,6 +40,10 @@ export const Header: React.FC<HeaderProps> = ({
   // mismo queryKey que App.tsx -- sale del cache de react-query, no pega
   // de nuevo al backend.
   const { data: permisos } = useQuery({ queryKey: ['misPermisos'], queryFn: getMisPermisos });
+  // Mismo nombre que muestra el Sidebar (el de MTW ERP) -- el de la sesion
+  // de Cloudflare queda solo de respaldo. Antes el Header decia "Usuario
+  // MTW" mientras el Sidebar mostraba el nombre real.
+  const nombreUsuario = permisos?.nombre || displayName(permisos ? { email: permisos.email } : usuario);
   // La campanita hoy solo lista pendientes gerenciales (Cotizaciones + OC)
   // -- "tecnico" no aporta nada a esta lista (ver GET /mis-aprobaciones-pendientes),
   // asi que no tiene sentido mostrarla a un rol que solo tiene ese permiso.
@@ -95,7 +102,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs px-3.5 sm:px-6 flex items-center justify-between gap-3">
+    <header className="sticky top-0 z-30 h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-2.5 sm:px-6 flex items-center justify-between gap-3">
       {/* Lado Izquierdo */}
       <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
         {/* Móvil: Menú Hamburguesa */}
@@ -107,24 +114,28 @@ export const Header: React.FC<HeaderProps> = ({
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* Móvil: Solo el logo en imagen con enlace a Inicio */}
+        {/* Móvil/tablet: Solo el logo en imagen con enlace a Inicio (en
+            pantallas muy angostas cede su lugar a Atrás/Actualizar). */}
         <button
           onClick={onNavigateHome}
-          className="flex lg:hidden items-center group cursor-pointer focus:outline-none shrink-0"
+          className="hidden min-[400px]:flex lg:hidden items-center group cursor-pointer shrink-0"
           title="Ir al Inicio de MTW ERP"
         >
           <img
             src="/mtw-logo.png"
             alt="MTW"
-            className="h-7 w-auto object-contain transition-transform group-hover:scale-105"
+            className="h-6 w-auto object-contain transition-transform group-hover:scale-105"
           />
         </button>
 
-        {/* Desktop: Título del módulo activo (el logo ya está en la barra lateral fija) */}
-        <div className="hidden lg:flex items-center gap-2">
-          <span className="text-sm font-bold text-slate-800 tracking-tight">
-            {moduleTitle}
-          </span>
+        {/* Navegación dentro de la app: Atrás + Actualizar datos + migas
+            de pan (sección › obra abierta). Ver NavControls.tsx. */}
+        <div className="flex items-center gap-0.5 shrink-0 border-l border-slate-200 pl-1.5 lg:border-0 lg:pl-0 lg:-ml-2">
+          <BotonAtras />
+          <BotonRecargar />
+        </div>
+        <div className="hidden md:flex min-w-0 pl-1">
+          <MigasDePan seccion={seccionActual} titulo={moduleTitle} />
         </div>
       </div>
 
@@ -142,7 +153,7 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => setIsNotifOpen((prev) => !prev)}
               className={`relative flex items-center justify-center w-9 h-9 rounded-xl border transition-all cursor-pointer focus:outline-none ${
                 isNotifOpen
-                  ? 'bg-slate-100 border-slate-300 shadow-xs ring-2 ring-[#E34A26]/20'
+                  ? 'bg-slate-100 border-slate-300 shadow-xs ring-2 ring-brand-600/20'
                   : 'bg-slate-50 hover:bg-slate-100/80 border-slate-200/80 shadow-2xs'
               }`}
               aria-expanded={isNotifOpen}
@@ -151,7 +162,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Bell className="w-4 h-4 text-slate-600" />
               {!!pendientes?.total && (
-                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#E34A26] text-white text-[9px] font-bold flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-signal ring-2 ring-white text-white text-[9px] font-bold flex items-center justify-center">
                   {pendientes.total > 9 ? '9+' : pendientes.total}
                 </span>
               )}
@@ -231,20 +242,19 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="relative shrink-0" ref={menuRef}>
         <button
           onClick={() => setIsMenuOpen((prev) => !prev)}
-          className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border transition-all cursor-pointer focus:outline-none max-w-[108px] sm:max-w-none ${
+          className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border transition-all cursor-pointer focus:outline-none max-w-[56px] sm:max-w-[220px] ${
             isMenuOpen
-              ? 'bg-slate-100 border-slate-300 shadow-xs ring-2 ring-[#E34A26]/20'
+              ? 'bg-slate-100 border-slate-300 shadow-xs ring-2 ring-brand-600/20'
               : 'bg-slate-50 hover:bg-slate-100/80 border-slate-200/80 shadow-2xs'
           }`}
           aria-expanded={isMenuOpen}
           aria-haspopup="true"
           title={`Sesión iniciada como: ${nombreUsuario}`}
         >
-          <div className="w-6 h-6 rounded-full bg-[#E34A26]/10 text-[#E34A26] flex items-center justify-center text-xs font-bold shrink-0">
+          <div className="w-6 h-6 rounded-full bg-brand-600/10 text-brand-600 flex items-center justify-center text-xs font-bold shrink-0">
             <User className="w-3.5 h-3.5" />
           </div>
-          <div className="text-xs text-slate-600 font-medium truncate text-left">
-            <span className="hidden sm:inline text-slate-400">Bienvenido/a: </span>
+          <div className="hidden sm:block text-xs text-slate-600 font-medium truncate text-left">
             <strong className="text-slate-900 font-bold truncate">
               {nombreUsuario}
             </strong>

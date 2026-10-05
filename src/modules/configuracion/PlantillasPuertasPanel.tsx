@@ -41,7 +41,7 @@ export const PlantillasPuertasPanel: React.FC = () => {
         </div>
         <button
           onClick={() => setCreandoNueva(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold text-[#E34A26] bg-orange-50 hover:bg-orange-100 border border-orange-200 transition-colors cursor-pointer shrink-0"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold text-brand-600 bg-brand-50 hover:bg-brand-100 border border-brand-200 transition-colors cursor-pointer shrink-0"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>Nueva Plantilla</span>
@@ -55,7 +55,7 @@ export const PlantillasPuertasPanel: React.FC = () => {
       ) : isError ? (
         <div className="py-6 text-center space-y-2">
           <p className="text-xs font-bold text-rose-600">Error al consultar las plantillas.</p>
-          <button onClick={() => refetch()} className="text-xs font-bold text-[#E34A26] hover:underline cursor-pointer">
+          <button onClick={() => refetch()} className="text-xs font-bold text-brand-600 hover:underline cursor-pointer">
             Reintentar
           </button>
         </div>
@@ -85,7 +85,7 @@ export const PlantillasPuertasPanel: React.FC = () => {
               <div className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => setEditando(p)}
-                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-[#E34A26] hover:bg-orange-50 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-brand-600 hover:bg-brand-50 transition-colors cursor-pointer"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                   <span>Editar</span>

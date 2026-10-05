@@ -1,22 +1,33 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, FolderKanban, ChevronRight, Layers, AlertCircle } from 'lucide-react';
+import { Loader2, FolderKanban, ChevronRight, AlertCircle } from 'lucide-react';
 import { getProyectos } from '../../api/client';
 import { ProyectoWorkspace } from './ProyectoWorkspace';
+import { useUrlParam, actualizarParams } from '../../lib/navigation';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilters';
 import { ColumnFilterHeader } from '../../components/ui/ColumnFilterHeader';
-import { PAGE_CONTAINER_CLASS, BREAKPOINT_DESKTOP, TABLE_CLASS } from '../../lib/designSystem';
+import { PAGE_CONTAINER_CLASS, BREAKPOINT_DESKTOP, TABLE_CLASS, TABLE_WRAPPER_CLASS } from '../../lib/designSystem';
 import type { Proyecto } from '../../types';
+import { PageHeader } from '../../components/ui/PageHeader';
 
-interface ProyectosPageProps {
-  // Deep-link desde la campanita de notificaciones (Header) -- abre este
-  // proyecto directo en la seccion indicada. Se limpia con
-  // onProyectoAbierto una vez consumido, para no re-abrirlo si el usuario
-  // vuelve a este tab despues de haberlo cerrado a mano.
-  proyectoAAbrir?: { id: string; seccion?: string } | null;
-  onProyectoAbierto?: () => void;
-}
+
+// Barra de avance compacta para la columna Fases (antes un texto largo
+// "3/4 en producción o completadas" que forzaba el ancho de la tabla).
+const AvanceFases: React.FC<{ resumen?: { total: number; enProduccionOCompletadas: number } }> = ({ resumen }) => {
+  if (!resumen || resumen.total === 0) return <span className="text-slate-400">Sin fases</span>;
+  const pct = Math.round((resumen.enProduccionOCompletadas / resumen.total) * 100);
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+        <span className="block h-full rounded-full bg-brand-500" style={{ width: `${pct}%` }} />
+      </span>
+      <span className="font-mono font-semibold text-slate-600">
+        {resumen.enProduccionOCompletadas}/{resumen.total}
+      </span>
+    </span>
+  );
+};
 
 const formatoMonto = (valor: number, simbolo?: string | null) =>
   `${simbolo || '$'}${valor.toLocaleString('es-CL', { maximumFractionDigits: 0 })}`;
@@ -26,18 +37,13 @@ const formatoMonto = (valor: number, simbolo?: string | null) =>
 // arranca la ejecucion real: comprar, guardar en bodega, controlar el
 // gasto contra el presupuesto). Cotizaciones sigue siendo el modulo
 // aparte para lo que todavia se esta negociando.
-export const ProyectosPage: React.FC<ProyectosPageProps> = ({ proyectoAAbrir, onProyectoAbierto }) => {
-  const [proyectoId, setProyectoId] = useState<string | null>(null);
-  const [seccionInicial, setSeccionInicial] = useState<string | undefined>(undefined);
+export const ProyectosPage: React.FC = () => {
+  // Proyecto abierto y su seccion viven en la URL (?proyecto=<id>&seccion=...)
+  // -- ver lib/navigation.ts. Atras del navegador vuelve al listado.
+  const [proyectoId] = useUrlParam('proyecto');
+  const [seccionUrl] = useUrlParam('seccion');
+  const setProyectoId = (id: string | null) => actualizarParams({ proyecto: id, seccion: null });
   const isDesktop = useMediaQuery(BREAKPOINT_DESKTOP);
-
-  useEffect(() => {
-    if (!proyectoAAbrir) return;
-    setProyectoId(proyectoAAbrir.id);
-    setSeccionInicial(proyectoAAbrir.seccion);
-    onProyectoAbierto?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [proyectoAAbrir]);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['proyectos', 'en-curso'],
@@ -62,11 +68,8 @@ export const ProyectosPage: React.FC<ProyectosPageProps> = ({ proyectoAAbrir, on
     return (
       <ProyectoWorkspace
         proyectoId={proyectoId}
-        seccionInicial={seccionInicial}
-        onVolver={() => {
-          setProyectoId(null);
-          setSeccionInicial(undefined);
-        }}
+        seccionInicial={seccionUrl ?? undefined}
+        onVolver={() => setProyectoId(null)}
       />
     );
   }
@@ -79,15 +82,12 @@ export const ProyectosPage: React.FC<ProyectosPageProps> = ({ proyectoAAbrir, on
 
   return (
     <div className={PAGE_CONTAINER_CLASS}>
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-[#E34A26]/10 flex items-center justify-center text-[#E34A26]">
-          <FolderKanban className="w-5 h-5" />
-        </div>
-        <div>
-          <h1 className="text-base font-black text-slate-900">Proyectos en curso</h1>
-          <p className="text-xs text-slate-500">Obras ya aceptadas por el cliente -- entra a una para presupuesto, OC y bodega</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Proyectos en curso"
+        description="Obras ya aceptadas por el cliente. Entra a una para ver presupuesto, OC y bodega."
+        icon={FolderKanban}
+        count={isLoading ? undefined : proyectosEnCurso.length}
+      />
 
       {isLoading ? (
         <div className="p-12 flex items-center justify-center text-slate-400">
@@ -108,15 +108,15 @@ export const ProyectosPage: React.FC<ProyectosPageProps> = ({ proyectoAAbrir, on
         </div>
       ) : isDesktop ? (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className={TABLE_WRAPPER_CLASS}>
             <table className={TABLE_CLASS}>
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
-                  <th className="px-4 py-3 font-bold w-1/4">Obra</th>
-                  <th className="px-4 py-3 font-bold w-1/5">Cliente</th>
+                  <th className="px-4 py-3 font-bold">Obra</th>
+                  <th className="px-4 py-3 font-bold">Cliente</th>
                   <th className="px-4 py-3 font-bold text-right">Presupuesto</th>
                   <th className="px-4 py-3 font-bold text-right">Comprometido en OC</th>
-                  <th className="px-4 py-3 font-bold">Fases</th>
+                  <th className="px-4 py-3 font-bold">Fases en producción</th>
                   <th className="px-4 py-3 font-bold w-10"></th>
                 </tr>
                 <tr className="border-b border-slate-100 bg-white">
@@ -136,16 +136,16 @@ export const ProyectosPage: React.FC<ProyectosPageProps> = ({ proyectoAAbrir, on
                     onClick={() => setProyectoId(p.id)}
                     className="border-b border-slate-50 hover:bg-slate-50/70 transition-colors cursor-pointer"
                   >
-                    <td className="px-4 py-3 min-w-0">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-xs font-bold text-slate-900 truncate">{p.obra}</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 font-mono font-bold shrink-0">
-                          {p.codigoInterno || `PRJ-${p.numeroPresupuesto}`}
-                        </span>
+                    <td className="px-4 py-3 min-w-[15rem]">
+                      <div className="text-xs font-bold text-slate-900 line-clamp-2 leading-snug" title={p.obra}>
+                        {p.obra}
                       </div>
+                      <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono font-semibold">
+                        {p.codigoInterno || `PRJ-${p.numeroPresupuesto}`}
+                      </span>
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-600 truncate" title={p.clienteNombreRaw}>
-                      {p.clienteNombreRaw}
+                    <td className="px-4 py-3 text-xs text-slate-600 min-w-[10rem] max-w-[16rem]" title={p.clienteNombreRaw}>
+                      <div className="line-clamp-2 leading-snug">{p.clienteNombreRaw}</div>
                     </td>
                     <td className="px-4 py-3 text-right text-xs font-mono text-slate-700 whitespace-nowrap">
                       {p.versiones[0]?.importeTotal != null
@@ -158,11 +158,8 @@ export const ProyectosPage: React.FC<ProyectosPageProps> = ({ proyectoAAbrir, on
                         <span className="block text-[10px] text-slate-400 font-normal">+ {p.otrasMonedasOC.join(', ')}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-[11px] text-slate-500 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1">
-                        <Layers className="w-3 h-3 text-slate-300 shrink-0" />
-                        {filaFases(p)}
-                      </span>
+                    <td className="px-4 py-3 text-[11px] text-slate-500 whitespace-nowrap" title={filaFases(p)}>
+                      <AvanceFases resumen={p.fasesResumen} />
                     </td>
                     <td className="px-4 py-3 text-right">
                       <ChevronRight className="w-4 h-4 text-slate-300 inline-block" />

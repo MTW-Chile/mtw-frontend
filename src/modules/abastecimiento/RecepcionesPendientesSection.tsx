@@ -31,7 +31,7 @@ export const RecepcionesPendientesSection: React.FC<{ proyectoId?: string }> = (
   return (
     <div className="space-y-3">
       <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-        <PackageCheck className="w-4 h-4 text-[#E34A26]" />
+        <PackageCheck className="w-4 h-4 text-brand-600" />
         Recepciones pendientes
       </h3>
 
