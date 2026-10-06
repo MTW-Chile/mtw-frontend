@@ -74,7 +74,7 @@ export const Sidebar: React.FC<{
                   MTW ERP
                 </h2>
                 <span className="text-[10px] font-mono text-brand-300 tracking-wider uppercase font-medium">
-                  Alpha V0.2
+                  Alpha V1
                 </span>
               </div>
             </button>
