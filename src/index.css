@@ -42,9 +42,17 @@
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* animate-fade-in / animate-slide-up se usaban en ~50 lugares pero
-     nunca se habian definido (no hacian nada). */
-  --animate-fade-in: fade-in 0.25s ease-out both;
-  --animate-slide-up: slide-up 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+     nunca se habian definido (no hacian nada).
+
+     fill-mode "backwards" y NUNCA "both"/"forwards": una animacion que
+     queda aplicada despues de terminar (opacity/transform) mantiene para
+     siempre un contexto de apilamiento en ese elemento. animate-fade-in va
+     en el contenedor de cada pagina, asi que todos los modales (fixed,
+     z-50) de esa pagina quedaban encerrados ahi adentro y se dibujaban
+     DEBAJO del Header y el Sidebar (bug visto en Conciliar factura). Con
+     "backwards" la animacion deja de aplicarse al terminar. */
+  --animate-fade-in: fade-in 0.25s ease-out backwards;
+  --animate-slide-up: slide-up 0.28s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 
   @keyframes slide-up {
     from {
