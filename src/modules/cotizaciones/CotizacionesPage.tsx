@@ -120,7 +120,9 @@ export const CotizacionesPage: React.FC<{
     queryFn: () => getSyncLogs(1),
   });
 
-  const proyectos = data?.data || [];
+  // Las obras manuales (Control de Obras) no son presupuestos: viven solo en
+  // Obras.
+  const proyectos = (data?.data || []).filter((p) => !p.esObraManual);
   const lastSync = syncLogs?.[0];
 
   const handleManualSync = async () => {

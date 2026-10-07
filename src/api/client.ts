@@ -37,6 +37,11 @@ import type {
   Usuario,
   MisPermisos,
   AprobacionesPendientes,
+  FabricacionHetmo,
+  FabricacionHetmoBusqueda,
+  ResultadoVinculoFabricacion,
+  ResultadoDeteccionFabricaciones,
+  MaterialesFabricacion,
 } from '../types';
 
 // withCredentials: true es lo que hace que el navegador mande la cookie de
@@ -106,6 +111,66 @@ export async function createProyectoManual(payload: {
   clienteNombre?: string;
 }): Promise<{ proyecto: Proyecto }> {
   const response = await apiClient.post<{ proyecto: Proyecto }>('/proyectos/manual', payload);
+  return response.data;
+}
+
+// Obra en seguimiento creada a mano (Control de Obras): sin presupuesto de
+// HETMO detras. No es lo mismo que createProyectoManual (presupuesto manual
+// de Cotizaciones).
+export async function crearObraManual(payload: {
+  obra: string;
+  clienteNombre?: string;
+  direccion?: string;
+}): Promise<{ proyecto: Proyecto }> {
+  const response = await apiClient.post<{ proyecto: Proyecto }>('/obras/manual', payload);
+  return response.data;
+}
+
+// ---- Control de Obras: fabricacion ----
+
+export async function buscarFabricacionesHetmo(params?: {
+  q?: string;
+  estado?: number;
+  limite?: number;
+}): Promise<FabricacionHetmoBusqueda[]> {
+  const response = await apiClient.get<FabricacionHetmoBusqueda[]>('/hetmo/fabricaciones', { params });
+  return response.data;
+}
+
+export async function getFabricacionesProyecto(proyectoId: string): Promise<FabricacionHetmo[]> {
+  const response = await apiClient.get<FabricacionHetmo[]>(`/proyectos/${proyectoId}/fabricaciones`);
+  return response.data;
+}
+
+export async function getFabricacionDetalle(proyectoId: string, fabId: string): Promise<FabricacionHetmo> {
+  const response = await apiClient.get<FabricacionHetmo>(`/proyectos/${proyectoId}/fabricaciones/${fabId}`);
+  return response.data;
+}
+
+export async function vincularFabricacion(proyectoId: string, hetmoId: number): Promise<ResultadoVinculoFabricacion> {
+  const response = await apiClient.post<ResultadoVinculoFabricacion>(`/proyectos/${proyectoId}/fabricaciones`, { hetmoId });
+  return response.data;
+}
+
+export async function detectarFabricaciones(proyectoId: string): Promise<ResultadoDeteccionFabricaciones> {
+  const response = await apiClient.post<ResultadoDeteccionFabricaciones>(`/proyectos/${proyectoId}/fabricaciones/detectar`);
+  return response.data;
+}
+
+export async function refrescarFabricacion(proyectoId: string, fabId: string): Promise<ResultadoVinculoFabricacion> {
+  const response = await apiClient.post<ResultadoVinculoFabricacion>(`/proyectos/${proyectoId}/fabricaciones/${fabId}/refrescar`);
+  return response.data;
+}
+
+// POST y no DELETE: Cloudflare Access bloquea DELETE/PUT en produccion.
+export async function desvincularFabricacion(proyectoId: string, fabId: string): Promise<void> {
+  await apiClient.post(`/proyectos/${proyectoId}/fabricaciones/${fabId}/desvincular`);
+}
+
+// Lectura en vivo de HETMO (no se guarda en la base): vidrios y materiales
+// por ventana del documento de fabricacion.
+export async function getMaterialesFabricacion(proyectoId: string, fabId: string): Promise<MaterialesFabricacion> {
+  const response = await apiClient.get<MaterialesFabricacion>(`/proyectos/${proyectoId}/fabricaciones/${fabId}/materiales`);
   return response.data;
 }
 

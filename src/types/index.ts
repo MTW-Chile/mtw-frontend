@@ -403,6 +403,9 @@ export interface Proyecto {
   // Version (ProyectoVersion.hetmoId) elegida para cotizar. null = nunca
   // se eligio y hay que caer de vuelta a la de versionNumero mas alto.
   versionActivaHetmoId: number | null;
+  // Obra en seguimiento creada a mano desde Obras (sin presupuesto de HETMO):
+  // Cotizaciones la oculta. Ver Proyecto.esObraManual en mtw-api.
+  esObraManual?: boolean;
   // Nombre EXACTO del centro de costo de esta obra en Clay -- se usa al
   // contabilizar las facturas de sus OC. null = sin centro de costo.
   clayCentroCosto: string | null;
@@ -910,4 +913,125 @@ export interface CheckoutFactura {
     errores: string[];
     advertencias: string[];
   };
+}
+
+
+// ==========================================
+// Control de Obras: fabricacion (copia de lectura de HETMO)
+// ==========================================
+// Los Decimal de Prisma llegan como string en JSON ("1144.5") -- siempre
+// convertir con Number() antes de mostrar.
+export interface FabricacionCuadro {
+  id: string;
+  ventanaId: string;
+  numeroCuadro: number;
+  numeroCuadroInterno: number | null;
+  tipo: 'MARCO' | 'HOJA';
+  anchoMm: number | string | null;
+  altoMm: number | string | null;
+  retirada: boolean;
+}
+
+export interface FabricacionVentana {
+  id: string;
+  fabricacionId: string;
+  hetmoVentanaId: number;
+  hetmoVentanaMadreId: number | null;
+  orden: number;
+  modelo: string;
+  anchoMm: number | string;
+  altoMm: number | string;
+  unidades: number;
+  retirada: boolean;
+  cuadros?: FabricacionCuadro[];
+}
+
+export interface FabricacionHetmo {
+  id: string;
+  proyectoId: string;
+  hetmoId: number;
+  numero: number | null;
+  descripcion: string | null;
+  hetmoVentaId: number | null;
+  estadoHetmo: number;
+  estadoGlosa: string | null;
+  fechaInicioFab: string | null;
+  fechaFinFab: string | null;
+  origenVinculo: 'MANUAL' | 'AUTOMATICO';
+  sincronizadoEn: string;
+  creadoEn: string;
+  _count?: { ventanas: number };
+  ventanas?: FabricacionVentana[];
+}
+
+// GET /api/hetmo/fabricaciones -- lotes de HETMO, aun no necesariamente
+// vinculados a una obra.
+export interface FabricacionHetmoBusqueda {
+  hetmo: number;
+  anio: number | null;
+  numero: number | null;
+  fecha: string | null;
+  referencia: string | null;
+  descripcion: string | null;
+  estado_documento: number;
+  estado_glosa: string | null;
+  estado_glosa_pantalla: string | null;
+  hetmo_venta: number | null;
+  venta_fase: number | null;
+  hetmo_madre: number | null;
+  vinculadoA: { id: string; obra: string } | null;
+}
+
+export interface ResultadoVinculoFabricacion {
+  fabricacionId: string;
+  hetmoId: number;
+  ventanas: { nuevas: number; actualizadas: number; retiradas: number };
+  cuadros: { nuevos: number; actualizados: number; retirados: number };
+  advertencias: string[];
+}
+
+export interface ResultadoDeteccionFabricaciones {
+  vinculadas: ResultadoVinculoFabricacion[];
+  yaVinculadas: number[];
+  enOtraObra: { hetmoId: number; obra: string }[];
+}
+
+export interface VidrioFabricacion {
+  material_hetmo: number;
+  linea_hetmo: number;
+  codigo_articulo: string;
+  descripcion_articulo: string;
+  UDS: number;
+  ANCHO: number;
+  ALTO: number;
+  m2: number;
+}
+
+export interface MaterialFabricacion {
+  linea_hetmo: number;
+  codigo_articulo: string;
+  descripcion_articulo: string;
+  familia?: string;
+  cantidad: number;
+  longitud_total_mm?: number | null;
+  piezas?: number | null;
+}
+
+export interface MaterialesFabricacion {
+  fabricacionId: string;
+  hetmoVentaId: number;
+  ventanas: {
+    ventana: {
+      id: string;
+      hetmoVentanaId: number;
+      orden: number;
+      modelo: string;
+      anchoMm: number | string;
+      altoMm: number | string;
+      unidades: number;
+    };
+    vidrios: VidrioFabricacion[];
+    materiales: MaterialFabricacion[];
+  }[];
+  advertencias: string[];
 }

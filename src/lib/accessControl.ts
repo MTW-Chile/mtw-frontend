@@ -17,7 +17,7 @@ export const SECCIONES_FRONTEND: EntradaAcceso[] = [
   { id: 'inicio', label: 'Inicio', icon: LayoutDashboard },
   { id: 'clientes', label: 'Clientes', icon: Users },
   { id: 'cotizaciones', label: 'Cotizaciones', icon: Building2 },
-  { id: 'proyectos', label: 'Proyectos', icon: FolderKanban },
+  { id: 'proyectos', label: 'Obras', icon: FolderKanban },
   { id: 'compras', label: 'Compras', icon: ShoppingCart },
   { id: 'bodega', label: 'Bodega', icon: Warehouse },
   { id: 'maestro', label: 'Maestro de Materiales', icon: Boxes },

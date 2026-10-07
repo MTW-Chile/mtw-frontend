@@ -222,7 +222,7 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
                 </Badge>
               </div>
               <h3 className="font-bold text-sm text-slate-900 group-hover:text-[#E34A26] transition-colors">
-                Proyectos
+                Obras
               </h3>
               <p className="text-xs text-slate-500 leading-relaxed">
                 Obras ya aceptadas por el cliente: presupuesto, órdenes de compra, documentos y bodega.
@@ -230,7 +230,7 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
             </div>
 
             <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-700">
-              <span>Ingresar a Proyectos</span>
+              <span>Ingresar a Obras</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>

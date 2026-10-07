@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Building2, Loader2, Wallet, ShoppingCart, Warehouse, Layers } from 'lucide-react';
+import { ArrowLeft, Building2, Loader2, Wallet, ShoppingCart, Warehouse, Layers, Factory } from 'lucide-react';
 import { getProyectoById } from '../../api/client';
 import { OrdenesCompraList } from '../abastecimiento/OrdenesCompraList';
 import { BodegaProyectoTab } from '../abastecimiento/BodegaProyectoTab';
@@ -8,18 +8,20 @@ import { RecepcionesPendientesSection } from '../abastecimiento/RecepcionesPendi
 import { RequisicionesSection } from './RequisicionesSection';
 import { ControlPresupuestoTab } from './ControlPresupuestoTab';
 import { FasesTab } from './FasesTab';
+import { FabricacionTab } from './fabricacion/FabricacionTab';
 import { ClayCentroCostoEditor } from './ClayCentroCostoEditor';
 
 // "Control de documentos" (conciliacion de OC contra facturas de Clay) se
 // saco de aca -- vive solo en Compras (ComprasPage > sub-tab
 // Conciliacion, ControlDocumentosTab sin proyectoId) para todas las obras
 // juntas, en vez de repetido obra por obra.
-type Seccion = 'presupuesto' | 'fases' | 'abastecimiento' | 'bodega';
+type Seccion = 'presupuesto' | 'fases' | 'abastecimiento' | 'fabricacion' | 'bodega';
 
 const SECCIONES: { id: Seccion; label: string; hint: string; icon: React.ReactNode }[] = [
   { id: 'presupuesto', label: 'Control de presupuesto', hint: 'Revisión por partida de gastos', icon: <Wallet className="w-4 h-4" /> },
   { id: 'fases', label: 'Fases', hint: 'Distribuir unidades por etapa', icon: <Layers className="w-4 h-4" /> },
   { id: 'abastecimiento', label: 'Abastecimiento', hint: 'Generación y gestión de OC', icon: <ShoppingCart className="w-4 h-4" /> },
+  { id: 'fabricacion', label: 'Fabricación', hint: 'Documentos de fabricación de HETMO', icon: <Factory className="w-4 h-4" /> },
   { id: 'bodega', label: 'Bodega', hint: 'Requisiciones, stock y movimientos', icon: <Warehouse className="w-4 h-4" /> },
 ];
 
@@ -50,7 +52,7 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
         <button
           onClick={onVolver}
           className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-colors shrink-0"
-          aria-label="Volver a Proyectos"
+          aria-label="Volver a Obras"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
@@ -107,6 +109,7 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
               {seccion === 'presupuesto' && <ControlPresupuestoTab proyecto={proyecto} activeVersion={activeVersion} />}
               {seccion === 'fases' && <FasesTab proyecto={proyecto} activeVersion={activeVersion} />}
               {seccion === 'abastecimiento' && <OrdenesCompraList proyectoId={proyectoId} proyectoLabel={proyecto.obra} />}
+              {seccion === 'fabricacion' && <FabricacionTab proyecto={proyecto} />}
               {seccion === 'bodega' && (
                 <div className="space-y-8">
                   <RecepcionesPendientesSection proyectoId={proyectoId} />

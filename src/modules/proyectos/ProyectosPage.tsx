@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, FolderKanban, ChevronRight, Layers, AlertCircle } from 'lucide-react';
+import { Loader2, FolderKanban, ChevronRight, Layers, AlertCircle, Plus } from 'lucide-react';
 import { getProyectos } from '../../api/client';
 import { ProyectoWorkspace } from './ProyectoWorkspace';
+import { NuevaObraManualModal } from './NuevaObraManualModal';
+import { Button } from '../../components/ui/Button';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilters';
 import { ColumnFilterHeader } from '../../components/ui/ColumnFilterHeader';
@@ -29,6 +31,7 @@ const formatoMonto = (valor: number, simbolo?: string | null) =>
 export const ProyectosPage: React.FC<ProyectosPageProps> = ({ proyectoAAbrir, onProyectoAbierto }) => {
   const [proyectoId, setProyectoId] = useState<string | null>(null);
   const [seccionInicial, setSeccionInicial] = useState<string | undefined>(undefined);
+  const [creandoObraManual, setCreandoObraManual] = useState(false);
   const isDesktop = useMediaQuery(BREAKPOINT_DESKTOP);
 
   useEffect(() => {
@@ -71,6 +74,13 @@ export const ProyectosPage: React.FC<ProyectosPageProps> = ({ proyectoAAbrir, on
     );
   }
 
+  // Una obra manual no tiene presupuesto ni fases planificadas: entra directo a
+  // Fabricacion, que es donde se le vinculan sus documentos.
+  const abrir = (p: Proyecto) => {
+    setProyectoId(p.id);
+    setSeccionInicial(p.esObraManual ? 'fabricacion' : undefined);
+  };
+
   const filaFases = (p: Proyecto) => {
     const resumen = p.fasesResumen;
     if (!resumen || resumen.total === 0) return 'Sin fases planificadas';
@@ -79,14 +89,21 @@ export const ProyectosPage: React.FC<ProyectosPageProps> = ({ proyectoAAbrir, on
 
   return (
     <div className={PAGE_CONTAINER_CLASS}>
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-[#E34A26]/10 flex items-center justify-center text-[#E34A26]">
-          <FolderKanban className="w-5 h-5" />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#E34A26]/10 flex items-center justify-center text-[#E34A26]">
+            <FolderKanban className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-base font-black text-slate-900">Obras en curso</h1>
+            <p className="text-xs text-slate-500">
+              Obras ya aceptadas por el cliente, o creadas a mano -- entra a una para presupuesto, fabricación, OC y bodega
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-base font-black text-slate-900">Proyectos en curso</h1>
-          <p className="text-xs text-slate-500">Obras ya aceptadas por el cliente -- entra a una para presupuesto, OC y bodega</p>
-        </div>
+        <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setCreandoObraManual(true)}>
+          Nueva obra manual
+        </Button>
       </div>
 
       {isLoading ? (
@@ -96,15 +113,15 @@ export const ProyectosPage: React.FC<ProyectosPageProps> = ({ proyectoAAbrir, on
       ) : isError ? (
         <div className="p-12 text-center rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex flex-col items-center gap-2">
           <AlertCircle className="w-5 h-5" />
-          {(error as any)?.response?.data?.error || 'No se pudo cargar la lista de proyectos. Intenta de nuevo en unos minutos.'}
+          {(error as any)?.response?.data?.error || 'No se pudo cargar la lista de obras. Intenta de nuevo en unos minutos.'}
         </div>
       ) : proyectosEnCurso.length === 0 ? (
         <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
-          Todavía no hay proyectos aceptados por el cliente. Un proyecto pasa a "en curso" cuando su versión llega a estado ACEPTADO_CLIENTE en Cotizaciones.
+          Todavía no hay obras en curso. Una obra pasa a "en curso" cuando su versión llega a estado ACEPTADO_CLIENTE en Cotizaciones, o la creas a mano con "Nueva obra manual".
         </div>
       ) : filtrados.length === 0 ? (
         <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
-          Ningún proyecto coincide con los filtros.
+          Ninguna obra coincide con los filtros.
         </div>
       ) : isDesktop ? (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
@@ -133,7 +150,7 @@ export const ProyectosPage: React.FC<ProyectosPageProps> = ({ proyectoAAbrir, on
                 {filtrados.map((p) => (
                   <tr
                     key={p.id}
-                    onClick={() => setProyectoId(p.id)}
+                    onClick={() => abrir(p)}
                     className="border-b border-slate-50 hover:bg-slate-50/70 transition-colors cursor-pointer"
                   >
                     <td className="px-4 py-3 min-w-0">
@@ -178,7 +195,7 @@ export const ProyectosPage: React.FC<ProyectosPageProps> = ({ proyectoAAbrir, on
           {filtrados.map((p) => (
             <button
               key={p.id}
-              onClick={() => setProyectoId(p.id)}
+              onClick={() => abrir(p)}
               className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div className="min-w-0 space-y-1">
@@ -201,6 +218,16 @@ export const ProyectosPage: React.FC<ProyectosPageProps> = ({ proyectoAAbrir, on
             </button>
           ))}
         </div>
+      )}
+
+      {creandoObraManual && (
+        <NuevaObraManualModal
+          onClose={() => setCreandoObraManual(false)}
+          onCreada={(proyecto) => {
+            setCreandoObraManual(false);
+            abrir(proyecto);
+          }}
+        />
       )}
     </div>
   );

@@ -126,14 +126,14 @@ export const EstadoComercialCard: React.FC<EstadoComercialCardProps> = ({
           <>
             <p className="text-xs text-slate-500">
               Proyecto aceptado por el cliente. Queda bloqueado para edición y pasa al
-              módulo de Proyectos para su ejecución (presupuesto, OC, documentos y bodega).
+              módulo de Obras para su ejecución (presupuesto, OC, documentos y bodega).
             </p>
             <button
               onClick={() => {
                 if (
                   window.confirm(
                     'Este proyecto vuelve a "Aprobado Gerencia", a la espera de ser aceptado por el cliente de nuevo. ' +
-                      'Sale de "Proyectos en curso", pero lo ya obrado en el proyecto (bodega, órdenes de compra, etc.) no se elimina automáticamente. ¿Continuar?'
+                      'Sale de "Obras en curso", pero lo ya obrado en el proyecto (bodega, órdenes de compra, etc.) no se elimina automáticamente. ¿Continuar?'
                   )
                 ) {
                   onCambiarEstado('APROBADO_GERENCIA');
