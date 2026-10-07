@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { actualizarParams } from '../../lib/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Building2, Loader2, Wallet, ShoppingCart, Warehouse, Layers, Factory } from 'lucide-react';
 import { getProyectoById } from '../../api/client';
@@ -31,7 +32,11 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
   onVolver,
 }) => {
   const seccionValida = (s: string | undefined): s is Seccion => SECCIONES.some((sec) => sec.id === s);
-  const [seccion, setSeccion] = useState<Seccion>(seccionValida(seccionInicial) ? seccionInicial : 'presupuesto');
+  // La seccion activa vive en la URL (?seccion=...) -- Atras del navegador
+  // vuelve a la seccion anterior. replace: cambiar de pestaña dentro del
+  // proyecto no llena el historial (Atras sale del proyecto al listado).
+  const seccion: Seccion = seccionValida(seccionInicial) ? seccionInicial : 'presupuesto';
+  const setSeccion = (s: Seccion) => actualizarParams({ seccion: s }, { replace: true });
 
   const { data: proyecto, isLoading } = useQuery({
     queryKey: ['proyectoDetail', proyectoId],
@@ -56,7 +61,7 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <div className="w-9 h-9 rounded-xl bg-[#E34A26]/10 border border-[#E34A26]/20 flex items-center justify-center text-[#E34A26] shrink-0">
+        <div className="w-9 h-9 rounded-xl bg-brand-600/10 border border-brand-600/20 flex items-center justify-center text-brand-600 shrink-0">
           <Building2 className="w-4.5 h-4.5" />
         </div>
         <div className="min-w-0">
@@ -88,7 +93,7 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
               onClick={() => setSeccion(s.id)}
               title={s.hint}
               className={`flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
-                seccion === s.id ? 'border-[#E34A26] text-[#E34A26]' : 'border-transparent text-slate-500 hover:text-slate-800'
+                seccion === s.id ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
               {s.icon}

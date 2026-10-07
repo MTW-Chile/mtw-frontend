@@ -64,9 +64,9 @@ export const MaterialLineaForm: React.FC<MaterialLineaFormProps> = ({
   };
 
   return (
-    <div className="rounded-2xl border border-orange-200 bg-orange-50/40 p-3.5 space-y-3">
+    <div className="rounded-2xl border border-brand-200 bg-brand-50/40 p-3.5 space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-bold uppercase tracking-wide text-[#E34A26]">{title}</span>
+        <span className="text-[11px] font-bold uppercase tracking-wide text-brand-600">{title}</span>
         <button
           onClick={onCancel}
           disabled={isSaving}
@@ -94,7 +94,7 @@ export const MaterialLineaForm: React.FC<MaterialLineaFormProps> = ({
               type="button"
               onClick={() => setSelected(null)}
               disabled={isSaving}
-              className="text-[10px] font-semibold text-[#E34A26] hover:underline shrink-0 cursor-pointer disabled:opacity-50"
+              className="text-[10px] font-semibold text-brand-600 hover:underline shrink-0 cursor-pointer disabled:opacity-50"
             >
               Cambiar
             </button>
@@ -125,7 +125,7 @@ export const MaterialLineaForm: React.FC<MaterialLineaFormProps> = ({
                 value={cantidad}
                 onChange={(e) => setCantidad(e.target.value)}
                 disabled={isSaving}
-                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#E34A26]/30"
+                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-brand-600/30"
               />
             </label>
             <label className="text-[10px] font-bold uppercase text-slate-500 space-y-1 block">
@@ -138,7 +138,7 @@ export const MaterialLineaForm: React.FC<MaterialLineaFormProps> = ({
                 onChange={(e) => setPiezas(e.target.value)}
                 disabled={isSaving}
                 placeholder="—"
-                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#E34A26]/30"
+                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-brand-600/30"
               />
             </label>
             <label className="text-[10px] font-bold uppercase text-slate-500 space-y-1 block">
@@ -149,7 +149,7 @@ export const MaterialLineaForm: React.FC<MaterialLineaFormProps> = ({
                 onChange={(e) => setAcabado(e.target.value)}
                 disabled={isSaving}
                 placeholder="—"
-                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#E34A26]/30"
+                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-brand-600/30"
               />
             </label>
           </div>
@@ -165,7 +165,7 @@ export const MaterialLineaForm: React.FC<MaterialLineaFormProps> = ({
             <button
               onClick={handleSubmit}
               disabled={isSaving}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#E34A26] hover:bg-[#c93f1f] text-white transition-colors cursor-pointer disabled:opacity-60 flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-600 hover:bg-brand-700 text-white transition-colors cursor-pointer disabled:opacity-60 flex items-center gap-1.5"
             >
               {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               <span>Confirmar</span>

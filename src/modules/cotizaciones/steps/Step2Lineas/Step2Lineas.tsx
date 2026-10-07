@@ -166,7 +166,7 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
       {/* Barra de Control, Búsqueda y Filtros */}
       <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#E34A26]/10 text-[#E34A26] border border-[#E34A26]/20 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-brand-600/10 text-brand-600 border border-brand-600/20 flex items-center justify-center shrink-0">
             <Layers className="w-5 h-5" />
           </div>
           <div>
@@ -193,7 +193,7 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar por modelo, acabado o comentario..."
-              className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-[#E34A26] focus:bg-white transition-colors"
+              className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white transition-colors"
             />
           </div>
 
@@ -220,9 +220,9 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
             title="Exportar Catálogo Técnico en PDF"
           >
             {isExportingCatalogo ? (
-              <Loader2 className="w-4 h-4 text-[#E34A26] animate-spin" />
+              <Loader2 className="w-4 h-4 text-brand-600 animate-spin" />
             ) : (
-              <FileDown className="w-4 h-4 text-[#E34A26]" />
+              <FileDown className="w-4 h-4 text-brand-600" />
             )}
             <span className="hidden sm:inline">{isExportingCatalogo ? 'Generando…' : 'Exportar PDF'}</span>
           </button>
@@ -231,7 +231,7 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
           {activeVersion && (
             <button
               onClick={() => setShowAgregarLinea(true)}
-              className="px-3.5 py-2 rounded-xl bg-[#E34A26] hover:bg-[#c93f1f] border border-[#E34A26] text-white font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
+              className="px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 border border-brand-600 text-white font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
               title="Agregar una línea que no viene de HETMO"
             >
               <Plus className="w-4 h-4" />
@@ -253,7 +253,7 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
           <p className="text-xs text-slate-500">No se encontraron líneas que coincidan con el criterio de búsqueda.</p>
           <button
             onClick={() => setSearchTerm('')}
-            className="text-xs font-bold text-[#E34A26] hover:underline cursor-pointer"
+            className="text-xs font-bold text-brand-600 hover:underline cursor-pointer"
           >
             Limpiar filtro
           </button>

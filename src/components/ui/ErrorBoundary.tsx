@@ -44,7 +44,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
             </p>
             <button
               onClick={() => window.location.reload()}
-              className="px-4 py-2 rounded-xl bg-[#E34A26] text-xs font-bold text-white hover:bg-[#c93f1f] transition-colors cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-brand-600 text-xs font-bold text-white hover:bg-brand-700 transition-colors cursor-pointer"
             >
               Recargar página
             </button>

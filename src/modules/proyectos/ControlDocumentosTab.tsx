@@ -45,13 +45,13 @@ const ChipFiltro: React.FC<{ activo: boolean; label: string; onToggle: () => voi
   disabled,
 }) =>
   activo ? (
-    <span className="inline-flex items-center gap-1 pl-2.5 pr-1 py-0.5 rounded-full bg-[#E34A26]/10 border border-[#E34A26]/25 text-[11px] font-semibold text-[#B8391B]">
+    <span className="inline-flex items-center gap-1 pl-2.5 pr-1 py-0.5 rounded-full bg-brand-600/10 border border-brand-600/25 text-[11px] font-semibold text-[#B8391B]">
       {label}
       <button
         onClick={onToggle}
         disabled={disabled}
         title="Quitar filtro"
-        className="w-4 h-4 rounded-full hover:bg-[#E34A26]/20 flex items-center justify-center disabled:opacity-50"
+        className="w-4 h-4 rounded-full hover:bg-brand-600/20 flex items-center justify-center disabled:opacity-50"
       >
         <XIcon className="w-3 h-3" />
       </button>
@@ -177,7 +177,7 @@ export const ControlDocumentosTab: React.FC = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por número de OC, proveedor u obra..."
-            className="w-full pl-10 pr-9 py-2.5 sm:py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[#E34A26] transition-all"
+            className="w-full pl-10 pr-9 py-2.5 sm:py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-brand-600 transition-all"
           />
           {searchTerm && (
             <button

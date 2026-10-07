@@ -104,7 +104,7 @@ export const BuscarFabricacionModal: React.FC<Props> = ({ proyectoId, onClose })
               onChange={(e) => setTexto(e.target.value)}
               placeholder="Buscar documento de fabricación..."
               maxLength={100}
-              className="w-full pl-9 pr-9 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-[#E34A26]"
+              className="w-full pl-9 pr-9 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600"
             />
             {isFetching && <Loader2 className="w-4 h-4 text-slate-400 animate-spin absolute right-3 top-1/2 -translate-y-1/2" />}
           </div>

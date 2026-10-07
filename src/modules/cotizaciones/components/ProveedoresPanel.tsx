@@ -79,7 +79,7 @@ export const ProveedoresPanel: React.FC = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por nombre, RUT o email..."
-            className="w-full pl-10 pr-9 py-2.5 sm:py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[#E34A26] transition-all"
+            className="w-full pl-10 pr-9 py-2.5 sm:py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-brand-600 transition-all"
           />
           {searchTerm && (
             <button
@@ -100,7 +100,7 @@ export const ProveedoresPanel: React.FC = () => {
       ) : isError ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-3 shadow-xs">
           <p className="text-sm font-bold text-rose-600">Error al consultar el maestro de proveedores.</p>
-          <button onClick={() => refetch()} className="text-xs font-bold text-[#E34A26] hover:underline cursor-pointer">
+          <button onClick={() => refetch()} className="text-xs font-bold text-brand-600 hover:underline cursor-pointer">
             Reintentar
           </button>
         </div>
@@ -179,7 +179,7 @@ export const ProveedoresPanel: React.FC = () => {
                         <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => setEditando(p)}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:text-[#E34A26] hover:bg-orange-50 transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:text-brand-600 hover:bg-brand-50 transition-colors cursor-pointer"
                           >
                             <Pencil className="w-3 h-3" />
                             <span>Editar</span>
@@ -272,7 +272,7 @@ export const ProveedoresPanel: React.FC = () => {
                 <div className="pt-2.5 border-t border-slate-100 flex justify-end gap-1 flex-wrap">
                   <button
                     onClick={() => setEditando(p)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-[#E34A26] hover:bg-orange-50 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-brand-600 hover:bg-brand-50 transition-colors cursor-pointer"
                   >
                     <Pencil className="w-3 h-3" />
                     <span>Editar</span>

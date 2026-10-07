@@ -41,7 +41,7 @@ export const Sidebar: React.FC<{
       {/* Backdrop para móviles */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-xs lg:hidden transition-opacity"
+          className="fixed inset-0 z-40 bg-ink-950/50 backdrop-blur-xs lg:hidden transition-opacity"
           onClick={onClose}
           aria-hidden="true"
         />
@@ -49,13 +49,13 @@ export const Sidebar: React.FC<{
 
       {/* Drawer / Sidebar */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 w-72 max-w-[85vw] bg-white border-r border-slate-200 p-5 flex flex-col justify-between transition-transform duration-250 ease-in-out lg:static lg:h-screen lg:shrink-0 lg:translate-x-0 ${
+        className={`fixed top-0 bottom-0 left-0 z-50 w-64 max-w-[85vw] bg-ink-900 text-slate-300 px-3.5 py-4 flex flex-col justify-between transition-transform duration-250 ease-in-out lg:static lg:h-screen lg:shrink-0 lg:translate-x-0 ${
           isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
         }`}
       >
         <div className="space-y-6">
           {/* Logo y Encabezado */}
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center justify-between px-1.5 pb-4 border-b border-white/8">
             <button
               onClick={() => {
                 setActiveTab('inicio');
@@ -65,22 +65,22 @@ export const Sidebar: React.FC<{
               title="Ir al Inicio de MTW ERP"
             >
               <img
-                src="/mtw-logo.png"
+                src="/mtw-logo-light.png"
                 alt="MTW ERP"
-                className="h-9 w-auto object-contain transition-transform group-hover:scale-105"
+                className="h-8 w-auto object-contain transition-transform group-hover:scale-105"
               />
               <div>
-                <h2 className="text-xs font-black tracking-tight uppercase text-slate-900 group-hover:text-[#E34A26] transition-colors">
+                <h2 className="text-xs font-black tracking-tight uppercase text-white">
                   MTW ERP
                 </h2>
-                <span className="text-[10px] font-mono text-[#E34A26] tracking-wider uppercase font-bold">
-                  Alpha V0.2
+                <span className="text-[10px] font-mono text-brand-300 tracking-wider uppercase font-medium">
+                  Alpha V1
                 </span>
               </div>
             </button>
             <button
               onClick={onClose}
-              className="p-2 rounded-xl lg:hidden text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+              className="p-2 rounded-xl lg:hidden text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               aria-label="Cerrar menú"
             >
               <X className="w-5 h-5" />
@@ -89,7 +89,7 @@ export const Sidebar: React.FC<{
 
           {/* Navegación */}
           <div className="space-y-1.5">
-            <div className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 text-slate-400">
+            <div className="text-[10px] font-bold uppercase tracking-[0.14em] px-3 py-1 text-slate-500">
               Menú Principal
             </div>
             <nav className="space-y-1">
@@ -104,23 +104,24 @@ export const Sidebar: React.FC<{
                       setActiveTab(item.id);
                       onClose();
                     }}
-                    className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`relative w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors cursor-pointer ${
                       isActive
-                        ? 'bg-[#E34A26]/10 text-[#E34A26] border border-[#E34A26]/20 font-bold shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
+                        ? 'bg-white/10 text-white font-semibold before:absolute before:left-0 before:top-2 before:bottom-2 before:w-[3px] before:rounded-r before:bg-brand-400'
+                        : 'text-slate-400 hover:text-white hover:bg-white/5'
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <Icon
                         className={`w-4 h-4 shrink-0 ${
-                          isActive ? 'text-[#E34A26]' : 'text-slate-400'
+                          isActive ? 'text-brand-300' : 'text-slate-500'
                         }`}
                       />
                       <span>{item.label}</span>
                     </div>
 
                     {item.count !== undefined && item.count > 0 && (
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-[#E34A26]/10 text-[#E34A26]">
+                      <span className={`px-1.5 py-0.5 rounded-md text-[11px] font-mono font-semibold ${isActive ? 'bg-brand-400/20 text-brand-100' : 'bg-white/8 text-slate-400'}`}>
                         {item.count}
                       </span>
                     )}
@@ -133,19 +134,19 @@ export const Sidebar: React.FC<{
 
         {/* Usuario actual */}
         {usuarioActual && (
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+          <div className="p-3 rounded-xl bg-white/5 border border-white/8 space-y-1.5">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-[#E34A26]/10 border border-[#E34A26]/20 flex items-center justify-center text-[#E34A26] shrink-0">
+              <div className="w-8 h-8 rounded-full bg-brand-500/25 flex items-center justify-center text-brand-200 shrink-0">
                 <User className="w-4 h-4" />
               </div>
               <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">
+                <div className="text-xs font-semibold text-white truncate">
                   {displayName({ nombre: usuarioActual.nombre ?? undefined, email: usuarioActual.email })}
                 </div>
-                <div className="text-[10px] text-slate-400 font-mono truncate">{usuarioActual.email}</div>
+                <div className="text-[10px] text-slate-500 truncate">{usuarioActual.email}</div>
               </div>
             </div>
-            <div className="text-[10px] text-slate-500 font-semibold truncate pl-[42px]">
+            <div className="text-[10px] text-brand-300 font-semibold truncate pl-[42px]">
               {usuarioActual.rol ?? 'Sin rol asignado'}
             </div>
           </div>

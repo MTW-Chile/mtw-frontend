@@ -28,7 +28,7 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
   }).format(new Date());
 
   return (
-    <div className="p-3 sm:p-5 md:p-8 space-y-4 sm:space-y-6 max-w-7xl mx-auto animate-fade-in">
+    <div className="w-full min-w-0 p-3 sm:p-5 md:p-6 xl:p-8 space-y-4 sm:space-y-6 max-w-7xl mx-auto animate-fade-in">
       {/* BUSCADOR PRINCIPAL EN EL CONTENIDO */}
       <form onSubmit={handleSearchSubmit} className="relative w-full">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
@@ -37,7 +37,7 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Buscar obra, cliente, RUT o presupuesto HETMO..."
-          className="w-full pl-11 pr-24 py-3 sm:py-3.5 rounded-2xl bg-white border border-slate-200/90 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#E34A26] focus:ring-2 focus:ring-[#E34A26]/10 shadow-xs transition-all"
+          className="w-full pl-11 pr-24 py-3 sm:py-3.5 rounded-2xl bg-white border border-slate-200/90 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/10 shadow-xs transition-all"
         />
         {searchQuery ? (
           <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
@@ -51,7 +51,7 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
             </button>
             <button
               type="submit"
-              className="px-3 py-1.5 rounded-xl bg-[#E34A26] hover:bg-[#c93d1b] text-white text-xs font-bold transition-colors cursor-pointer shadow-xs"
+              className="px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-[#c93d1b] text-white text-xs font-bold transition-colors cursor-pointer shadow-xs"
             >
               Buscar
             </button>
@@ -64,7 +64,7 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
       </form>
 
       {/* HERO OPERATIVO MTW ERP */}
-      <div className="relative overflow-hidden bg-linear-to-r from-slate-950 via-slate-900 to-slate-950 rounded-3xl p-5 sm:p-7 md:p-8 text-white shadow-xl border border-slate-800">
+      <div className="relative overflow-hidden bg-linear-to-br from-ink-900 via-ink-800 to-brand-900 rounded-2xl p-5 sm:p-7 md:p-8 text-white shadow-lg border border-ink-700">
         {/* El panel llena el ancho del contenedor (se ve bien como banner
             full-bleed), pero el contenido interno se centra con un cap
             propio -- si no, en monitores grandes se ve vacío/estirado. */}
@@ -82,7 +82,7 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
                   horizontal en toda la página en mobile. */}
               <div className="flex flex-wrap items-center gap-2 pt-0.5">
                 <span className="text-xs sm:text-sm text-slate-300 font-medium capitalize flex items-center gap-1.5 min-w-0">
-                  <Calendar className="w-3.5 h-3.5 text-[#E34A26] shrink-0" />
+                  <Calendar className="w-3.5 h-3.5 text-brand-600 shrink-0" />
                   {todayStr}
                 </span>
                 {feriadoInfo?.hoyFeriado && (
@@ -115,7 +115,7 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
           {/* BARRA DE INDICADORES FINANCIEROS DEL DÍA (UF, DOLAR, EURO, UTM) */}
           <div className="pt-4 border-t border-slate-800/80">
             <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="w-3.5 h-3.5 text-[#E34A26]" />
+              <TrendingUp className="w-3.5 h-3.5 text-brand-600" />
               <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">
                 Indicadores Financieros de Hoy (Chile)
               </span>
@@ -167,7 +167,7 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
         </div>
 
         {/* Resplandor decorativo de fondo */}
-        <div className="absolute -right-16 -bottom-16 w-72 h-72 bg-[#E34A26]/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -right-16 -bottom-16 w-72 h-72 bg-brand-600/15 rounded-full blur-3xl pointer-events-none" />
       </div>
 
       {/* ACCESOS DIRECTOS A MÓDULOS DE LA PLATAFORMA */}
@@ -182,18 +182,18 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
           {/* Tarjeta Cotizaciones */}
           <div
             onClick={() => onNavigate('cotizaciones')}
-            className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-[#E34A26]/40 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between space-y-4"
+            className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-brand-600/40 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between space-y-4"
           >
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-[#E34A26]/10 border border-[#E34A26]/20 flex items-center justify-center text-[#E34A26]">
+                <div className="w-10 h-10 rounded-xl bg-brand-600/10 border border-brand-600/20 flex items-center justify-center text-brand-600">
                   <Building2 className="w-5 h-5" />
                 </div>
                 <Badge variant="brand" size="sm">
                   Activo
                 </Badge>
               </div>
-              <h3 className="font-bold text-sm text-slate-900 group-hover:text-[#E34A26] transition-colors">
+              <h3 className="font-bold text-sm text-slate-900 group-hover:text-brand-600 transition-colors">
                 Cotizaciones & Presupuestos
               </h3>
               <p className="text-xs text-slate-500 leading-relaxed">
@@ -201,7 +201,7 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
               </p>
             </div>
 
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-[#E34A26]">
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-brand-600">
               <span>Ingresar a Cotizaciones</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </div>
@@ -221,7 +221,7 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
                   Activo
                 </Badge>
               </div>
-              <h3 className="font-bold text-sm text-slate-900 group-hover:text-[#E34A26] transition-colors">
+              <h3 className="font-bold text-sm text-slate-900 group-hover:text-brand-600 transition-colors">
                 Obras
               </h3>
               <p className="text-xs text-slate-500 leading-relaxed">
@@ -249,7 +249,7 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
                   En Cotizaciones
                 </Badge>
               </div>
-              <h3 className="font-bold text-sm text-slate-900 group-hover:text-[#E34A26] transition-colors">
+              <h3 className="font-bold text-sm text-slate-900 group-hover:text-brand-600 transition-colors">
                 Maestro de Productos
               </h3>
               <p className="text-xs text-slate-500 leading-relaxed">

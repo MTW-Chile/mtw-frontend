@@ -365,7 +365,7 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
             />
           </div>
 
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-96 overflow-auto">
             <table className="w-full text-xs">
               <thead className="sticky top-0 bg-slate-50/95 backdrop-blur">
                 <tr className="border-b border-slate-100 text-left text-slate-500 uppercase tracking-wider text-[10px]">
@@ -400,7 +400,7 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                           value={cantidades[f.ventanaId] || ''}
                           onChange={(e) => setCantidades((prev) => ({ ...prev, [f.ventanaId]: e.target.value }))}
                           className={`w-20 text-right text-xs border rounded-lg px-2 py-1 outline-none ${
-                            excedida ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-slate-200 focus:border-[#E34A26]'
+                            excedida ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-slate-200 focus:border-brand-600'
                           }`}
                         />
                       </td>
@@ -520,7 +520,7 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                                 <button
                                   type="button"
                                   onClick={() => toggleExpandida(key)}
-                                  className="flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-[#E34A26] transition-colors cursor-pointer"
+                                  className="flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-brand-600 transition-colors cursor-pointer"
                                 >
                                   {expandidaCat ? <ChevronDown className="w-3.5 h-3.5 text-slate-400" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400" />}
                                   {CATEGORIA_GASTO_LABEL[c.familia as CategoriaGasto] || c.familia}

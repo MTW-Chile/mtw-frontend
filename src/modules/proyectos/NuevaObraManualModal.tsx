@@ -34,7 +34,7 @@ export const NuevaObraManualModal: React.FC<Props> = ({ onClose, onCreada }) => 
   });
 
   const campo =
-    'w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-[#E34A26]';
+    'w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600';
   const etiqueta = 'block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5';
 
   return (

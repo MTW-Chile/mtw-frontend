@@ -97,7 +97,7 @@ export const RecepcionarOCModal: React.FC<RecepcionarOCModalProps> = ({ ordenCom
       >
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#E34A26]/10 border border-[#E34A26]/20 flex items-center justify-center text-[#E34A26] shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-brand-600/10 border border-brand-600/20 flex items-center justify-center text-brand-600 shrink-0">
               <PackageCheck className="w-5 h-5" />
             </div>
             <div>
@@ -178,7 +178,7 @@ export const RecepcionarOCModal: React.FC<RecepcionarOCModalProps> = ({ ordenCom
                     value={cantidades[f.ordenCompraItemId] ?? ''}
                     onChange={(e) => setCantidades((prev) => ({ ...prev, [f.ordenCompraItemId]: e.target.value }))}
                     disabled={f.pendiente <= 0}
-                    className="w-24 text-right text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-[#E34A26] disabled:bg-slate-100 disabled:text-slate-300"
+                    className="w-24 text-right text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-brand-600 disabled:bg-slate-100 disabled:text-slate-300"
                   />
                 </div>
               ))}

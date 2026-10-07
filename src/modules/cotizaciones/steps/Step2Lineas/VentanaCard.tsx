@@ -101,7 +101,7 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
                 title={`Acabado: ${finishLabel}`}
               />
             )}
-            <h4 className="text-sm font-black text-slate-900 group-hover:text-[#E34A26] transition-colors">
+            <h4 className="text-sm font-black text-slate-900 group-hover:text-brand-600 transition-colors">
               {ventana.modelo}
             </h4>
             {esManual ? (
@@ -122,7 +122,7 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="px-2 py-0.5 rounded-full bg-[#E34A26]/10 text-[#E34A26] border border-[#E34A26]/20 font-bold text-xs font-mono">
+          <span className="px-2 py-0.5 rounded-full bg-brand-600/10 text-brand-600 border border-brand-600/20 font-bold text-xs font-mono">
             {ventana.unidades} {ventana.unidades === 1 ? 'ud' : 'uds'}
           </span>
         </div>
@@ -269,8 +269,8 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
               onClick={() => onEditCorredera?.(ventana)}
               className={`text-xs font-semibold flex items-center gap-1 transition-colors px-2 py-1 rounded-lg border cursor-pointer ${
                 ventana.correccionGeometria
-                  ? 'bg-orange-50 text-[#E34A26] border-orange-200 hover:bg-orange-100'
-                  : 'bg-white text-slate-700 border-slate-200 hover:text-[#E34A26] hover:bg-slate-50'
+                  ? 'bg-brand-50 text-brand-600 border-brand-200 hover:bg-brand-100'
+                  : 'bg-white text-slate-700 border-slate-200 hover:text-brand-600 hover:bg-slate-50'
               }`}
               title="Ajustar apertura, carriles y sentidos de las hojas de corredera"
             >
@@ -283,8 +283,8 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
             disabled={isEspejando}
             className={`text-xs font-semibold flex items-center gap-1 transition-colors px-2 py-1 rounded-lg border cursor-pointer disabled:opacity-50 ${
               ventana.espejado
-                ? 'bg-orange-50 text-[#E34A26] border-orange-200 hover:bg-orange-100'
-                : 'bg-white text-slate-700 border-slate-200 hover:text-[#E34A26] hover:bg-slate-50'
+                ? 'bg-brand-50 text-brand-600 border-brand-200 hover:bg-brand-100'
+                : 'bg-white text-slate-700 border-slate-200 hover:text-brand-600 hover:bg-slate-50'
             }`}
             title="Espejar el dibujo horizontalmente, de forma permanente (para ventanas que salen al revés en el plano de HETMO)"
           >
@@ -297,8 +297,8 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
               disabled={isInvirtiendoOrden}
               className={`text-xs font-semibold flex items-center gap-1 transition-colors px-2 py-1 rounded-lg border cursor-pointer disabled:opacity-50 ${
                 ventana.ordenPanelesInvertido
-                  ? 'bg-orange-50 text-[#E34A26] border-orange-200 hover:bg-orange-100'
-                  : 'bg-white text-slate-700 border-slate-200 hover:text-[#E34A26] hover:bg-slate-50'
+                  ? 'bg-brand-50 text-brand-600 border-brand-200 hover:bg-brand-100'
+                  : 'bg-white text-slate-700 border-slate-200 hover:text-brand-600 hover:bg-slate-50'
               }`}
               title="Invertir qué paño va arriba y cuál abajo en el dibujo (para ventanas compuestas que HETMO entrega con el orden vertical al revés)"
             >
@@ -308,7 +308,7 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
           )}
           <button
             onClick={() => onOpenMaterials?.(ventana)}
-            className="text-xs font-semibold text-slate-600 hover:text-[#E34A26] flex items-center gap-1 transition-colors px-2 py-1 rounded-lg hover:bg-slate-100 cursor-pointer"
+            className="text-xs font-semibold text-slate-600 hover:text-brand-600 flex items-center gap-1 transition-colors px-2 py-1 rounded-lg hover:bg-slate-100 cursor-pointer"
             title="Revisión de materiales de esta línea"
           >
             <Boxes className="w-3.5 h-3.5" />

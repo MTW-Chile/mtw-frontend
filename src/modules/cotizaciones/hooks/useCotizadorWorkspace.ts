@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useUrlParam } from '../../../lib/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getProyectoById,
@@ -35,9 +36,22 @@ const initialNuevoCliente: NuevoClienteForm = {
   email: '',
 };
 
+type CotizadorPaso = 1 | 2 | 3 | 4 | 5;
+
 export function useCotizadorWorkspace(proyectoId: string, pasoInicial: 1 | 2 | 3 | 4 | 5 = 1) {
   const queryClient = useQueryClient();
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5>(pasoInicial);
+  // El paso vive en la URL (?paso=N, ver lib/navigation.ts): Atras del
+  // navegador vuelve al paso anterior y F5 no devuelve al Paso 1.
+  const [pasoUrl, setPasoUrl] = useUrlParam('paso');
+  const pasoNum = Number(pasoUrl);
+  const currentStep: CotizadorPaso = pasoNum >= 1 && pasoNum <= 5 ? (pasoNum as CotizadorPaso) : pasoInicial;
+  const setCurrentStep = useCallback(
+    (paso: CotizadorPaso | ((prev: CotizadorPaso) => CotizadorPaso)) => {
+      const siguiente = typeof paso === 'function' ? paso(currentStep) : paso;
+      if (siguiente >= 1 && siguiente <= 5) setPasoUrl(String(siguiente));
+    },
+    [currentStep, setPasoUrl]
+  );
   const [selectedVersionIdx, setSelectedVersionIdx] = useState(0);
   const [showReimportModal, setShowReimportModal] = useState(false);
 
@@ -248,6 +262,11 @@ export function useCotizadorWorkspace(proyectoId: string, pasoInicial: 1 | 2 | 3
       // la campanita/Centro de Notificaciones se actualicen al toque, sin
       // esperar el proximo poll (ver Header.tsx).
       queryClient.invalidateQueries({ queryKey: ['misAprobacionesPendientes'] });
+      // Y cambia en que listados aparece la obra: ACEPTADO_CLIENTE la pasa
+      // a Proyectos en curso (y al contador del Sidebar). Sin esto, recien
+      // aprobada no aparecia en Proyectos hasta recargar la pagina.
+      queryClient.invalidateQueries({ queryKey: ['proyectos'] });
+      queryClient.invalidateQueries({ queryKey: ['proyectosCount'] });
     },
   });
 

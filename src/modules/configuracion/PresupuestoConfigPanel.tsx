@@ -23,7 +23,7 @@ const Campo: React.FC<{ label: string; hint?: string; children: React.ReactNode 
   </div>
 );
 
-const inputClass = 'w-full text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-[#E34A26] transition-colors';
+const inputClass = 'w-full text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-brand-600 transition-colors';
 
 export const PresupuestoConfigPanel: React.FC = () => {
   const queryClient = useQueryClient();
@@ -126,7 +126,7 @@ export const PresupuestoConfigPanel: React.FC = () => {
           type="button"
           onClick={() => mutation.mutate()}
           disabled={mutation.isPending}
-          className="px-4 py-2.5 rounded-xl bg-[#E34A26] text-white text-xs font-bold flex items-center gap-2 hover:bg-[#c93f1e] transition-colors disabled:opacity-50"
+          className="px-4 py-2.5 rounded-xl bg-brand-600 text-white text-xs font-bold flex items-center gap-2 hover:bg-brand-700 transition-colors disabled:opacity-50"
         >
           {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           Guardar

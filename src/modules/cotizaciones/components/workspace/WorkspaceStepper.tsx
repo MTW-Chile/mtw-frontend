@@ -28,14 +28,14 @@ export const WorkspaceStepper: React.FC<WorkspaceStepperProps> = ({
               onClick={() => onStepChange(s.step)}
               className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer ${
                 currentStep === s.step
-                  ? 'bg-[#E34A26]/10 text-[#E34A26] border border-[#E34A26]/30 shadow-2xs font-bold'
+                  ? 'bg-brand-600/10 text-brand-600 border border-brand-600/30 shadow-2xs font-bold'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >
               <span
                 className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
                   currentStep === s.step
-                    ? 'bg-[#E34A26] text-white'
+                    ? 'bg-brand-600 text-white'
                     : 'bg-slate-200 text-slate-600'
                 }`}
               >

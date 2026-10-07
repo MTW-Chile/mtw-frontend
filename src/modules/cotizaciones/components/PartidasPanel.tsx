@@ -58,7 +58,7 @@ export const PartidasPanel: React.FC = () => {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-3 shadow-xs">
         <p className="text-sm font-bold text-rose-600">Error al consultar las partidas.</p>
-        <button onClick={() => refetch()} className="text-xs font-bold text-[#E34A26] hover:underline cursor-pointer">
+        <button onClick={() => refetch()} className="text-xs font-bold text-brand-600 hover:underline cursor-pointer">
           Reintentar
         </button>
       </div>
@@ -98,7 +98,7 @@ export const PartidasPanel: React.FC = () => {
                         <input
                           value={valores.nombre}
                           onChange={(e) => setValor(p, 'nombre', e.target.value)}
-                          className="w-full text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-[#E34A26] bg-slate-50 focus:bg-white transition-colors"
+                          className="w-full text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-brand-600 bg-slate-50 focus:bg-white transition-colors"
                         />
                       ) : (
                         <span className="font-semibold text-slate-900">{p.nombre}</span>
@@ -110,7 +110,7 @@ export const PartidasPanel: React.FC = () => {
                           value={valores.integracionClay}
                           placeholder="Sin código"
                           onChange={(e) => setValor(p, 'integracionClay', e.target.value)}
-                          className="w-full font-mono text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-[#E34A26] bg-slate-50 focus:bg-white transition-colors placeholder:text-slate-300 placeholder:font-sans"
+                          className="w-full font-mono text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-brand-600 bg-slate-50 focus:bg-white transition-colors placeholder:text-slate-300 placeholder:font-sans"
                         />
                       ) : (
                         <span className="font-mono text-slate-600">{p.integracionClay || <span className="text-slate-300">—</span>}</span>
@@ -121,7 +121,7 @@ export const PartidasPanel: React.FC = () => {
                         <button
                           onClick={() => mutation.mutate(p)}
                           disabled={!dirty || guardando}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-[#E34A26] hover:bg-orange-50 transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-brand-600 hover:bg-brand-50 transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
                         >
                           {guardando ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
                           <span>Guardar</span>

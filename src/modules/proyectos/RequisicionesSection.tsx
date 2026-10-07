@@ -106,7 +106,7 @@ export const RequisicionesSection: React.FC<{ proyecto?: Proyecto; activeVersion
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-          <ClipboardList className="w-4 h-4 text-[#E34A26]" />
+          <ClipboardList className="w-4 h-4 text-brand-600" />
           Requisiciones de materiales
         </h3>
         {!creando && fases.length > 0 && (
@@ -162,7 +162,7 @@ export const RequisicionesSection: React.FC<{ proyecto?: Proyecto; activeVersion
                   onChange={(e) =>
                     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, cantidadSolicitada: e.target.value } : it)))
                   }
-                  className="w-24 text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-[#E34A26]"
+                  className="w-24 text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-brand-600"
                 />
                 <button
                   type="button"

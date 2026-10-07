@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Bell, Landmark, ShoppingCart, Loader2, ChevronRight } from 'lucide-react';
 import { getMisAprobacionesPendientes } from '../../api/client';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 const formatoMoneda = (valor: number) => valor.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
@@ -35,16 +36,12 @@ export const CentroNotificacionesPage: React.FC<CentroNotificacionesPageProps> =
   const gerencial = pendientes?.gerencial || [];
 
   return (
-    <div className="p-5 sm:p-8 max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-[#E34A26]/10 flex items-center justify-center text-[#E34A26]">
-          <Bell className="w-5 h-5" />
-        </div>
-        <div>
-          <h1 className="text-base font-black text-slate-900">Centro de Notificaciones</h1>
-          <p className="text-xs text-slate-500">Cotizaciones y Órdenes de Compra esperando tu aprobación gerencial</p>
-        </div>
-      </div>
+    <div className="w-full min-w-0 p-3 sm:p-5 md:p-6 xl:p-8 max-w-3xl mx-auto space-y-6 animate-fade-in">
+      <PageHeader
+        title="Centro de Notificaciones"
+        description="Cotizaciones y Órdenes de Compra esperando tu aprobación gerencial."
+        icon={Bell}
+      />
 
       {isLoading ? (
         <div className="p-12 flex items-center justify-center text-slate-400">

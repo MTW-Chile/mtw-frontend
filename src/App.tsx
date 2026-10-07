@@ -15,6 +15,7 @@ import { getProyectos, getMisPermisos } from './api/client';
 import { useCloudflareAccessSession, SessionContext } from './lib/useCloudflareAccessSession';
 import { SECCIONES_FRONTEND } from './lib/accessControl';
 import { mostrarToast, extraerErrorParaToast } from './lib/toast';
+import { navegar, seccionDesdePath, useLocationHref, inicializarHistorial } from './lib/navigation';
 
 // Tab especial, fuera de SECCIONES_FRONTEND a proposito (no va en el
 // Sidebar -- solo se llega ahi desde la campanita del Header o el link de
@@ -40,6 +41,21 @@ const queryClient = new QueryClient({
     },
   }),
   mutationCache: new MutationCache({
+    // Cualquier cambio guardado (aprobar una cotizacion, recepcionar una
+    // OC, editar un cliente...) deja TODO el cache marcado como viejo, sin
+    // pedir nada al backend todavia (refetchType: 'none'). Cada pantalla
+    // vuelve a pedir sus datos recien cuando se monta (al navegar a ella)
+    // o cuando vuelve el foco a la pestaña. Antes cada mutation invalidaba
+    // a mano solo algunas keys, y bastaba con que faltara una (ej. aprobar
+    // una cotizacion no invalidaba ['proyectos']) para que otra pantalla
+    // siguiera mostrando datos viejos hasta apretar F5. Las invalidaciones
+    // puntuales de cada mutation se mantienen: esas SI refrescan al tiro
+    // lo que esta en pantalla. No se refresca todo lo activo de inmediato
+    // para no multiplicar peticiones en ediciones seguidas (ej. editar 50
+    // precios en el Paso 3) y pisar el rate limit de mtw-api.
+    onSuccess: () => {
+      queryClient.invalidateQueries({ refetchType: 'none' });
+    },
     onError: (error, _variables, _context, mutation) => {
       const { mensaje, detalle } = extraerErrorParaToast(error);
       console.error('[mutationCache]', mutation.options.mutationKey, error);
@@ -60,7 +76,14 @@ const queryClient = new QueryClient({
       // seguido que antes, con bastante margen contra ese limite. Una
       // pantalla puntual puede pisar cualquiera de estos tres pasando sus
       // propias opciones a useQuery.
-      staleTime: 1000 * 60 * 3,
+      //
+      // staleTime bajo a 30s (el intervalo de fondo sigue en 3 min, que es
+      // lo que pesa contra el rate limit): al ENTRAR a una pantalla se
+      // piden datos frescos si los del cache tienen mas de 30s -- asi un
+      // cambio hecho por otra persona (o en otra pestaña) se ve con solo
+      // navegar, sin F5. Para forzarlo antes, boton "Actualizar datos" del
+      // Header (ver NavControls.tsx).
+      staleTime: 1000 * 30,
       refetchInterval: 1000 * 60 * 3,
       refetchOnWindowFocus: true,
     },
@@ -76,14 +99,19 @@ const MODULE_TITLES: Record<string, string> = {
   [TAB_CENTRO_NOTIFICACIONES]: 'Centro de Notificaciones',
 };
 
+inicializarHistorial();
+
+const SECCIONES_CONOCIDAS = new Set([...SECCIONES_FRONTEND.map((s) => s.id), TAB_CENTRO_NOTIFICACIONES]);
+
 const AppContent: React.FC = () => {
-  const [activeTab, setActiveTabState] = useState('inicio');
+  // La seccion activa vive en la URL (/proyectos, /compras...) -- ver
+  // lib/navigation.ts. Asi Atras/Adelante del navegador y F5 funcionan.
+  useLocationHref();
+  const seccionUrl = seccionDesdePath();
+  const activeTab = SECCIONES_CONOCIDAS.has(seccionUrl) ? seccionUrl : 'inicio';
+  const setActiveTabState = (tab: string, opts?: { replace?: boolean }) => navegar(`/${tab}`, {}, opts);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  // Deep-link hacia una cotizacion puntual (aprobacion gerencial pendiente)
-  // -- CotizacionesPage lo consume, abre el Cotizador en el Paso 5
-  // (Consolidación) y avisa por onProyectoAbierto para que no se reabra solo.
-  const [cotizacionAAbrir, setCotizacionAAbrir] = useState<string | null>(null);
 
   const { data: permisos, isLoading: cargandoPermisos } = useQuery({
     queryKey: ['misPermisos'],
@@ -107,7 +135,7 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (!permisos || puedeVer(activeTab)) return;
     const primeraPermitida = SECCIONES_FRONTEND.find((s) => puedeVer(s.id));
-    setActiveTabState(primeraPermitida?.id ?? '');
+    setActiveTabState(primeraPermitida?.id ?? '', { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [permisos, activeTab]);
 
@@ -141,9 +169,10 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const abrirCotizacion = (proyectoId: string) => {
-    setActiveTabState('cotizaciones');
-    setCotizacionAAbrir(proyectoId);
+  // Abre el Cotizador de ese proyecto directo en el Paso 5 (Consolidación),
+  // donde está "Aprobar (Gerencia)" -- CotizacionesPage lee estos params.
+  const abrirCotizacion = (proyectoId: string, opts?: { replace?: boolean }) => {
+    navegar('/cotizaciones', { cotizar: proyectoId, paso: 5 }, opts);
   };
 
   // Deep-link desde el link "Ver Centro de Notificaciones" de los correos
@@ -156,19 +185,22 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const abrir = new URLSearchParams(window.location.search).get('abrir');
     if (!abrir) return;
+    // replace: el link del correo no deja una entrada "?abrir=..." en el
+    // historial (Atras desde ahi no tiene que volver a navegar solo).
     if (abrir === 'centro') {
-      handleNavigate(TAB_CENTRO_NOTIFICACIONES);
+      setActiveTabState(TAB_CENTRO_NOTIFICACIONES, { replace: true });
     } else {
       const [tipo, valor] = abrir.split(/:(.*)/s);
       if (tipo === 'cotizacion' && valor) {
-        abrirCotizacion(valor);
+        abrirCotizacion(valor, { replace: true });
       } else if (tipo === 'oc') {
         // Aprobar/enviar una OC es trabajo del módulo Compras, no de un
         // proyecto puntual -- ver modoRestringido en OrdenesCompraList.
-        handleNavigate('compras');
+        setActiveTabState('compras', { replace: true });
+      } else {
+        navegar(window.location.pathname, {}, { replace: true });
       }
     }
-    window.history.replaceState({}, '', window.location.pathname);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -227,12 +259,7 @@ const AppContent: React.FC = () => {
           {activeTab === 'clientes' && <ClientesPage />}
 
           {activeTab === 'cotizaciones' && (
-            <CotizacionesPage
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-              proyectoAAbrir={cotizacionAAbrir}
-              onProyectoAbierto={() => setCotizacionAAbrir(null)}
-            />
+            <CotizacionesPage searchTerm={searchTerm} onSearchChange={setSearchTerm} />
           )}
 
           {activeTab === 'proyectos' && (

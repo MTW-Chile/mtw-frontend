@@ -71,7 +71,7 @@ const NombreEditable: React.FC<{ ventana: Ventana; onGuardado: (v: Partial<Venta
         className="flex items-center gap-1.5 text-left group/edit disabled:cursor-default"
       >
         <h4 className="text-sm font-black text-slate-900">{ventana.modelo}</h4>
-        {!congelado && <Pencil className="w-3 h-3 text-slate-300 group-hover/edit:text-[#E34A26] shrink-0" />}
+        {!congelado && <Pencil className="w-3 h-3 text-slate-300 group-hover/edit:text-brand-600 shrink-0" />}
       </button>
     );
   }
@@ -83,13 +83,13 @@ const NombreEditable: React.FC<{ ventana: Ventana; onGuardado: (v: Partial<Venta
         value={valor}
         onChange={(e) => setValor(e.target.value)}
         maxLength={220}
-        className="text-sm font-black text-slate-900 border-b border-[#E34A26] outline-none bg-transparent min-w-0"
+        className="text-sm font-black text-slate-900 border-b border-brand-600 outline-none bg-transparent min-w-0"
       />
       <button
         type="button"
         onClick={() => mutation.mutate()}
         disabled={mutation.isPending}
-        className="shrink-0 w-5 h-5 rounded bg-[#E34A26] text-white flex items-center justify-center"
+        className="shrink-0 w-5 h-5 rounded bg-brand-600 text-white flex items-center justify-center"
       >
         {mutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
       </button>
@@ -114,7 +114,7 @@ const ObservacionEditable: React.FC<{ ventana: Ventana; onGuardado: (v: Partial<
 
   if (!editando && !ventana.comentarioPresupuesto) {
     return congelado ? null : (
-      <button type="button" onClick={() => setEditando(true)} className="text-[11px] text-slate-400 hover:text-[#E34A26]">
+      <button type="button" onClick={() => setEditando(true)} className="text-[11px] text-slate-400 hover:text-brand-600">
         + Agregar observación
       </button>
     );
@@ -126,7 +126,7 @@ const ObservacionEditable: React.FC<{ ventana: Ventana; onGuardado: (v: Partial<
         <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Observación</span>
         <p className="text-xs text-slate-700 flex items-start gap-1">
           {ventana.comentarioPresupuesto}
-          {!congelado && <Pencil className="w-3 h-3 text-slate-300 group-hover/edit:text-[#E34A26] shrink-0 mt-0.5" />}
+          {!congelado && <Pencil className="w-3 h-3 text-slate-300 group-hover/edit:text-brand-600 shrink-0 mt-0.5" />}
         </p>
       </button>
     );
@@ -140,13 +140,13 @@ const ObservacionEditable: React.FC<{ ventana: Ventana; onGuardado: (v: Partial<
         onChange={(e) => setValor(e.target.value)}
         rows={2}
         maxLength={2000}
-        className="w-full text-xs border border-slate-200 rounded-lg p-1.5 outline-none focus:border-[#E34A26]"
+        className="w-full text-xs border border-slate-200 rounded-lg p-1.5 outline-none focus:border-brand-600"
       />
       <button
         type="button"
         onClick={() => mutation.mutate()}
         disabled={mutation.isPending}
-        className="px-2 py-1 rounded-md bg-[#E34A26] text-white text-[11px] font-bold flex items-center gap-1"
+        className="px-2 py-1 rounded-md bg-brand-600 text-white text-[11px] font-bold flex items-center gap-1"
       >
         {mutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
         Guardar
@@ -321,7 +321,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
           type="button"
           onClick={exportarPDF}
           disabled={exportando}
-          className="px-4 py-2.5 rounded-xl bg-[#E34A26] text-white text-xs font-bold flex items-center gap-2 hover:bg-[#c93f1e] transition-colors disabled:opacity-50"
+          className="px-4 py-2.5 rounded-xl bg-brand-600 text-white text-xs font-bold flex items-center gap-2 hover:bg-brand-700 transition-colors disabled:opacity-50"
         >
           {exportando ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
           Exportar PDF
@@ -332,7 +332,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         <div className="flex items-center justify-between">
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">Texto de presentación</h4>
           {!congelado && !editandoTexto && (
-            <button type="button" onClick={() => setEditandoTexto(true)} className="text-[11px] text-slate-400 hover:text-[#E34A26] flex items-center gap-1">
+            <button type="button" onClick={() => setEditandoTexto(true)} className="text-[11px] text-slate-400 hover:text-brand-600 flex items-center gap-1">
               <Pencil className="w-3 h-3" /> Editar
             </button>
           )}
@@ -343,13 +343,13 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
               rows={4}
-              className="w-full text-xs border border-slate-200 rounded-lg p-2 outline-none focus:border-[#E34A26]"
+              className="w-full text-xs border border-slate-200 rounded-lg p-2 outline-none focus:border-brand-600"
             />
             <button
               type="button"
               onClick={() => guardarTextoMutation.mutate()}
               disabled={guardarTextoMutation.isPending}
-              className="px-3 py-1.5 rounded-lg bg-[#E34A26] text-white text-xs font-bold flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-bold flex items-center gap-1.5"
             >
               {guardarTextoMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Guardar
@@ -383,7 +383,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
                   congelado={congelado}
                   onGuardado={(patch) => setVentanasLocal((prev) => ({ ...prev, [v.id]: { ...prev[v.id], ...patch } }))}
                 />
-                <span className="px-2 py-0.5 rounded-full bg-[#E34A26]/10 text-[#E34A26] border border-[#E34A26]/20 font-bold text-xs font-mono shrink-0">
+                <span className="px-2 py-0.5 rounded-full bg-brand-600/10 text-brand-600 border border-brand-600/20 font-bold text-xs font-mono shrink-0">
                   {v.unidades} {v.unidades === 1 ? 'ud' : 'uds'}
                 </span>
               </header>
@@ -423,7 +423,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
                   <h5 className="text-[10px] uppercase tracking-wider font-bold text-slate-500 pb-1 border-b border-slate-100">Valores comerciales</h5>
                   <div className="flex justify-between"><span className="text-slate-500">Precio unitario</span><span className="font-mono font-bold text-slate-900">{ufLabel(precio?.precioUnitarioCLP || 0, tasaUf)}</span></div>
                   <div className="flex justify-between"><span className="text-slate-500">Cantidad</span><span className="font-mono font-bold text-slate-900">{v.unidades} ud(es)</span></div>
-                  <div className="flex justify-between pt-1 border-t border-slate-100"><span className="text-slate-500">Total neto</span><span className="font-mono font-bold text-[#E34A26]">{ufLabel(precio?.precioVentaCLP || 0, tasaUf)}</span></div>
+                  <div className="flex justify-between pt-1 border-t border-slate-100"><span className="text-slate-500">Total neto</span><span className="font-mono font-bold text-brand-600">{ufLabel(precio?.precioVentaCLP || 0, tasaUf)}</span></div>
                 </div>
               </div>
             </article>
@@ -441,7 +441,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         <div className="flex items-center justify-between">
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">Condiciones comerciales</h4>
           {!congelado && !editandoCondiciones && (
-            <button type="button" onClick={() => setEditandoCondiciones(true)} className="text-[11px] text-slate-400 hover:text-[#E34A26] flex items-center gap-1">
+            <button type="button" onClick={() => setEditandoCondiciones(true)} className="text-[11px] text-slate-400 hover:text-brand-600 flex items-center gap-1">
               <Pencil className="w-3 h-3" /> Editar
             </button>
           )}
@@ -452,14 +452,14 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
               value={condiciones}
               onChange={(e) => setCondiciones(e.target.value)}
               rows={8}
-              className="w-full text-xs border border-slate-200 rounded-lg p-2 outline-none focus:border-[#E34A26] font-mono"
+              className="w-full text-xs border border-slate-200 rounded-lg p-2 outline-none focus:border-brand-600 font-mono"
             />
             <p className="text-[10px] text-slate-400">Una condición por línea.</p>
             <button
               type="button"
               onClick={() => guardarCondicionesMutation.mutate()}
               disabled={guardarCondicionesMutation.isPending}
-              className="px-3 py-1.5 rounded-lg bg-[#E34A26] text-white text-xs font-bold flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-bold flex items-center gap-1.5"
             >
               {guardarCondicionesMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Guardar
