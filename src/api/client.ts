@@ -45,6 +45,10 @@ import type {
   EtapaPendiente,
   ObraPendiente,
   ObraPendienteDetalle,
+  AdjuntoPendiente,
+  OneDriveObra,
+  CarpetaOneDrive,
+  CarpetaOneDriveSugerida,
   EstadoPendiente,
   DestinoPendiente,
   NuevoPendientePayload,
@@ -1174,3 +1178,46 @@ export async function editarEtapaPendiente(
   return response.data;
 }
 
+// ---- Adjuntos de pendientes (OneDrive) ----
+
+export async function getOneDriveObra(proyectoId: string): Promise<OneDriveObra> {
+  const response = await apiClient.get<OneDriveObra>(`/proyectos/${proyectoId}/onedrive`);
+  return response.data;
+}
+
+export async function buscarCarpetasOneDrive(proyectoId: string, q: string): Promise<CarpetaOneDriveSugerida[]> {
+  const response = await apiClient.get<CarpetaOneDriveSugerida[]>(`/proyectos/${proyectoId}/onedrive/carpetas`, { params: q ? { q } : undefined });
+  return response.data;
+}
+
+// Vincula la obra a una carpeta existente ({ carpetaId }) o crea una nueva ({ crear: true, nombre }).
+export async function vincularCarpetaOneDrive(
+  proyectoId: string,
+  payload: { carpetaId: string } | { crear: true; nombre?: string }
+): Promise<CarpetaOneDrive> {
+  const response = await apiClient.post<{ carpeta: CarpetaOneDrive }>(`/proyectos/${proyectoId}/onedrive/carpeta`, payload);
+  return response.data.carpeta;
+}
+
+export async function desvincularCarpetaOneDrive(proyectoId: string): Promise<void> {
+  await apiClient.post(`/proyectos/${proyectoId}/onedrive/desvincular`);
+}
+
+// Sube el archivo tal cual en el cuerpo (sin multipart); el nombre va en la URL.
+export async function subirAdjuntoPendiente(pendienteId: string, archivo: Blob, nombre: string, mime: string): Promise<AdjuntoPendiente> {
+  const response = await apiClient.post<AdjuntoPendiente>(`/pendientes/${pendienteId}/adjuntos`, archivo, {
+    params: { nombre },
+    headers: { 'Content-Type': mime },
+    timeout: 120000,
+  });
+  return response.data;
+}
+
+export async function getContenidoAdjunto(pendienteId: string, adjuntoId: string): Promise<Blob> {
+  const response = await apiClient.get<Blob>(`/pendientes/${pendienteId}/adjuntos/${adjuntoId}/contenido`, { responseType: 'blob', timeout: 120000 });
+  return response.data;
+}
+
+export async function quitarAdjuntoPendiente(pendienteId: string, adjuntoId: string): Promise<void> {
+  await apiClient.post(`/pendientes/${pendienteId}/adjuntos/${adjuntoId}/quitar`);
+}

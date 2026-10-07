@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ClipboardList, Loader2, Plus, Search } from 'lucide-react';
+import { ClipboardList, Loader2, Paperclip, Plus, Search } from 'lucide-react';
 import { getPendientes } from '../../../api/client';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
@@ -8,6 +8,7 @@ import { useMediaQuery } from '../../../lib/useMediaQuery';
 import { BREAKPOINT_DESKTOP } from '../../../lib/designSystem';
 import type { DestinoPendiente, EstadoPendiente, ObraPendiente, OrigenPendiente, Proyecto } from '../../../types';
 import { formatoFechaHora } from '../fabricacion/utils';
+import { CarpetaObraCard } from './adjuntos/CarpetaObraCard';
 import { NuevoPendienteModal } from './NuevoPendienteModal';
 import { PendienteDetalleModal } from './PendienteDetalleModal';
 import {
@@ -83,6 +84,8 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
           Nuevo pendiente
         </Button>
       </div>
+
+      <CarpetaObraCard proyectoId={proyecto.id} />
 
       {/* Resumen por estado: cada uno filtra la lista */}
       <div className="flex flex-wrap gap-2">
@@ -175,6 +178,12 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
                           {ETIQUETA_TIPO[p.tipo]}
                         </Badge>
                         {p.descripcion}
+                        {!!p._count?.adjuntos && (
+                          <span className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] font-bold text-slate-400 align-middle" title={`${p._count.adjuntos} adjunto(s)`}>
+                            <Paperclip className="w-3 h-3" />
+                            {p._count.adjuntos}
+                          </span>
+                        )}
                       </div>
                       {f.referencia && <div className="text-[11px] text-slate-500 truncate">{f.referencia}</div>}
                     </td>
@@ -208,7 +217,15 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
                     {textoEstadoPendiente(p)}
                   </Badge>
                 </div>
-                <p className="text-sm font-bold text-slate-900 break-words">{p.descripcion}</p>
+                <p className="text-sm font-bold text-slate-900 break-words">
+                  {p.descripcion}
+                  {!!p._count?.adjuntos && (
+                    <span className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] font-bold text-slate-400 align-middle">
+                      <Paperclip className="w-3 h-3" />
+                      {p._count.adjuntos}
+                    </span>
+                  )}
+                </p>
                 {f.referencia && <p className="text-[11px] text-slate-500">{f.referencia}</p>}
                 <p className="text-[11px] text-slate-500">
                   {ETIQUETA_TIPO[p.tipo]} · {p.cantidad} un · {ETIQUETA_MOTIVO[p.motivo]} · va a {ETIQUETA_DESTINO[p.destino]}

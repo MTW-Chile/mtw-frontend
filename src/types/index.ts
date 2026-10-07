@@ -1094,10 +1094,49 @@ export interface ObraPendiente {
   fechaResolucion: string | null;
   notasResolucion: string | null;
   creadoEn: string;
+  // Cantidad de adjuntos (fotos/documentos en OneDrive).
+  _count?: { adjuntos: number };
+}
+
+// Foto o documento de un pendiente. El archivo vive en OneDrive; se ve a
+// traves de la API (/pendientes/:id/adjuntos/:adjId/contenido).
+export interface AdjuntoPendiente {
+  id: string;
+  pendienteId: string;
+  nombre: string;
+  mime: string;
+  tamano: number;
+  webUrl: string | null;
+  subidoPor?: { id: string; nombre: string } | null;
+  creadoEn: string;
+  puedeQuitar?: boolean;
+}
+
+export interface CarpetaOneDrive {
+  id: string;
+  nombre: string | null;
+  url: string | null;
+}
+
+export interface CarpetaOneDriveSugerida {
+  id: string;
+  nombre: string;
+  url: string | null;
+  puntaje?: number;
+}
+
+// Estado de la carpeta de OneDrive de una obra. `configurado` false = el
+// servidor no tiene OneDrive configurado (se oculta la opcion de adjuntar).
+export interface OneDriveObra {
+  configurado: boolean;
+  carpeta: CarpetaOneDrive | null;
+  sugerencias: CarpetaOneDriveSugerida[];
+  nombreSugeridoNueva?: string;
 }
 
 export interface ObraPendienteDetalle extends ObraPendiente {
   eventos: ObraPendienteEvento[];
+  adjuntos: AdjuntoPendiente[];
   // Quien creo el pendiente (o un administrador): el unico que puede
   // resolverlo, reabrirlo, editarlo o eliminarlo.
   puedeResolver: boolean;

@@ -5,6 +5,7 @@ import { cambiarEstadoPendiente, eliminarPendiente, getEtapasPendiente, getPendi
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { formatoFechaHora } from '../fabricacion/utils';
+import { AdjuntosDetalle } from './adjuntos/AdjuntosDetalle';
 import {
   ETIQUETA_DESTINO,
   ETIQUETA_ESTADO,
@@ -120,6 +121,8 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
               )}
               {p.notasResolucion && <Dato etiqueta="Nota de resolución">{p.notasResolucion}</Dato>}
             </dl>
+
+            <AdjuntosDetalle proyectoId={proyectoId} pendienteId={pendienteId} adjuntos={p.adjuntos ?? []} puedeAgregar={p.estado !== 'RESUELTO'} />
 
             {/* Acciones */}
             <div className="rounded-xl border border-slate-200 p-3 space-y-3">

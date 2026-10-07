@@ -10,7 +10,10 @@ import type {
   Proyecto,
   TipoElementoPendiente,
 } from '../../../types';
+import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import { formatoMm } from '../fabricacion/utils';
+import { AdjuntosNuevoPendiente } from './adjuntos/AdjuntosNuevoPendiente';
+import { subirArchivos } from './adjuntos/subirArchivos';
 import {
   DESTINOS_PENDIENTE,
   ETIQUETA_DESTINO,
@@ -86,6 +89,8 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
   const [cantidad, setCantidad] = useState('1');
   const [ubicacion, setUbicacion] = useState('');
   const [fechaRequerida, setFechaRequerida] = useState('');
+  const [adjuntos, setAdjuntos] = useState<File[]>([]);
+  const [subiendoAdjuntos, setSubiendoAdjuntos] = useState(false);
 
   const { data: fabricaciones = [] } = useQuery({
     queryKey: ['fabricaciones', proyecto.id],
@@ -156,8 +161,8 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
   const puedeCrear = !!descripcion.trim() && cantidadValida;
 
   const crear = useMutation({
-    mutationFn: () =>
-      crearPendiente(proyecto.id, {
+    mutationFn: async () => {
+      const creado = await crearPendiente(proyecto.id, {
         origen,
         destino,
         tipo,
@@ -169,10 +174,27 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
         fabricacionVentanaId: ventana?.id,
         fabricacionCuadroId: tipo === 'HOJA' && elementoId ? elementoId : undefined,
         fechaRequerida: fechaRequerida || undefined,
-      }),
+      });
+      // El pendiente ya existe: si algun adjunto falla se avisa, pero el pendiente NO se pierde
+      // (los archivos se pueden agregar de nuevo desde su detalle).
+      if (adjuntos.length > 0) {
+        setSubiendoAdjuntos(true);
+        const r = await subirArchivos(creado.id, adjuntos);
+        setSubiendoAdjuntos(false);
+        if (r.fallidos.length) {
+          mostrarToast(`El pendiente se creó, pero no se pudo subir: ${r.fallidos.join(' · ')}. Agrégalo desde su detalle.`);
+        }
+      }
+      return creado;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pendientes', proyecto.id] });
       onCreado();
+    },
+    onError: (e) => {
+      setSubiendoAdjuntos(false);
+      const { mensaje, detalle } = extraerErrorParaToast(e);
+      mostrarToast(mensaje, { detalle });
     },
   });
 
@@ -411,12 +433,14 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
           </div>
         </div>
 
+        <AdjuntosNuevoPendiente proyectoId={proyecto.id} archivos={adjuntos} onChange={setAdjuntos} disabled={crear.isPending} />
+
         <div className="flex items-center justify-end gap-2 pt-1">
           <Button type="button" variant="outline" size="sm" onClick={onClose}>
             Cancelar
           </Button>
           <Button type="button" variant="primary" size="sm" disabled={!puedeCrear} isLoading={crear.isPending} onClick={() => crear.mutate()}>
-            Ingresar pendiente
+            {subiendoAdjuntos ? 'Subiendo archivos…' : 'Ingresar pendiente'}
           </Button>
         </div>
       </div>
