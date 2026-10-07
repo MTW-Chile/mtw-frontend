@@ -25,7 +25,9 @@ export const AdjuntosNuevoPendiente: React.FC<Props> = ({ proyectoId, archivos, 
   return (
     <div className="space-y-2">
       <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Fotos o documentos (opcional)</span>
-      {!data.carpeta ? (
+      {data.requiereReconexion ? (
+        <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">La conexión con OneDrive venció: un administrador debe reconectarla en Configuración › OneDrive. Puedes crear el pendiente y agregar los archivos después.</p>
+      ) : !data.carpeta ? (
         <div className="flex flex-wrap items-center gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">
           <span className="flex-1 min-w-[12rem]">Para adjuntar archivos, primero vincula la carpeta de OneDrive de esta obra.</span>
           <Button type="button" size="sm" variant="outline" onClick={() => setVinculando(true)}>

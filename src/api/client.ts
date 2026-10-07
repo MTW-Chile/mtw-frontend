@@ -47,6 +47,7 @@ import type {
   ObraPendienteDetalle,
   AdjuntoPendiente,
   OneDriveObra,
+  OneDriveEstado,
   CarpetaOneDrive,
   CarpetaOneDriveSugerida,
   EstadoPendiente,
@@ -1220,4 +1221,26 @@ export async function getContenidoAdjunto(pendienteId: string, adjuntoId: string
 
 export async function quitarAdjuntoPendiente(pendienteId: string, adjuntoId: string): Promise<void> {
   await apiClient.post(`/pendientes/${pendienteId}/adjuntos/${adjuntoId}/quitar`);
+}
+
+// ---- Configuracion de OneDrive (conexion con la cuenta central) ----
+
+export async function getOneDriveEstado(probar = false): Promise<OneDriveEstado> {
+  const response = await apiClient.get<OneDriveEstado>('/onedrive/estado', { params: probar ? { probar: 1 } : undefined });
+  return response.data;
+}
+
+// Devuelve la URL de Microsoft a la que hay que mandar al administrador para iniciar sesion.
+export async function iniciarConexionOneDrive(): Promise<string> {
+  const response = await apiClient.get<{ url: string }>('/onedrive/conexion/iniciar');
+  return response.data.url;
+}
+
+export async function guardarCarpetaRaizOneDrive(carpetaRaiz: string): Promise<{ carpetaRaiz: string; existe: boolean }> {
+  const response = await apiClient.patch<{ carpetaRaiz: string; existe: boolean }>('/onedrive/configuracion', { carpetaRaiz });
+  return response.data;
+}
+
+export async function desconectarOneDrive(): Promise<void> {
+  await apiClient.post('/onedrive/desconectar');
 }

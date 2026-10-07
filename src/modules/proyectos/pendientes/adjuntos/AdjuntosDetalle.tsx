@@ -84,7 +84,7 @@ export const AdjuntosDetalle: React.FC<Props> = ({ proyectoId, pendienteId, adju
   };
 
   // Sin OneDrive configurado: si ya habia adjuntos se listan (sin miniatura); no se ofrece agregar.
-  const puedeSubir = puedeAgregar && !!onedrive?.configurado && !!onedrive.carpeta;
+  const puedeSubir = puedeAgregar && !!onedrive?.configurado && !onedrive.requiereReconexion && !!onedrive.carpeta;
   if (adjuntos.length === 0 && !puedeSubir && !(puedeAgregar && onedrive?.configurado)) return null;
 
   return (
@@ -135,7 +135,8 @@ export const AdjuntosDetalle: React.FC<Props> = ({ proyectoId, pendienteId, adju
           ))}
         </ul>
       )}
-      {puedeAgregar && onedrive?.configurado && !onedrive.carpeta && (
+      {puedeAgregar && onedrive?.requiereReconexion && <p className="text-[11px] text-amber-800">La conexión con OneDrive venció: un administrador debe reconectarla en Configuración › OneDrive.</p>}
+      {puedeAgregar && onedrive?.configurado && !onedrive.requiereReconexion && !onedrive.carpeta && (
         <p className="text-[11px] text-amber-800">Esta obra no tiene carpeta de OneDrive vinculada: vincúlala desde la lista de pendientes para adjuntar archivos.</p>
       )}
       {puedeSubir && (

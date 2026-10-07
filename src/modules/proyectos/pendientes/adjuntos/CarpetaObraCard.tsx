@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ExternalLink, FolderOpen, FolderPlus } from 'lucide-react';
+import { AlertTriangle, ExternalLink, FolderOpen, FolderPlus } from 'lucide-react';
 import { getOneDriveObra } from '../../../../api/client';
 import { Button } from '../../../../components/ui/Button';
 import { VincularCarpetaModal } from './VincularCarpetaModal';
@@ -14,6 +14,14 @@ export const CarpetaObraCard: React.FC<{ proyectoId: string }> = ({ proyectoId }
   if (!data?.configurado) return null;
 
   const carpeta = data.carpeta;
+  if (data.requiereReconexion) {
+    return (
+      <div role="alert" className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+        <AlertTriangle className="w-4 h-4 shrink-0" />
+        <span>La conexión con OneDrive venció: un administrador debe reconectarla en Configuración › OneDrive.</span>
+      </div>
+    );
+  }
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs">

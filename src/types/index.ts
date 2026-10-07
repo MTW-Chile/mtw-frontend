@@ -1129,6 +1129,9 @@ export interface CarpetaOneDriveSugerida {
 // servidor no tiene OneDrive configurado (se oculta la opcion de adjuntar).
 export interface OneDriveObra {
   configurado: boolean;
+  // La conexion vencio: se siguen viendo los adjuntos ya subidos pero no se puede subir
+  // hasta que un administrador reconecte la cuenta (Configuracion > OneDrive).
+  requiereReconexion?: boolean;
   carpeta: CarpetaOneDrive | null;
   sugerencias: CarpetaOneDriveSugerida[];
   nombreSugeridoNueva?: string;
@@ -1155,4 +1158,23 @@ export interface NuevoPendientePayload {
   fabricacionCuadroId?: string;
   materialId?: string;
   fechaRequerida?: string;
+}
+
+// Estado de la conexion con OneDrive (Configuracion > OneDrive). Los datos de la
+// cuenta y de quien la conecto solo llegan a los administradores.
+export interface OneDriveEstado {
+  appConfigurada: boolean;
+  conectada: boolean;
+  estado: 'CONECTADA' | 'REQUIERE_RECONEXION' | null;
+  cuenta: { email: string; nombre: string | null } | null;
+  carpetaRaiz: string;
+  conectadoPorEmail: string | null;
+  conectadoEn: string | null;
+  ultimoError: string | null;
+  redirectUri: string | null;
+  puedeAdministrar: boolean;
+  // Solo con ?probar=1
+  conexionOk?: boolean;
+  raizEnOneDrive?: { id: string; nombre: string };
+  error?: string;
 }

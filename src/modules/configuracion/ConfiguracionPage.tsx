@@ -4,6 +4,7 @@ import { PresupuestoConfigPanel } from './PresupuestoConfigPanel';
 import { PlantillasPuertasPanel } from './PlantillasPuertasPanel';
 import { RolesUsuarioPanel } from './RolesUsuarioPanel';
 import { EtapasPendientesPanel } from './EtapasPendientesPanel';
+import { OneDrivePanel } from './OneDrivePanel';
 import { CONFIG_TABS } from '../../lib/accessControl';
 import { PageHeader, SubTabs } from '../../components/ui/PageHeader';
 import { useUrlParam } from '../../lib/navigation';
@@ -12,6 +13,7 @@ const PANELES: Record<string, React.ComponentType> = {
   presupuesto: PresupuestoConfigPanel,
   'plantillas-puertas': PlantillasPuertasPanel,
   'etapas-pendientes': EtapasPendientesPanel,
+  onedrive: OneDrivePanel,
   'roles-usuario': RolesUsuarioPanel,
 };
 
