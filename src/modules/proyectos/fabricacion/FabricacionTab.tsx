@@ -144,7 +144,7 @@ export const FabricacionTab: React.FC<Props> = ({ proyecto }) => {
                 <div className="p-4 flex flex-wrap items-center gap-3">
                   <button
                     onClick={() => setAbierto(expandido ? null : f.id)}
-                    className="flex items-center gap-2 min-w-0 text-left cursor-pointer flex-1"
+                    className="flex items-center gap-2 min-w-0 text-left cursor-pointer flex-1 basis-full sm:basis-0"
                     aria-expanded={expandido}
                   >
                     {expandido ? (
