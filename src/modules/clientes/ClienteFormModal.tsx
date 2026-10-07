@@ -10,6 +10,9 @@ interface ClienteFormModalProps {
   // null = crear uno nuevo; un Cliente = editar ese.
   cliente: Cliente | null;
   onClose: () => void;
+  // Se llama con el cliente guardado (creado o editado) antes de cerrar --
+  // lo usa ClientePicker para seleccionar al cliente recien creado.
+  onGuardado?: (cliente: Cliente) => void;
 }
 
 type FormData = {
@@ -37,7 +40,7 @@ type FormData = {
  * `razonSocial` -- vestigial, sin uso hasta ahora -- se rotula "Nombre de
  * Fantasía" para darle un proposito real sin tener que migrar la columna.
  */
-export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({ cliente, onClose }) => {
+export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({ cliente, onClose, onGuardado }) => {
   const queryClient = useQueryClient();
   const esNuevo = !cliente;
   const [tab, setTab] = useState<'general' | 'cobranza'>('general');
@@ -70,8 +73,9 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({ cliente, onC
       };
       return esNuevo ? createCliente(payload) : updateCliente(cliente!.id, payload);
     },
-    onSuccess: () => {
+    onSuccess: (resultado) => {
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
+      onGuardado?.(resultado.data);
       onClose();
     },
     onError: (err: any) => {

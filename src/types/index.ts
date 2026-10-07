@@ -403,9 +403,10 @@ export interface Proyecto {
   // Version (ProyectoVersion.hetmoId) elegida para cotizar. null = nunca
   // se eligio y hay que caer de vuelta a la de versionNumero mas alto.
   versionActivaHetmoId: number | null;
-  // Obra en seguimiento creada a mano desde Obras (sin presupuesto de HETMO):
-  // Cotizaciones la oculta. Ver Proyecto.esObraManual en mtw-api.
-  esObraManual?: boolean;
+  // Como nacio el proyecto: HETMO, MANUAL_PRESUPUESTO (creado desde
+  // Cotizaciones) o MANUAL_OBRA (creado desde Obras, ya aceptado, sin
+  // presupuesto). Cotizaciones oculta MANUAL_OBRA. Ver Proyecto.origen en mtw-api.
+  origen?: 'HETMO' | 'MANUAL_PRESUPUESTO' | 'MANUAL_OBRA';
   // Nombre EXACTO del centro de costo de esta obra en Clay -- se usa al
   // contabilizar las facturas de sus OC. null = sin centro de costo.
   clayCentroCosto: string | null;

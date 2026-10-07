@@ -108,7 +108,10 @@ export async function getProyectos(params?: {
 
 export async function createProyectoManual(payload: {
   obra: string;
+  // Cliente del maestro. clienteNombre (texto) queda solo por compatibilidad.
+  clienteId?: string;
   clienteNombre?: string;
+  direccion?: string;
 }): Promise<{ proyecto: Proyecto }> {
   const response = await apiClient.post<{ proyecto: Proyecto }>('/proyectos/manual', payload);
   return response.data;
@@ -119,7 +122,7 @@ export async function createProyectoManual(payload: {
 // de Cotizaciones).
 export async function crearObraManual(payload: {
   obra: string;
-  clienteNombre?: string;
+  clienteId: string;
   direccion?: string;
 }): Promise<{ proyecto: Proyecto }> {
   const response = await apiClient.post<{ proyecto: Proyecto }>('/obras/manual', payload);

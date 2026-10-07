@@ -79,7 +79,7 @@ export const ProyectosPage: React.FC = () => {
 
   // Una obra manual no tiene presupuesto ni fases planificadas: entra directo a
   // Fabricacion, que es donde se le vinculan sus documentos.
-  const abrir = (p: Proyecto) => actualizarParams({ proyecto: p.id, seccion: p.esObraManual ? 'fabricacion' : null });
+  const abrir = (p: Proyecto) => actualizarParams({ proyecto: p.id, seccion: p.origen === 'MANUAL_OBRA' ? 'fabricacion' : null });
 
   const filaFases = (p: Proyecto) => {
     const resumen = p.fasesResumen;

@@ -24,7 +24,8 @@ import { Button } from '../../components/ui/Button';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { CotizacionDetalleModal } from './CotizacionDetalleModal';
 import { CotizadorWorkspace } from './CotizadorWorkspace';
-import type { Proyecto } from '../../types';
+import type { Cliente, Proyecto } from '../../types';
+import { ClientePicker } from '../clientes/ClientePicker';
 import { useUrlParam, actualizarParams } from '../../lib/navigation';
 import { PageHeader } from '../../components/ui/PageHeader';
 
@@ -54,13 +55,23 @@ export const CotizacionesPage: React.FC<{
   const [isSyncing, setIsSyncing] = useState(false);
   const [mostrarModalManual, setMostrarModalManual] = useState(false);
   const [obraManual, setObraManual] = useState('');
-  const [clienteManual, setClienteManual] = useState('');
+  // Igual que la obra manual (Obras): pide un cliente del maestro (adjuntar o
+  // crear) y una direccion opcional -- misma estructura, distinto origen.
+  const [clienteManual, setClienteManual] = useState<Cliente | null>(null);
+  const [direccionManual, setDireccionManual] = useState('');
   const crearManualMutation = useMutation({
-    mutationFn: () => createProyectoManual({ obra: obraManual, clienteNombre: clienteManual }),
+    mutationFn: () =>
+      createProyectoManual({
+        obra: obraManual.trim(),
+        clienteId: clienteManual!.id,
+        direccion: direccionManual.trim() || undefined,
+      }),
     onSuccess: ({ proyecto }) => {
       setMostrarModalManual(false);
       setObraManual('');
-      setClienteManual('');
+      setClienteManual(null);
+      setDireccionManual('');
+      queryClient.invalidateQueries({ queryKey: ['proyectos'] });
       setCotizarProyectoId(proyecto.id);
     },
   });
@@ -113,9 +124,10 @@ export const CotizacionesPage: React.FC<{
     queryFn: () => getSyncLogs(1),
   });
 
-  // Las obras manuales (Control de Obras) no son presupuestos: viven solo en
-  // Obras.
-  const proyectos = (data?.data || []).filter((p) => !p.esObraManual);
+  // Las obras manuales (creadas desde Obras, nunca cotizadas) no son
+  // presupuestos: viven solo en Obras. Un presupuesto manual, aunque despues
+  // se acepte, se queda aca como cualquier otro.
+  const proyectos = (data?.data || []).filter((p) => p.origen !== 'MANUAL_OBRA');
   const lastSync = syncLogs?.[0];
 
   const handleManualSync = async () => {
@@ -608,7 +620,7 @@ export const CotizacionesPage: React.FC<{
           directo al cotizador para agregar lineas de inmediato. */}
       {mostrarModalManual && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 space-y-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[92vh] overflow-y-auto p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-black text-slate-900">Nuevo Presupuesto Manual</h3>
               <button
@@ -632,12 +644,13 @@ export const CotizacionesPage: React.FC<{
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600"
                 />
               </div>
+              <ClientePicker value={clienteManual} onChange={setClienteManual} />
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Cliente (opcional)</label>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Dirección de la obra (opcional)</label>
                 <input
-                  value={clienteManual}
-                  onChange={(e) => setClienteManual(e.target.value)}
-                  placeholder="Nombre del cliente"
+                  value={direccionManual}
+                  onChange={(e) => setDireccionManual(e.target.value)}
+                  placeholder="Si se deja vacía, se usa la del cliente"
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600"
                 />
               </div>
@@ -652,7 +665,7 @@ export const CotizacionesPage: React.FC<{
               <Button
                 variant="primary"
                 size="sm"
-                disabled={!obraManual.trim() || crearManualMutation.isPending}
+                disabled={!obraManual.trim() || !clienteManual || crearManualMutation.isPending}
                 onClick={() => crearManualMutation.mutate()}
                 leftIcon={crearManualMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : undefined}
               >
