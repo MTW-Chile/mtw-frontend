@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, Folder, Loader2, Search, X } from 'lucide-react';
-import { buscarCarpetasOneDrive, getOneDriveObra, vincularCarpetaOneDrive } from '../../../../api/client';
+import { buscarCarpetasOneDrive, desvincularCarpetaOneDrive, getOneDriveObra, vincularCarpetaOneDrive } from '../../../../api/client';
 import { Button } from '../../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../../lib/toast';
 import type { CarpetaOneDriveSugerida } from '../../../../types';
@@ -32,16 +32,30 @@ export const VincularCarpetaModal: React.FC<Props> = ({ proyectoId, onClose }) =
     enabled: consulta.length > 0,
   });
 
+  // La lista de Obras lee la carpeta de cada obra de su propia fila: hay que recargarla.
+  const refrescar = () => {
+    queryClient.invalidateQueries({ queryKey: ['onedrive', proyectoId] });
+    queryClient.invalidateQueries({ queryKey: ['proyectos'] });
+  };
+  const avisoError = (e: unknown) => {
+    const { mensaje, detalle } = extraerErrorParaToast(e);
+    mostrarToast(mensaje, { detalle });
+  };
   const vincular = useMutation({
     mutationFn: (payload: { carpetaId: string } | { crear: true; nombre?: string }) => vincularCarpetaOneDrive(proyectoId, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['onedrive', proyectoId] });
+      refrescar();
       onClose();
     },
-    onError: (e) => {
-      const { mensaje, detalle } = extraerErrorParaToast(e);
-      mostrarToast(mensaje, { detalle });
+    onError: avisoError,
+  });
+  const desvincular = useMutation({
+    mutationFn: () => desvincularCarpetaOneDrive(proyectoId),
+    onSuccess: () => {
+      refrescar();
+      onClose();
     },
+    onError: avisoError,
   });
 
   const nombreNuevaFinal = nombreNueva ?? estado?.nombreSugeridoNueva ?? '';
@@ -69,8 +83,8 @@ export const VincularCarpetaModal: React.FC<Props> = ({ proyectoId, onClose }) =
           <div>
             <h3 className="text-sm font-black text-slate-900">Carpeta de OneDrive de la obra</h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Las fotos y documentos de los pendientes se guardan aquí, en <span className="font-mono">Pendientes/PEN-…</span>. Elige la carpeta de esta
-              obra: confirma que sea la correcta.
+              Es la carpeta de toda la obra. Por ahora ahí van las fotos y documentos de los pendientes (<span className="font-mono">Pendientes/PEN-…</span>). Confirma que
+              sea la correcta.
             </p>
           </div>
           <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer shrink-0" aria-label="Cerrar">
@@ -84,6 +98,36 @@ export const VincularCarpetaModal: React.FC<Props> = ({ proyectoId, onClose }) =
           </div>
         ) : (
           <>
+            {estado?.carpeta && (
+              <div className="space-y-2 rounded-xl border border-brand-200 bg-brand-50/40 p-3">
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Carpeta vinculada</h4>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Folder className="w-4 h-4 text-brand-600 shrink-0" />
+                  <span className="flex-1 min-w-0 text-xs font-bold text-slate-800 truncate" title={estado.carpeta.nombre ?? ''}>
+                    {estado.carpeta.nombre}
+                  </span>
+                  {estado.carpeta.url && (
+                    <a href={estado.carpeta.url} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-brand-600" aria-label="Abrir la carpeta en OneDrive">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    isLoading={desvincular.isPending}
+                    disabled={vincular.isPending}
+                    onClick={() => {
+                      if (window.confirm('¿Quitar el vínculo con esta carpeta? No se borra nada en OneDrive y los adjuntos ya subidos siguen disponibles.')) desvincular.mutate();
+                    }}
+                  >
+                    Quitar vínculo
+                  </Button>
+                </div>
+                <p className="text-[11px] text-slate-500">Para cambiarla, elige otra carpeta abajo.</p>
+              </div>
+            )}
+
+            {!estado?.carpeta && (
             <div className="space-y-2">
               <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Parece ser esta</h4>
               {estado && estado.sugerencias.length > 0 ? (
@@ -96,9 +140,10 @@ export const VincularCarpetaModal: React.FC<Props> = ({ proyectoId, onClose }) =
                 <p className="text-xs text-slate-500">No encontré una carpeta con el número ni el nombre de esta obra. Búscala abajo o crea una nueva.</p>
               )}
             </div>
+            )}
 
             <div className="space-y-2">
-              <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Buscar otra carpeta</h4>
+              <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{estado?.carpeta ? 'Cambiar por otra carpeta' : 'Buscar otra carpeta'}</h4>
               <form
                 className="flex gap-2"
                 onSubmit={(e) => {

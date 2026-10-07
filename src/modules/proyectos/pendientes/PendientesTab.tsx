@@ -6,9 +6,8 @@ import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
 import { BREAKPOINT_DESKTOP } from '../../../lib/designSystem';
-import type { DestinoPendiente, EstadoPendiente, ObraPendiente, OrigenPendiente, Proyecto } from '../../../types';
+import type { DestinoPendiente, EstadoPendiente, ObraPendiente, Proyecto } from '../../../types';
 import { formatoFechaHora } from '../fabricacion/utils';
-import { CarpetaObraCard } from './adjuntos/CarpetaObraCard';
 import { NuevoPendienteModal } from './NuevoPendienteModal';
 import { PendienteDetalleModal } from './PendienteDetalleModal';
 import {
@@ -17,9 +16,7 @@ import {
   ETIQUETA_DESTINO,
   ETIQUETA_ESTADO,
   ETIQUETA_MOTIVO,
-  ETIQUETA_ORIGEN,
   ETIQUETA_TIPO,
-  ORIGENES_PENDIENTE,
   codigoPendiente,
   contarPorEstado,
   referenciaPendiente,
@@ -43,7 +40,6 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
   const isDesktop = useMediaQuery(BREAKPOINT_DESKTOP);
   const [estado, setEstado] = useState<EstadoPendiente | ''>('');
   const [destino, setDestino] = useState<DestinoPendiente | ''>('');
-  const [origen, setOrigen] = useState<OrigenPendiente | ''>('');
   const [texto, setTexto] = useState('');
   const [creando, setCreando] = useState(false);
   const [abierto, setAbierto] = useState<string | null>(null);
@@ -60,11 +56,10 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
     return todos.filter((p) => {
       if (estado && p.estado !== estado) return false;
       if (destino && p.destino !== destino) return false;
-      if (origen && p.origen !== origen) return false;
       if (!t) return true;
       return `${codigoPendiente(p.numero)} ${p.descripcion} ${referenciaPendiente(p)}`.toLowerCase().includes(t);
     });
-  }, [todos, estado, destino, origen, texto]);
+  }, [todos, estado, destino, texto]);
 
   const filas = (p: ObraPendiente) => ({
     codigo: codigoPendiente(p.numero),
@@ -85,8 +80,6 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
           Nuevo pendiente
         </Button>
       </div>
-
-      <CarpetaObraCard proyectoId={proyecto.id} />
 
       {/* Resumen por estado: cada uno filtra la lista */}
       <div className="flex flex-wrap gap-2">
@@ -124,14 +117,6 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
           {DESTINOS_PENDIENTE.map((d) => (
             <option key={d} value={d}>
               {ETIQUETA_DESTINO[d]}
-            </option>
-          ))}
-        </select>
-        <select value={origen} onChange={(e) => setOrigen(e.target.value as OrigenPendiente | '')} aria-label="Filtrar por origen" className={selector}>
-          <option value="">Todos los orígenes</option>
-          {ORIGENES_PENDIENTE.map((o) => (
-            <option key={o} value={o}>
-              Origen: {ETIQUETA_ORIGEN[o]}
             </option>
           ))}
         </select>

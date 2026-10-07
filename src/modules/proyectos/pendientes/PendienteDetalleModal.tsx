@@ -10,7 +10,6 @@ import {
   ETIQUETA_DESTINO,
   ETIQUETA_ESTADO,
   ETIQUETA_MOTIVO,
-  ETIQUETA_ORIGEN,
   ETIQUETA_TIPO,
   codigoPendiente,
   etapasPara,
@@ -105,7 +104,6 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
               <Dato etiqueta="Qué">{ETIQUETA_TIPO[p.tipo]}</Dato>
               <Dato etiqueta="Motivo">{ETIQUETA_MOTIVO[p.motivo]}</Dato>
               <Dato etiqueta="Área">{ETIQUETA_DESTINO[p.destino]}</Dato>
-              <Dato etiqueta="Origen">{ETIQUETA_ORIGEN[p.origen]}</Dato>
               <Dato etiqueta="Ventana">{referenciaPendiente(p) || '—'}</Dato>
               <Dato etiqueta="Se necesita para">
                 {p.fechaRequerida ? new Date(p.fechaRequerida).toLocaleDateString('es-CL') : '—'}

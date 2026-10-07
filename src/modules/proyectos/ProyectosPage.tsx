@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2, FolderKanban, ChevronRight, AlertCircle, Plus } from 'lucide-react';
 import { getProyectos } from '../../api/client';
 import { ProyectoWorkspace } from './ProyectoWorkspace';
+import { CarpetaObraBoton } from './pendientes/adjuntos/CarpetaObraBoton';
 import { NuevaObraManualModal } from './NuevaObraManualModal';
 import { Button } from '../../components/ui/Button';
 import { useUrlParam, actualizarParams } from '../../lib/navigation';
@@ -129,6 +130,7 @@ export const ProyectosPage: React.FC = () => {
                   <th className="px-4 py-3 font-bold text-right">Presupuesto</th>
                   <th className="px-4 py-3 font-bold text-right">Comprometido en OC</th>
                   <th className="px-4 py-3 font-bold">Fases en producción</th>
+                  <th className="px-4 py-3 font-bold">OneDrive</th>
                   <th className="px-4 py-3 font-bold w-10"></th>
                 </tr>
                 <tr className="border-b border-slate-100 bg-white">
@@ -138,7 +140,7 @@ export const ProyectosPage: React.FC = () => {
                   <th className="px-4 py-2">
                     <ColumnFilterHeader columna={columnas[1]} valor={valores.cliente || ''} onChange={(v) => setValor('cliente', v)} />
                   </th>
-                  <th className="px-4 py-2" colSpan={4} />
+                  <th className="px-4 py-2" colSpan={5} />
                 </tr>
               </thead>
               <tbody>
@@ -173,6 +175,9 @@ export const ProyectosPage: React.FC = () => {
                     <td className="px-4 py-3 text-[11px] text-slate-500 whitespace-nowrap" title={filaFases(p)}>
                       <AvanceFases resumen={p.fasesResumen} />
                     </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <CarpetaObraBoton proyecto={p} />
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <ChevronRight className="w-4 h-4 text-slate-300 inline-block" />
                     </td>
@@ -185,11 +190,8 @@ export const ProyectosPage: React.FC = () => {
       ) : (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm divide-y divide-slate-50">
           {filtrados.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => abrir(p)}
-              className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-slate-50/70 transition-colors cursor-pointer"
-            >
+            <div key={p.id} className="px-5 py-4 space-y-2 hover:bg-slate-50/70 transition-colors">
+            <button onClick={() => abrir(p)} className="w-full flex items-center justify-between gap-3 text-left cursor-pointer">
               <div className="min-w-0 space-y-1">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-slate-900 truncate">{p.obra}</h3>
@@ -208,6 +210,8 @@ export const ProyectosPage: React.FC = () => {
               </div>
               <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
             </button>
+            <CarpetaObraBoton proyecto={p} />
+            </div>
           ))}
         </div>
       )}

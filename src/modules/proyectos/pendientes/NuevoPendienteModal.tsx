@@ -5,7 +5,6 @@ import { crearPendiente, getFabricacionDetalle, getFabricacionesProyecto, getMat
 import { Button } from '../../../components/ui/Button';
 import type {
   MotivoPendiente,
-  OrigenPendiente,
   Proyecto,
   TipoElementoPendiente,
 } from '../../../types';
@@ -16,10 +15,8 @@ import { subirArchivos } from './adjuntos/subirArchivos';
 import {
   ETIQUETA_DESTINO,
   ETIQUETA_MOTIVO,
-  ETIQUETA_ORIGEN,
   ETIQUETA_TIPO,
   MOTIVOS_PENDIENTE,
-  ORIGENES_PENDIENTE,
   TIPOS_PENDIENTE,
   admiteRectificacion,
   areaDelPendiente,
@@ -40,40 +37,6 @@ const campo =
   'w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600';
 const etiqueta = 'block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5';
 
-// Opciones excluyentes como botones (origen y destino): dos o tres, siempre a la vista.
-function Segmentado<T extends string>({
-  valor,
-  opciones,
-  etiquetas,
-  onChange,
-  nombre,
-}: {
-  valor: T;
-  opciones: T[];
-  etiquetas: Record<T, string>;
-  onChange: (v: T) => void;
-  nombre: string;
-}) {
-  return (
-    <div role="radiogroup" aria-label={nombre} className="flex rounded-xl border border-slate-200 bg-slate-50 p-0.5 gap-0.5">
-      {opciones.map((o) => (
-        <button
-          key={o}
-          type="button"
-          role="radio"
-          aria-checked={valor === o}
-          onClick={() => onChange(o)}
-          className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors ${
-            valor === o ? 'bg-white text-brand-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-800 border border-transparent'
-          }`}
-        >
-          {etiquetas[o]}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 // Crea un pendiente. Si la obra tiene documentos de fabricacion vinculados, se
 // elige el documento y la ventana, y para un vidrio, hoja o material el sistema
 // ofrece los de ESA ventana tal como se fabricaron (con su medida real: una
@@ -81,7 +44,6 @@ function Segmentado<T extends string>({
 export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCreado }) => {
   const queryClient = useQueryClient();
 
-  const [origen, setOrigen] = useState<OrigenPendiente>('OBRA');
   const [tipo, setTipo] = useState<TipoElementoPendiente>('VIDRIO');
   const [motivo, setMotivo] = useState<MotivoPendiente>('FALLA');
   const [fabElegida, setFabElegida] = useState('');
@@ -190,7 +152,7 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
   const crear = useMutation({
     mutationFn: async () => {
       const creado = await crearPendiente(proyecto.id, {
-        origen,
+        origen: 'OBRA', // por ahora los pendientes solo se registran desde la obra
         tipo,
         motivo,
         descripcion: tituloPendiente(datosTitulo, notas),
@@ -242,10 +204,6 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
 
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
-            <span className={etiqueta}>Origen</span>
-            <Segmentado valor={origen} opciones={ORIGENES_PENDIENTE} etiquetas={ETIQUETA_ORIGEN} onChange={setOrigen} nombre="Origen" />
-          </div>
-          <div>
             <label htmlFor="pend-tipo" className={etiqueta}>
               Qué falta
             </label>
@@ -291,7 +249,10 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
 
         {/* Ventana del documento de fabricacion */}
         <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-3">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Ventana (opcional)</p>
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Ventana (opcional)</p>
+            {fabricaciones.length === 1 && <span className="text-[11px] text-slate-400 truncate">Documento: {fabricaciones[0].descripcion}</span>}
+          </div>
           {fabricaciones.length === 0 ? (
             <p className="text-xs text-slate-500">
               Esta obra no tiene documentos de fabricación vinculados: describe lo que falta a mano, o vincula los documentos en la sección Fabricación para poder elegir la ventana.
@@ -324,8 +285,8 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
               )}
               {fabId && (
                 <div className="space-y-2">
-                  <label htmlFor="pend-ventana" className={etiqueta}>
-                    Ventana {fabricaciones.length === 1 && <span className="normal-case font-medium text-slate-400">· {fabricaciones[0].descripcion}</span>}
+                  <label htmlFor="pend-ventana" className="sr-only">
+                    Ventana
                   </label>
                   {detalle.isLoading ? (
                     <div className="flex items-center gap-2 text-xs text-slate-400">

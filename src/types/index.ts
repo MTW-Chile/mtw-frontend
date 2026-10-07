@@ -400,6 +400,10 @@ export interface Proyecto {
   clienteLocalidadRaw: string | null;
   clienteId: string | null;
   cliente?: Cliente | null;
+  // Carpeta de OneDrive de la obra (adjuntos de pendientes); null = sin vincular.
+  onedriveCarpetaId?: string | null;
+  onedriveCarpetaNombre?: string | null;
+  onedriveCarpetaUrl?: string | null;
   // Version (ProyectoVersion.hetmoId) elegida para cotizar. null = nunca
   // se eligio y hay que caer de vuelta a la de versionNumero mas alto.
   versionActivaHetmoId: number | null;
