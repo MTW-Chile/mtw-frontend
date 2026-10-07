@@ -11,12 +11,13 @@ import { ControlPresupuestoTab } from './ControlPresupuestoTab';
 import { FasesTab } from './FasesTab';
 import { FabricacionTab } from './fabricacion/FabricacionTab';
 import { ClayCentroCostoEditor } from './ClayCentroCostoEditor';
+import { seccionDisponible, seccionEfectiva, type SeccionObra } from './seccionesObra';
 
 // "Control de documentos" (conciliacion de OC contra facturas de Clay) se
 // saco de aca -- vive solo en Compras (ComprasPage > sub-tab
 // Conciliacion, ControlDocumentosTab sin proyectoId) para todas las obras
 // juntas, en vez de repetido obra por obra.
-type Seccion = 'presupuesto' | 'fases' | 'abastecimiento' | 'fabricacion' | 'bodega';
+type Seccion = SeccionObra;
 
 const SECCIONES: { id: Seccion; label: string; hint: string; icon: React.ReactNode }[] = [
   { id: 'presupuesto', label: 'Control de presupuesto', hint: 'Revisión por partida de gastos', icon: <Wallet className="w-4 h-4" /> },
@@ -31,17 +32,20 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
   seccionInicial,
   onVolver,
 }) => {
-  const seccionValida = (s: string | undefined): s is Seccion => SECCIONES.some((sec) => sec.id === s);
   // La seccion activa vive en la URL (?seccion=...) -- Atras del navegador
   // vuelve a la seccion anterior. replace: cambiar de pestaña dentro del
   // proyecto no llena el historial (Atras sale del proyecto al listado).
-  const seccion: Seccion = seccionValida(seccionInicial) ? seccionInicial : 'presupuesto';
   const setSeccion = (s: Seccion) => actualizarParams({ seccion: s }, { replace: true });
 
   const { data: proyecto, isLoading } = useQuery({
     queryKey: ['proyectoDetail', proyectoId],
     queryFn: () => getProyectoById(proyectoId),
   });
+
+  // Una obra manual nunca se cotizo: las secciones que dependen del
+  // presupuesto se ven en gris (ver seccionesObra.ts) y un enlace a una de
+  // ellas cae a Fabricacion. Mientras carga la obra no se sabe su origen.
+  const seccion: Seccion = seccionEfectiva(seccionInicial, proyecto?.origen);
 
   // La ejecucion real de la obra sigue la version activa (la misma que
   // define versionActivaHetmoId en Cotizaciones), no siempre la de
@@ -87,19 +91,28 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
             cubre el caso de que no entren todos los tabs en una pantalla
             angosta. */}
         <div className="border-b border-slate-200 bg-white overflow-x-auto flex shrink-0 px-2 sm:px-5">
-          {SECCIONES.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => setSeccion(s.id)}
-              title={s.hint}
-              className={`flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
-                seccion === s.id ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              {s.icon}
-              {s.label}
-            </button>
-          ))}
+          {SECCIONES.map((s) => {
+            const disponible = seccionDisponible(s.id, proyecto?.origen);
+            return (
+              <button
+                key={s.id}
+                onClick={() => disponible && setSeccion(s.id)}
+                disabled={!disponible}
+                aria-disabled={!disponible}
+                title={disponible ? s.hint : 'No disponible: esta obra se creó a mano y no fue cotizada'}
+                className={`flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-colors ${
+                  !disponible
+                    ? 'border-transparent text-slate-300 cursor-not-allowed'
+                    : seccion === s.id
+                      ? 'border-brand-600 text-brand-600 cursor-pointer'
+                      : 'border-transparent text-slate-500 hover:text-slate-800 cursor-pointer'
+                }`}
+              >
+                {s.icon}
+                {s.label}
+              </button>
+            );
+          })}
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 sm:p-6">

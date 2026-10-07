@@ -12,6 +12,8 @@ import { ComprasPage } from './modules/abastecimiento/ComprasPage';
 import { BodegaPage } from './modules/abastecimiento/BodegaPage';
 import { CentroNotificacionesPage } from './modules/notificaciones/CentroNotificacionesPage';
 import { getProyectos, getMisPermisos } from './api/client';
+import { clavePresupuestos, consultarPresupuestos } from './modules/cotizaciones/presupuestosQuery';
+import { esPresupuestoPrincipal } from './lib/estadosHetmo';
 import { useCloudflareAccessSession, SessionContext } from './lib/useCloudflareAccessSession';
 import { SECCIONES_FRONTEND } from './lib/accessControl';
 import { mostrarToast, extraerErrorParaToast } from './lib/toast';
@@ -145,11 +147,16 @@ const AppContent: React.FC = () => {
     document.title = `MTW ERP - ${title}`;
   }, [activeTab]);
 
-  const { data } = useQuery({
-    queryKey: ['proyectosCount'],
-    queryFn: () => getProyectos({ limit: 1 }),
+  // Insignia de Presupuestos: cuenta SOLO lo del filtro por defecto (cerrados
+  // de HETMO + presupuestos manuales). Misma clave y consulta que la lista
+  // (ver presupuestosQuery.ts) -- comparten cache y siempre coinciden.
+  const { data: presupuestosData } = useQuery({
+    queryKey: clavePresupuestos('PRINCIPAL'),
+    queryFn: () => consultarPresupuestos('PRINCIPAL'),
+    staleTime: 1000 * 30,
     enabled: puedeVer('cotizaciones'),
   });
+  const totalPresupuestos = (presupuestosData?.data ?? []).filter(esPresupuestoPrincipal).length;
 
   // Mismo queryKey que ProyectosPage (['proyectos', 'en-curso']) para
   // compartir el cache -- el badge del Sidebar no dispara un fetch extra.
@@ -233,7 +240,7 @@ const AppContent: React.FC = () => {
         setActiveTab={handleNavigate}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
-        totalProyectos={data?.total}
+        totalProyectos={totalPresupuestos}
         totalProyectosEnCurso={totalProyectosEnCurso}
         seccionesPermitidas={seccionesPermitidas}
         usuarioActual={permisos && { nombre: permisos.nombre, email: permisos.email, rol: permisos.rol }}

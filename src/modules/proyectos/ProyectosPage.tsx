@@ -112,7 +112,7 @@ export const ProyectosPage: React.FC = () => {
         </div>
       ) : proyectosEnCurso.length === 0 ? (
         <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
-          Todavía no hay obras en curso. Una obra pasa a "en curso" cuando su versión llega a estado ACEPTADO_CLIENTE en Cotizaciones, o la creas a mano con "Nueva obra manual".
+          Todavía no hay obras en curso. Una obra pasa a "en curso" cuando su versión llega a estado ACEPTADO_CLIENTE en Presupuestos, o la creas a mano con "Nueva obra manual".
         </div>
       ) : filtrados.length === 0 ? (
         <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">

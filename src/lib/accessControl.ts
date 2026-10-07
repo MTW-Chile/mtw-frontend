@@ -16,7 +16,9 @@ export interface EntradaAcceso {
 export const SECCIONES_FRONTEND: EntradaAcceso[] = [
   { id: 'inicio', label: 'Inicio', icon: LayoutDashboard },
   { id: 'clientes', label: 'Clientes', icon: Users },
-  { id: 'cotizaciones', label: 'Cotizaciones', icon: Building2 },
+  // El id sigue siendo 'cotizaciones' (permisos por rol, URLs y enlaces de
+  // correo existentes); solo cambia el nombre visible.
+  { id: 'cotizaciones', label: 'Presupuestos', icon: Building2 },
   { id: 'proyectos', label: 'Obras', icon: FolderKanban },
   { id: 'compras', label: 'Compras', icon: ShoppingCart },
   { id: 'bodega', label: 'Bodega', icon: Warehouse },
@@ -39,6 +41,6 @@ export const CONFIG_TABS: EntradaAcceso[] = [
 // administrador del sistema (ADMIN_EMAILS en mtw-api) siempre puede las
 // dos, sin pasar por esto. Ver requireAprobador en mtw-api/src/index.ts.
 export const ROLES_APROBACION: EntradaAcceso[] = [
-  { id: 'tecnico', label: 'Aprobación Técnica (Analítica de Materiales y Cotizaciones)', icon: Wrench },
-  { id: 'gerencial', label: 'Aprobación Gerencial (paso final de Cotizaciones y OC)', icon: Landmark },
+  { id: 'tecnico', label: 'Aprobación Técnica (Analítica de Materiales y Presupuestos)', icon: Wrench },
+  { id: 'gerencial', label: 'Aprobación Gerencial (paso final de Presupuestos y OC)', icon: Landmark },
 ];

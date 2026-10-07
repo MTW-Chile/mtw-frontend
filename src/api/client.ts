@@ -101,6 +101,9 @@ export async function getProyectos(params?: {
   skip?: number;
   limit?: number;
   estado?: number;
+  // Origenes a dejar fuera (coma-separado), ej. 'MANUAL_OBRA': Presupuestos
+  // no cuenta las obras manuales porque nunca se cotizaron.
+  excluirOrigen?: string;
 }): Promise<ProyectosResponse> {
   const response = await apiClient.get<ProyectosResponse>('/proyectos', { params });
   return response.data;

@@ -107,7 +107,7 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
                 onClick={() => onNavigate('cotizaciones')}
                 className="w-full sm:w-auto"
               >
-                Ir a Cotizaciones
+                Ir a Presupuestos
               </Button>
             </div>
           </div>
@@ -179,7 +179,7 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {/* Tarjeta Cotizaciones */}
+          {/* Tarjeta Presupuestos */}
           <div
             onClick={() => onNavigate('cotizaciones')}
             className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-brand-600/40 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between space-y-4"
@@ -194,7 +194,7 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
                 </Badge>
               </div>
               <h3 className="font-bold text-sm text-slate-900 group-hover:text-brand-600 transition-colors">
-                Cotizaciones & Presupuestos
+                Presupuestos
               </h3>
               <p className="text-xs text-slate-500 leading-relaxed">
                 Importación y presupuestación de obras HETMO, cotizador por fases y catálogo maestro de materiales.
@@ -202,7 +202,7 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
             </div>
 
             <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-brand-600">
-              <span>Ingresar a Cotizaciones</span>
+              <span>Ingresar a Presupuestos</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>
@@ -246,7 +246,7 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
                   <Package className="w-5 h-5" />
                 </div>
                 <Badge variant="default" size="sm">
-                  En Cotizaciones
+                  En Presupuestos
                 </Badge>
               </div>
               <h3 className="font-bold text-sm text-slate-900 group-hover:text-brand-600 transition-colors">
