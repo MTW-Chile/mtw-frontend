@@ -7,6 +7,12 @@ import {
   sugerirDescripcion,
   referenciaPendiente,
   contarPorEstado,
+  areaDelPendiente,
+  exigeResponsable,
+  admiteRectificacion,
+  leerMilimetros,
+  tituloPendiente,
+  textoRectificacion,
 } from './utils';
 import type { EtapaPendiente } from '../../../types';
 
@@ -81,18 +87,74 @@ describe('sugerirDescripcion', () => {
 });
 
 describe('referenciaPendiente', () => {
-  it('prefiere la ventana ligada y agrega la ubicacion', () => {
+  it('prefiere la ventana ligada', () => {
     expect(
-      referenciaPendiente({
-        ventanaRef: 'texto',
-        fabricacionVentana: { id: '1', hetmoVentanaId: 12154, orden: 31, modelo: '2115 V02' },
-        ubicacion: 'Piso 3',
-      })
-    ).toBe('Pos 31 · 2115 V02 — Piso 3');
+      referenciaPendiente({ ventanaRef: 'texto', fabricacionVentana: { id: '1', hetmoVentanaId: 12154, orden: 31, modelo: '2115 V02' } })
+    ).toBe('Pos 31 · 2115 V02');
   });
   it('cae al texto libre y tolera la ausencia de todo', () => {
-    expect(referenciaPendiente({ ventanaRef: 'V05 piso 3', fabricacionVentana: null, ubicacion: null })).toBe('V05 piso 3');
-    expect(referenciaPendiente({ ventanaRef: null, fabricacionVentana: null, ubicacion: null })).toBe('');
+    expect(referenciaPendiente({ ventanaRef: 'V05 piso 3', fabricacionVentana: null })).toBe('V05 piso 3');
+    expect(referenciaPendiente({ ventanaRef: null, fabricacionVentana: null })).toBe('');
+  });
+});
+
+describe('areaDelPendiente', () => {
+  it('ventana y hoja van a Fábrica', () => {
+    expect(areaDelPendiente('VENTANA', 'FALLA')).toBe('FABRICA');
+    expect(areaDelPendiente('HOJA', 'DANO_OBRA')).toBe('FABRICA');
+  });
+  it('vidrio, material y otro van al área técnica', () => {
+    expect(areaDelPendiente('VIDRIO', 'FALLA')).toBe('TECNICA');
+    expect(areaDelPendiente('MATERIAL', 'DANO_INSTALACION')).toBe('TECNICA');
+    expect(areaDelPendiente('OTRO', 'FALLA')).toBe('TECNICA');
+  });
+  it('no fabricado y no recepción mandan: Fábrica', () => {
+    expect(areaDelPendiente('VIDRIO', 'NO_FABRICADO')).toBe('FABRICA');
+    expect(areaDelPendiente('MATERIAL', 'NO_RECEPCION')).toBe('FABRICA');
+  });
+  it('responsable solo en los daños; rectificar solo ventana y vidrio', () => {
+    expect(exigeResponsable('DANO_OBRA') && exigeResponsable('DANO_INSTALACION')).toBe(true);
+    expect(exigeResponsable('FALLA')).toBe(false);
+    expect(admiteRectificacion('VENTANA') && admiteRectificacion('VIDRIO')).toBe(true);
+    expect(admiteRectificacion('HOJA') || admiteRectificacion('MATERIAL') || admiteRectificacion('OTRO')).toBe(false);
+  });
+});
+
+describe('leerMilimetros', () => {
+  it('acepta coma decimal y punto de miles', () => {
+    expect(leerMilimetros('1234,5')).toBe(1234.5);
+    expect(leerMilimetros('1.234,5')).toBe(1234.5);
+    expect(leerMilimetros(' 2249 ')).toBe(2249);
+    expect(leerMilimetros('1032.5')).toBe(1032.5);
+  });
+  it('rechaza lo que no es una medida', () => {
+    expect(leerMilimetros('')).toBeNull();
+    expect(leerMilimetros('abc')).toBeNull();
+    expect(leerMilimetros('0')).toBeNull();
+    expect(leerMilimetros('-5')).toBeNull();
+    expect(leerMilimetros('25000')).toBeNull();
+  });
+});
+
+describe('tituloPendiente', () => {
+  it('usa lo elegido si hay', () => {
+    expect(tituloPendiente({ tipo: 'VENTANA', ventanaModelo: '2115 V02' }, 'x')).toBe('Ventana 2115 V02');
+  });
+  it('sin elemento elegido: tipo, ventana y notas', () => {
+    expect(tituloPendiente({ tipo: 'VIDRIO' })).toBe('Vidrio');
+    expect(tituloPendiente({ tipo: 'MATERIAL', ventanaModelo: 'V05' }, 'falta   silicona')).toBe('Material · V05: falta silicona');
+    expect(tituloPendiente({ tipo: 'OTRO' }, 'a'.repeat(100))).toBe(`Otro: ${'a'.repeat(77)}...`);
+  });
+});
+
+describe('textoRectificacion', () => {
+  it('muestra lo que cambia y lo que no', () => {
+    expect(textoRectificacion({ anchoOriginalMm: '2249.00', altoOriginalMm: '1749.00', anchoRectificadoMm: '2240.00', altoRectificadoMm: '1749.00' })).toBe(
+      'Rectificar medidas: ancho 2.249 → 2.240 mm · alto 1.749 mm (sin cambio)'
+    );
+  });
+  it('sin rectificación: null', () => {
+    expect(textoRectificacion({ anchoOriginalMm: null, altoOriginalMm: null, anchoRectificadoMm: null, altoRectificadoMm: null })).toBeNull();
   });
 });
 

@@ -48,8 +48,8 @@ export const Step1DatosCliente: React.FC<Step1DatosClienteProps> = ({
   isCrearPending,
 }) => {
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* 1. Confirmacion de la version de HETMO que se va a presupuestar */}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 items-start animate-fade-in">
+      {/* 1. Contenedor: Versión de HETMO, Número de Presupuesto y Selector de Cliente (50% desktop, responsivo) */}
       <VersionActivaCard
         proyecto={proyecto}
         activeVersion={activeVersion}
@@ -59,26 +59,26 @@ export const Step1DatosCliente: React.FC<Step1DatosClienteProps> = ({
         numeroInterno={numeroInterno}
         onGuardarNumeroInterno={onGuardarNumeroInterno}
         isSavingNumeroInterno={isSavingNumeroInterno}
-      />
+      >
+        <ClienteManager
+          proyecto={proyecto}
+          currentClient={proyecto.cliente}
+          clientMode={clientMode}
+          setClientMode={setClientMode}
+          searchClientTerm={searchClientTerm}
+          setSearchClientTerm={setSearchClientTerm}
+          filteredMasterClientes={filteredMasterClientes}
+          nuevoCliente={nuevoCliente}
+          onUpdateNuevoCliente={onUpdateNuevoCliente}
+          onVincularCliente={onVincularCliente}
+          onCrearCliente={onCrearCliente}
+          isCrearPending={isCrearPending}
+          embedded
+        />
+      </VersionActivaCard>
 
-      {/* 2. Indicadores Técnicos y Métricos de la Obra */}
+      {/* 2. Contenedor General: Indicadores Técnicos y Métricos de la Obra (50% desktop, vertical) */}
       <IndicadoresMetricos activeVersion={activeVersion} />
-
-      {/* 2. Identificación y Asignación de Cliente */}
-      <ClienteManager
-        proyecto={proyecto}
-        currentClient={proyecto.cliente}
-        clientMode={clientMode}
-        setClientMode={setClientMode}
-        searchClientTerm={searchClientTerm}
-        setSearchClientTerm={setSearchClientTerm}
-        filteredMasterClientes={filteredMasterClientes}
-        nuevoCliente={nuevoCliente}
-        onUpdateNuevoCliente={onUpdateNuevoCliente}
-        onVincularCliente={onVincularCliente}
-        onCrearCliente={onCrearCliente}
-        isCrearPending={isCrearPending}
-      />
     </div>
   );
 };

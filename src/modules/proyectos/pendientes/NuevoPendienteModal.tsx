@@ -1,10 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Loader2, X } from 'lucide-react';
+import { AlertTriangle, Loader2, Ruler, X } from 'lucide-react';
 import { crearPendiente, getFabricacionDetalle, getFabricacionesProyecto, getMaterialesFabricacion } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import type {
-  DestinoPendiente,
   MotivoPendiente,
   OrigenPendiente,
   Proyecto,
@@ -15,7 +14,6 @@ import { formatoMm } from '../fabricacion/utils';
 import { AdjuntosNuevoPendiente } from './adjuntos/AdjuntosNuevoPendiente';
 import { subirArchivos } from './adjuntos/subirArchivos';
 import {
-  DESTINOS_PENDIENTE,
   ETIQUETA_DESTINO,
   ETIQUETA_MOTIVO,
   ETIQUETA_ORIGEN,
@@ -23,7 +21,13 @@ import {
   MOTIVOS_PENDIENTE,
   ORIGENES_PENDIENTE,
   TIPOS_PENDIENTE,
-  sugerirDescripcion,
+  admiteRectificacion,
+  areaDelPendiente,
+  exigeResponsable,
+  leerMilimetros,
+  textoRectificacion,
+  tituloPendiente,
+  type DatosSugerencia,
 } from './utils';
 
 interface Props {
@@ -78,16 +82,18 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
   const queryClient = useQueryClient();
 
   const [origen, setOrigen] = useState<OrigenPendiente>('OBRA');
-  const [destino, setDestino] = useState<DestinoPendiente>('COMPRAS');
   const [tipo, setTipo] = useState<TipoElementoPendiente>('VIDRIO');
   const [motivo, setMotivo] = useState<MotivoPendiente>('FALLA');
   const [fabElegida, setFabElegida] = useState('');
   const [filtroVentana, setFiltroVentana] = useState('');
   const [ventanaId, setVentanaId] = useState('');
   const [elementoId, setElementoId] = useState(''); // vidrio / hoja / material elegido de la ventana
-  const [descripcion, setDescripcion] = useState('');
-  const [cantidad, setCantidad] = useState('1');
-  const [ubicacion, setUbicacion] = useState('');
+  const [notas, setNotas] = useState('');
+  const [responsable, setResponsable] = useState('');
+  // Rectificacion de medidas (solo ventana o vidrio elegidos)
+  const [rectificando, setRectificando] = useState(false);
+  const [rectAncho, setRectAncho] = useState('');
+  const [rectAlto, setRectAlto] = useState('');
   const [fechaRequerida, setFechaRequerida] = useState('');
   const [adjuntos, setAdjuntos] = useState<File[]>([]);
   const [subiendoAdjuntos, setSubiendoAdjuntos] = useState(false);
@@ -124,52 +130,76 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
   const mats = entrada?.materiales ?? [];
   const hojas = (ventana?.cuadros ?? []).filter((c) => c.tipo === 'HOJA' && !c.retirada);
 
+  // Medida de lo que se puede rectificar: la ventana elegida (tipo Ventana) o el vidrio
+  // elegido (tipo Vidrio). En los demas casos la rectificacion no aplica.
+  const vidrioElegido = tipo === 'VIDRIO' && elementoId ? vidrios.find((x) => String(x.material_hetmo) === elementoId) : undefined;
+  const medidaOriginal =
+    tipo === 'VENTANA' && ventana && ventana.anchoMm != null && ventana.altoMm != null
+      ? { ancho: Number(ventana.anchoMm), alto: Number(ventana.altoMm) }
+      : vidrioElegido
+        ? { ancho: Number(vidrioElegido.ANCHO), alto: Number(vidrioElegido.ALTO) }
+        : null;
+  const textoMedida = (n: number) => String(n).replace('.', ',');
+  const cerrarRectificacion = () => {
+    setRectificando(false);
+    setRectAncho('');
+    setRectAlto('');
+  };
+  const abrirRectificacion = () => {
+    if (!medidaOriginal) return;
+    setRectAncho(textoMedida(medidaOriginal.ancho));
+    setRectAlto(textoMedida(medidaOriginal.alto));
+    setRectificando(true);
+  };
+  const nuevoAncho = leerMilimetros(rectAncho);
+  const nuevoAlto = leerMilimetros(rectAlto);
+  const rectificacionValida =
+    !!medidaOriginal && nuevoAncho !== null && nuevoAlto !== null && (nuevoAncho !== medidaOriginal.ancho || nuevoAlto !== medidaOriginal.alto);
+
   const cambiarTipo = (t: TipoElementoPendiente) => {
     setTipo(t);
     setElementoId('');
+    cerrarRectificacion();
   };
   const cambiarVentana = (id: string) => {
     setVentanaId(id);
     setElementoId('');
-    // Para el tipo VENTANA basta con elegir la ventana: sugiere la descripcion.
-    const v = ventanas.find((x) => x.id === id);
-    if (tipo === 'VENTANA' && v && !descripcion.trim()) setDescripcion(sugerirDescripcion({ tipo: 'VENTANA', ventanaModelo: v.modelo }));
+    cerrarRectificacion();
   };
-
   const elegirVidrio = (id: string) => {
-    const v = vidrios.find((x) => String(x.material_hetmo) === id);
-    if (!v) return;
     setElementoId(id);
-    setDescripcion(sugerirDescripcion({ tipo: 'VIDRIO', vidrio: { codigo: v.codigo_articulo, ancho: v.ANCHO, alto: v.ALTO } }));
-    setCantidad(String(Math.max(1, Math.round(v.UDS))));
+    cerrarRectificacion();
   };
-  const elegirHoja = (id: string) => {
-    const h = hojas.find((x) => x.id === id);
-    if (!h) return;
-    setElementoId(id);
-    setDescripcion(sugerirDescripcion({ tipo: 'HOJA', hoja: { numero: h.numeroCuadro, ancho: h.anchoMm, alto: h.altoMm } }));
-  };
-  const elegirMaterial = (id: string) => {
-    const m = mats[Number(id)];
-    if (!m) return;
-    setElementoId(id);
-    setDescripcion(sugerirDescripcion({ tipo: 'MATERIAL', material: { codigo: m.codigo_articulo, descripcion: m.descripcion_articulo } }));
-  };
+  const elegirHoja = (id: string) => setElementoId(id);
+  const elegirMaterial = (id: string) => setElementoId(id);
 
-  const cantidadNum = Number(cantidad);
-  const cantidadValida = Number.isInteger(cantidadNum) && cantidadNum >= 1;
-  const puedeCrear = !!descripcion.trim() && cantidadValida;
+  // Titulo del pendiente: lo arma el sistema con lo elegido (ya no se escribe a mano).
+  const datosTitulo: DatosSugerencia = { tipo, ventanaModelo: ventana?.modelo };
+  if (tipo === 'VIDRIO' && vidrioElegido) datosTitulo.vidrio = { codigo: vidrioElegido.codigo_articulo, ancho: vidrioElegido.ANCHO, alto: vidrioElegido.ALTO };
+  const hojaElegida = tipo === 'HOJA' && elementoId ? hojas.find((x) => x.id === elementoId) : undefined;
+  if (hojaElegida) datosTitulo.hoja = { numero: hojaElegida.numeroCuadro, ancho: hojaElegida.anchoMm, alto: hojaElegida.altoMm };
+  const materialElegido = tipo === 'MATERIAL' && elementoId ? mats[Number(elementoId)] : undefined;
+  if (materialElegido) datosTitulo.material = { codigo: materialElegido.codigo_articulo, descripcion: materialElegido.descripcion_articulo };
+
+  const area = areaDelPendiente(tipo, motivo);
+  const pideResponsable = exigeResponsable(motivo);
+  const notasObligatorias = tipo === 'OTRO';
+  const puedeCrear =
+    (!notasObligatorias || !!notas.trim()) && (!pideResponsable || !!responsable.trim()) && (!rectificando || rectificacionValida);
 
   const crear = useMutation({
     mutationFn: async () => {
       const creado = await crearPendiente(proyecto.id, {
         origen,
-        destino,
         tipo,
         motivo,
-        descripcion: descripcion.trim(),
-        cantidad: cantidadNum,
-        ubicacion: ubicacion.trim() || undefined,
+        descripcion: tituloPendiente(datosTitulo, notas),
+        notas: notas.trim() || undefined,
+        responsable: pideResponsable ? responsable.trim() : undefined,
+        rectificacion:
+          rectificando && rectificacionValida && medidaOriginal
+            ? { anchoMm: nuevoAncho!, altoMm: nuevoAlto!, anchoOriginalMm: medidaOriginal.ancho, altoOriginalMm: medidaOriginal.alto }
+            : undefined,
         ventanaRef: ventana ? `Pos ${ventana.orden} · ${ventana.modelo}` : undefined,
         fabricacionVentanaId: ventana?.id,
         fabricacionCuadroId: tipo === 'HOJA' && elementoId ? elementoId : undefined,
@@ -212,12 +242,8 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
 
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
-            <span className={etiqueta}>Lo levanta</span>
+            <span className={etiqueta}>Origen</span>
             <Segmentado valor={origen} opciones={ORIGENES_PENDIENTE} etiquetas={ETIQUETA_ORIGEN} onChange={setOrigen} nombre="Origen" />
-          </div>
-          <div>
-            <span className={etiqueta}>Va a</span>
-            <Segmentado valor={destino} opciones={DESTINOS_PENDIENTE} etiquetas={ETIQUETA_DESTINO} onChange={setDestino} nombre="Destino" />
           </div>
           <div>
             <label htmlFor="pend-tipo" className={etiqueta}>
@@ -243,7 +269,25 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
               ))}
             </select>
           </div>
+          {pideResponsable && (
+            <div className="sm:col-span-2">
+              <label htmlFor="pend-responsable" className={etiqueta}>
+                Responsable
+              </label>
+              <input
+                id="pend-responsable"
+                value={responsable}
+                onChange={(e) => setResponsable(e.target.value)}
+                maxLength={200}
+                placeholder="Quién causó el daño"
+                className={`${campo} ${responsable.trim() ? '' : 'border-rose-300'}`}
+              />
+            </div>
+          )}
         </div>
+        <p className="text-[11px] text-slate-500" data-testid="area-asignada">
+          Se enviará a: <b className="text-slate-700">{ETIQUETA_DESTINO[area]}</b>
+        </p>
 
         {/* Ventana del documento de fabricacion */}
         <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-3">
@@ -298,19 +342,35 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
                           className={campo}
                         />
                       )}
-                      <select
-                        id="pend-ventana"
-                        value={ventanaId}
-                        onChange={(e) => cambiarVentana(e.target.value)}
-                        className={campo}
-                      >
-                        <option value="">— sin ventana —</option>
-                        {ventanasFiltradas.map((v) => (
-                          <option key={v.id} value={v.id}>
-                            Pos {v.orden} · {v.modelo} · {formatoMm(v.anchoMm)} × {formatoMm(v.altoMm)} mm
-                          </option>
-                        ))}
-                      </select>
+                      <div className="flex gap-2">
+                        <select
+                          id="pend-ventana"
+                          value={ventanaId}
+                          onChange={(e) => cambiarVentana(e.target.value)}
+                          className={campo}
+                        >
+                          <option value="">— sin ventana —</option>
+                          {ventanasFiltradas.map((v) => (
+                            <option key={v.id} value={v.id}>
+                              Pos {v.orden} · {v.modelo} · {formatoMm(v.anchoMm)} × {formatoMm(v.altoMm)} mm
+                            </option>
+                          ))}
+                        </select>
+                        {admiteRectificacion(tipo) && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={rectificando ? 'secondary' : 'outline'}
+                            leftIcon={<Ruler className="w-3.5 h-3.5" />}
+                            disabled={!medidaOriginal}
+                            onClick={() => (rectificando ? cerrarRectificacion() : abrirRectificacion())}
+                            title={medidaOriginal ? 'Cambiar las medidas de lo que se pide' : tipo === 'VIDRIO' ? 'Elige primero el vidrio' : 'Elige primero la ventana'}
+                            className="shrink-0"
+                          >
+                            Rectificar
+                          </Button>
+                        )}
+                      </div>
                     </>
                   )}
                 </div>
@@ -383,7 +443,44 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
               {sinMateriales && (
                 <div className="flex gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">
                   <AlertTriangle className="w-4 h-4 shrink-0" />
-                  <span>No se pudieron leer los materiales de esta ventana desde HETMO. Escribe la descripción a mano.</span>
+                  <span>No se pudieron leer los materiales de esta ventana desde HETMO. Descríbelo en las notas.</span>
+                </div>
+              )}
+              {rectificando && medidaOriginal && (
+                <div className="rounded-lg border border-brand-200 bg-white p-3 space-y-2" data-testid="panel-rectificar">
+                  <p className="text-xs font-bold text-slate-700">
+                    {tipo === 'VIDRIO' ? 'Medidas del vidrio a pedir' : 'Medidas rectificadas de la ventana'} (mm)
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="pend-rect-ancho" className={etiqueta}>
+                        Ancho
+                      </label>
+                      <input id="pend-rect-ancho" inputMode="decimal" value={rectAncho} onChange={(e) => setRectAncho(e.target.value)} className={`${campo} ${nuevoAncho === null ? 'border-rose-300' : ''}`} />
+                    </div>
+                    <div>
+                      <label htmlFor="pend-rect-alto" className={etiqueta}>
+                        Alto
+                      </label>
+                      <input id="pend-rect-alto" inputMode="decimal" value={rectAlto} onChange={(e) => setRectAlto(e.target.value)} className={`${campo} ${nuevoAlto === null ? 'border-rose-300' : ''}`} />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Original: {formatoMm(medidaOriginal.ancho)} × {formatoMm(medidaOriginal.alto)} mm.{' '}
+                    {rectificacionValida && nuevoAncho !== null && nuevoAlto !== null ? (
+                      <span className="text-brand-700 font-bold">
+                        {textoRectificacion({
+                          anchoOriginalMm: String(medidaOriginal.ancho),
+                          altoOriginalMm: String(medidaOriginal.alto),
+                          anchoRectificadoMm: String(nuevoAncho),
+                          altoRectificadoMm: String(nuevoAlto),
+                        })}
+                        {tipo === 'VENTANA' ? ' — se envía a Fábrica junto con la solicitud.' : ''}
+                      </span>
+                    ) : (
+                      <span className="text-amber-700">Cambia al menos una medida (números positivos en mm).</span>
+                    )}
+                  </p>
                 </div>
               )}
             </>
@@ -391,46 +488,24 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
         </div>
 
         <div>
-          <label htmlFor="pend-desc" className={etiqueta}>
-            Descripción
+          <label htmlFor="pend-notas" className={etiqueta}>
+            Notas {notasObligatorias ? <span className="normal-case font-medium text-rose-600">· obligatorias para "Otro"</span> : <span className="normal-case font-medium text-slate-400">· opcional</span>}
           </label>
           <textarea
-            id="pend-desc"
-            value={descripcion}
-            onChange={(e) => setDescripcion(e.target.value)}
-            rows={2}
-            maxLength={500}
-            placeholder="Qué falta o qué falló"
-            className={campo}
+            id="pend-notas"
+            value={notas}
+            onChange={(e) => setNotas(e.target.value)}
+            rows={3}
+            maxLength={1000}
+            placeholder="Qué falta o qué falló, piso/depto, cualquier detalle útil"
+            className={`${campo} ${notasObligatorias && !notas.trim() ? 'border-rose-300' : ''}`}
           />
         </div>
-        <div className="grid sm:grid-cols-3 gap-3">
-          <div>
-            <label htmlFor="pend-cant" className={etiqueta}>
-              Cantidad
-            </label>
-            <input
-              id="pend-cant"
-              type="number"
-              min={1}
-              step={1}
-              value={cantidad}
-              onChange={(e) => setCantidad(e.target.value)}
-              className={`${campo} ${cantidadValida ? '' : 'border-rose-300'}`}
-            />
-          </div>
-          <div>
-            <label htmlFor="pend-ubic" className={etiqueta}>
-              Ubicación (opcional)
-            </label>
-            <input id="pend-ubic" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} placeholder="Piso, depto, eje" maxLength={200} className={campo} />
-          </div>
-          <div>
-            <label htmlFor="pend-fecha" className={etiqueta}>
-              Se necesita para (opcional)
-            </label>
-            <input id="pend-fecha" type="date" value={fechaRequerida} onChange={(e) => setFechaRequerida(e.target.value)} className={campo} />
-          </div>
+        <div className="sm:max-w-xs">
+          <label htmlFor="pend-fecha" className={etiqueta}>
+            Se necesita para (opcional)
+          </label>
+          <input id="pend-fecha" type="date" value={fechaRequerida} onChange={(e) => setFechaRequerida(e.target.value)} className={campo} />
         </div>
 
         <AdjuntosNuevoPendiente proyectoId={proyecto.id} archivos={adjuntos} onChange={setAdjuntos} disabled={crear.isPending} />

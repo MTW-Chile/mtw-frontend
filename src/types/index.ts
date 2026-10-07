@@ -1041,10 +1041,11 @@ export interface MaterialesFabricacion {
 // Control de Pendientes
 // ==========================================
 export type EstadoPendiente = 'INGRESADO' | 'EN_CURSO' | 'RESUELTO';
-export type DestinoPendiente = 'COMPRAS' | 'FABRICACION';
+// Area a la que va el pendiente; la asigna el servidor segun tipo y motivo.
+export type DestinoPendiente = 'TECNICA' | 'FABRICA';
 export type OrigenPendiente = 'FABRICACION' | 'OBRA';
 export type TipoElementoPendiente = 'VENTANA' | 'HOJA' | 'MATERIAL' | 'VIDRIO' | 'OTRO';
-export type MotivoPendiente = 'NO_FABRICADO' | 'MERMA' | 'FALLA' | 'DANO' | 'NO_RECEPCION' | 'ERROR_MEDIDA' | 'OTRO';
+export type MotivoPendiente = 'FALLA' | 'DANO_OBRA' | 'DANO_INSTALACION' | 'NO_RECEPCION' | 'NO_FABRICADO';
 
 // Catalogo editable de etapas de un pendiente EN_CURSO. destino null = aplica a
 // ambos destinos. No se borran: se desactivan.
@@ -1077,9 +1078,15 @@ export interface ObraPendiente {
   estado: EstadoPendiente;
   etapaId: string | null;
   etapa: { id: string; nombre: string } | null;
+  // Titulo armado por el sistema; lo que escribe la persona va en `notas`.
   descripcion: string;
-  cantidad: number;
-  ubicacion: string | null;
+  notas: string | null;
+  responsable: string | null;
+  // Rectificacion de medidas (ventana o vidrio); los decimales llegan como texto.
+  anchoOriginalMm: string | null;
+  altoOriginalMm: string | null;
+  anchoRectificadoMm: string | null;
+  altoRectificadoMm: string | null;
   ventanaRef: string | null;
   fabricacionVentanaId: string | null;
   fabricacionVentana?: { id: string; hetmoVentanaId: number; orden: number; modelo: string } | null;
@@ -1147,12 +1154,15 @@ export interface ObraPendienteDetalle extends ObraPendiente {
 
 export interface NuevoPendientePayload {
   origen: OrigenPendiente;
-  destino: DestinoPendiente;
   tipo: TipoElementoPendiente;
   motivo: MotivoPendiente;
+  // Titulo armado por el sistema segun lo elegido.
   descripcion: string;
-  cantidad?: number;
-  ubicacion?: string;
+  notas?: string;
+  // Obligatorio con DANO_OBRA / DANO_INSTALACION.
+  responsable?: string;
+  // Solo ventana o vidrio. Para un vidrio van tambien las medidas originales.
+  rectificacion?: { anchoMm: number; altoMm: number; anchoOriginalMm?: number; altoOriginalMm?: number };
   ventanaRef?: string;
   fabricacionVentanaId?: string;
   fabricacionCuadroId?: string;

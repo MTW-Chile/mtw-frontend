@@ -44,124 +44,144 @@ export const IndicadoresMetricos: React.FC<IndicadoresMetricosProps> = ({ active
   const importeBase = activeVersion?.importeTotal || 0;
   const moneda = activeVersion?.monedaSimbolo || '$';
 
+  const metricas = [
+    {
+      id: 'ventanas',
+      label: 'Total Ventanas',
+      sublabel: 'Unidades presupuestadas',
+      value: String(totalVentanas),
+      unit: 'uds',
+      icon: Layers,
+      iconColor: 'bg-blue-50 text-blue-600 border-blue-100',
+      highlight: false,
+    },
+    {
+      id: 'm2-ventanas',
+      label: 'Superficie Ventanas',
+      sublabel: 'Área total de aberturas',
+      value: formatNumber(totalM2Ventanas, 2),
+      unit: 'm²',
+      icon: Ruler,
+      iconColor: 'bg-brand-600/10 text-brand-600 border-brand-600/20',
+      highlight: false,
+    },
+    {
+      id: 'm2-vidrios',
+      label: 'Superficie Vidrios',
+      sublabel: 'Aprox. 82% de superficie',
+      value: formatNumber(totalM2Vidrios, 2),
+      unit: 'm²',
+      icon: Maximize2,
+      iconColor: 'bg-cyan-50 text-cyan-600 border-cyan-100',
+      highlight: false,
+    },
+    {
+      id: 'tipologias',
+      label: 'Tipologías Únicas',
+      sublabel: 'Modelos cargados',
+      value: String(tipologiasDistintas),
+      unit: 'modelos',
+      icon: Hash,
+      iconColor: 'bg-purple-50 text-purple-600 border-purple-100',
+      highlight: false,
+    },
+    {
+      id: 'panos',
+      label: 'Paños / Hojas Totales',
+      sublabel: 'Marcos y hojas soldadas',
+      value: String(totalCuadrosHojas),
+      unit: 'hojas',
+      icon: SquareDot,
+      iconColor: 'bg-amber-50 text-amber-600 border-amber-100',
+      highlight: false,
+    },
+    {
+      id: 'promedio',
+      label: 'Promedio / Ventana',
+      sublabel: 'Superficie media por unidad',
+      value: formatNumber(promedioM2PorVentana, 2),
+      unit: 'm²/ud',
+      icon: Ruler,
+      iconColor: 'bg-teal-50 text-teal-600 border-teal-100',
+      highlight: false,
+    },
+    {
+      id: 'materiales',
+      label: 'Materiales Base',
+      sublabel: 'Insumos de fábrica calculados',
+      value: String(totalMateriales),
+      unit: 'artículos',
+      icon: Boxes,
+      iconColor: 'bg-indigo-50 text-indigo-600 border-indigo-100',
+      highlight: false,
+    },
+    {
+      id: 'importe',
+      label: 'Importe Base HETMO',
+      sublabel: 'Costo base exportado',
+      value: `${moneda} ${formatNumber(importeBase, 0)}`,
+      unit: '',
+      icon: DollarSign,
+      iconColor: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+      highlight: true,
+    },
+  ];
+
   return (
-    <div className="space-y-3 sm:space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-brand-600 shrink-0" />
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-            Indicadores Técnicos y Métricos de la Obra
-          </h3>
+    <div className="p-4 sm:p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-4 sm:space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 pb-3.5 border-b border-slate-100">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-brand-600/10 text-brand-600 border border-brand-600/20 flex items-center justify-center shrink-0">
+            <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
+          </div>
+          <div>
+            <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+              Resumen Técnico de Obra
+            </div>
+            <h3 className="text-xs sm:text-sm font-bold text-slate-900">
+              Indicadores Técnicos y Métricos de la Obra
+            </h3>
+          </div>
         </div>
-        <span className="text-[11px] font-mono text-slate-500">
-          Revisión v{activeVersion?.versionNumero || 1} · {tipologiasDistintas} tipologías cargadas
+        <span className="text-[11px] font-mono text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg self-start sm:self-auto">
+          Rev {activeVersion?.versionNumero || 1} · {tipologiasDistintas} tipologías
         </span>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
-        {/* Cantidad de Ventanas */}
-        <div className="p-3 sm:p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex items-center gap-2.5 sm:gap-3.5 hover:border-slate-300 transition-all min-w-0">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0">
-            <Layers className="w-4 h-4 sm:w-5 sm:h-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-500 font-semibold truncate">Total Ventanas</div>
-            <div className="text-sm sm:text-lg font-bold font-mono text-slate-900 truncate">
-              {totalVentanas} <span className="text-[10px] sm:text-xs font-normal text-slate-500">uds</span>
+      <div className="divide-y divide-slate-100">
+        {metricas.map((m) => {
+          const Icon = m.icon;
+          return (
+            <div
+              key={m.id}
+              className="py-2.5 sm:py-3 flex items-center justify-between gap-3 first:pt-0 last:pb-0 hover:bg-slate-50/70 rounded-xl px-2.5 -mx-2.5 transition-colors"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl border flex items-center justify-center shrink-0 ${m.iconColor}`}>
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs sm:text-sm font-semibold text-slate-800 truncate">
+                    {m.label}
+                  </div>
+                  <div className="text-[10px] sm:text-[11px] text-slate-400 truncate">
+                    {m.sublabel}
+                  </div>
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <span className={`text-sm sm:text-base font-bold font-mono ${m.highlight ? 'text-emerald-600' : 'text-slate-900'}`}>
+                  {m.value}
+                </span>
+                {m.unit && (
+                  <span className="ml-1 text-[10px] sm:text-xs font-normal text-slate-500">
+                    {m.unit}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
-
-        {/* Superficie Total Ventanas */}
-        <div className="p-3 sm:p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex items-center gap-2.5 sm:gap-3.5 hover:border-slate-300 transition-all min-w-0">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-brand-600/10 text-brand-600 border border-brand-600/20 flex items-center justify-center shrink-0">
-            <Ruler className="w-4 h-4 sm:w-5 sm:h-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-500 font-semibold truncate">Superficie Ventanas</div>
-            <div className="text-sm sm:text-lg font-bold font-mono text-slate-900 truncate">
-              {formatNumber(totalM2Ventanas, 2)} <span className="text-[10px] sm:text-xs font-normal text-slate-500">m²</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Superficie Estimada Vidrios */}
-        <div className="p-3 sm:p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex items-center gap-2.5 sm:gap-3.5 hover:border-slate-300 transition-all min-w-0">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-cyan-50 text-cyan-600 border border-cyan-100 flex items-center justify-center shrink-0">
-            <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-500 font-semibold truncate">Superficie Vidrios</div>
-            <div className="text-sm sm:text-lg font-bold font-mono text-slate-900 truncate">
-              {formatNumber(totalM2Vidrios, 2)} <span className="text-[10px] sm:text-xs font-normal text-slate-500">m²</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Tipologías Únicas */}
-        <div className="p-3 sm:p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex items-center gap-2.5 sm:gap-3.5 hover:border-slate-300 transition-all min-w-0">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-purple-50 text-purple-600 border border-purple-100 flex items-center justify-center shrink-0">
-            <Hash className="w-4 h-4 sm:w-5 sm:h-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-500 font-semibold truncate">Tipologías Únicas</div>
-            <div className="text-sm sm:text-lg font-bold font-mono text-slate-900 truncate">
-              {tipologiasDistintas} <span className="text-[10px] sm:text-xs font-normal text-slate-500">modelos</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Cantidad Total de Paños / Hojas */}
-        <div className="p-3 sm:p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex items-center gap-2.5 sm:gap-3.5 hover:border-slate-300 transition-all min-w-0">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center shrink-0">
-            <SquareDot className="w-4 h-4 sm:w-5 sm:h-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-500 font-semibold truncate">Paños / Hojas Totales</div>
-            <div className="text-sm sm:text-lg font-bold font-mono text-slate-900 truncate">
-              {totalCuadrosHojas} <span className="text-[10px] sm:text-xs font-normal text-slate-500">hojas</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Promedio m2 por Ventana */}
-        <div className="p-3 sm:p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex items-center gap-2.5 sm:gap-3.5 hover:border-slate-300 transition-all min-w-0">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-teal-50 text-teal-600 border border-teal-100 flex items-center justify-center shrink-0">
-            <Ruler className="w-4 h-4 sm:w-5 sm:h-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-500 font-semibold truncate">Promedio / Ventana</div>
-            <div className="text-sm sm:text-lg font-bold font-mono text-slate-900 truncate">
-              {formatNumber(promedioM2PorVentana, 2)} <span className="text-[10px] sm:text-xs font-normal text-slate-500">m²/ud</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Materiales Base de Fábrica */}
-        <div className="p-3 sm:p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex items-center gap-2.5 sm:gap-3.5 hover:border-slate-300 transition-all min-w-0">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shrink-0">
-            <Boxes className="w-4 h-4 sm:w-5 sm:h-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-500 font-semibold truncate">Materiales Base</div>
-            <div className="text-sm sm:text-lg font-bold font-mono text-slate-900 truncate">
-              {totalMateriales} <span className="text-[10px] sm:text-xs font-normal text-slate-500">artículos</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Importe Base HETMO */}
-        <div className="p-3 sm:p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex items-center gap-2.5 sm:gap-3.5 hover:border-slate-300 transition-all min-w-0">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center shrink-0">
-            <DollarSign className="w-4 h-4 sm:w-5 sm:h-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-500 font-semibold truncate">Importe Base HETMO</div>
-            <div className="text-sm sm:text-lg font-bold font-mono text-emerald-600 truncate">
-              {moneda} {formatNumber(importeBase, 0)}
-            </div>
-          </div>
-        </div>
+          );
+        })}
       </div>
     </div>
   );

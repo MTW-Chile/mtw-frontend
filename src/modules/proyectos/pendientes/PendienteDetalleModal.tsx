@@ -16,6 +16,7 @@ import {
   etapasPara,
   referenciaPendiente,
   textoEstadoPendiente,
+  textoRectificacion,
   varianteEstadoPendiente,
 } from './utils';
 
@@ -101,19 +102,18 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
             </div>
 
             <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3 rounded-xl bg-slate-50 border border-slate-200 p-3">
-              <Dato etiqueta="Qué">
-                {ETIQUETA_TIPO[p.tipo]} · {p.cantidad} un
-              </Dato>
+              <Dato etiqueta="Qué">{ETIQUETA_TIPO[p.tipo]}</Dato>
               <Dato etiqueta="Motivo">{ETIQUETA_MOTIVO[p.motivo]}</Dato>
-              <Dato etiqueta="Va a">{ETIQUETA_DESTINO[p.destino]}</Dato>
-              <Dato etiqueta="Lo levantó">{ETIQUETA_ORIGEN[p.origen]}</Dato>
-              <Dato etiqueta="Elemento">{referenciaPendiente(p) || '—'}</Dato>
+              <Dato etiqueta="Área">{ETIQUETA_DESTINO[p.destino]}</Dato>
+              <Dato etiqueta="Origen">{ETIQUETA_ORIGEN[p.origen]}</Dato>
+              <Dato etiqueta="Ventana">{referenciaPendiente(p) || '—'}</Dato>
               <Dato etiqueta="Se necesita para">
                 {p.fechaRequerida ? new Date(p.fechaRequerida).toLocaleDateString('es-CL') : '—'}
               </Dato>
-              <Dato etiqueta="Creado por">
+              <Dato etiqueta="Solicitante">
                 {p.reportadoPor?.nombre || '—'} · {formatoFechaHora(p.fechaReporte)}
               </Dato>
+              {p.responsable && <Dato etiqueta="Responsable">{p.responsable}</Dato>}
               {p.estado === 'RESUELTO' && (
                 <Dato etiqueta="Resuelto por">
                   {p.resueltoPor?.nombre || '—'} · {formatoFechaHora(p.fechaResolucion)}
@@ -121,6 +121,19 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
               )}
               {p.notasResolucion && <Dato etiqueta="Nota de resolución">{p.notasResolucion}</Dato>}
             </dl>
+
+            {textoRectificacion(p) && (
+              <p className="rounded-xl border border-brand-200 bg-brand-50/50 px-3 py-2 text-xs font-bold text-brand-700" data-testid="rectificacion">
+                {textoRectificacion(p)}
+                {p.destino === 'FABRICA' && p.tipo === 'VENTANA' ? ' — pedido a Fábrica' : ''}
+              </p>
+            )}
+            {p.notas && (
+              <div>
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Notas</h4>
+                <p className="text-xs text-slate-800 whitespace-pre-wrap break-words">{p.notas}</p>
+              </div>
+            )}
 
             <AdjuntosDetalle proyectoId={proyectoId} pendienteId={pendienteId} adjuntos={p.adjuntos ?? []} puedeAgregar={p.estado !== 'RESUELTO'} />
 

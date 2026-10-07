@@ -24,6 +24,7 @@ import {
   contarPorEstado,
   referenciaPendiente,
   textoEstadoPendiente,
+  textoRectificacion,
   varianteEstadoPendiente,
 } from './utils';
 
@@ -76,8 +77,8 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
         <div>
           <h2 className="text-sm font-black text-slate-900">Control de pendientes</h2>
           <p className="text-xs text-slate-500 max-w-xl">
-            Lo que falta o falló en esta obra, levantado por Fabricación o por la supervisión en obra. Cada pendiente va a Compras o a
-            Fabricación y lo resuelve quien lo creó.
+            Lo que falta o falló en esta obra, solicitado desde la obra o desde la fábrica. Cada pendiente va solo al área que corresponde (técnica o
+            fábrica) y lo resuelve quien lo solicitó.
           </p>
         </div>
         <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setCreando(true)}>
@@ -118,11 +119,11 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
             className="w-full pl-9 pr-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-brand-600"
           />
         </div>
-        <select value={destino} onChange={(e) => setDestino(e.target.value as DestinoPendiente | '')} aria-label="Filtrar por destino" className={selector}>
-          <option value="">Todos los destinos</option>
+        <select value={destino} onChange={(e) => setDestino(e.target.value as DestinoPendiente | '')} aria-label="Filtrar por área" className={selector}>
+          <option value="">Todas las áreas</option>
           {DESTINOS_PENDIENTE.map((d) => (
             <option key={d} value={d}>
-              Va a {ETIQUETA_DESTINO[d]}
+              {ETIQUETA_DESTINO[d]}
             </option>
           ))}
         </select>
@@ -130,7 +131,7 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
           <option value="">Todos los orígenes</option>
           {ORIGENES_PENDIENTE.map((o) => (
             <option key={o} value={o}>
-              Lo levantó {ETIQUETA_ORIGEN[o]}
+              Origen: {ETIQUETA_ORIGEN[o]}
             </option>
           ))}
         </select>
@@ -159,11 +160,10 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
               <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
                 <th className="px-3 py-2.5 font-bold">N°</th>
                 <th className="px-3 py-2.5 font-bold">Pendiente</th>
-                <th className="px-3 py-2.5 font-bold text-right">Cant.</th>
                 <th className="px-3 py-2.5 font-bold">Motivo</th>
-                <th className="px-3 py-2.5 font-bold">Va a</th>
+                <th className="px-3 py-2.5 font-bold">Área</th>
                 <th className="px-3 py-2.5 font-bold">Estado</th>
-                <th className="px-3 py-2.5 font-bold">Creado</th>
+                <th className="px-3 py-2.5 font-bold">Solicitante</th>
               </tr>
             </thead>
             <tbody>
@@ -186,8 +186,8 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
                         )}
                       </div>
                       {f.referencia && <div className="text-[11px] text-slate-500 truncate">{f.referencia}</div>}
+                      {textoRectificacion(p) && <div className="text-[11px] font-bold text-brand-700 truncate">{textoRectificacion(p)}</div>}
                     </td>
-                    <td className="px-3 py-2.5 text-right font-mono text-slate-700">{p.cantidad}</td>
                     <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{ETIQUETA_MOTIVO[p.motivo]}</td>
                     <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{ETIQUETA_DESTINO[p.destino]}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
@@ -227,8 +227,9 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
                   )}
                 </p>
                 {f.referencia && <p className="text-[11px] text-slate-500">{f.referencia}</p>}
+                {textoRectificacion(p) && <p className="text-[11px] font-bold text-brand-700">{textoRectificacion(p)}</p>}
                 <p className="text-[11px] text-slate-500">
-                  {ETIQUETA_TIPO[p.tipo]} · {p.cantidad} un · {ETIQUETA_MOTIVO[p.motivo]} · va a {ETIQUETA_DESTINO[p.destino]}
+                  {ETIQUETA_TIPO[p.tipo]} · {ETIQUETA_MOTIVO[p.motivo]} · {ETIQUETA_DESTINO[p.destino]}
                 </p>
               </button>
             );

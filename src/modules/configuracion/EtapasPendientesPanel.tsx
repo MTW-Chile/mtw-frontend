@@ -118,12 +118,12 @@ export const EtapasPendientesPanel: React.FC = () => {
               <select
                 value={valorDestino(e.destino)}
                 onChange={(ev) => editar.mutate({ id: e.id, datos: { destino: destinoDeValor(ev.target.value) } })}
-                aria-label={`Destino de ${e.nombre}`}
+                aria-label={`Área de ${e.nombre}`}
                 className={campo}
               >
-                <option value="">Compras y Fabricación</option>
-                <option value="COMPRAS">Solo {ETIQUETA_DESTINO.COMPRAS}</option>
-                <option value="FABRICACION">Solo {ETIQUETA_DESTINO.FABRICACION}</option>
+                <option value="">Todas las áreas</option>
+                <option value="TECNICA">Solo {ETIQUETA_DESTINO.TECNICA}</option>
+                <option value="FABRICA">Solo {ETIQUETA_DESTINO.FABRICA}</option>
               </select>
               <Button
                 size="sm"
@@ -155,10 +155,10 @@ export const EtapasPendientesPanel: React.FC = () => {
           maxLength={80}
           className={`${campo} flex-1 min-w-[12rem]`}
         />
-        <select value={valorDestino(nuevaDestino)} onChange={(e) => setNuevaDestino(destinoDeValor(e.target.value))} aria-label="Destino de la nueva etapa" className={campo}>
-          <option value="">Compras y Fabricación</option>
-          <option value="COMPRAS">Solo {ETIQUETA_DESTINO.COMPRAS}</option>
-          <option value="FABRICACION">Solo {ETIQUETA_DESTINO.FABRICACION}</option>
+        <select value={valorDestino(nuevaDestino)} onChange={(e) => setNuevaDestino(destinoDeValor(e.target.value))} aria-label="Área de la nueva etapa" className={campo}>
+          <option value="">Todas las áreas</option>
+          <option value="TECNICA">Solo {ETIQUETA_DESTINO.TECNICA}</option>
+          <option value="FABRICA">Solo {ETIQUETA_DESTINO.FABRICA}</option>
         </select>
         <Button size="sm" variant="primary" leftIcon={<Plus className="w-3.5 h-3.5" />} disabled={!nueva.trim()} isLoading={crear.isPending} onClick={() => crear.mutate()}>
           Agregar etapa
