@@ -4,6 +4,7 @@ import { seccionDisponible, seccionEfectiva, SECCIONES_OBRA, SECCIONES_QUE_REQUI
 describe('seccionDisponible', () => {
   it('una obra manual solo tiene disponible lo que no requiere presupuesto', () => {
     expect(seccionDisponible('fabricacion', 'MANUAL_OBRA')).toBe(true);
+    expect(seccionDisponible('pendientes', 'MANUAL_OBRA')).toBe(true);
     expect(seccionDisponible('presupuesto', 'MANUAL_OBRA')).toBe(false);
     expect(seccionDisponible('fases', 'MANUAL_OBRA')).toBe(false);
     expect(seccionDisponible('abastecimiento', 'MANUAL_OBRA')).toBe(false);
@@ -14,8 +15,9 @@ describe('seccionDisponible', () => {
       for (const s of SECCIONES_OBRA) expect(seccionDisponible(s, origen)).toBe(true);
     }
   });
-  it('Fabricacion nunca requiere presupuesto', () => {
+  it('Fabricacion y Control de pendientes nunca requieren presupuesto', () => {
     expect(SECCIONES_QUE_REQUIEREN_PRESUPUESTO).not.toContain('fabricacion');
+    expect(SECCIONES_QUE_REQUIEREN_PRESUPUESTO).not.toContain('pendientes');
   });
 });
 

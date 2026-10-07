@@ -1,7 +1,7 @@
 import React from 'react';
 import { actualizarParams } from '../../lib/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Building2, Loader2, Wallet, ShoppingCart, Warehouse, Layers, Factory } from 'lucide-react';
+import { ArrowLeft, Building2, Loader2, Wallet, ShoppingCart, Warehouse, Layers, Factory, ClipboardList } from 'lucide-react';
 import { getProyectoById } from '../../api/client';
 import { OrdenesCompraList } from '../abastecimiento/OrdenesCompraList';
 import { BodegaProyectoTab } from '../abastecimiento/BodegaProyectoTab';
@@ -10,6 +10,7 @@ import { RequisicionesSection } from './RequisicionesSection';
 import { ControlPresupuestoTab } from './ControlPresupuestoTab';
 import { FasesTab } from './FasesTab';
 import { FabricacionTab } from './fabricacion/FabricacionTab';
+import { PendientesTab } from './pendientes/PendientesTab';
 import { ClayCentroCostoEditor } from './ClayCentroCostoEditor';
 import { seccionDisponible, seccionEfectiva, type SeccionObra } from './seccionesObra';
 
@@ -24,6 +25,7 @@ const SECCIONES: { id: Seccion; label: string; hint: string; icon: React.ReactNo
   { id: 'fases', label: 'Fases', hint: 'Distribuir unidades por etapa', icon: <Layers className="w-4 h-4" /> },
   { id: 'abastecimiento', label: 'Abastecimiento', hint: 'Generación y gestión de OC', icon: <ShoppingCart className="w-4 h-4" /> },
   { id: 'fabricacion', label: 'Fabricación', hint: 'Documentos de fabricación de HETMO', icon: <Factory className="w-4 h-4" /> },
+  { id: 'pendientes', label: 'Control de pendientes', hint: 'Lo que falta o falló en la obra', icon: <ClipboardList className="w-4 h-4" /> },
   { id: 'bodega', label: 'Bodega', hint: 'Requisiciones, stock y movimientos', icon: <Warehouse className="w-4 h-4" /> },
 ];
 
@@ -128,6 +130,7 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
               {seccion === 'fases' && <FasesTab proyecto={proyecto} activeVersion={activeVersion} />}
               {seccion === 'abastecimiento' && <OrdenesCompraList proyectoId={proyectoId} proyectoLabel={proyecto.obra} />}
               {seccion === 'fabricacion' && <FabricacionTab proyecto={proyecto} />}
+              {seccion === 'pendientes' && <PendientesTab proyecto={proyecto} />}
               {seccion === 'bodega' && (
                 <div className="space-y-8">
                   <RecepcionesPendientesSection proyectoId={proyectoId} />

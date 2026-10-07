@@ -42,6 +42,12 @@ import type {
   ResultadoVinculoFabricacion,
   ResultadoDeteccionFabricaciones,
   MaterialesFabricacion,
+  EtapaPendiente,
+  ObraPendiente,
+  ObraPendienteDetalle,
+  EstadoPendiente,
+  DestinoPendiente,
+  NuevoPendientePayload,
 } from '../types';
 
 // withCredentials: true es lo que hace que el navegador mande la cookie de
@@ -1118,5 +1124,53 @@ export async function updateUsuario(
   return response.data;
 }
 
+// ---- Control de Pendientes ----
 
+export async function getPendientes(proyectoId: string): Promise<ObraPendiente[]> {
+  const response = await apiClient.get<ObraPendiente[]>(`/proyectos/${proyectoId}/pendientes`);
+  return response.data;
+}
+
+export async function getPendiente(id: string): Promise<ObraPendienteDetalle> {
+  const response = await apiClient.get<ObraPendienteDetalle>(`/pendientes/${id}`);
+  return response.data;
+}
+
+export async function crearPendiente(proyectoId: string, payload: NuevoPendientePayload): Promise<ObraPendiente> {
+  const response = await apiClient.post<ObraPendiente>(`/proyectos/${proyectoId}/pendientes`, payload);
+  return response.data;
+}
+
+// Pasa el pendiente de estado. EN_CURSO + etapaId elige/cambia la etapa; solo
+// quien creo el pendiente (o un administrador) puede resolverlo o reabrirlo.
+export async function cambiarEstadoPendiente(
+  id: string,
+  payload: { estado: EstadoPendiente; etapaId?: string; comentario?: string }
+): Promise<ObraPendiente> {
+  const response = await apiClient.patch<ObraPendiente>(`/pendientes/${id}/estado`, payload);
+  return response.data;
+}
+
+// POST y no DELETE: Cloudflare Access bloquea DELETE/PUT en produccion.
+export async function eliminarPendiente(id: string): Promise<void> {
+  await apiClient.post(`/pendientes/${id}/eliminar`);
+}
+
+export async function getEtapasPendiente(todas = false): Promise<EtapaPendiente[]> {
+  const response = await apiClient.get<EtapaPendiente[]>('/pendientes-etapas', { params: todas ? { todas: 1 } : undefined });
+  return response.data;
+}
+
+export async function crearEtapaPendiente(payload: { nombre: string; destino?: DestinoPendiente | null }): Promise<EtapaPendiente> {
+  const response = await apiClient.post<EtapaPendiente>('/pendientes-etapas', payload);
+  return response.data;
+}
+
+export async function editarEtapaPendiente(
+  id: string,
+  payload: { nombre?: string; destino?: DestinoPendiente | null; orden?: number; activa?: boolean }
+): Promise<EtapaPendiente> {
+  const response = await apiClient.patch<EtapaPendiente>(`/pendientes-etapas/${id}`, payload);
+  return response.data;
+}
 

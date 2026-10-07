@@ -1036,3 +1036,84 @@ export interface MaterialesFabricacion {
   }[];
   advertencias: string[];
 }
+
+// ==========================================
+// Control de Pendientes
+// ==========================================
+export type EstadoPendiente = 'INGRESADO' | 'EN_CURSO' | 'RESUELTO';
+export type DestinoPendiente = 'COMPRAS' | 'FABRICACION';
+export type OrigenPendiente = 'FABRICACION' | 'OBRA';
+export type TipoElementoPendiente = 'VENTANA' | 'HOJA' | 'MATERIAL' | 'VIDRIO' | 'OTRO';
+export type MotivoPendiente = 'NO_FABRICADO' | 'MERMA' | 'FALLA' | 'DANO' | 'NO_RECEPCION' | 'ERROR_MEDIDA' | 'OTRO';
+
+// Catalogo editable de etapas de un pendiente EN_CURSO. destino null = aplica a
+// ambos destinos. No se borran: se desactivan.
+export interface EtapaPendiente {
+  id: string;
+  nombre: string;
+  destino: DestinoPendiente | null;
+  orden: number;
+  activa: boolean;
+}
+
+export interface ObraPendienteEvento {
+  id: string;
+  estadoAnterior: EstadoPendiente | null;
+  estadoNuevo: EstadoPendiente;
+  etapaNombre: string | null;
+  comentario: string | null;
+  usuario?: { id: string; nombre: string } | null;
+  creadoEn: string;
+}
+
+export interface ObraPendiente {
+  id: string;
+  numero: number;
+  proyectoId: string;
+  origen: OrigenPendiente;
+  destino: DestinoPendiente;
+  tipo: TipoElementoPendiente;
+  motivo: MotivoPendiente;
+  estado: EstadoPendiente;
+  etapaId: string | null;
+  etapa: { id: string; nombre: string } | null;
+  descripcion: string;
+  cantidad: number;
+  ubicacion: string | null;
+  ventanaRef: string | null;
+  fabricacionVentanaId: string | null;
+  fabricacionVentana?: { id: string; hetmoVentanaId: number; orden: number; modelo: string } | null;
+  fabricacionCuadroId: string | null;
+  fabricacionCuadro?: { id: string; numeroCuadro: number; tipo: 'MARCO' | 'HOJA' } | null;
+  materialId: string | null;
+  material?: { id: string; skuInterno: string; descripcion: string } | null;
+  fechaRequerida: string | null;
+  reportadoPor?: { id: string; nombre: string; email: string } | null;
+  fechaReporte: string;
+  resueltoPor?: { id: string; nombre: string } | null;
+  fechaResolucion: string | null;
+  notasResolucion: string | null;
+  creadoEn: string;
+}
+
+export interface ObraPendienteDetalle extends ObraPendiente {
+  eventos: ObraPendienteEvento[];
+  // Quien creo el pendiente (o un administrador): el unico que puede
+  // resolverlo, reabrirlo, editarlo o eliminarlo.
+  puedeResolver: boolean;
+}
+
+export interface NuevoPendientePayload {
+  origen: OrigenPendiente;
+  destino: DestinoPendiente;
+  tipo: TipoElementoPendiente;
+  motivo: MotivoPendiente;
+  descripcion: string;
+  cantidad?: number;
+  ubicacion?: string;
+  ventanaRef?: string;
+  fabricacionVentanaId?: string;
+  fabricacionCuadroId?: string;
+  materialId?: string;
+  fechaRequerida?: string;
+}
