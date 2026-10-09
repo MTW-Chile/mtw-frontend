@@ -35,7 +35,7 @@ export const TiposCubicacion: React.FC<Props> = ({ proyectoId, moneda, tipos }) 
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-slate-500">
-          Tipos de ventana de la obra. <b>Contratadas</b> es lo vendido; <b>cubicadas</b> las ventanas ya repartidas por piso y departamento.
+          Tipos de ventana de la obra. Los marcados <b>HETMO</b> salen de una línea del presupuesto. <b>Contratadas</b> es lo vendido; <b>cubicadas</b>, las ventanas que ya tienen piso y departamento.
         </p>
         <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setModal({})}>
           Nuevo tipo
@@ -72,6 +72,11 @@ export const TiposCubicacion: React.FC<Props> = ({ proyectoId, moneda, tipos }) 
                           área común
                         </Badge>
                       )}
+                      {t.lineaHetmo !== null && (
+                        <Badge size="sm" variant="brand" className="ml-1.5" title={`Línea ${t.lineaHetmo} del presupuesto de HETMO`}>
+                          HETMO
+                        </Badge>
+                      )}
                     </td>
                     <td className="px-3 py-2 text-slate-600 max-w-[16rem] truncate" title={t.sistema}>
                       {t.sistema}
@@ -92,13 +97,13 @@ export const TiposCubicacion: React.FC<Props> = ({ proyectoId, moneda, tipos }) 
                       </button>
                       <button
                         type="button"
-                        disabled={t.cubicadas > 0}
+                        disabled={!t.esAreaComun && t.cubicadas > 0}
                         onClick={() => {
                           if (window.confirm(`¿Eliminar el tipo ${t.codigo}?`)) eliminar.mutate(t.id);
                         }}
                         className="p-1.5 text-slate-400 hover:text-rose-600 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                         aria-label={`Eliminar tipo ${t.codigo}`}
-                        title={t.cubicadas > 0 ? 'Tiene ventanas: elimínalas primero' : 'Eliminar'}
+                        title={!t.esAreaComun && t.cubicadas > 0 ? 'Tiene ventanas con posición: elimínalas primero' : 'Eliminar'}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

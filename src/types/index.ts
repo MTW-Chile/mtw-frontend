@@ -1219,12 +1219,15 @@ export interface TipoCubicacion {
   altoPlanoMm: number | null;
   cuadros: number | null;
   holguraMm: number | null;
+  // Linea del presupuesto de HETMO de la que sale este tipo; null si lo creo una persona.
+  lineaHetmo: number | null;
 }
 
 export interface ResumenCubicacion {
   tipos: number;
   ventanas: number;
   posicionadas: number;
+  sinPosicion: number;
   rectificadas: number;
   m2: number;
   moneda: string;
@@ -1260,11 +1263,39 @@ export interface UnidadCubicacion {
   posicionada: boolean;
 }
 
-export interface ReporteImportacionCubicacion {
-  tipos: { nuevos: number; actualizados: number };
-  unidades: { nuevas: number; existentes: number; rectificadasAhora: number; areasComunes: number };
-  advertencias: string[];
+// Lo que ya se sabe de la obra por su presupuesto de HETMO (null si no tiene lineas de ventana).
+export interface InfoPresupuestoCubicacion {
+  versionNumero: number;
+  moneda: string | null;
+  lineas: number;
+  ventanas: number;
+  areasComunes: number;
 }
+
+export interface ReporteSincronizacionCubicacion {
+  tipos: { nuevos: number; actualizados: number };
+  unidadesCreadas: number;
+  unidadesQuitadas: number;
+  avisos: string[];
+}
+
+// Resultado de subir una planilla: la que descarga el sistema ('plantilla') o la HR de siempre ('hr').
+export type ReporteImportacionCubicacion =
+  | {
+      formato: 'plantilla';
+      filas: number;
+      actualizadas: number;
+      sinCambios: number;
+      posicionadasAhora: number;
+      rectificadasAhora: number;
+      advertencias: string[];
+    }
+  | {
+      formato: 'hr';
+      tipos: { nuevos: number; actualizados: number };
+      unidades: { nuevas: number; asignadas: number; existentes: number; rectificadasAhora: number; areasComunes: number };
+      advertencias: string[];
+    };
 
 export interface FiltroUnidadesCubicacion {
   piso?: number | '';
@@ -1272,6 +1303,7 @@ export interface FiltroUnidadesCubicacion {
   tipoId?: string;
   q?: string;
   sinRectificar?: boolean;
+  estado?: '' | 'sinPosicion' | 'posicionadas';
   areasComunes?: boolean;
   limit?: number;
 }

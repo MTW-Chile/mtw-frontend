@@ -53,6 +53,8 @@ import type {
   TipoCubicacion,
   UnidadCubicacion,
   ReporteImportacionCubicacion,
+  ReporteSincronizacionCubicacion,
+  InfoPresupuestoCubicacion,
   FiltroUnidadesCubicacion,
   CarpetaOneDrive,
   CarpetaOneDriveSugerida,
@@ -1253,13 +1255,33 @@ export async function desconectarOneDrive(): Promise<void> {
 
 // ---- Cubicador ----
 
-export async function getCubicacion(proyectoId: string): Promise<{ cubicacion: Cubicacion | null; resumen: ResumenCubicacion | null }> {
+export async function getCubicacion(
+  proyectoId: string
+): Promise<{ cubicacion: Cubicacion | null; resumen: ResumenCubicacion | null; presupuesto: InfoPresupuestoCubicacion | null }> {
   const response = await apiClient.get(`/proyectos/${proyectoId}/cubicacion`);
   return response.data;
 }
 
-export async function crearCubicacion(proyectoId: string, payload: { holguraMm?: number; formatoNomenclatura?: string } = {}) {
-  const response = await apiClient.post<{ cubicacion: Cubicacion; resumen: ResumenCubicacion }>(`/proyectos/${proyectoId}/cubicacion`, payload);
+// Por defecto se completa sola con las lineas del presupuesto de HETMO (si la obra las tiene); desdePresupuesto:false la crea vacia.
+export async function crearCubicacion(proyectoId: string, payload: { holguraMm?: number; formatoNomenclatura?: string; desdePresupuesto?: boolean } = {}) {
+  const response = await apiClient.post<{ cubicacion: Cubicacion; resumen: ResumenCubicacion; reporte: ReporteSincronizacionCubicacion | null }>(
+    `/proyectos/${proyectoId}/cubicacion`,
+    payload
+  );
+  return response.data;
+}
+
+// Vuelve a leer el presupuesto de HETMO (si cambio): no pisa posiciones ni rasgos ya cargados.
+export async function sincronizarCubicacion(proyectoId: string) {
+  const response = await apiClient.post<{ reporte: ReporteSincronizacionCubicacion; cubicacion: Cubicacion; resumen: ResumenCubicacion }>(
+    `/proyectos/${proyectoId}/cubicacion/sincronizar`
+  );
+  return response.data;
+}
+
+// Excel con una fila por ventana y lo que el sistema ya sabe; se completa y se vuelve a subir.
+export async function descargarPlantillaCubicacion(proyectoId: string): Promise<Blob> {
+  const response = await apiClient.get<Blob>(`/proyectos/${proyectoId}/cubicacion/plantilla`, { responseType: 'blob', timeout: 180000 });
   return response.data;
 }
 
@@ -1316,6 +1338,7 @@ export async function getUnidadesCubicacion(proyectoId: string, filtro: FiltroUn
   if (filtro.tipoId) params.tipoId = filtro.tipoId;
   if (filtro.q?.trim()) params.q = filtro.q.trim();
   if (filtro.sinRectificar) params.sinRectificar = 1;
+  if (filtro.estado) params.estado = filtro.estado;
   if (filtro.areasComunes) params.areasComunes = 1;
   if (filtro.limit) params.limit = filtro.limit;
   const response = await apiClient.get(`/proyectos/${proyectoId}/cubicacion/unidades`, { params });

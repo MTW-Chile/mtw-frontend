@@ -139,10 +139,11 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, ti
   const [texto, setTexto] = useState('');
   const [tipoId, setTipoId] = useState('');
   const [sinRectificar, setSinRectificar] = useState(false);
+  const [estado, setEstado] = useState<'' | 'sinPosicion' | 'posicionadas'>('');
   const [modal, setModal] = useState<{ unidad?: UnidadCubicacion } | null>(null);
 
   const ubicaciones = useQuery({ queryKey: ['cubicacionUbicaciones', proyectoId], queryFn: () => getUbicacionesCubicacion(proyectoId) });
-  const filtros = { piso: filtro.piso, torre: filtro.torre, tipoId, q: texto, sinRectificar, limit: 500 };
+  const filtros = { piso: filtro.piso, torre: filtro.torre, tipoId, q: texto, sinRectificar, estado, limit: 500 };
   const { data, isLoading, isError } = useQuery({
     queryKey: ['cubicacionUnidades', proyectoId, filtros],
     queryFn: () => getUnidadesCubicacion(proyectoId, filtros),
@@ -206,6 +207,11 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, ti
               </option>
             ))}
         </select>
+        <select value={estado} onChange={(e) => setEstado(e.target.value as '' | 'sinPosicion' | 'posicionadas')} aria-label="Filtrar por posición" className={selector}>
+          <option value="">Con y sin posición</option>
+          <option value="sinPosicion">Sin posición</option>
+          <option value="posicionadas">Con posición</option>
+        </select>
         <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
           <input type="checkbox" checked={sinRectificar} onChange={(e) => setSinRectificar(e.target.checked)} /> Solo sin rectificar
         </label>
@@ -222,8 +228,8 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, ti
         <div className="p-8 text-center rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">No se pudieron cargar las ventanas.</div>
       ) : unidades.length === 0 ? (
         <div className="p-10 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">
-          {data?.total === 0 && !texto && !tipoId && filtro.piso === '' && !filtro.torre && !sinRectificar
-            ? 'Todavía no hay ventanas. Importa la planilla o usa "Nueva ventana".'
+          {data?.total === 0 && !texto && !tipoId && filtro.piso === '' && !filtro.torre && !sinRectificar && !estado
+            ? 'Todavía no hay ventanas. Crea la cubicación desde el presupuesto, sube una planilla o usa "Nueva ventana".'
             : 'Ninguna ventana coincide con los filtros.'}
         </div>
       ) : (

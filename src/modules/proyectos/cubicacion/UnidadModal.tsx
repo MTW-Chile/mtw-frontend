@@ -49,10 +49,11 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
   const nomenclatura = tipo ? generarNomenclatura(cubicacion.formatoNomenclatura, { codigo: tipo.codigo, torre, piso: pisoNum, dpto: dptoNum }) : null;
   const fab = anchoNum !== null && altoNum !== null ? { ancho: Math.round((anchoNum - holgura) * 100) / 100, alto: Math.round((altoNum - holgura) * 100) / 100 } : null;
 
+  // Una ventana NUEVA va siempre con su lugar; una existente (que puede estar aun sin posicion) puede guardarse a medias.
   const valido =
     !!tipo &&
-    (piso.trim() === '' || pisoNum !== null) &&
-    (dpto.trim() === '' || dptoNum !== null) &&
+    (editando ? piso.trim() === '' || pisoNum !== null : pisoNum !== null) &&
+    (editando ? dpto.trim() === '' || dptoNum !== null : dptoNum !== null) &&
     (!hayRasgo || (anchoNum !== null && altoNum !== null && !!fab && fab.ancho > 0 && fab.alto > 0));
 
   const guardar = useMutation({

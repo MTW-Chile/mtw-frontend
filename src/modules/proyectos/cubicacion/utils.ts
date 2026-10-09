@@ -1,3 +1,5 @@
+import type { ReporteImportacionCubicacion, ReporteSincronizacionCubicacion } from '../../../types';
+
 // Utilidades puras del cubicador (sin red ni DOM). La nomenclatura y las medidas se
 // calculan en el servidor (mtw-api/src/cubicador-reglas.ts); aca solo se replica la
 // nomenclatura para mostrar un ejemplo en vivo al editar el formato.
@@ -64,3 +66,24 @@ export function descargarBlob(blob: Blob, nombre: string) {
 
 /** "2200,5" para mostrar un numero de mm en un campo de texto (coma decimal, sin separador de miles). */
 export const mmATexto = (n: number | null | undefined): string => (n === null || n === undefined ? '' : String(n).replace('.', ','));
+
+// Lineas de texto para mostrar el resultado de subir una planilla o de leer el presupuesto.
+export function lineasReporteImportacion(r: ReporteImportacionCubicacion): string[] {
+  if (r.formato === 'plantilla') {
+    const partes = [`${r.actualizadas} ventana(s) actualizada(s) de ${r.filas} filas`, `${r.posicionadasAhora} con posición nueva`, `${r.rectificadasAhora} rectificada(s)`];
+    if (r.sinCambios > 0) partes.push(`${r.sinCambios} sin cambios`);
+    return [partes.join(' · ')];
+  }
+  const u = r.unidades;
+  return [
+    `Tipos: ${r.tipos.nuevos} nuevos, ${r.tipos.actualizados} actualizados`,
+    `Ventanas: ${u.asignadas} asignadas a ventanas del presupuesto, ${u.nuevas} nuevas, ${u.existentes} ya existían${u.rectificadasAhora > 0 ? `, ${u.rectificadasAhora} con rasgo cargado` : ''}`,
+    `Áreas comunes: ${u.areasComunes}`,
+  ];
+}
+
+export function lineaReporteSincronizacion(r: ReporteSincronizacionCubicacion): string {
+  const partes = [`${r.tipos.nuevos} tipo(s) nuevo(s)`, `${r.tipos.actualizados} actualizado(s)`, `${r.unidadesCreadas} unidad(es) creada(s)`];
+  if (r.unidadesQuitadas > 0) partes.push(`${r.unidadesQuitadas} sin posición quitada(s)`);
+  return partes.join(' · ');
+}

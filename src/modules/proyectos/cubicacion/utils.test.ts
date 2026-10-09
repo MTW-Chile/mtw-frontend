@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FORMATO_NOMENCLATURA_DEFECTO, estadoSaldo, formatoMonto, generarNomenclatura, mmATexto, validarFormato } from './utils';
+import { FORMATO_NOMENCLATURA_DEFECTO, estadoSaldo, formatoMonto, generarNomenclatura, lineaReporteSincronizacion, lineasReporteImportacion, mmATexto, validarFormato } from './utils';
 
 describe('generarNomenclatura', () => {
   it('el código original va primero: V01, piso 1, depto 1, torre A -> V01_101A', () => {
@@ -42,5 +42,27 @@ describe('formato de montos y saldos', () => {
   it('milímetros como texto con coma', () => {
     expect(mmATexto(2204.5)).toBe('2204,5');
     expect(mmATexto(null)).toBe('');
+  });
+});
+
+describe('texto de los reportes', () => {
+  it('planilla completada', () => {
+    expect(lineasReporteImportacion({ formato: 'plantilla', filas: 1336, actualizadas: 3, sinCambios: 0, posicionadasAhora: 3, rectificadasAhora: 1, advertencias: [] })).toEqual([
+      '3 ventana(s) actualizada(s) de 1336 filas · 3 con posición nueva · 1 rectificada(s)',
+    ]);
+  });
+  it('planilla HR', () => {
+    const l = lineasReporteImportacion({
+      formato: 'hr',
+      tipos: { nuevos: 0, actualizados: 32 },
+      unidades: { nuevas: 0, asignadas: 95, existentes: 0, rectificadasAhora: 2, areasComunes: 0 },
+      advertencias: [],
+    });
+    expect(l[1]).toBe('Ventanas: 95 asignadas a ventanas del presupuesto, 0 nuevas, 0 ya existían, 2 con rasgo cargado');
+  });
+  it('sincronización con el presupuesto', () => {
+    expect(lineaReporteSincronizacion({ tipos: { nuevos: 1, actualizados: 31 }, unidadesCreadas: 7, unidadesQuitadas: 3, avisos: [] })).toBe(
+      '1 tipo(s) nuevo(s) · 31 actualizado(s) · 7 unidad(es) creada(s) · 3 sin posición quitada(s)'
+    );
   });
 });

@@ -37,9 +37,11 @@ export const TipoModal: React.FC<Props> = ({ proyectoId, moneda, tipo, onClose }
   const [contratadas, setContratadas] = useState(String(tipo?.cantidadContratada ?? 0));
   const [holgura, setHolgura] = useState(mmATexto(tipo?.holguraMm));
 
-  // El codigo es el vinculo con la linea del presupuesto: no se cambia si ya hay ventanas con ese tipo.
-  const codigoBloqueado = editando && (tipo?.cubicadas ?? 0) > 0;
-  const tipoBloqueado = editando && (tipo?.cubicadas ?? 0) > 0;
+  // El codigo va al principio de cada nomenclatura: no se cambia si ya hay ventanas CON POSICION de este tipo
+  // (las ventanas que el presupuesto dejo creadas sin posicion no cuentan). Un area comun no tiene posicion.
+  const conPosicion = editando && !tipo!.esAreaComun && tipo!.cubicadas > 0;
+  const codigoBloqueado = conPosicion;
+  const tipoBloqueado = conPosicion;
 
   const anchoNum = leerMilimetros(ancho);
   const altoNum = leerMilimetros(alto);
@@ -107,7 +109,7 @@ export const TipoModal: React.FC<Props> = ({ proyectoId, moneda, tipo, onClose }
             <input id="tipo-sistema" value={sistema} onChange={(e) => setSistema(e.target.value)} maxLength={200} placeholder="CORREDERA XO" className={campo} />
           </div>
         </div>
-        {codigoBloqueado && <p className="text-[11px] text-slate-500 -mt-2">El código no se cambia mientras el tipo tenga ventanas: su nomenclatura depende de él.</p>}
+        {codigoBloqueado && <p className="text-[11px] text-slate-500 -mt-2">El código no se cambia mientras el tipo tenga ventanas con posición: su nomenclatura depende de él.</p>}
 
         <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
           <input type="checkbox" checked={areaComun} disabled={tipoBloqueado} onChange={(e) => setAreaComun(e.target.checked)} />
