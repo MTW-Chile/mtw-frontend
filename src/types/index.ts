@@ -1192,3 +1192,86 @@ export interface OneDriveEstado {
   raizEnOneDrive?: { id: string; nombre: string };
   error?: string;
 }
+
+// ---- Cubicador (paso previo y opcional de las fases) ----
+
+export interface Cubicacion {
+  id: string;
+  nombre: string;
+  // mm que se restan al rasgo (por dimension) para la medida de fabricacion.
+  holguraMm: number;
+  // Tokens {codigo} {piso} {dpto} {torre}; el codigo va siempre al principio.
+  formatoNomenclatura: string;
+  moneda: string;
+}
+
+export interface TipoCubicacion {
+  id: string;
+  codigo: string;
+  sistema: string;
+  esAreaComun: boolean;
+  precioUnitario: number | null;
+  cantidadContratada: number;
+  cubicadas: number;
+  // contratadas - cubicadas: lo que falta cubicar.
+  saldo: number;
+  anchoPlanoMm: number | null;
+  altoPlanoMm: number | null;
+  cuadros: number | null;
+  holguraMm: number | null;
+}
+
+export interface ResumenCubicacion {
+  tipos: number;
+  ventanas: number;
+  posicionadas: number;
+  rectificadas: number;
+  m2: number;
+  moneda: string;
+  precio: { contratado: number; cubicado: number; saldo: number };
+  porTipo: TipoCubicacion[];
+}
+
+export interface UnidadCubicacion {
+  id: string;
+  tipoId: string;
+  codigo: string;
+  sistema: string;
+  esAreaComun: boolean;
+  cuadros: number | null;
+  torre: string | null;
+  piso: number | null;
+  dpto: number | null;
+  ubicacion: string | null;
+  cantidad: number;
+  anchoPlanoMm: number | null;
+  altoPlanoMm: number | null;
+  rasgoAnchoMm: number | null;
+  rasgoAltoMm: number | null;
+  holguraMm: number;
+  anchoFabricacionMm: number | null;
+  altoFabricacionMm: number | null;
+  rectificada: boolean;
+  m2: number | null;
+  apertura: string | null;
+  rectificadoPor: string | null;
+  rectificadoEn: string | null;
+  nomenclatura: string | null;
+  posicionada: boolean;
+}
+
+export interface ReporteImportacionCubicacion {
+  tipos: { nuevos: number; actualizados: number };
+  unidades: { nuevas: number; existentes: number; rectificadasAhora: number; areasComunes: number };
+  advertencias: string[];
+}
+
+export interface FiltroUnidadesCubicacion {
+  piso?: number | '';
+  torre?: string;
+  tipoId?: string;
+  q?: string;
+  sinRectificar?: boolean;
+  areasComunes?: boolean;
+  limit?: number;
+}

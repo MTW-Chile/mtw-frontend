@@ -48,6 +48,12 @@ import type {
   AdjuntoPendiente,
   OneDriveObra,
   OneDriveEstado,
+  Cubicacion,
+  ResumenCubicacion,
+  TipoCubicacion,
+  UnidadCubicacion,
+  ReporteImportacionCubicacion,
+  FiltroUnidadesCubicacion,
   CarpetaOneDrive,
   CarpetaOneDriveSugerida,
   EstadoPendiente,
@@ -1243,4 +1249,115 @@ export async function guardarCarpetaRaizOneDrive(carpetaRaiz: string): Promise<{
 
 export async function desconectarOneDrive(): Promise<void> {
   await apiClient.post('/onedrive/desconectar');
+}
+
+// ---- Cubicador ----
+
+export async function getCubicacion(proyectoId: string): Promise<{ cubicacion: Cubicacion | null; resumen: ResumenCubicacion | null }> {
+  const response = await apiClient.get(`/proyectos/${proyectoId}/cubicacion`);
+  return response.data;
+}
+
+export async function crearCubicacion(proyectoId: string, payload: { holguraMm?: number; formatoNomenclatura?: string } = {}) {
+  const response = await apiClient.post<{ cubicacion: Cubicacion; resumen: ResumenCubicacion }>(`/proyectos/${proyectoId}/cubicacion`, payload);
+  return response.data;
+}
+
+export async function actualizarCubicacion(proyectoId: string, payload: { nombre?: string; holguraMm?: number; formatoNomenclatura?: string }) {
+  const response = await apiClient.patch<{ cubicacion: Cubicacion; resumen: ResumenCubicacion }>(`/proyectos/${proyectoId}/cubicacion`, payload);
+  return response.data;
+}
+
+// Importa la planilla (.xlsx) tal cual en el cuerpo. No pisa lo ya trabajado.
+export async function importarPlanillaCubicacion(proyectoId: string, archivo: Blob) {
+  const response = await apiClient.post<{ reporte: ReporteImportacionCubicacion; cubicacion: Cubicacion; resumen: ResumenCubicacion }>(
+    `/proyectos/${proyectoId}/cubicacion/importar`,
+    archivo,
+    { headers: { 'Content-Type': 'application/octet-stream' }, timeout: 180000 }
+  );
+  return response.data;
+}
+
+export async function getTiposCubicacion(proyectoId: string): Promise<TipoCubicacion[]> {
+  const response = await apiClient.get<TipoCubicacion[]>(`/proyectos/${proyectoId}/cubicacion/tipos`);
+  return response.data;
+}
+
+export type DatosTipoCubicacion = {
+  codigo?: string;
+  sistema?: string;
+  anchoPlanoMm?: number | null;
+  altoPlanoMm?: number | null;
+  cuadros?: number | null;
+  precioUnitario?: number | null;
+  cantidadContratada?: number;
+  holguraMm?: number | null;
+  esAreaComun?: boolean;
+};
+
+export async function crearTipoCubicacion(proyectoId: string, payload: DatosTipoCubicacion & { codigo: string; sistema: string }) {
+  const response = await apiClient.post(`/proyectos/${proyectoId}/cubicacion/tipos`, payload);
+  return response.data;
+}
+
+export async function editarTipoCubicacion(id: string, payload: DatosTipoCubicacion) {
+  const response = await apiClient.patch(`/cubicacion-tipos/${id}`, payload);
+  return response.data;
+}
+
+export async function eliminarTipoCubicacion(id: string): Promise<void> {
+  await apiClient.post(`/cubicacion-tipos/${id}/eliminar`);
+}
+
+export async function getUnidadesCubicacion(proyectoId: string, filtro: FiltroUnidadesCubicacion = {}): Promise<{ total: number; unidades: UnidadCubicacion[] }> {
+  const params: Record<string, string | number> = {};
+  if (filtro.piso !== undefined && filtro.piso !== '') params.piso = filtro.piso;
+  if (filtro.torre) params.torre = filtro.torre;
+  if (filtro.tipoId) params.tipoId = filtro.tipoId;
+  if (filtro.q?.trim()) params.q = filtro.q.trim();
+  if (filtro.sinRectificar) params.sinRectificar = 1;
+  if (filtro.areasComunes) params.areasComunes = 1;
+  if (filtro.limit) params.limit = filtro.limit;
+  const response = await apiClient.get(`/proyectos/${proyectoId}/cubicacion/unidades`, { params });
+  return response.data;
+}
+
+export async function getUbicacionesCubicacion(proyectoId: string): Promise<{ torres: string[]; pisos: number[] }> {
+  const response = await apiClient.get(`/proyectos/${proyectoId}/cubicacion/ubicaciones`);
+  return response.data;
+}
+
+export type DatosUnidadCubicacion = {
+  tipoId?: string;
+  torre?: string | null;
+  piso?: number | null;
+  dpto?: number | null;
+  ubicacion?: string | null;
+  apertura?: string | null;
+  rasgoAnchoMm?: number | null;
+  rasgoAltoMm?: number | null;
+};
+
+export async function crearUnidadCubicacion(proyectoId: string, payload: DatosUnidadCubicacion & { tipoId: string }): Promise<UnidadCubicacion> {
+  const response = await apiClient.post<UnidadCubicacion>(`/proyectos/${proyectoId}/cubicacion/unidades`, payload);
+  return response.data;
+}
+
+export async function editarUnidadCubicacion(id: string, payload: DatosUnidadCubicacion): Promise<UnidadCubicacion> {
+  const response = await apiClient.patch<UnidadCubicacion>(`/cubicacion-unidades/${id}`, payload);
+  return response.data;
+}
+
+export async function eliminarUnidadCubicacion(id: string): Promise<void> {
+  await apiClient.post(`/cubicacion-unidades/${id}/eliminar`);
+}
+
+// Informe Excel para crear la fase en HETMO (nomenclatura + medidas de fabricacion).
+export async function descargarInformeCubicacion(proyectoId: string, filtro: { piso?: number | ''; torre?: string; soloRectificadas?: boolean } = {}): Promise<Blob> {
+  const params: Record<string, string | number> = {};
+  if (filtro.piso !== undefined && filtro.piso !== '') params.piso = filtro.piso;
+  if (filtro.torre) params.torre = filtro.torre;
+  if (filtro.soloRectificadas) params.soloRectificadas = 1;
+  const response = await apiClient.get<Blob>(`/proyectos/${proyectoId}/cubicacion/informe`, { params, responseType: 'blob', timeout: 120000 });
+  return response.data;
 }

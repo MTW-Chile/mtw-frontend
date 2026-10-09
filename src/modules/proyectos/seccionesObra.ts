@@ -1,8 +1,8 @@
 import type { Proyecto } from '../../types';
 
-export type SeccionObra = 'presupuesto' | 'fases' | 'abastecimiento' | 'fabricacion' | 'pendientes' | 'bodega';
+export type SeccionObra = 'presupuesto' | 'cubicacion' | 'fases' | 'abastecimiento' | 'fabricacion' | 'pendientes' | 'bodega';
 
-export const SECCIONES_OBRA: SeccionObra[] = ['presupuesto', 'fases', 'abastecimiento', 'fabricacion', 'pendientes', 'bodega'];
+export const SECCIONES_OBRA: SeccionObra[] = ['presupuesto', 'cubicacion', 'fases', 'abastecimiento', 'fabricacion', 'pendientes', 'bodega'];
 
 // Secciones que dependen de haber cotizado la obra (presupuesto, ventanas,
 // fases...). Una obra manual (origen MANUAL_OBRA) nunca se cotizo, asi que

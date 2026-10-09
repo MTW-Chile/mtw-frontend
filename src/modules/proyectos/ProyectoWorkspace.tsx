@@ -1,7 +1,7 @@
 import React from 'react';
 import { actualizarParams } from '../../lib/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Building2, Loader2, Wallet, ShoppingCart, Warehouse, Layers, Factory, ClipboardList } from 'lucide-react';
+import { ArrowLeft, Building2, Loader2, Wallet, ShoppingCart, Warehouse, Layers, Factory, ClipboardList, Ruler } from 'lucide-react';
 import { getProyectoById } from '../../api/client';
 import { OrdenesCompraList } from '../abastecimiento/OrdenesCompraList';
 import { BodegaProyectoTab } from '../abastecimiento/BodegaProyectoTab';
@@ -9,6 +9,7 @@ import { RecepcionesPendientesSection } from '../abastecimiento/RecepcionesPendi
 import { RequisicionesSection } from './RequisicionesSection';
 import { ControlPresupuestoTab } from './ControlPresupuestoTab';
 import { FasesTab } from './FasesTab';
+import { CubicacionTab } from './cubicacion/CubicacionTab';
 import { FabricacionTab } from './fabricacion/FabricacionTab';
 import { PendientesTab } from './pendientes/PendientesTab';
 import { ClayCentroCostoEditor } from './ClayCentroCostoEditor';
@@ -22,6 +23,7 @@ type Seccion = SeccionObra;
 
 const SECCIONES: { id: Seccion; label: string; hint: string; icon: React.ReactNode }[] = [
   { id: 'presupuesto', label: 'Control de presupuesto', hint: 'Revisión por partida de gastos', icon: <Wallet className="w-4 h-4" /> },
+  { id: 'cubicacion', label: 'Cubicación', hint: 'Reparto por piso y departamento, rectificación y nomenclatura (opcional)', icon: <Ruler className="w-4 h-4" /> },
   { id: 'fases', label: 'Fases', hint: 'Distribuir unidades por etapa', icon: <Layers className="w-4 h-4" /> },
   { id: 'abastecimiento', label: 'Abastecimiento', hint: 'Generación y gestión de OC', icon: <ShoppingCart className="w-4 h-4" /> },
   { id: 'fabricacion', label: 'Fabricación', hint: 'Documentos de fabricación de HETMO', icon: <Factory className="w-4 h-4" /> },
@@ -127,6 +129,7 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
           ) : (
             <>
               {seccion === 'presupuesto' && <ControlPresupuestoTab proyecto={proyecto} activeVersion={activeVersion} />}
+              {seccion === 'cubicacion' && <CubicacionTab proyecto={proyecto} />}
               {seccion === 'fases' && <FasesTab proyecto={proyecto} activeVersion={activeVersion} />}
               {seccion === 'abastecimiento' && <OrdenesCompraList proyectoId={proyectoId} proyectoLabel={proyecto.obra} />}
               {seccion === 'fabricacion' && <FabricacionTab proyecto={proyecto} />}
