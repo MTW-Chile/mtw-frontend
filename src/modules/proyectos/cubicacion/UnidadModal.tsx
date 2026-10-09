@@ -34,7 +34,6 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
   const [piso, setPiso] = useState(unidad?.piso != null ? String(unidad.piso) : inicial?.piso !== undefined && inicial.piso !== '' ? String(inicial.piso) : '');
   const [dpto, setDpto] = useState(unidad?.dpto != null ? String(unidad.dpto) : '');
   const [ubicacion, setUbicacion] = useState(unidad?.ubicacion ?? '');
-  const [apertura, setApertura] = useState(unidad?.apertura ?? '');
   const [rasgoAncho, setRasgoAncho] = useState(mmATexto(unidad?.rasgoAnchoMm));
   const [rasgoAlto, setRasgoAlto] = useState(mmATexto(unidad?.rasgoAltoMm));
 
@@ -64,7 +63,6 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
         piso: pisoNum,
         dpto: dptoNum,
         ubicacion: ubicacion.trim() || null,
-        apertura: apertura.trim() || null,
       };
       // El rasgo solo se manda si cambio: asi editar la posicion no vuelve a sellar quien/cuando rectifico.
       const nuevoAncho = hayRasgo ? anchoNum : null;
@@ -137,19 +135,11 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
           </b>
         </p>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label htmlFor="uni-ubicacion" className={etiqueta}>
-              Ubicación
-            </label>
-            <input id="uni-ubicacion" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} maxLength={100} placeholder="DORM 1, ESTAR, BAÑO 1…" className={campo} />
-          </div>
-          <div>
-            <label htmlFor="uni-apertura" className={etiqueta}>
-              Apertura
-            </label>
-            <input id="uni-apertura" value={apertura} onChange={(e) => setApertura(e.target.value)} maxLength={50} className={campo} />
-          </div>
+        <div>
+          <label htmlFor="uni-ubicacion" className={etiqueta}>
+            Ubicación
+          </label>
+          <input id="uni-ubicacion" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} maxLength={100} placeholder="DORM 1, ESTAR, BAÑO 1…" className={campo} />
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-2">

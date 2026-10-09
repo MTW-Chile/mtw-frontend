@@ -50,7 +50,7 @@ export const TiposCubicacion: React.FC<Props> = ({ proyectoId, moneda, tipos }) 
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
                 <th className="px-3 py-2.5 font-bold">Código</th>
-                <th className="px-3 py-2.5 font-bold">Sistema</th>
+                <th className="px-3 py-2.5 font-bold">Apertura</th>
                 <th className="px-3 py-2.5 font-bold">Plano (mm)</th>
                 <th className="px-3 py-2.5 font-bold text-right">Cuadros</th>
                 <th className="px-3 py-2.5 font-bold text-right">Precio unit.</th>

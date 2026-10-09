@@ -104,7 +104,7 @@ export const TipoModal: React.FC<Props> = ({ proyectoId, moneda, tipo, onClose }
           </div>
           <div className="sm:col-span-2">
             <label htmlFor="tipo-sistema" className={etiqueta}>
-              Sistema
+              Apertura
             </label>
             <input id="tipo-sistema" value={sistema} onChange={(e) => setSistema(e.target.value)} maxLength={200} placeholder="CORREDERA XO" className={campo} />
           </div>

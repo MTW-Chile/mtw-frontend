@@ -14,6 +14,7 @@ import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import type { Proyecto, ReporteImportacionCubicacion, ReporteSincronizacionCubicacion, ResumenCubicacion } from '../../../types';
 import { ConfigCubicacionModal } from './ConfigCubicacionModal';
+import { EstructuraVisual } from './EstructuraVisual';
 import { TiposCubicacion } from './TiposCubicacion';
 import { VentanasCubicacion, type FiltroVentanas } from './VentanasCubicacion';
 import { descargarBlob, formatoMonto, lineaReporteSincronizacion, lineasReporteImportacion } from './utils';
@@ -60,7 +61,7 @@ const panelDeSincronizacion = (r: ReporteSincronizacionCubicacion, titulo: strin
 export const CubicacionTab: React.FC<Props> = ({ proyecto }) => {
   const queryClient = useQueryClient();
   const entrada = useRef<HTMLInputElement>(null);
-  const [vista, setVista] = useState<'ventanas' | 'tipos'>('ventanas');
+  const [vista, setVista] = useState<'estructura' | 'ventanas' | 'tipos'>('estructura');
   const [config, setConfig] = useState(false);
   const [filtro, setFiltro] = useState<FiltroVentanas>({ piso: '', torre: '' });
   const [panel, setPanel] = useState<ResultadoPanel | null>(null);
@@ -234,19 +235,22 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto }) => {
           <Resumen r={resumen} />
           {resumen.sinPosicion > 0 && (
             <p className="text-xs text-slate-600 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2" data-testid="siguiente-paso">
-              <b>Siguiente paso:</b> faltan {resumen.sinPosicion} ventana(s) por ubicar. Descarga la planilla, completa torre, piso y depto de cada una (y el rasgo si ya lo midieron) y súbela; o
-              edítalas aquí una por una.
+              <b>Siguiente paso:</b> faltan {resumen.sinPosicion} ventana(s) por ubicar. Arma el edificio en el cubicador visual y arrastra cada ventana a su departamento, o descarga la planilla,
+              complétala (torre, piso, depto y rasgo) y súbela: las dos formas escriben lo mismo.
             </p>
           )}
           <SubTabs
             tabs={[
+              { id: 'estructura', label: 'Cubicador visual' },
               { id: 'ventanas', label: `Ventanas (${resumen.ventanas})` },
               { id: 'tipos', label: `Tipos (${resumen.tipos})` },
             ]}
             active={vista}
             onChange={setVista}
           />
-          {vista === 'ventanas' ? (
+          {vista === 'estructura' ? (
+            <EstructuraVisual proyectoId={proyecto.id} cubicacion={cubicacion} tipos={resumen.porTipo} />
+          ) : vista === 'ventanas' ? (
             <VentanasCubicacion proyectoId={proyecto.id} cubicacion={cubicacion} tipos={resumen.porTipo} filtro={filtro} onFiltro={setFiltro} />
           ) : (
             <TiposCubicacion proyectoId={proyecto.id} moneda={cubicacion.moneda} tipos={resumen.porTipo} />

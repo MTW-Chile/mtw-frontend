@@ -56,6 +56,9 @@ import type {
   ReporteSincronizacionCubicacion,
   InfoPresupuestoCubicacion,
   FiltroUnidadesCubicacion,
+  EstructuraCubicacion,
+  ResultadoAsignacionCubicacion,
+  ResultadoCopiaPisoCubicacion,
   CarpetaOneDrive,
   CarpetaOneDriveSugerida,
   EstadoPendiente,
@@ -1383,4 +1386,51 @@ export async function descargarInformeCubicacion(proyectoId: string, filtro: { p
   if (filtro.soloRectificadas) params.soloRectificadas = 1;
   const response = await apiClient.get<Blob>(`/proyectos/${proyectoId}/cubicacion/informe`, { params, responseType: 'blob', timeout: 120000 });
   return response.data;
+}
+
+// ---- Cubicador visual (torres -> pisos -> departamentos -> ventanas) ----
+const rutaEstructura = (proyectoId: string) => `/proyectos/${proyectoId}/cubicacion/estructura`;
+
+export async function getEstructuraCubicacion(proyectoId: string): Promise<EstructuraCubicacion> {
+  const response = await apiClient.get<EstructuraCubicacion>(rutaEstructura(proyectoId));
+  return response.data;
+}
+
+export async function crearTorreCubicacion(proyectoId: string, nombre: string): Promise<void> {
+  await apiClient.post(`${rutaEstructura(proyectoId)}/torres`, { nombre });
+}
+
+export async function crearPisosCubicacion(proyectoId: string, payload: { torre: string; desde: number; hasta: number }): Promise<void> {
+  await apiClient.post(`${rutaEstructura(proyectoId)}/pisos`, payload);
+}
+
+// Sin `piso`, crea los departamentos en todos los pisos de la torre.
+export async function crearDeptosCubicacion(proyectoId: string, payload: { torre: string; piso?: number; desde?: number; hasta: number }): Promise<void> {
+  await apiClient.post(`${rutaEstructura(proyectoId)}/deptos`, payload);
+}
+
+export async function renombrarTorreCubicacion(proyectoId: string, payload: { de: string; a: string }): Promise<void> {
+  await apiClient.post(`${rutaEstructura(proyectoId)}/renombrar-torre`, payload);
+}
+
+export async function eliminarLugarCubicacion(proyectoId: string, payload: { torre: string; piso?: number; dpto?: number }): Promise<{ ventanasSinPosicion: number }> {
+  const response = await apiClient.post<{ ventanasSinPosicion: number }>(`${rutaEstructura(proyectoId)}/eliminar`, payload);
+  return response.data;
+}
+
+export async function asignarVentanasCubicacion(
+  proyectoId: string,
+  payload: { torre: string; piso: number; dpto: number; tipoId: string; cantidad: number; ubicacion?: string | null; excederContratadas?: boolean }
+): Promise<ResultadoAsignacionCubicacion> {
+  const response = await apiClient.post<ResultadoAsignacionCubicacion>(`${rutaEstructura(proyectoId)}/asignar`, payload);
+  return response.data;
+}
+
+export async function copiarPisoCubicacion(proyectoId: string, payload: { torre: string; desde: number; hacia: number[] }): Promise<ResultadoCopiaPisoCubicacion> {
+  const response = await apiClient.post<ResultadoCopiaPisoCubicacion>(`${rutaEstructura(proyectoId)}/copiar-piso`, payload);
+  return response.data;
+}
+
+export async function quitarPosicionVentanaCubicacion(id: string): Promise<void> {
+  await apiClient.post(`/cubicacion-unidades/${id}/quitar-posicion`);
 }

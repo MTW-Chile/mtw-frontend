@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FORMATO_NOMENCLATURA_DEFECTO, estadoSaldo, formatoMonto, generarNomenclatura, lineaReporteSincronizacion, lineasReporteImportacion, mmATexto, validarFormato } from './utils';
+import { FORMATO_NOMENCLATURA_DEFECTO, estadoSaldo, formatoMonto, generarNomenclatura, leerEntero, leerTorres, lineaReporteSincronizacion, lineasReporteImportacion, mensajeAsignacion, mensajeCopiaPiso, mmATexto, rangoPisos, textoTorre, validarFormato } from './utils';
 
 describe('generarNomenclatura', () => {
   it('el código original va primero: V01, piso 1, depto 1, torre A -> V01_101A', () => {
@@ -64,5 +64,32 @@ describe('texto de los reportes', () => {
     expect(lineaReporteSincronizacion({ tipos: { nuevos: 1, actualizados: 31 }, unidadesCreadas: 7, unidadesQuitadas: 3, avisos: [] })).toBe(
       '1 tipo(s) nuevo(s) · 31 actualizado(s) · 7 unidad(es) creada(s) · 3 sin posición quitada(s)'
     );
+  });
+});
+
+describe('cubicador visual', () => {
+  it('leerEntero acepta enteros con signo y rechaza el resto', () => {
+    expect(leerEntero(' 12 ')).toBe(12);
+    expect(leerEntero('-1')).toBe(-1);
+    expect(leerEntero('')).toBeNull();
+    expect(leerEntero('1,5')).toBeNull();
+    expect(leerEntero('a')).toBeNull();
+  });
+  it('leerTorres: separa por coma o espacio, en mayúscula y sin repetir; vacío = sin torres', () => {
+    expect(leerTorres('a, b  c;a')).toEqual(['A', 'B', 'C']);
+    expect(leerTorres('  ')).toEqual(['']);
+  });
+  it('textoTorre y rangoPisos', () => {
+    expect(textoTorre('A')).toBe('Torre A');
+    expect(textoTorre('')).toBe('Sin torre');
+    expect(rangoPisos(2, 4)).toEqual([2, 3, 4]);
+    expect(rangoPisos(5, 2)).toEqual([]);
+  });
+  it('los mensajes dicen cuántas quedaron y por qué faltan', () => {
+    expect(mensajeAsignacion({ asignadas: 2, faltan: 0 }, 'V01')).toBe('2 V01 asignada(s).');
+    expect(mensajeAsignacion({ asignadas: 5, faltan: 2 }, 'V02')).toContain('faltaron 2');
+    const m = mensajeCopiaPiso({ pisos: 2, ventanas: 10, deptosOmitidos: 1, faltan: [{ codigo: 'V02', cantidad: 3 }] });
+    expect(m).toContain('10 ventana(s) copiada(s) a 2 piso(s)');
+    expect(m).toContain('3 V02');
   });
 });

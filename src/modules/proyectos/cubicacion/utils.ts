@@ -87,3 +87,32 @@ export function lineaReporteSincronizacion(r: ReporteSincronizacionCubicacion): 
   if (r.unidadesQuitadas > 0) partes.push(`${r.unidadesQuitadas} sin posición quitada(s)`);
   return partes.join(' · ');
 }
+
+// ---- Cubicador visual ----
+
+/** Entero escrito en un campo de texto (con signo); null si esta vacio o no es un entero. */
+export const leerEntero = (t: string): number | null => (/^-?\d+$/.test(t.trim()) ? Number(t.trim()) : null);
+
+/** "Torre A" o, para la obra sin torres (nombre vacio), "Sin torre". */
+export const textoTorre = (nombre: string): string => (nombre === '' ? 'Sin torre' : `Torre ${nombre}`);
+
+/** Nombres de torre separados por coma o espacio: "a, b" -> ["A","B"]; vacio = obra sin torres ([""]). */
+export function leerTorres(texto: string): string[] {
+  const nombres = [...new Set(texto.split(/[,;\s]+/).map((x) => x.trim().toUpperCase()).filter(Boolean))];
+  return nombres.length ? nombres : [''];
+}
+
+/** Pisos desde..hasta, ambos incluidos; [] si el rango no es valido. */
+export const rangoPisos = (desde: number, hasta: number): number[] => (hasta < desde ? [] : Array.from({ length: hasta - desde + 1 }, (_, i) => desde + i));
+
+export function mensajeAsignacion(r: { asignadas: number; faltan: number }, codigo: string): string {
+  if (r.faltan === 0) return `${r.asignadas} ${codigo} asignada(s).`;
+  return `${r.asignadas} ${codigo} asignada(s); no quedaban más ${codigo} por ubicar (faltaron ${r.faltan}). Sube la cantidad contratada del tipo o agrega de más a propósito.`;
+}
+
+export function mensajeCopiaPiso(r: { pisos: number; ventanas: number; deptosOmitidos: number; faltan: { codigo: string; cantidad: number }[] }): string {
+  const partes = [`${r.ventanas} ventana(s) copiada(s) a ${r.pisos} piso(s)`];
+  if (r.deptosOmitidos > 0) partes.push(`${r.deptosOmitidos} departamento(s) ya tenían ventanas y no se tocaron`);
+  if (r.faltan.length > 0) partes.push(`faltaron por ubicar: ${r.faltan.map((f) => `${f.cantidad} ${f.codigo}`).join(', ')}`);
+  return partes.join(' · ') + '.';
+}

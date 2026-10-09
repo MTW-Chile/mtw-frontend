@@ -1223,6 +1223,35 @@ export interface TipoCubicacion {
   lineaHetmo: number | null;
 }
 
+// Cubicador visual: torre -> piso -> departamento -> ventanas. torre "" = obra sin torres.
+export interface NodoDeptoCubicacion {
+  dpto: number;
+  ventanas: UnidadCubicacion[];
+}
+export interface NodoPisoCubicacion {
+  piso: number;
+  deptos: NodoDeptoCubicacion[];
+}
+export interface NodoTorreCubicacion {
+  nombre: string;
+  pisos: NodoPisoCubicacion[];
+}
+export interface EstructuraCubicacion {
+  torres: NodoTorreCubicacion[];
+  // Ventanas que aun no tienen piso y departamento.
+  sinPosicion: number;
+}
+export interface ResultadoAsignacionCubicacion {
+  asignadas: number;
+  faltan: number;
+}
+export interface ResultadoCopiaPisoCubicacion {
+  pisos: number;
+  ventanas: number;
+  deptosOmitidos: number;
+  faltan: { codigo: string; cantidad: number }[];
+}
+
 export interface ResumenCubicacion {
   tipos: number;
   ventanas: number;
