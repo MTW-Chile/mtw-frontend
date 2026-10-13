@@ -61,6 +61,8 @@ import type {
   ResultadoCopiaPisoCubicacion,
   CarpetaOneDrive,
   CarpetaOneDriveSugerida,
+  ItemOneDrive,
+  ContenidoCarpetaOneDrive,
   EstadoPendiente,
   DestinoPendiente,
   NuevoPendientePayload,
@@ -1232,6 +1234,39 @@ export async function getContenidoAdjunto(pendienteId: string, adjuntoId: string
 
 export async function quitarAdjuntoPendiente(pendienteId: string, adjuntoId: string): Promise<void> {
   await apiClient.post(`/pendientes/${pendienteId}/adjuntos/${adjuntoId}/quitar`);
+}
+
+// ---- Documentos de la obra (navegar la carpeta de OneDrive ya vinculada) ----
+
+export async function getDocumentosObra(proyectoId: string, carpetaId?: string): Promise<ContenidoCarpetaOneDrive> {
+  const response = await apiClient.get<ContenidoCarpetaOneDrive>(`/proyectos/${proyectoId}/onedrive/documentos`, {
+    params: carpetaId ? { carpetaId } : undefined,
+  });
+  return response.data;
+}
+
+export async function crearCarpetaDocumento(proyectoId: string, carpetaId: string, nombre: string): Promise<ItemOneDrive> {
+  const response = await apiClient.post<{ item: ItemOneDrive }>(`/proyectos/${proyectoId}/onedrive/documentos/carpeta`, { carpetaId, nombre });
+  return response.data.item;
+}
+
+// Sube el archivo tal cual en el cuerpo (sin multipart); carpetaId y nombre van en la URL.
+export async function subirDocumentoObra(proyectoId: string, carpetaId: string, archivo: Blob, nombre: string, mime: string): Promise<ItemOneDrive> {
+  const response = await apiClient.post<{ item: ItemOneDrive }>(`/proyectos/${proyectoId}/onedrive/documentos/archivo`, archivo, {
+    params: { carpetaId, nombre },
+    headers: { 'Content-Type': mime },
+    timeout: 120000,
+  });
+  return response.data.item;
+}
+
+export async function getContenidoDocumentoObra(proyectoId: string, itemId: string, nombre: string): Promise<Blob> {
+  const response = await apiClient.get<Blob>(`/proyectos/${proyectoId}/onedrive/documentos/${itemId}/contenido`, {
+    params: { nombre },
+    responseType: 'blob',
+    timeout: 120000,
+  });
+  return response.data;
 }
 
 // ---- Configuracion de OneDrive (conexion con la cuenta central) ----

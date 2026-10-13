@@ -1138,6 +1138,21 @@ export interface CarpetaOneDriveSugerida {
 
 // Estado de la carpeta de OneDrive de una obra. `configurado` false = el
 // servidor no tiene OneDrive configurado (se oculta la opcion de adjuntar).
+export interface ItemOneDrive {
+  id: string;
+  nombre: string;
+  tipo: 'carpeta' | 'archivo';
+  tamano: number | null;
+  mime: string | null;
+  webUrl: string | null;
+  modificadoEn: string | null;
+}
+
+export interface ContenidoCarpetaOneDrive {
+  carpetaId: string;
+  items: ItemOneDrive[];
+}
+
 export interface OneDriveObra {
   configurado: boolean;
   // La conexion vencio: se siguen viendo los adjuntos ya subidos pero no se puede subir
