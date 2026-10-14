@@ -4,9 +4,9 @@ import type { ReporteImportacionCubicacion, ReporteSincronizacionCubicacion } fr
 // calculan en el servidor (mtw-api/src/cubicador-reglas.ts); aca solo se replica la
 // nomenclatura para mostrar un ejemplo en vivo al editar el formato.
 
-export const FORMATO_NOMENCLATURA_DEFECTO = '{codigo}_{piso}{dpto}{torre}';
+export const FORMATO_NOMENCLATURA_DEFECTO = '{codigo}_{nombreUnidad}{torre}';
 
-const TOKENS = ['codigo', 'piso', 'dpto', 'torre'];
+const TOKENS = ['codigo', 'nombreUnidad', 'torre'];
 
 /** Mensaje de error si el formato no sirve; null si esta bien (mismas reglas que el servidor). */
 export function validarFormato(formato: string): string | null {
@@ -14,29 +14,28 @@ export function validarFormato(formato: string): string | null {
   if (formato.length > 80) return 'El formato admite hasta 80 caracteres.';
   if (!formato.startsWith('{codigo}')) return 'Debe empezar con {codigo}: el código original va siempre al principio.';
   const usados: string[] = formato.match(/\{[^}]*\}/g) ?? [];
-  for (const u of usados) if (!TOKENS.includes(u.slice(1, -1))) return `Parte desconocida ${u}. Usa {codigo}, {piso}, {dpto} o {torre}.`;
+  for (const u of usados) if (!TOKENS.includes(u.slice(1, -1))) return `Parte desconocida ${u}. Usa {codigo}, {nombreUnidad} o {torre}.`;
   if (/[{}\\/:*?"<>|]/.test(formato.replace(/\{[^}]*\}/g, ''))) return 'Tiene caracteres no permitidos.';
-  if (!usados.includes('{piso}') && !usados.includes('{dpto}')) return 'Debe incluir {piso} o {dpto}.';
+  if (!usados.includes('{nombreUnidad}')) return 'Debe incluir {nombreUnidad}.';
   return null;
 }
 
 export interface PosicionEjemplo {
   codigo: string;
   torre?: string | null;
-  piso?: number | null;
-  dpto?: number | null;
+  // Unidad.nombre (ej. "204"): el numero completo del depto, o el nombre de la unidad especial.
+  nombreUnidad?: string | null;
 }
 
-/** V01, piso 1, depto 1, torre A -> "V01_101A". null si falta el piso o el departamento. */
+/** V01, unidad "101", torre A -> "V01_101A". null si falta la unidad. */
 export function generarNomenclatura(formato: string, p: PosicionEjemplo): string | null {
-  if (p.piso == null || p.dpto == null) return null;
+  if (!p.nombreUnidad) return null;
   const partes: Record<string, string> = {
     codigo: p.codigo,
-    piso: String(p.piso),
-    dpto: String(p.dpto).padStart(2, '0'),
+    nombreUnidad: p.nombreUnidad,
     torre: (p.torre ?? '').trim().toUpperCase(),
   };
-  return formato.replace(/\{(codigo|piso|dpto|torre)\}/g, (_, k: string) => partes[k]);
+  return formato.replace(/\{(codigo|nombreUnidad|torre)\}/g, (_, k: string) => partes[k]);
 }
 
 /** "1.234,56 UF": hasta 2 decimales, separadores chilenos. */

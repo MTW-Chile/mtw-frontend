@@ -4,14 +4,14 @@ import { X } from 'lucide-react';
 import { actualizarCubicacion } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
-import type { Cubicacion } from '../../../types';
+import type { ConfigCubicacion } from '../../../types';
 import { leerMilimetros } from '../pendientes/utils';
 import { cajaModal, campo, etiqueta, fondoModal } from './estilos';
 import { FORMATO_NOMENCLATURA_DEFECTO, generarNomenclatura, mmATexto, validarFormato } from './utils';
 
 interface Props {
   proyectoId: string;
-  cubicacion: Cubicacion;
+  cubicacion: ConfigCubicacion;
   onClose: () => void;
 }
 
@@ -24,7 +24,7 @@ export const ConfigCubicacionModal: React.FC<Props> = ({ proyectoId, cubicacion,
 
   const holguraNum = leerMilimetros(holgura);
   const errorFormato = validarFormato(formato);
-  const ejemplo = errorFormato ? null : generarNomenclatura(formato, { codigo: 'V01', torre: 'A', piso: 1, dpto: 1 });
+  const ejemplo = errorFormato ? null : generarNomenclatura(formato, { codigo: 'V01', torre: 'A', nombreUnidad: '101' });
   const cambioFormato = formato !== cubicacion.formatoNomenclatura;
   const hayCambios = cambioFormato || holguraNum !== cubicacion.holguraMm;
 
@@ -76,7 +76,7 @@ export const ConfigCubicacionModal: React.FC<Props> = ({ proyectoId, cubicacion,
             <p className="text-[11px] text-rose-700 mt-1">{errorFormato}</p>
           ) : (
             <p className="text-[11px] text-slate-500 mt-1">
-              Partes: <span className="font-mono">{'{codigo} {piso} {dpto} {torre}'}</span>. El código original va siempre primero. Ejemplo (V01, piso 1, depto 1, torre A):{' '}
+              Partes: <span className="font-mono">{'{codigo} {nombreUnidad} {torre}'}</span>. El código original va siempre primero. Ejemplo (V01, depto 101, torre A):{' '}
               <b className="font-mono text-slate-800" data-testid="ejemplo-nomenclatura">
                 {ejemplo}
               </b>

@@ -48,7 +48,7 @@ import type {
   AdjuntoPendiente,
   OneDriveObra,
   OneDriveEstado,
-  Cubicacion,
+  ConfigCubicacion,
   ResumenCubicacion,
   TipoCubicacion,
   UnidadCubicacion,
@@ -57,6 +57,7 @@ import type {
   InfoPresupuestoCubicacion,
   FiltroUnidadesCubicacion,
   EstructuraCubicacion,
+  TorreConPisos,
   ResultadoAsignacionCubicacion,
   ResultadoCopiaPisoCubicacion,
   CarpetaOneDrive,
@@ -1292,26 +1293,19 @@ export async function desconectarOneDrive(): Promise<void> {
 }
 
 // ---- Cubicador ----
+// Toda obra tiene cubicador implicito (holgura/formato de nomenclatura viven en Proyecto): no hay
+// paso de "crear" la cubicacion, solo sincronizar desde el presupuesto o cargar tipos a mano.
 
 export async function getCubicacion(
   proyectoId: string
-): Promise<{ cubicacion: Cubicacion | null; resumen: ResumenCubicacion | null; presupuesto: InfoPresupuestoCubicacion | null }> {
+): Promise<{ cubicacion: ConfigCubicacion; resumen: ResumenCubicacion; presupuesto: InfoPresupuestoCubicacion | null }> {
   const response = await apiClient.get(`/proyectos/${proyectoId}/cubicacion`);
   return response.data;
 }
 
-// Por defecto se completa sola con las lineas del presupuesto de HETMO (si la obra las tiene); desdePresupuesto:false la crea vacia.
-export async function crearCubicacion(proyectoId: string, payload: { holguraMm?: number; formatoNomenclatura?: string; desdePresupuesto?: boolean } = {}) {
-  const response = await apiClient.post<{ cubicacion: Cubicacion; resumen: ResumenCubicacion; reporte: ReporteSincronizacionCubicacion | null }>(
-    `/proyectos/${proyectoId}/cubicacion`,
-    payload
-  );
-  return response.data;
-}
-
-// Vuelve a leer el presupuesto de HETMO (si cambio): no pisa posiciones ni rasgos ya cargados.
+// Lee (o vuelve a leer) el presupuesto de HETMO: no pisa posiciones ni rasgos ya cargados.
 export async function sincronizarCubicacion(proyectoId: string) {
-  const response = await apiClient.post<{ reporte: ReporteSincronizacionCubicacion; cubicacion: Cubicacion; resumen: ResumenCubicacion }>(
+  const response = await apiClient.post<{ reporte: ReporteSincronizacionCubicacion; cubicacion: ConfigCubicacion; resumen: ResumenCubicacion }>(
     `/proyectos/${proyectoId}/cubicacion/sincronizar`
   );
   return response.data;
@@ -1323,14 +1317,14 @@ export async function descargarPlantillaCubicacion(proyectoId: string): Promise<
   return response.data;
 }
 
-export async function actualizarCubicacion(proyectoId: string, payload: { nombre?: string; holguraMm?: number; formatoNomenclatura?: string }) {
-  const response = await apiClient.patch<{ cubicacion: Cubicacion; resumen: ResumenCubicacion }>(`/proyectos/${proyectoId}/cubicacion`, payload);
+export async function actualizarCubicacion(proyectoId: string, payload: { holguraMm?: number; formatoNomenclatura?: string }) {
+  const response = await apiClient.patch<{ cubicacion: ConfigCubicacion; resumen: ResumenCubicacion }>(`/proyectos/${proyectoId}/cubicacion`, payload);
   return response.data;
 }
 
 // Importa la planilla (.xlsx) tal cual en el cuerpo. No pisa lo ya trabajado.
 export async function importarPlanillaCubicacion(proyectoId: string, archivo: Blob) {
-  const response = await apiClient.post<{ reporte: ReporteImportacionCubicacion; cubicacion: Cubicacion; resumen: ResumenCubicacion }>(
+  const response = await apiClient.post<{ reporte: ReporteImportacionCubicacion; cubicacion: ConfigCubicacion; resumen: ResumenCubicacion }>(
     `/proyectos/${proyectoId}/cubicacion/importar`,
     archivo,
     { headers: { 'Content-Type': 'application/octet-stream' }, timeout: 180000 }
@@ -1345,6 +1339,7 @@ export async function getTiposCubicacion(proyectoId: string): Promise<TipoCubica
 
 export type DatosTipoCubicacion = {
   codigo?: string;
+  // Solo editable mientras el tipo no esta vinculado a una linea de HETMO (ventanaId null).
   sistema?: string;
   anchoPlanoMm?: number | null;
   altoPlanoMm?: number | null;
@@ -1371,8 +1366,8 @@ export async function eliminarTipoCubicacion(id: string): Promise<void> {
 
 export async function getUnidadesCubicacion(proyectoId: string, filtro: FiltroUnidadesCubicacion = {}): Promise<{ total: number; unidades: UnidadCubicacion[] }> {
   const params: Record<string, string | number> = {};
-  if (filtro.piso !== undefined && filtro.piso !== '') params.piso = filtro.piso;
-  if (filtro.torre) params.torre = filtro.torre;
+  if (filtro.pisoId) params.pisoId = filtro.pisoId;
+  if (filtro.torreId) params.torreId = filtro.torreId;
   if (filtro.tipoId) params.tipoId = filtro.tipoId;
   if (filtro.q?.trim()) params.q = filtro.q.trim();
   if (filtro.sinRectificar) params.sinRectificar = 1;
@@ -1383,8 +1378,9 @@ export async function getUnidadesCubicacion(proyectoId: string, filtro: FiltroUn
   return response.data;
 }
 
-export async function getUbicacionesCubicacion(proyectoId: string): Promise<{ torres: string[]; pisos: number[] }> {
-  const response = await apiClient.get(`/proyectos/${proyectoId}/cubicacion/ubicaciones`);
+// Torres y sus pisos existentes (para los filtros de la pantalla de Ventanas).
+export async function getUbicacionesCubicacion(proyectoId: string): Promise<TorreConPisos[]> {
+  const response = await apiClient.get<TorreConPisos[]>(`/proyectos/${proyectoId}/cubicacion/ubicaciones`);
   return response.data;
 }
 
@@ -1392,7 +1388,8 @@ export type DatosUnidadCubicacion = {
   tipoId?: string;
   torre?: string | null;
   piso?: number | null;
-  dpto?: number | null;
+  // Nombre completo del depto (ej. "204"), texto libre.
+  nombreUnidad?: string | null;
   ubicacion?: string | null;
   apertura?: string | null;
   rasgoAnchoMm?: number | null;
@@ -1414,10 +1411,10 @@ export async function eliminarUnidadCubicacion(id: string): Promise<void> {
 }
 
 // Informe Excel para crear la fase en HETMO (nomenclatura + medidas de fabricacion).
-export async function descargarInformeCubicacion(proyectoId: string, filtro: { piso?: number | ''; torre?: string; soloRectificadas?: boolean } = {}): Promise<Blob> {
+export async function descargarInformeCubicacion(proyectoId: string, filtro: { torreId?: string; pisoId?: string; soloRectificadas?: boolean } = {}): Promise<Blob> {
   const params: Record<string, string | number> = {};
-  if (filtro.piso !== undefined && filtro.piso !== '') params.piso = filtro.piso;
-  if (filtro.torre) params.torre = filtro.torre;
+  if (filtro.torreId) params.torreId = filtro.torreId;
+  if (filtro.pisoId) params.pisoId = filtro.pisoId;
   if (filtro.soloRectificadas) params.soloRectificadas = 1;
   const response = await apiClient.get<Blob>(`/proyectos/${proyectoId}/cubicacion/informe`, { params, responseType: 'blob', timeout: 120000 });
   return response.data;
@@ -1431,8 +1428,15 @@ export async function getEstructuraCubicacion(proyectoId: string): Promise<Estru
   return response.data;
 }
 
-export async function crearTorreCubicacion(proyectoId: string, nombre: string): Promise<void> {
-  await apiClient.post(`${rutaEstructura(proyectoId)}/torres`, { nombre });
+export async function crearTorreCubicacion(proyectoId: string, nombre: string): Promise<{ id: string; nombre: string }> {
+  const response = await apiClient.post<{ id: string; nombre: string }>(`${rutaEstructura(proyectoId)}/torres`, { nombre });
+  return response.data;
+}
+
+// Unidad especial sin piso, colgada directo de la torre (areas comunes, fachada...).
+export async function crearUnidadEspecialCubicacion(proyectoId: string, payload: { torreId: string; nombre: string }): Promise<{ id: string; nombre: string }> {
+  const response = await apiClient.post<{ id: string; nombre: string }>(`${rutaEstructura(proyectoId)}/unidades-especiales`, payload);
+  return response.data;
 }
 
 export async function crearPisosCubicacion(proyectoId: string, payload: { torre: string; desde: number; hasta: number }): Promise<void> {
@@ -1444,24 +1448,24 @@ export async function crearDeptosCubicacion(proyectoId: string, payload: { torre
   await apiClient.post(`${rutaEstructura(proyectoId)}/deptos`, payload);
 }
 
-export async function renombrarTorreCubicacion(proyectoId: string, payload: { de: string; a: string }): Promise<void> {
+export async function renombrarTorreCubicacion(proyectoId: string, payload: { torreId: string; nombre: string }): Promise<void> {
   await apiClient.post(`${rutaEstructura(proyectoId)}/renombrar-torre`, payload);
 }
 
-export async function eliminarLugarCubicacion(proyectoId: string, payload: { torre: string; piso?: number; dpto?: number }): Promise<{ ventanasSinPosicion: number }> {
+export async function eliminarLugarCubicacion(proyectoId: string, payload: { torreId: string; pisoId?: string; unidadId?: string }): Promise<{ ventanasSinPosicion: number }> {
   const response = await apiClient.post<{ ventanasSinPosicion: number }>(`${rutaEstructura(proyectoId)}/eliminar`, payload);
   return response.data;
 }
 
 export async function asignarVentanasCubicacion(
   proyectoId: string,
-  payload: { torre: string; piso: number; dpto: number; tipoId: string; cantidad: number; ubicacion?: string | null; excederContratadas?: boolean }
+  payload: { unidadId: string; tipoId: string; cantidad: number; ubicacion?: string | null; excederContratadas?: boolean }
 ): Promise<ResultadoAsignacionCubicacion> {
   const response = await apiClient.post<ResultadoAsignacionCubicacion>(`${rutaEstructura(proyectoId)}/asignar`, payload);
   return response.data;
 }
 
-export async function copiarPisoCubicacion(proyectoId: string, payload: { torre: string; desde: number; hacia: number[] }): Promise<ResultadoCopiaPisoCubicacion> {
+export async function copiarPisoCubicacion(proyectoId: string, payload: { torreId: string; desde: number; hacia: number[] }): Promise<ResultadoCopiaPisoCubicacion> {
   const response = await apiClient.post<ResultadoCopiaPisoCubicacion>(`${rutaEstructura(proyectoId)}/copiar-piso`, payload);
   return response.data;
 }

@@ -1224,15 +1224,14 @@ export interface OneDriveEstado {
 }
 
 // ---- Cubicador (paso previo y opcional de las fases) ----
+// La config (holgura/formato de nomenclatura) vive en Proyecto: toda obra tiene cubicador
+// implicito, no hay un objeto "Cubicacion" propio ni un paso de "activarlo".
 
-export interface Cubicacion {
-  id: string;
-  nombre: string;
+export interface ConfigCubicacion {
   // mm que se restan al rasgo (por dimension) para la medida de fabricacion.
   holguraMm: number;
-  // Tokens {codigo} {piso} {dpto} {torre}; el codigo va siempre al principio.
+  // Tokens {codigo} {nombreUnidad} {torre}; el codigo va siempre al principio.
   formatoNomenclatura: string;
-  moneda: string;
 }
 
 export interface TipoCubicacion {
@@ -1249,27 +1248,39 @@ export interface TipoCubicacion {
   altoPlanoMm: number | null;
   cuadros: number | null;
   holguraMm: number | null;
-  // Linea del presupuesto de HETMO de la que sale este tipo; null si lo creo una persona.
+  // Vinculado a una linea del presupuesto de HETMO; null = tipo manual (sistema/medidas editables a mano).
+  ventanaId: string | null;
   lineaHetmo: number | null;
 }
 
-// Cubicador visual: torre -> piso -> departamento -> ventanas. torre "" = obra sin torres.
+// Cubicador visual: torre -> piso -> departamento (Unidad) -> ventanas. torre "" = obra sin torres.
+// "especiales" son unidades sin piso colgadas directo de la torre (areas comunes, fachada...).
 export interface NodoDeptoCubicacion {
-  dpto: number;
+  id: string;
+  nombre: string;
   ventanas: UnidadCubicacion[];
 }
 export interface NodoPisoCubicacion {
-  piso: number;
+  id: string;
+  numero: number;
   deptos: NodoDeptoCubicacion[];
 }
 export interface NodoTorreCubicacion {
+  id: string;
   nombre: string;
+  anchoCorrelativo: number;
   pisos: NodoPisoCubicacion[];
+  especiales: NodoDeptoCubicacion[];
 }
 export interface EstructuraCubicacion {
   torres: NodoTorreCubicacion[];
-  // Ventanas que aun no tienen piso y departamento.
+  // Ventanas que aun no tienen unidad asignada.
   sinPosicion: number;
+}
+export interface TorreConPisos {
+  id: string;
+  nombre: string;
+  pisos: { id: string; numero: number }[];
 }
 export interface ResultadoAsignacionCubicacion {
   asignadas: number;
@@ -1289,7 +1300,7 @@ export interface ResumenCubicacion {
   sinPosicion: number;
   rectificadas: number;
   m2: number;
-  moneda: string;
+  moneda: string | null;
   precio: { contratado: number; cubicado: number; saldo: number };
   porTipo: TipoCubicacion[];
 }
@@ -1301,9 +1312,12 @@ export interface UnidadCubicacion {
   sistema: string;
   esAreaComun: boolean;
   cuadros: number | null;
+  // null = contratada, aun sin ubicar.
+  unidadId: string | null;
   torre: string | null;
   piso: number | null;
-  dpto: number | null;
+  // Nombre completo del depto (ej. "204") o de la unidad especial; null si no tiene unidad.
+  nombreUnidad: string | null;
   ubicacion: string | null;
   cantidad: number;
   anchoPlanoMm: number | null;
@@ -1357,8 +1371,8 @@ export type ReporteImportacionCubicacion =
     };
 
 export interface FiltroUnidadesCubicacion {
-  piso?: number | '';
-  torre?: string;
+  pisoId?: string;
+  torreId?: string;
   tipoId?: string;
   q?: string;
   sinRectificar?: boolean;

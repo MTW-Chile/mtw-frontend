@@ -72,8 +72,13 @@ export const TiposCubicacion: React.FC<Props> = ({ proyectoId, moneda, tipos }) 
                           área común
                         </Badge>
                       )}
-                      {t.lineaHetmo !== null && (
-                        <Badge size="sm" variant="brand" className="ml-1.5" title={`Línea ${t.lineaHetmo} del presupuesto de HETMO`}>
+                      {t.ventanaId !== null && (
+                        <Badge
+                          size="sm"
+                          variant="brand"
+                          className="ml-1.5"
+                          title={t.lineaHetmo !== null ? `Línea ${t.lineaHetmo} del presupuesto de HETMO` : 'Vinculado al presupuesto de HETMO'}
+                        >
                           HETMO
                         </Badge>
                       )}
