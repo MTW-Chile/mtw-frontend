@@ -273,7 +273,7 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
                 {sinGuardar && <span className="text-[11px] font-bold text-amber-600">Cambios sin guardar</span>}
               </div>
 
-              <div className="bg-[#f8fafc] rounded-xl p-4 flex items-center justify-center border border-slate-100 min-h-[220px] flex-1 lg:min-h-0 overflow-hidden">
+              <div className="bg-[#f8fafc] rounded-xl p-4 flex items-center justify-center border border-slate-100 h-56 sm:h-72 lg:h-auto lg:flex-1 lg:min-h-0 overflow-hidden">
                 <WindowRendererSvg ventana={preview} className="w-full h-full max-h-full" />
               </div>
 

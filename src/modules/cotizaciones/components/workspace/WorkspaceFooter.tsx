@@ -48,7 +48,7 @@ export const WorkspaceFooter: React.FC<WorkspaceFooterProps> = ({
               onClick={onNextStep}
               className="flex-1 sm:flex-initial px-4 sm:px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md shadow-brand-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <span>Continuar a {STEP_NEXT_LABELS[currentStep] || `Paso ${currentStep + 1}`}</span>
+              <span>Continuar<span className="hidden sm:inline"> a {STEP_NEXT_LABELS[currentStep] || `Paso ${currentStep + 1}`}</span></span>
               <ArrowRight className="w-4 h-4 shrink-0" />
             </button>
           )}

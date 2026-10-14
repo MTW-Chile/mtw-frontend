@@ -27,7 +27,7 @@ import { CotizadorWorkspace } from './CotizadorWorkspace';
 import type { Cliente, Proyecto } from '../../types';
 import { ClientePicker } from '../clientes/ClientePicker';
 import { useUrlParam, actualizarParams } from '../../lib/navigation';
-import { PageHeader } from '../../components/ui/PageHeader';
+import { HeaderSlot } from '../../components/layout/HeaderSlot';
 import { esPresupuestoPrincipal, etiquetaEstadoProyecto, varianteEstadoProyecto } from '../../lib/estadosHetmo';
 import { clavePresupuestos, consultarPresupuestos } from './presupuestosQuery';
 
@@ -186,15 +186,16 @@ export const CotizacionesPage: React.FC<{
 
   return (
     <div className={PAGE_CONTAINER_CLASS}>
-      {/* ENCABEZADO: TITULO + SINCRONIZACIÓN RELAY / HETMO */}
-      <PageHeader
-        title="Presupuestos"
-        description="Presupuestos de HETMO y presupuestos manuales."
-        icon={Building2}
-        count={proyectos.length}
-        actions={
-        <>
-          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs bg-white border border-slate-200 text-slate-600 shadow-xs">
+      {/* Titulo, contador y acciones viven en el Header del sitio (portal), no en una cabecera propia. */}
+      <HeaderSlot>
+        {/* Las migas del Header se ocultan bajo md: ahí el título va aquí. */}
+        <span className="md:hidden text-sm font-bold text-slate-900 truncate">Presupuestos</span>
+        <Badge size="sm" variant="default" className="font-mono font-bold text-slate-600" title={`${proyectos.length} presupuestos`}>
+          {proyectos.length}
+        </Badge>
+
+        <div className="ml-auto flex items-center gap-2 shrink-0">
+          <div className="hidden @5xl:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs bg-white border border-slate-200 text-slate-600 shadow-xs">
             <Clock className="w-3.5 h-3.5 text-brand-600" />
             <span>
               Última importación:{' '}
@@ -214,9 +215,9 @@ export const CotizacionesPage: React.FC<{
             size="sm"
             onClick={() => setMostrarModalManual(true)}
             leftIcon={<Plus className="w-3.5 h-3.5" />}
+            aria-label="Presupuesto Manual"
           >
-            <span className="hidden sm:inline">Presupuesto Manual</span>
-            <span className="sm:hidden">Manual</span>
+            <span className="hidden @3xl:inline">Presupuesto Manual</span>
           </Button>
 
           <Button
@@ -224,22 +225,13 @@ export const CotizacionesPage: React.FC<{
             size="sm"
             onClick={handleManualSync}
             disabled={isSyncing}
-            leftIcon={
-              <RotateCcw
-                className={`w-3.5 h-3.5 text-brand-600 ${
-                  isSyncing ? 'animate-spin' : ''
-                }`}
-              />
-            }
+            aria-label="Sincronizar HETMO"
+            leftIcon={<RotateCcw className={`w-3.5 h-3.5 text-brand-600 ${isSyncing ? 'animate-spin' : ''}`} />}
           >
-            <span className="hidden sm:inline">
-              {isSyncing ? 'Sincronizando...' : 'Sincronizar HETMO'}
-            </span>
-            <span className="sm:hidden">{isSyncing ? 'Sync...' : 'Sync'}</span>
+            <span className="hidden @3xl:inline">{isSyncing ? 'Sincronizando...' : 'Sincronizar HETMO'}</span>
           </Button>
-        </>
-        }
-      />
+        </div>
+      </HeaderSlot>
 
       {/* CONTENIDO: LISTADO DE PROYECTOS -- Maestro de Materiales vive solo en
           el menu lateral (ver Sidebar.tsx), ya no como sub-pestana aca. */}

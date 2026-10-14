@@ -298,7 +298,9 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="@container">
+        {/* @container: el Sidebar le quita 256px al contenido desde lg, así que las columnas se deciden por el ancho real, no por el viewport. */}
+        <div className="grid grid-cols-1 @2xl:grid-cols-2 @5xl:grid-cols-3 gap-5">
           {filteredVentanas.map((v) => (
             <VentanaCard
               key={v.id}
@@ -308,6 +310,7 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
               isDeletingLineaManual={eliminandoLineaId === v.id}
             />
           ))}
+        </div>
         </div>
       )}
 

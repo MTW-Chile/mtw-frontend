@@ -25,6 +25,7 @@ interface Step1DatosClienteProps {
   onVincularCliente: (clienteId: string | null) => void;
   onCrearCliente: () => void;
   isCrearPending: boolean;
+  onOpenReimport: () => void;
 }
 
 export const Step1DatosCliente: React.FC<Step1DatosClienteProps> = ({
@@ -46,6 +47,7 @@ export const Step1DatosCliente: React.FC<Step1DatosClienteProps> = ({
   onVincularCliente,
   onCrearCliente,
   isCrearPending,
+  onOpenReimport,
 }) => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 items-stretch animate-fade-in">
@@ -59,6 +61,7 @@ export const Step1DatosCliente: React.FC<Step1DatosClienteProps> = ({
         numeroInterno={numeroInterno}
         onGuardarNumeroInterno={onGuardarNumeroInterno}
         isSavingNumeroInterno={isSavingNumeroInterno}
+        onOpenReimport={onOpenReimport}
       >
         <ClienteManager
           proyecto={proyecto}

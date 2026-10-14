@@ -102,9 +102,9 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-2.5 sm:px-6 flex items-center justify-between gap-3">
+    <header className="@container sticky top-0 z-30 h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-2.5 sm:px-6 flex items-center justify-between gap-3">
       {/* Lado Izquierdo */}
-      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink">
         {/* Móvil: Menú Hamburguesa */}
         <button
           onClick={onOpenSidebar}
@@ -134,14 +134,14 @@ export const Header: React.FC<HeaderProps> = ({
           <BotonAtras />
           <BotonRecargar />
         </div>
-        <div className="hidden md:flex min-w-0 pl-1">
+        <div className="hidden md:flex min-w-0 overflow-hidden pl-1">
           <MigasDePan seccion={seccionActual} titulo={moduleTitle} />
         </div>
       </div>
 
       {/* Contexto de la pantalla abierta (ej. selector de paso y estado del
           cotizador, ver HeaderContexto.tsx): cada pantalla lo llena por portal. */}
-      <div id="header-contexto" className="flex-1 min-w-0 flex items-center gap-2 empty:hidden" />
+      <div id="header-contexto" className="grow shrink-0 flex items-center gap-2 empty:hidden" />
 
       {/* Lado Derecho */}
       {/* relative aqui (y no en el wrapper de la campanita) para que el

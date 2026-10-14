@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { GitBranch, Loader2, Hash } from 'lucide-react';
+import { GitBranch, Loader2, Hash, RotateCcw } from 'lucide-react';
 import type { Proyecto, ProyectoVersion } from '../../../../types';
 
 interface VersionActivaCardProps {
@@ -11,6 +11,7 @@ interface VersionActivaCardProps {
   numeroInterno: string;
   onGuardarNumeroInterno: (numero: string) => void;
   isSavingNumeroInterno: boolean;
+  onOpenReimport: () => void;
   children?: React.ReactNode;
 }
 
@@ -27,6 +28,7 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
   numeroInterno,
   onGuardarNumeroInterno,
   isSavingNumeroInterno,
+  onOpenReimport,
   children,
 }) => {
   const hayVariasVersiones = proyecto.versiones.length > 1;
@@ -63,8 +65,9 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
         {hayVariasVersiones ? (
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          <>
             <div className="flex items-center rounded-xl p-1 bg-slate-100 border border-slate-200">
               {proyecto.versiones.map((v, idx) => (
                 <button
@@ -82,12 +85,26 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
               ))}
             </div>
             {isSaving && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
-          </div>
+          </>
         ) : (
           <span className="text-[11px] sm:text-xs text-slate-500">
             Única versión sincronizada desde HETMO para esta obra.
           </span>
         )}
+          <button
+            onClick={onOpenReimport}
+            disabled={activeVersion?.esCongelado}
+            className="px-3 py-1.5 rounded-xl bg-white hover:bg-amber-50 text-slate-600 hover:text-amber-700 border border-slate-200 hover:border-amber-400 text-xs font-medium transition-all flex items-center gap-1.5 shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
+            title={
+              activeVersion?.esCongelado
+                ? 'La versión está congelada: no se puede reimportar'
+                : 'Restablecer presupuesto leyendo los datos originales de HETMO'
+            }
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
+            <span>Reimportar HETMO</span>
+          </button>
+        </div>
       </div>
 
       {/* Numero de presupuesto INTERNO de MTW -- distinto al de HETMO.

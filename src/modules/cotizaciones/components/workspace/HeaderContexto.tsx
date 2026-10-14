@@ -1,13 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Check, ChevronDown, Lock, RotateCcw, ShieldCheck } from 'lucide-react';
+import { Check, ChevronDown, Lock, ShieldCheck } from 'lucide-react';
+import { HeaderSlot } from '../../../../components/layout/HeaderSlot';
 import { Badge } from '../../../../components/ui/Badge';
 import type { Proyecto, ProyectoVersion } from '../../../../types';
 
 export type CotizadorStep = 1 | 2 | 3 | 4 | 5;
-
-/** Id del contenedor que el Header del sitio deja libre para el contexto de la pantalla abierta. */
-export const HEADER_CONTEXTO_ID = 'header-contexto';
 
 export const STEPS: { step: CotizadorStep; label: string }[] = [
   { step: 1, label: 'Identificación' },
@@ -32,7 +29,6 @@ interface HeaderContextoProps {
   activeVersion?: ProyectoVersion;
   currentStep: CotizadorStep;
   onStepChange: (step: CotizadorStep) => void;
-  onOpenReimport: () => void;
 }
 
 /**
@@ -46,15 +42,9 @@ export const HeaderContexto: React.FC<HeaderContextoProps> = ({
   activeVersion,
   currentStep,
   onStepChange,
-  onOpenReimport,
 }) => {
-  const [slot, setSlot] = useState<HTMLElement | null>(null);
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setSlot(document.getElementById(HEADER_CONTEXTO_ID));
-  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -70,50 +60,35 @@ export const HeaderContexto: React.FC<HeaderContextoProps> = ({
     };
   }, [open]);
 
-  if (!slot) return null;
-
   const actual = STEPS.find((s) => s.step === currentStep) ?? STEPS[0];
   const estadoTexto = activeVersion
     ? ESTADO_LABEL[activeVersion.estadoAprobacion] || activeVersion.estadoAprobacion
     : 'En Cotización';
 
-  return createPortal(
-    <>
-      <Badge
-        size="sm"
-        className="font-mono font-bold text-slate-600"
-        title="Número de proyecto"
-      >
-        {proyecto.codigoInterno || `PRJ-${proyecto.numeroPresupuesto}`}
-      </Badge>
+  return (
+    <HeaderSlot>
+      {/* Wrapper: el display de Badge (inline-flex) pisa a `hidden`. En móvil el
+          header (móvil y tablet, con hamburguesa y logo) no tiene espacio: ahí solo queda el selector de paso. */}
+      <div className="hidden lg:flex items-center gap-2 shrink-0">
+        <Badge size="sm" className="font-mono font-bold text-slate-600" title="Número de proyecto">
+          {proyecto.codigoInterno || `PRJ-${proyecto.numeroPresupuesto}`}
+        </Badge>
 
-      <Badge
-        size="sm"
-        variant={activeVersion?.esCongelado ? 'success' : 'brand'}
-        className="hidden md:inline-flex"
-      >
-        {activeVersion?.esCongelado &&
-          (activeVersion.estadoAprobacion === 'APROBADO_GERENCIA' || activeVersion.estadoAprobacion === 'ACEPTADO_CLIENTE' ? (
-            <ShieldCheck className="w-3 h-3" />
-          ) : (
-            <Lock className="w-3 h-3" />
-          ))}
-        {estadoTexto}
-      </Badge>
+        <Badge size="sm" variant={activeVersion?.esCongelado ? 'success' : 'brand'} title={estadoTexto} dot={!activeVersion?.esCongelado}>
+          <span className="inline-flex items-center gap-1">
+            {activeVersion?.esCongelado &&
+              (activeVersion.estadoAprobacion === 'APROBADO_GERENCIA' || activeVersion.estadoAprobacion === 'ACEPTADO_CLIENTE' ? (
+                <ShieldCheck className="w-3 h-3" />
+              ) : (
+                <Lock className="w-3 h-3" />
+              ))}
+            <span className="hidden @5xl:inline">{estadoTexto}</span>
+          </span>
+        </Badge>
+      </div>
 
-      {/* Acciones a la derecha: reimportar y selector de paso */}
-      <div className="ml-auto flex items-center gap-2 shrink-0">
-      <button
-        onClick={onOpenReimport}
-        disabled={activeVersion?.esCongelado}
-        className="w-9 h-9 xl:w-auto xl:px-3 xl:py-1.5 rounded-xl bg-white hover:bg-amber-50 text-slate-600 hover:text-amber-700 border border-slate-200 hover:border-amber-400 text-xs font-medium transition-all flex items-center justify-center gap-1.5 shadow-2xs disabled:opacity-40 cursor-pointer shrink-0"
-        title="Restablecer presupuesto leyendo los datos originales de HETMO"
-        aria-label="Reimportar HETMO"
-      >
-        <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
-        <span className="hidden xl:inline">Reimportar HETMO</span>
-      </button>
-      <div className="relative shrink-0" ref={menuRef}>
+      {/* Selector de paso: al borde derecho del header */}
+      <div className="relative shrink-0 ml-auto" ref={menuRef}>
         <button
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
@@ -128,8 +103,8 @@ export const HeaderContexto: React.FC<HeaderContextoProps> = ({
           <span className="w-5 h-5 rounded-full bg-brand-600 text-white flex items-center justify-center text-[10px]">
             {actual.step}
           </span>
-          <span className="hidden sm:inline whitespace-nowrap">{actual.label}</span>
-          <span className="sm:hidden">Paso {actual.step}</span>
+          <span className="hidden @3xl:inline whitespace-nowrap">{actual.label}</span>
+          <span className="@3xl:hidden whitespace-nowrap">Paso {actual.step}</span>
           <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
         </button>
 
@@ -168,8 +143,6 @@ export const HeaderContexto: React.FC<HeaderContextoProps> = ({
           </div>
         )}
       </div>
-      </div>
-    </>,
-    slot
+    </HeaderSlot>
   );
 };

@@ -175,10 +175,10 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
 
           {/* Acabado con Chip de color -- no aplica a ventanas sin marco (solo DVH) */}
           {!isFrameless && (
-            <div className="col-span-2 pt-1.5 border-t border-slate-100 flex items-center gap-2">
+            <div className="col-span-2 pt-1.5 border-t border-slate-100 flex items-center gap-2 min-w-0">
               <Paintbrush className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <span className="text-slate-400 text-[10px] uppercase tracking-wider font-semibold">Acabado:</span>
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold border border-slate-200 bg-slate-50 text-slate-800">
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold border border-slate-200 bg-slate-50 text-slate-800 min-w-0">
                 <span
                   className="w-2.5 h-2.5 rounded-full border border-slate-300 shadow-inner shrink-0"
                   style={{ backgroundColor: finish.frame }}

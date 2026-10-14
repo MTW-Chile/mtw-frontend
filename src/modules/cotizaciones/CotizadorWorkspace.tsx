@@ -107,7 +107,6 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
         activeVersion={activeVersion}
         currentStep={currentStep}
         onStepChange={setCurrentStep}
-        onOpenReimport={() => setShowReimportModal(true)}
       />
 
       {/* CONTENIDO PRINCIPAL SEGÚN EL PASO ACTIVO */}
@@ -133,6 +132,7 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
             onVincularCliente={(id) => vincularClienteMutation.mutate(id)}
             onCrearCliente={() => crearClienteMutation.mutate()}
             isCrearPending={crearClienteMutation.isPending}
+            onOpenReimport={() => setShowReimportModal(true)}
           />
         )}
 
