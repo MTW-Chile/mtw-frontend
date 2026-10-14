@@ -4,7 +4,7 @@ import { X } from 'lucide-react';
 import { crearUnidadCubicacion, editarUnidadCubicacion } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
-import type { Cubicacion, TipoCubicacion, UnidadCubicacion } from '../../../types';
+import type { ConfigCubicacion, TipoCubicacion, UnidadCubicacion } from '../../../types';
 import { formatoMm } from '../fabricacion/utils';
 import { leerMilimetros } from '../pendientes/utils';
 import { cajaModal, campo, etiqueta, fondoModal } from './estilos';
@@ -12,7 +12,7 @@ import { generarNomenclatura, mmATexto } from './utils';
 
 interface Props {
   proyectoId: string;
-  cubicacion: Cubicacion;
+  cubicacion: ConfigCubicacion;
   tipos: TipoCubicacion[];
   /** Si viene, se edita esa ventana; si no, se crea una. */
   unidad?: UnidadCubicacion;
@@ -23,8 +23,8 @@ interface Props {
 
 const entero = (t: string): number | null => (t.trim() !== '' && /^-?\d+$/.test(t.trim()) ? Number(t.trim()) : null);
 
-// Crea o edita una ventana fisica: su tipo, su posicion (torre / piso / depto -> nomenclatura final) y
-// su rectificacion (rasgo medido en obra -> medida de fabricacion).
+// Crea o edita una ventana fisica: su tipo, su posicion (torre / piso / nombre de la unidad -> nomenclatura
+// final) y su rectificacion (rasgo medido en obra -> medida de fabricacion).
 export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, unidad, inicial, onClose }) => {
   const queryClient = useQueryClient();
   const editando = !!unidad;
@@ -32,27 +32,26 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
   const [tipoId, setTipoId] = useState(unidad?.tipoId ?? '');
   const [torre, setTorre] = useState(unidad?.torre ?? inicial?.torre ?? '');
   const [piso, setPiso] = useState(unidad?.piso != null ? String(unidad.piso) : inicial?.piso !== undefined && inicial.piso !== '' ? String(inicial.piso) : '');
-  const [dpto, setDpto] = useState(unidad?.dpto != null ? String(unidad.dpto) : '');
+  const [nombreUnidad, setNombreUnidad] = useState(unidad?.nombreUnidad ?? '');
   const [ubicacion, setUbicacion] = useState(unidad?.ubicacion ?? '');
   const [rasgoAncho, setRasgoAncho] = useState(mmATexto(unidad?.rasgoAnchoMm));
   const [rasgoAlto, setRasgoAlto] = useState(mmATexto(unidad?.rasgoAltoMm));
 
   const tipo = tiposVentana.find((t) => t.id === tipoId);
   const pisoNum = entero(piso);
-  const dptoNum = entero(dpto);
   const anchoNum = leerMilimetros(rasgoAncho);
   const altoNum = leerMilimetros(rasgoAlto);
   const hayRasgo = rasgoAncho.trim() !== '' || rasgoAlto.trim() !== '';
   const holgura = tipo?.holguraMm ?? cubicacion.holguraMm;
 
-  const nomenclatura = tipo ? generarNomenclatura(cubicacion.formatoNomenclatura, { codigo: tipo.codigo, torre, piso: pisoNum, dpto: dptoNum }) : null;
+  const nomenclatura = tipo ? generarNomenclatura(cubicacion.formatoNomenclatura, { codigo: tipo.codigo, torre, nombreUnidad: nombreUnidad.trim() || null }) : null;
   const fab = anchoNum !== null && altoNum !== null ? { ancho: Math.round((anchoNum - holgura) * 100) / 100, alto: Math.round((altoNum - holgura) * 100) / 100 } : null;
 
   // Una ventana NUEVA va siempre con su lugar; una existente (que puede estar aun sin posicion) puede guardarse a medias.
   const valido =
     !!tipo &&
     (editando ? piso.trim() === '' || pisoNum !== null : pisoNum !== null) &&
-    (editando ? dpto.trim() === '' || dptoNum !== null : dptoNum !== null) &&
+    (editando ? true : nombreUnidad.trim() !== '') &&
     (!hayRasgo || (anchoNum !== null && altoNum !== null && !!fab && fab.ancho > 0 && fab.alto > 0));
 
   const guardar = useMutation({
@@ -61,7 +60,7 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
         tipoId,
         torre: torre.trim() || null,
         piso: pisoNum,
-        dpto: dptoNum,
+        nombreUnidad: nombreUnidad.trim() || null,
         ubicacion: ubicacion.trim() || null,
       };
       // El rasgo solo se manda si cambio: asi editar la posicion no vuelve a sellar quien/cuando rectifico.
@@ -125,13 +124,13 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
             <label htmlFor="uni-dpto" className={etiqueta}>
               Depto
             </label>
-            <input id="uni-dpto" inputMode="numeric" value={dpto} onChange={(e) => setDpto(e.target.value)} className={`${campo} ${dpto.trim() !== '' && dptoNum === null ? 'border-rose-300' : ''}`} />
+            <input id="uni-dpto" value={nombreUnidad} onChange={(e) => setNombreUnidad(e.target.value)} maxLength={40} placeholder="204" className={campo} />
           </div>
         </div>
         <p className="text-[11px] text-slate-500 -mt-2">
           Nomenclatura:{' '}
           <b className="font-mono text-slate-800" data-testid="nomenclatura-vista">
-            {nomenclatura ?? (tipo ? `${tipo.codigo} (sin posición: falta piso y depto)` : '—')}
+            {nomenclatura ?? (tipo ? `${tipo.codigo} (sin posición: falta el depto)` : '—')}
           </b>
         </p>
 

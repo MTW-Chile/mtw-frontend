@@ -5,21 +5,22 @@ import { editarUnidadCubicacion, eliminarUnidadCubicacion, getUbicacionesCubicac
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
-import type { Cubicacion, TipoCubicacion, UnidadCubicacion } from '../../../types';
+import type { ConfigCubicacion, TipoCubicacion, UnidadCubicacion } from '../../../types';
 import { formatoMm } from '../fabricacion/utils';
 import { leerMilimetros } from '../pendientes/utils';
 import { campoChico } from './estilos';
 import { UnidadModal } from './UnidadModal';
-import { formatoMonto, mmATexto } from './utils';
+import { formatoMonto, mmATexto, textoTorre } from './utils';
 
 export interface FiltroVentanas {
-  piso: number | '';
-  torre: string;
+  pisoId: string;
+  torreId: string;
 }
 
 interface Props {
   proyectoId: string;
-  cubicacion: Cubicacion;
+  cubicacion: ConfigCubicacion;
+  moneda: string | null;
   tipos: TipoCubicacion[];
   filtro: FiltroVentanas;
   onFiltro: (f: FiltroVentanas) => void;
@@ -75,7 +76,7 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
         {unidad.nomenclatura ? (
           <span className="font-mono font-bold text-xs text-slate-800">{unidad.nomenclatura}</span>
         ) : (
-          <span className="font-mono text-xs text-slate-400" title="Aún sin piso y departamento">
+          <span className="font-mono text-xs text-slate-400" title="Aún sin unidad asignada">
             {unidad.codigo} <Badge size="sm" variant="outline">sin posición</Badge>
           </span>
         )}
@@ -134,7 +135,7 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
 };
 
 // Ventanas fisicas de la cubicacion (por torre / piso / depto) y sus areas comunes.
-export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, tipos, filtro, onFiltro }) => {
+export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, moneda, tipos, filtro, onFiltro }) => {
   const queryClient = useQueryClient();
   const [texto, setTexto] = useState('');
   const [tipoId, setTipoId] = useState('');
@@ -143,7 +144,7 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, ti
   const [modal, setModal] = useState<{ unidad?: UnidadCubicacion } | null>(null);
 
   const ubicaciones = useQuery({ queryKey: ['cubicacionUbicaciones', proyectoId], queryFn: () => getUbicacionesCubicacion(proyectoId) });
-  const filtros = { piso: filtro.piso, torre: filtro.torre, tipoId, q: texto, sinRectificar, estado, limit: 500 };
+  const filtros = { pisoId: filtro.pisoId, torreId: filtro.torreId, tipoId, q: texto, sinRectificar, estado, limit: 500 };
   const { data, isLoading, isError } = useQuery({
     queryKey: ['cubicacionUnidades', proyectoId, filtros],
     queryFn: () => getUnidadesCubicacion(proyectoId, filtros),
@@ -181,19 +182,25 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, ti
             className="w-full pl-9 pr-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-brand-600"
           />
         </div>
-        <select value={filtro.torre} onChange={(e) => onFiltro({ ...filtro, torre: e.target.value })} aria-label="Filtrar por torre" className={selector}>
+        <select value={filtro.torreId} onChange={(e) => onFiltro({ torreId: e.target.value, pisoId: '' })} aria-label="Filtrar por torre" className={selector}>
           <option value="">Todas las torres</option>
-          {(ubicaciones.data?.torres ?? []).map((t) => (
-            <option key={t} value={t}>
-              Torre {t}
+          {(ubicaciones.data ?? []).map((t) => (
+            <option key={t.id} value={t.id}>
+              {textoTorre(t.nombre)}
             </option>
           ))}
         </select>
-        <select value={filtro.piso === '' ? '' : String(filtro.piso)} onChange={(e) => onFiltro({ ...filtro, piso: e.target.value === '' ? '' : Number(e.target.value) })} aria-label="Filtrar por piso" className={selector}>
+        <select
+          value={filtro.pisoId}
+          onChange={(e) => onFiltro({ ...filtro, pisoId: e.target.value })}
+          disabled={!filtro.torreId}
+          aria-label="Filtrar por piso"
+          className={`${selector} disabled:opacity-50 disabled:cursor-not-allowed`}
+        >
           <option value="">Todos los pisos</option>
-          {(ubicaciones.data?.pisos ?? []).map((p) => (
-            <option key={p} value={p}>
-              Piso {p}
+          {(ubicaciones.data?.find((t) => t.id === filtro.torreId)?.pisos ?? []).map((p) => (
+            <option key={p.id} value={p.id}>
+              Piso {p.numero}
             </option>
           ))}
         </select>
@@ -228,7 +235,7 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, ti
         <div className="p-8 text-center rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">No se pudieron cargar las ventanas.</div>
       ) : unidades.length === 0 ? (
         <div className="p-10 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">
-          {data?.total === 0 && !texto && !tipoId && filtro.piso === '' && !filtro.torre && !sinRectificar && !estado
+          {data?.total === 0 && !texto && !tipoId && !filtro.pisoId && !filtro.torreId && !sinRectificar && !estado
             ? 'Todavía no hay ventanas. Crea la cubicación desde el presupuesto, sube una planilla o usa "Nueva ventana".'
             : 'Ninguna ventana coincide con los filtros.'}
         </div>
@@ -288,7 +295,7 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, ti
                     <td className="px-3 py-2 font-mono font-bold text-slate-700">{u.codigo}</td>
                     <td className="px-3 py-2 text-slate-600">{u.sistema}</td>
                     <td className="px-3 py-2 text-right font-mono text-slate-600">{u.cantidad}</td>
-                    <td className="px-3 py-2 text-right font-mono text-slate-600">{precios.get(u.tipoId) != null ? formatoMonto((precios.get(u.tipoId) as number) * u.cantidad, cubicacion.moneda) : '—'}</td>
+                    <td className="px-3 py-2 text-right font-mono text-slate-600">{precios.get(u.tipoId) != null ? formatoMonto((precios.get(u.tipoId) as number) * u.cantidad, moneda ?? 'UF') : '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -304,7 +311,10 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, ti
           cubicacion={cubicacion}
           tipos={tipos}
           unidad={modal.unidad}
-          inicial={{ torre: filtro.torre || undefined, piso: filtro.piso }}
+          inicial={{
+            torre: ubicaciones.data?.find((t) => t.id === filtro.torreId)?.nombre,
+            piso: ubicaciones.data?.find((t) => t.id === filtro.torreId)?.pisos.find((p) => p.id === filtro.pisoId)?.numero,
+          }}
           onClose={() => {
             setModal(null);
             queryClient.invalidateQueries({ queryKey: ['cubicacionUbicaciones', proyectoId] });
