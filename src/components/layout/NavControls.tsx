@@ -55,7 +55,6 @@ export const MigasDePan: React.FC<{ seccion: string; titulo: string }> = ({ secc
   const href = useLocationHref();
   const params = new URL(href, window.location.origin).searchParams;
   const proyectoId = params.get('proyecto') || params.get('cotizar');
-  const paso = params.get('paso');
 
   const { data: proyecto } = useQuery({
     queryKey: ['proyectoDetail', proyectoId],
@@ -81,11 +80,6 @@ export const MigasDePan: React.FC<{ seccion: string; titulo: string }> = ({ secc
           <span className="font-bold text-slate-900 truncate" title={proyecto?.obra}>
             {proyecto?.obra || 'Cargando…'}
           </span>
-          {paso && (
-            <span className="ml-1 px-2 py-0.5 rounded-md bg-slate-100 text-[11px] font-semibold text-slate-500 shrink-0">
-              Paso {paso}
-            </span>
-          )}
         </>
       )}
     </nav>
