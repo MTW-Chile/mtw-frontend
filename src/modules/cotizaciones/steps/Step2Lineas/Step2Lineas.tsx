@@ -14,10 +14,8 @@ import { formatNumber } from '../../../../lib/utils';
 import { renderPdf, eliminarLineaManual, espejarVentana, invertirOrdenPanelesVentana } from '../../../../api/client';
 import type { Proyecto, ProyectoVersion, Ventana } from '../../../../types';
 import { VentanaCard } from './VentanaCard';
-import { CorrectorCorrederaModal } from './CorrectorCorrederaModal';
-import { MaterialesLineaModal } from './MaterialesLineaModal';
+import { EditarLineaModal } from './EditarLineaModal';
 import { AgregarLineaManualModal } from './AgregarLineaManualModal';
-import { TravesanosModal } from './TravesanosModal';
 import { guardarCorreccionDibujo } from './correccionDibujo';
 import { buildCatalogoHtml, rasterizarDibujos } from './catalogoPdf';
 
@@ -33,15 +31,13 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'linea' | 'modelo' | 'unidades' | 'superficie'>('linea');
-  const [selectedVentanaIdForMaterials, setSelectedVentanaIdForMaterials] = useState<string | null>(null);
-  const [selectedVentanaForCorrector, setSelectedVentanaForCorrector] = useState<Ventana | null>(null);
+  const [selectedVentanaIdForEdicion, setSelectedVentanaIdForEdicion] = useState<string | null>(null);
   const [ventanasOverrides, setVentanasOverrides] = useState<Record<string, Ventana>>({});
   const [showAgregarLinea, setShowAgregarLinea] = useState(false);
   const [eliminandoLineaId, setEliminandoLineaId] = useState<string | null>(null);
   const [espejandoLineaId, setEspejandoLineaId] = useState<string | null>(null);
   const [invirtiendoOrdenLineaId, setInvirtiendoOrdenLineaId] = useState<string | null>(null);
   const [invirtiendoManoLineaId, setInvirtiendoManoLineaId] = useState<string | null>(null);
-  const [selectedVentanaForTravesanos, setSelectedVentanaForTravesanos] = useState<Ventana | null>(null);
 
   const ventanas = useMemo<Ventana[]>(() => {
     const list = activeVersion?.ventanas || [];
@@ -52,9 +48,9 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
   // aplicados) en vez de guardar una copia propia: así, cuando el modal edita
   // sus materiales, el override que actualiza este mismo estado alcanza al
   // modal sin necesidad de sincronizar dos copias a mano.
-  const selectedVentanaForMaterials = useMemo(
-    () => ventanas.find((v) => v.id === selectedVentanaIdForMaterials) || null,
-    [ventanas, selectedVentanaIdForMaterials]
+  const selectedVentanaForEdicion = useMemo(
+    () => ventanas.find((v) => v.id === selectedVentanaIdForEdicion) || null,
+    [ventanas, selectedVentanaIdForEdicion]
   );
 
   const handleVentanaMaterialesUpdated = (updated: Ventana) => {
@@ -307,57 +303,27 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
             <VentanaCard
               key={v.id}
               ventana={v}
-              onOpenMaterials={(ventana) => setSelectedVentanaIdForMaterials(ventana.id)}
-              onEditCorredera={(ventana) => setSelectedVentanaForCorrector(ventana)}
+              onEditar={(ventana) => setSelectedVentanaIdForEdicion(ventana.id)}
               onDeleteLineaManual={handleEliminarLineaManual}
               isDeletingLineaManual={eliminandoLineaId === v.id}
-              onEspejar={handleEspejarVentana}
-              isEspejando={espejandoLineaId === v.id}
-              onInvertirOrden={handleInvertirOrdenVentana}
-              isInvirtiendoOrden={invirtiendoOrdenLineaId === v.id}
-              onEditTravesanos={(ventana) => setSelectedVentanaForTravesanos(ventana)}
-              onInvertirMano={handleInvertirManoVentana}
-              isInvirtiendoMano={invirtiendoManoLineaId === v.id}
             />
           ))}
         </div>
       )}
 
-      {/* Modal: Revisión de Materiales Individual de la Ventana */}
-      {selectedVentanaForMaterials && (
-        <MaterialesLineaModal
-          key={selectedVentanaForMaterials.id}
-          ventana={selectedVentanaForMaterials}
-          isOpen={Boolean(selectedVentanaForMaterials)}
-          onClose={() => setSelectedVentanaIdForMaterials(null)}
+      {/* Modal: Editar Línea (dibujo en vivo + materiales) */}
+      {selectedVentanaForEdicion && (
+        <EditarLineaModal
+          key={selectedVentanaForEdicion.id}
+          ventana={selectedVentanaForEdicion}
+          onClose={() => setSelectedVentanaIdForEdicion(null)}
           onUpdated={handleVentanaMaterialesUpdated}
-        />
-      )}
-
-      {/* Modal: Corrector Interactivo de Correderas */}
-      {selectedVentanaForCorrector && (
-        <CorrectorCorrederaModal
-          key={selectedVentanaForCorrector.id}
-          ventana={selectedVentanaForCorrector}
-          isOpen={Boolean(selectedVentanaForCorrector)}
-          onClose={() => setSelectedVentanaForCorrector(null)}
-          onSaved={(updated) => {
-            setVentanasOverrides((prev) => ({ ...prev, [updated.id]: updated }));
-            if (proyecto?.id) {
-              queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyecto.id] });
-            }
-            setSelectedVentanaForCorrector(null);
-          }}
-        />
-      )}
-
-      {/* Modal: Travesaños manuales */}
-      {selectedVentanaForTravesanos && (
-        <TravesanosModal
-          key={selectedVentanaForTravesanos.id}
-          ventana={selectedVentanaForTravesanos}
-          onClose={() => setSelectedVentanaForTravesanos(null)}
-          onSaved={handleVentanaMaterialesUpdated}
+          onEspejar={handleEspejarVentana}
+          isEspejando={espejandoLineaId === selectedVentanaForEdicion.id}
+          onInvertirMano={handleInvertirManoVentana}
+          isInvirtiendoMano={invirtiendoManoLineaId === selectedVentanaForEdicion.id}
+          onInvertirOrden={handleInvertirOrdenVentana}
+          isInvirtiendoOrden={invirtiendoOrdenLineaId === selectedVentanaForEdicion.id}
         />
       )}
 

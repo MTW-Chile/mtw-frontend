@@ -1,14 +1,14 @@
-import React, { useMemo, useState } from 'react';
-import { X, Plus, Trash2, Check, Loader2, Rows3 } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Plus, Trash2, Check, Loader2 } from 'lucide-react';
 import type { Ventana, CorreccionTravesano } from '../../../../types';
-import { WindowRendererSvg } from '../../components/drawing/WindowRendererSvg';
 import { toWindowLine } from '../../components/drawing/ventanaAdapter';
 import * as core from '../../components/drawing/geometryCore';
-import { correccionConCambios, guardarCorreccionDibujo } from './correccionDibujo';
+import { guardarCorreccionDibujo } from './correccionDibujo';
 
-interface TravesanosModalProps {
+interface TravesanosEditorProps {
   ventana: Ventana;
-  onClose: () => void;
+  /** Travesaños válidos del borrador (null si no difieren de lo guardado): el modal los aplica al dibujo en vivo. */
+  onDraftChange: (draft: CorreccionTravesano[] | null) => void;
   onSaved: (updated: Ventana) => void;
 }
 
@@ -19,7 +19,8 @@ interface PanoOpcion {
   alto: number;
 }
 
-export const TravesanosModal: React.FC<TravesanosModalProps> = ({ ventana, onClose, onSaved }) => {
+/** Travesaños manuales (los que HETMO no comunica), embebido en EditarLineaModal. */
+export const TravesanosEditor: React.FC<TravesanosEditorProps> = ({ ventana, onDraftChange, onSaved }) => {
   const [draft, setDraft] = useState<CorreccionTravesano[]>(
     () => (ventana.correccionGeometria?.travesanos ?? []).map((t) => ({ ...t }))
   );
@@ -65,21 +66,18 @@ export const TravesanosModal: React.FC<TravesanosModalProps> = ({ ventana, onClo
   const update = (i: number, patch: Partial<CorreccionTravesano>) =>
     setDraft((prev) => prev.map((t, idx) => (idx === i ? { ...t, ...patch } : t)));
 
-  const preview = useMemo<Ventana>(
-    () => ({
-      ...ventana,
-      correccionGeometria: correccionConCambios(ventana, { travesanos: draft.filter((t) => !errorDe(t)) }) ?? undefined,
-    }),
+  const guardados = useMemo(() => JSON.stringify(ventana.correccionGeometria?.travesanos ?? []), [ventana.correccionGeometria?.travesanos]);
+  const dirty = JSON.stringify(draft) !== guardados;
+  useEffect(() => {
+    onDraftChange(dirty ? draft.filter((t) => !errorDe(t)) : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ventana, draft]
-  );
+  }, [dirty, draft, onDraftChange]);
 
   const handleSave = async () => {
     setIsSaving(true);
     setError(null);
     try {
       onSaved(await guardarCorreccionDibujo(ventana, { travesanos: draft }));
-      onClose();
     } catch (err: any) {
       setError(err?.response?.data?.error || err.message || 'Error al conectar con la API.');
     } finally {
@@ -88,29 +86,7 @@ export const TravesanosModal: React.FC<TravesanosModalProps> = ({ ventana, onClo
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60">
-      <div className="w-full max-w-4xl max-h-[92vh] rounded-3xl bg-white shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-100 text-brand-600 border border-brand-200 flex items-center justify-center">
-              <Rows3 className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-black text-slate-900">Travesaños · {ventana.modelo}</h3>
-              <p className="text-xs text-slate-500">Agrega los que HETMO no comunica. Los que HETMO ya trae no se duplican.</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 cursor-pointer" aria-label="Cerrar">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto grid md:grid-cols-2 gap-6 p-6">
-          <div className="bg-[#f8fafc] rounded-2xl border border-slate-100 p-4 flex items-center justify-center min-h-[240px]">
-            <WindowRendererSvg ventana={preview} className="w-full h-64" />
-          </div>
-
-          <div className="space-y-3">
+    <div className="space-y-3">
             {draft.length === 0 && (
               <p className="text-sm text-slate-500">Sin travesaños manuales. Agrega uno con el botón de abajo.</p>
             )}
@@ -170,23 +146,16 @@ export const TravesanosModal: React.FC<TravesanosModalProps> = ({ ventana, onClo
             {!permiteVerticalSinPano && (
               <p className="text-[11px] text-slate-400">El travesaño vertical solo está disponible en ventanas fijas o compuestas.</p>
             )}
-          </div>
-        </div>
-
-        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/80 flex items-center justify-between gap-3">
-          <p className="text-xs text-rose-600 font-medium">{error}</p>
-          <div className="flex gap-2">
-            <button onClick={onClose} className="px-4 py-2 text-xs font-semibold rounded-lg text-slate-600 hover:bg-slate-100 cursor-pointer">Cancelar</button>
-            <button
-              onClick={handleSave}
-              disabled={isSaving || hayErrores}
-              className="px-4 py-2 text-xs font-bold rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
-            >
-              {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-              Guardar
-            </button>
-          </div>
-        </div>
+            <div className="flex items-center justify-between gap-2 pt-1">
+        <p className="text-xs text-rose-600 font-medium">{error}</p>
+        <button
+          onClick={handleSave}
+          disabled={isSaving || hayErrores || !dirty}
+          className="px-4 py-1.5 text-xs font-bold rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer ml-auto"
+        >
+          {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+          Guardar travesaños
+        </button>
       </div>
     </div>
   );
