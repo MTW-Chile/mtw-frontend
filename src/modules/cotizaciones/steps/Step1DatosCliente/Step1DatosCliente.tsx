@@ -48,7 +48,7 @@ export const Step1DatosCliente: React.FC<Step1DatosClienteProps> = ({
   isCrearPending,
 }) => {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 items-start animate-fade-in">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 items-stretch animate-fade-in">
       {/* 1. Contenedor: Versión de HETMO, Número de Presupuesto y Selector de Cliente (50% desktop, responsivo) */}
       <VersionActivaCard
         proyecto={proyecto}
