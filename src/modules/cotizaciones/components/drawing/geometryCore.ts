@@ -1329,6 +1329,52 @@
     return splits;
   }
 
+  // Código de apertura espejo (misma familia, símbolo y cantidad de hojas,
+  // mano contraria): 3<->4, 6<->7, 10<->11, 13<->14, 17<->18, 20<->21,
+  // 26<->27, 57<->58. Se deriva del catálogo en vez de mantener una tabla
+  // paralela. Las correderas quedan fuera: su sentido lo corrige el modal de
+  // hojas (correccionGeometria.hojas), no la mano. Devuelve null si no hay
+  // espejo (fijas, abatible, proyectante, pivotante horizontal...).
+  export function mirroredAperture(code) {
+    const source = apertureCatalog[number(code)];
+    if (!source || !source.hand || source.symbol === 'sliding') return null;
+    const opposite = source.hand === 'left' ? 'right' : 'left';
+    const match = Object.entries(apertureCatalog).find(([, other]) =>
+      other.hand === opposite && other.family === source.family && other.symbol === source.symbol
+      && other.leafCount === source.leafCount);
+    return match ? Number(match[0]) : null;
+  }
+
+  // Travesaños agregados a mano (correccionGeometria.travesanos) para un paño,
+  // en el mismo espacio que panelTraverseLines (0..width, 0..height con y=0 en
+  // la BASE). `panelNumber` null = línea de un solo paño. Se omiten los que
+  // HETMO ya dibuja (mismo eje y a <=3mm) para no duplicarlos, y los que caen
+  // fuera del paño.
+  export function manualTraverseLines(line, panelNumber, width, height, existing) {
+    const correction = line && (line.correccionGeometria || line.correccion_geometria);
+    const list = correction && Array.isArray(correction.travesanos) ? correction.travesanos : [];
+    const w = firstPositive(width), h = firstPositive(height);
+    if (!list.length || !(w > 0) || !(h > 0)) return [];
+    const already = Array.isArray(existing) ? existing : [];
+    const lines = [];
+    list.forEach(item => {
+      const target = item && item.panel != null ? Number(item.panel) : null;
+      if (panelNumber == null ? target != null : target !== Number(panelNumber)) return;
+      const cota = number(item && item.cota);
+      if (item.eje === 'vertical') {
+        if (!(cota > 0 && cota < w)) return;
+        if (already.some(l => l.x1 === l.x2 && Math.abs(l.x1 - cota) <= 3)) return;
+        lines.push({ x1: cota, y1: 0, x2: cota, y2: h });
+      } else {
+        if (!(cota > 0 && cota < h)) return;
+        const y = h - cota;
+        if (already.some(l => l.y1 === l.y2 && Math.abs(l.y1 - y) <= 3)) return;
+        lines.push({ x1: 0, y1: y, x2: w, y2: y });
+      }
+    });
+    return lines;
+  }
+
   // Hojas exactas dentro de un paño compuesto (mismo criterio que
   // exactLeavesFor, pero acotado a la geometría propia de ese paño).
   export function exactPanelLeaves(panel, layoutLength) {

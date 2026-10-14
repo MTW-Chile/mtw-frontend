@@ -438,7 +438,11 @@ function buildCompositePanel(
       const ty = py + paneInset;
       const tw = Math.max(1, pw - paneInset * 2);
       const th = Math.max(1, ph - paneInset * 2);
-      const traverses = (core.panelTraverseLines(panel) as TraverseLine[])
+      const hetmoTraverses = core.panelTraverseLines(panel) as TraverseLine[];
+      const traverses = [
+        ...hetmoTraverses,
+        ...(core.manualTraverseLines(line, panel.number, panel.width, panel.height, hetmoTraverses) as TraverseLine[]),
+      ]
         .map((item: TraverseLine) => {
           const x1 = tx + tw * item.x1 / Math.max(1, panel.width);
           const y1 = ty + th * (1 - item.y1 / Math.max(1, panel.height));
@@ -589,6 +593,13 @@ function buildSimpleWindow(
     width,
     height,
   }) as TraverseLine[];
+  // Travesaños manuales (correccionGeometria.travesanos) de la línea de un
+  // solo paño. Los horizontales se dibujan por hoja igual que los de HETMO;
+  // los verticales solo tienen sentido en un paño fijo (ver verticalDivisions):
+  // repartirlos por hoja los repetiría dentro de cada una.
+  const manualLines = core.manualTraverseLines(line, null, width, height, traverseLines) as TraverseLine[];
+  traverseLines.push(...manualLines.filter(item => item.y1 === item.y2));
+  const manualVerticals = manualLines.filter(item => item.x1 === item.x2).map(item => item.x1);
   const traversesIn = (bx: number, by: number, bw: number, bh: number) => traverseLines
     .map((item: TraverseLine) => transomMarkup(
       bx + bw * item.x1 / Math.max(1, width),
@@ -606,6 +617,7 @@ function buildSimpleWindow(
     width,
     height,
   }) as number[];
+  verticalDivisions.push(...manualVerticals.filter(cota => !verticalDivisions.some(v => Math.abs(v - cota) <= 3)));
   const verticalDividersIn = (bx: number, by: number, bw: number, bh: number) => verticalDivisions
     .map((cota: number) => transomMarkup(
       bx + bw * cota / Math.max(1, width),

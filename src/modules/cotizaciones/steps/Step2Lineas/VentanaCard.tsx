@@ -11,7 +11,9 @@ import {
   Trash2,
   Loader2,
   FlipHorizontal2,
-  ArrowUpDown
+  ArrowUpDown,
+  Rows3,
+  FlipHorizontal
 } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
 import type { Ventana } from '../../../../types';
@@ -31,6 +33,9 @@ interface VentanaCardProps {
   isEspejando?: boolean;
   onInvertirOrden?: (ventana: Ventana) => void;
   isInvirtiendoOrden?: boolean;
+  onEditTravesanos?: (ventana: Ventana) => void;
+  onInvertirMano?: (ventana: Ventana) => void;
+  isInvirtiendoMano?: boolean;
 }
 
 export const VentanaCard: React.FC<VentanaCardProps> = ({
@@ -43,6 +48,9 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
   isEspejando,
   onInvertirOrden,
   isInvirtiendoOrden,
+  onEditTravesanos,
+  onInvertirMano,
+  isInvirtiendoMano,
 }) => {
   const superficie = ventana.m2Ventana ?? ((ventana.anchoMm * ventana.altoMm) / 1_000_000);
   const esManual = ventana.origen === 'PERSONALIZADO';
@@ -59,6 +67,16 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
     const composite = core.compositePanels(windowLine) as { tiles: unknown[] } | null;
     return Boolean(composite && composite.tiles.length > 1);
   }, [windowLine]);
+  // "Invertir mano" solo aplica si alguna apertura de la línea tiene código
+  // espejo (practicables, puertas, oscilobatientes...). Se mira la apertura
+  // original de HETMO, no la ya invertida, para que el botón siga ahí al
+  // volver atrás.
+  const puedeInvertirMano = useMemo(() => {
+    if (!windowLine || isSliding || esProtex) return false;
+    const base = toWindowLine({ ...ventana, correccionGeometria: null });
+    return Boolean(base && core.sourceComponents(base).some((c: { apertura: number }) => core.mirroredAperture(c.apertura) != null));
+  }, [windowLine, isSliding, esProtex, ventana]);
+  const tieneTravesanosManuales = Boolean(ventana.correccionGeometria?.travesanos?.length);
   // Sin marco (solo DVH) no tiene perfil -> no hay acabado que mostrar.
   const isFrameless = Boolean(windowLine?.dibujoSinMarco);
 
@@ -303,6 +321,39 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
             >
               <Sliders className="w-3 h-3" />
               <span>{ventana.correccionGeometria ? 'Ajustada' : 'Ajustar'}</span>
+            </button>
+          )}
+
+          {/* Travesaños que HETMO no comunica */}
+          {!esProtex && (
+            <button
+              onClick={() => onEditTravesanos?.(ventana)}
+              className={`text-[11px] font-semibold flex items-center gap-1 transition-all px-2 py-0.5 rounded-lg border cursor-pointer ${
+                tieneTravesanosManuales
+                  ? 'bg-brand-600/10 text-brand-600 border-brand-600/30 font-bold'
+                  : 'bg-white text-slate-700 border-slate-200 hover:text-slate-900 hover:bg-slate-100/80 shadow-2xs'
+              }`}
+              title="Agregar travesaños que HETMO no comunica"
+            >
+              <Rows3 className="w-3 h-3" />
+              <span>{tieneTravesanosManuales ? `Travesaños (${ventana.correccionGeometria?.travesanos?.length})` : 'Travesaños'}</span>
+            </button>
+          )}
+
+          {/* Invertir mano de la apertura (puertas / practicables) */}
+          {puedeInvertirMano && (
+            <button
+              onClick={() => onInvertirMano?.(ventana)}
+              disabled={isInvirtiendoMano}
+              className={`text-[11px] font-semibold flex items-center gap-1 transition-all px-2 py-0.5 rounded-lg border cursor-pointer disabled:opacity-50 ${
+                ventana.correccionGeometria?.invertirMano
+                  ? 'bg-brand-600/10 text-brand-600 border-brand-600/30 font-bold'
+                  : 'bg-white text-slate-700 border-slate-200 hover:text-slate-900 hover:bg-slate-100/80 shadow-2xs'
+              }`}
+              title="Invertir la mano de la apertura (bisagras y manilla al lado contrario); no espeja el resto del dibujo"
+            >
+              {isInvirtiendoMano ? <Loader2 className="w-3 h-3 animate-spin" /> : <FlipHorizontal className="w-3 h-3" />}
+              <span>{ventana.correccionGeometria?.invertirMano ? 'Mano invertida' : 'Invertir mano'}</span>
             </button>
           )}
 

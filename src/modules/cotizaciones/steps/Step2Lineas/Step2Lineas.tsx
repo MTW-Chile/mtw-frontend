@@ -17,6 +17,8 @@ import { VentanaCard } from './VentanaCard';
 import { CorrectorCorrederaModal } from './CorrectorCorrederaModal';
 import { MaterialesLineaModal } from './MaterialesLineaModal';
 import { AgregarLineaManualModal } from './AgregarLineaManualModal';
+import { TravesanosModal } from './TravesanosModal';
+import { guardarCorreccionDibujo } from './correccionDibujo';
 import { buildCatalogoHtml, rasterizarDibujos } from './catalogoPdf';
 
 interface Step2LineasProps {
@@ -38,6 +40,8 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
   const [eliminandoLineaId, setEliminandoLineaId] = useState<string | null>(null);
   const [espejandoLineaId, setEspejandoLineaId] = useState<string | null>(null);
   const [invirtiendoOrdenLineaId, setInvirtiendoOrdenLineaId] = useState<string | null>(null);
+  const [invirtiendoManoLineaId, setInvirtiendoManoLineaId] = useState<string | null>(null);
+  const [selectedVentanaForTravesanos, setSelectedVentanaForTravesanos] = useState<Ventana | null>(null);
 
   const ventanas = useMemo<Ventana[]>(() => {
     const list = activeVersion?.ventanas || [];
@@ -96,6 +100,20 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
       window.alert('No se pudo invertir el orden de la ventana. Intenta de nuevo.');
     } finally {
       setInvirtiendoOrdenLineaId(null);
+    }
+  };
+
+  const handleInvertirManoVentana = async (ventana: Ventana) => {
+    setInvirtiendoManoLineaId(ventana.id);
+    try {
+      const updated = await guardarCorreccionDibujo(ventana, {
+        invertirMano: !ventana.correccionGeometria?.invertirMano,
+      });
+      handleVentanaMaterialesUpdated(updated);
+    } catch (err) {
+      window.alert('No se pudo invertir la mano de la apertura. Intenta de nuevo.');
+    } finally {
+      setInvirtiendoManoLineaId(null);
     }
   };
 
@@ -297,6 +315,9 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
               isEspejando={espejandoLineaId === v.id}
               onInvertirOrden={handleInvertirOrdenVentana}
               isInvirtiendoOrden={invirtiendoOrdenLineaId === v.id}
+              onEditTravesanos={(ventana) => setSelectedVentanaForTravesanos(ventana)}
+              onInvertirMano={handleInvertirManoVentana}
+              isInvirtiendoMano={invirtiendoManoLineaId === v.id}
             />
           ))}
         </div>
@@ -327,6 +348,16 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
             }
             setSelectedVentanaForCorrector(null);
           }}
+        />
+      )}
+
+      {/* Modal: Travesaños manuales */}
+      {selectedVentanaForTravesanos && (
+        <TravesanosModal
+          key={selectedVentanaForTravesanos.id}
+          ventana={selectedVentanaForTravesanos}
+          onClose={() => setSelectedVentanaForTravesanos(null)}
+          onSaved={handleVentanaMaterialesUpdated}
         />
       )}
 
