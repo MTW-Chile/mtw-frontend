@@ -1,38 +1,23 @@
-import React, { useState, useMemo } from 'react';
-import {
-  X,
-  RotateCcw,
-  Check,
-  MoveHorizontal,
-  Sliders,
-  Maximize2,
-  Info,
-  Loader2,
-  ArrowLeft,
-  ArrowRight,
-  Minus,
-  EyeOff,
-  Sparkles
-} from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { RotateCcw, Check, MoveHorizontal, Maximize2, Loader2, ArrowLeft, ArrowRight, Minus, EyeOff } from 'lucide-react';
 import type { Ventana, CorreccionGeometria, CorreccionHoja, SentidoMovimientoHoja } from '../../../../types';
-import { WindowRendererSvg } from '../../components/drawing/WindowRendererSvg';
-import { toWindowLine } from '../../components/drawing/ventanaAdapter';
 import * as core from '../../components/drawing/geometryCore';
-import { formatNumber } from '../../../../lib/utils';
 import { updateVentanaCorreccionGeometria, deleteVentanaCorreccionGeometria } from '../../../../api/client';
 
-interface CorrectorCorrederaModalProps {
-  ventana: Ventana;
-  isOpen: boolean;
-  onClose: () => void;
-  onSaved: (updatedVentana: Ventana) => void;
+export interface CorrederaDraft {
+  apertura: number;
+  hojas: CorreccionHoja[];
 }
 
-export const CorrectorCorrederaModal: React.FC<CorrectorCorrederaModalProps> = ({
-  ventana,
-  onClose,
-  onSaved,
-}) => {
+interface CorrederaEditorProps {
+  ventana: Ventana;
+  /** Borrador vigente (null mientras no se haya tocado nada): el modal lo aplica al dibujo en vivo. */
+  onDraftChange: (draft: CorrederaDraft | null) => void;
+  onSaved: (updated: Ventana) => void;
+}
+
+/** Editor de apertura, carriles y sentidos de las hojas de una corredera (embebido en EditarLineaModal). */
+export const CorrederaEditor: React.FC<CorrederaEditorProps> = ({ ventana, onDraftChange, onSaved }) => {
   // Catálogo de aperturas de corredera
   const slidingApertures = useMemo(() => {
     return Object.entries(core.apertureCatalog)
@@ -54,6 +39,7 @@ export const CorrectorCorrederaModal: React.FC<CorrectorCorrederaModalProps> = (
   })();
 
   const [selectedAperture, setSelectedAperture] = useState<number>(initialAperture);
+  const [dirty, setDirty] = useState(false);
 
   /**
    * Inicializa las hojas para una apertura dada leyendo directamente del
@@ -107,12 +93,14 @@ export const CorrectorCorrederaModal: React.FC<CorrectorCorrederaModalProps> = (
 
   // Al cambiar apertura, reinicializar hojas
   const handleApertureChange = (newCode: number) => {
+    setDirty(true);
     setSelectedAperture(newCode);
     setDraftHojas(initializeLeaves(newCode));
   };
 
   // Actualizar una hoja individual
   const updateHoja = (index: number, patch: Partial<CorreccionHoja>) => {
+    setDirty(true);
     setDraftHojas((prev) =>
       prev.map((h, i) => {
         if (i !== index) return h;
@@ -131,28 +119,15 @@ export const CorrectorCorrederaModal: React.FC<CorrectorCorrederaModalProps> = (
   // Repartir anchos equitativamente
   const handleEqualizeWidths = () => {
     if (!draftHojas.length) return;
+    setDirty(true);
     const equalWidth = Math.round(ventana.anchoMm / draftHojas.length);
     setDraftHojas((prev) => prev.map((h) => ({ ...h, ancho: equalWidth })));
   };
 
-  // Ventana provisional para el renderizador SVG en vivo
-  const previewVentana = useMemo<Ventana>(() => {
-    const draftCorrection: CorreccionGeometria = {
-      ...ventana.correccionGeometria,
-      esquema: 2,
-      lineaHetmo: ventana.lineaHetmo,
-      apertura: selectedAperture,
-      hojas: draftHojas,
-    };
-    return {
-      ...ventana,
-      dibujoTipoApertura: selectedAperture,
-      correccionGeometria: draftCorrection,
-    };
-  }, [ventana, selectedAperture, draftHojas]);
 
-  const previewLine = useMemo(() => toWindowLine(previewVentana), [previewVentana]);
-  const previewLabel = previewLine ? core.apertureLabel(previewLine) : 'Corredera';
+  useEffect(() => {
+    onDraftChange(dirty ? { apertura: selectedAperture, hojas: draftHojas } : null);
+  }, [dirty, selectedAperture, draftHojas, onDraftChange]);
 
   // Guardar corrección
   const handleSave = async () => {
@@ -171,7 +146,6 @@ export const CorrectorCorrederaModal: React.FC<CorrectorCorrederaModalProps> = (
       const result = await updateVentanaCorreccionGeometria(ventana.id, payload);
       if (result.success && result.data) {
         onSaved(result.data);
-        onClose();
       } else {
         setErrorMessage('No se pudo guardar la corrección en el servidor.');
       }
@@ -194,7 +168,6 @@ export const CorrectorCorrederaModal: React.FC<CorrectorCorrederaModalProps> = (
       const result = await deleteVentanaCorreccionGeometria(ventana.id);
       if (result.success && result.data) {
         onSaved(result.data);
-        onClose();
       }
     } catch (err: any) {
       console.error('Error restableciendo geometría:', err);
@@ -204,94 +177,11 @@ export const CorrectorCorrederaModal: React.FC<CorrectorCorrederaModalProps> = (
     }
   };
 
-  // El componente sólo existe mientras isOpen=true (el padre lo monta condicionalmente),
-  // por lo que no hace falta el guard isOpen aquí.
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs animate-fade-in">
-      <div className="w-full max-w-5xl max-h-[92vh] rounded-3xl bg-white shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
-        {/* Header del Modal */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-100 text-brand-600 border border-brand-200 flex items-center justify-center shrink-0">
-              <Sliders className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <span>Ajustar Geometría de Corredera:</span>
-                <span className="text-brand-600">{ventana.modelo}</span>
-              </h3>
-              <span className="text-xs text-slate-500 font-mono">
-                Línea #{ventana.lineaHetmo} · {ventana.unidades} uds ({formatNumber(ventana.anchoMm, 0)} × {formatNumber(ventana.altoMm, 0)} mm)
-              </span>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-slate-200/70 transition-colors cursor-pointer"
-            aria-label="Cerrar modal de corrección"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Mensaje de error si ocurre */}
-        {errorMessage && (
-          <div className="mx-6 mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
-            <Info className="w-4 h-4 text-rose-600 shrink-0" />
-            <span>{errorMessage}</span>
-          </div>
-        )}
-
-        {/* Cuerpo del Modal: 2 Columnas */}
-        <div className="overflow-y-auto flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 bg-slate-50/30">
-          {/* COLUMNA IZQUIERDA: Vista previa interactiva en tiempo real */}
-          <div className="lg:col-span-5 space-y-4">
-            <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Vista Previa en Vivo</span>
-                </span>
-                <span className="text-[11px] font-mono text-slate-400">
-                  {formatNumber(ventana.anchoMm, 0)} × {formatNumber(ventana.altoMm, 0)} mm
-                </span>
-              </div>
-
-              {/* Contenedor del dibujo SVG en tiempo real */}
-              <div className="bg-[#f8fafc] rounded-xl p-4 flex items-center justify-center border border-slate-100 min-h-[240px]">
-                <WindowRendererSvg ventana={previewVentana} />
-              </div>
-
-              {/* Resumen dinámico */}
-              <div className="space-y-2 pt-2 border-t border-slate-100 text-xs">
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Apertura Resultante:</span>
-                  <p className="font-bold text-slate-900 text-xs mt-0.5">{previewLabel}</p>
-                </div>
-                <div className="flex items-center justify-between text-slate-600 text-[11px] pt-1">
-                  <span>Hojas configuradas: {draftHojas.length}</span>
-                  <span>Móviles: {draftHojas.filter((h) => h.carril > 0 && h.movimiento !== 'fija' && h.movimiento !== 'oculta').length}</span>
-                  <span>Fijas: {draftHojas.filter((h) => h.carril > 0 && h.movimiento === 'fija').length}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Aviso de integridad de datos */}
-            <div className="p-3.5 rounded-2xl bg-blue-50/70 border border-blue-200 text-blue-950 text-xs space-y-1">
-              <div className="flex items-center gap-1.5 font-bold text-blue-900">
-                <Info className="w-4 h-4 text-blue-600 shrink-0" />
-                <span>Garantía de Presupuesto</span>
-              </div>
-              <p className="text-[11px] text-blue-800 leading-relaxed">
-                Este ajuste modifica únicamente la visualización técnica y el sentido de apertura de las hojas. Las medidas totales, materiales, vidrios y precios netos no se alteran.
-              </p>
-            </div>
-          </div>
-
-          {/* COLUMNA DERECHA: Controles de Apertura y Hojas */}
-          <div className="lg:col-span-7 space-y-5">
-            {/* 1. Selector de Tipo de Apertura */}
+    <div className="space-y-4">
+      {errorMessage && <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs">{errorMessage}</div>}
+      {/* 1. Selector de Tipo de Apertura */}
             <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-2">
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                 1. Tipo de Apertura (Catálogo HETMO)
@@ -459,50 +349,26 @@ export const CorrectorCorrederaModal: React.FC<CorrectorCorrederaModalProps> = (
                 })}
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Footer con Acciones */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/80">
-          <button
-            type="button"
-            onClick={handleRestoreOriginal}
-            disabled={isSaving || !ventana.correccionGeometria}
-            className="text-xs font-bold text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-slate-200/60 transition-colors cursor-pointer"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Restablecer a Original HETMO</span>
-          </button>
-
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSaving}
-              className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-xs transition-colors cursor-pointer"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={isSaving}
-              className="flex-1 sm:flex-initial px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs transition-colors cursor-pointer shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Guardando...</span>
-                </>
-              ) : (
-                <>
-                  <Check className="w-4 h-4" />
-                  <span>Guardar Corrección</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+      <div className="flex items-center justify-between gap-2 pt-1">
+        <button
+          type="button"
+          onClick={handleRestoreOriginal}
+          disabled={isSaving || !ventana.correccionGeometria}
+          className="text-[11px] font-bold text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-200/60 cursor-pointer"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          <span>Restablecer a original HETMO</span>
+        </button>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={isSaving || !dirty}
+          className="px-4 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+          <span>Guardar apertura</span>
+        </button>
       </div>
     </div>
   );

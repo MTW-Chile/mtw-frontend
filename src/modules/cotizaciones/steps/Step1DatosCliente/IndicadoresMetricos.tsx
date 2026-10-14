@@ -3,7 +3,6 @@ import {
   Layers, 
   Ruler, 
   Boxes, 
-  DollarSign, 
   Sparkles, 
   Maximize2, 
   SquareDot, 
@@ -41,8 +40,6 @@ export const IndicadoresMetricos: React.FC<IndicadoresMetricosProps> = ({ active
   }, 0);
 
   const totalMateriales = activeVersion?.totalMateriales || 0;
-  const importeBase = activeVersion?.importeTotal || 0;
-  const moneda = activeVersion?.monedaSimbolo || '$';
 
   const metricas = [
     {
@@ -115,20 +112,10 @@ export const IndicadoresMetricos: React.FC<IndicadoresMetricosProps> = ({ active
       iconColor: 'bg-indigo-50 text-indigo-600 border-indigo-100',
       highlight: false,
     },
-    {
-      id: 'importe',
-      label: 'Importe Base HETMO',
-      sublabel: 'Costo base exportado',
-      value: `${moneda} ${formatNumber(importeBase, 0)}`,
-      unit: '',
-      icon: DollarSign,
-      iconColor: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-      highlight: true,
-    },
   ];
 
   return (
-    <div className="p-4 sm:p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-4 sm:space-y-5">
+    <div className="p-4 sm:p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex flex-col gap-4 sm:gap-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 pb-3.5 border-b border-slate-100">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-brand-600/10 text-brand-600 border border-brand-600/20 flex items-center justify-center shrink-0">
@@ -148,7 +135,7 @@ export const IndicadoresMetricos: React.FC<IndicadoresMetricosProps> = ({ active
         </span>
       </div>
 
-      <div className="divide-y divide-slate-100">
+      <div className="flex-1 flex flex-col justify-between divide-y divide-slate-100">
         {metricas.map((m) => {
           const Icon = m.icon;
           return (

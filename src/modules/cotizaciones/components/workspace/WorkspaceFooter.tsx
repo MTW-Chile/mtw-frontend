@@ -1,6 +1,6 @@
 import React from 'react';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
-import type { CotizadorStep } from './WorkspaceStepper';
+import type { CotizadorStep } from './HeaderContexto';
 
 interface WorkspaceFooterProps {
   currentStep: CotizadorStep;

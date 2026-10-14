@@ -7,13 +7,8 @@ import {
   Boxes,
   DoorClosed,
   ChevronDown,
-  Sliders,
   Trash2,
-  Loader2,
-  FlipHorizontal2,
-  ArrowUpDown,
-  Rows3,
-  FlipHorizontal
+  Loader2
 } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
 import type { Ventana } from '../../../../types';
@@ -25,32 +20,16 @@ import * as core from '../../components/drawing/geometryCore';
 
 interface VentanaCardProps {
   ventana: Ventana;
-  onOpenMaterials?: (ventana: Ventana) => void;
-  onEditCorredera?: (ventana: Ventana) => void;
+  onEditar?: (ventana: Ventana) => void;
   onDeleteLineaManual?: (ventana: Ventana) => void;
   isDeletingLineaManual?: boolean;
-  onEspejar?: (ventana: Ventana) => void;
-  isEspejando?: boolean;
-  onInvertirOrden?: (ventana: Ventana) => void;
-  isInvirtiendoOrden?: boolean;
-  onEditTravesanos?: (ventana: Ventana) => void;
-  onInvertirMano?: (ventana: Ventana) => void;
-  isInvirtiendoMano?: boolean;
 }
 
 export const VentanaCard: React.FC<VentanaCardProps> = ({
   ventana,
-  onOpenMaterials,
-  onEditCorredera,
+  onEditar,
   onDeleteLineaManual,
   isDeletingLineaManual,
-  onEspejar,
-  isEspejando,
-  onInvertirOrden,
-  isInvirtiendoOrden,
-  onEditTravesanos,
-  onInvertirMano,
-  isInvirtiendoMano,
 }) => {
   const superficie = ventana.m2Ventana ?? ((ventana.anchoMm * ventana.altoMm) / 1_000_000);
   const esManual = ventana.origen === 'PERSONALIZADO';
@@ -58,25 +37,6 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
 
   // Extraemos el acabado y nombre de la apertura según el motor de HETMO
   const windowLine = useMemo(() => toWindowLine(ventana), [ventana]);
-  const isSliding = useMemo(() => (windowLine ? core.isSlidingLine(windowLine) : false), [windowLine]);
-  // "Invertir orden" solo tiene sentido en una línea compuesta en vertical
-  // (más de un paño apilado, ej. proyectante + fijo) -- en una línea de un
-  // solo paño no hay nada que reordenar.
-  const isComposite = useMemo(() => {
-    if (!windowLine) return false;
-    const composite = core.compositePanels(windowLine) as { tiles: unknown[] } | null;
-    return Boolean(composite && composite.tiles.length > 1);
-  }, [windowLine]);
-  // "Invertir mano" solo aplica si alguna apertura de la línea tiene código
-  // espejo (practicables, puertas, oscilobatientes...). Se mira la apertura
-  // original de HETMO, no la ya invertida, para que el botón siga ahí al
-  // volver atrás.
-  const puedeInvertirMano = useMemo(() => {
-    if (!windowLine || isSliding || esProtex) return false;
-    const base = toWindowLine({ ...ventana, correccionGeometria: null });
-    return Boolean(base && core.sourceComponents(base).some((c: { apertura: number }) => core.mirroredAperture(c.apertura) != null));
-  }, [windowLine, isSliding, esProtex, ventana]);
-  const tieneTravesanosManuales = Boolean(ventana.correccionGeometria?.travesanos?.length);
   // Sin marco (solo DVH) no tiene perfil -> no hay acabado que mostrar.
   const isFrameless = Boolean(windowLine?.dibujoSinMarco);
 
@@ -267,7 +227,7 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
 
       {/* Footer de Tarjeta / Revisión de Materiales y Herramientas Técnicas */}
       <footer className="px-3.5 sm:px-4 py-2.5 bg-slate-50/80 border-t border-slate-100 space-y-2 text-xs">
-        {/* Fila 1: Contador y Botón Ver Materiales */}
+        {/* Fila 1: Contador y Botón Editar Línea */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
             <Boxes className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -283,99 +243,17 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
           </div>
 
           <button
-            onClick={() => onOpenMaterials?.(ventana)}
+            onClick={() => onEditar?.(ventana)}
             className="px-2.5 py-1 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-bold text-[11px] shadow-2xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
-            title="Revisión detallada de materiales de esta línea"
+            title="Editar el dibujo y los materiales de esta línea"
           >
-            <span>Ver Materiales</span>
+            <span>Editar Línea</span>
           </button>
         </div>
 
-        {/* Fila 2: Herramientas Técnicas de Geometría / Ajuste */}
-        <div className="flex items-center gap-1.5 pt-2 border-t border-slate-200/60 flex-wrap">
-          {/* Espejar horizontal */}
-          <button
-            onClick={() => onEspejar?.(ventana)}
-            disabled={isEspejando}
-            className={`text-[11px] font-semibold flex items-center gap-1 transition-all px-2 py-0.5 rounded-lg border cursor-pointer disabled:opacity-50 ${
-              ventana.espejado
-                ? 'bg-brand-600/10 text-brand-600 border-brand-600/30 font-bold'
-                : 'bg-white text-slate-700 border-slate-200 hover:text-slate-900 hover:bg-slate-100/80 shadow-2xs'
-            }`}
-            title="Espejar el dibujo horizontalmente (para ventanas que salen al revés en HETMO)"
-          >
-            {isEspejando ? <Loader2 className="w-3 h-3 animate-spin" /> : <FlipHorizontal2 className="w-3 h-3" />}
-            <span>{ventana.espejado ? 'Espejada' : 'Espejar'}</span>
-          </button>
-
-          {/* Corrección de Correderas */}
-          {isSliding && (
-            <button
-              onClick={() => onEditCorredera?.(ventana)}
-              className={`text-[11px] font-semibold flex items-center gap-1 transition-all px-2 py-0.5 rounded-lg border cursor-pointer ${
-                ventana.correccionGeometria
-                  ? 'bg-brand-600/10 text-brand-600 border-brand-600/30 font-bold'
-                  : 'bg-white text-slate-700 border-slate-200 hover:text-slate-900 hover:bg-slate-100/80 shadow-2xs'
-              }`}
-              title="Ajustar apertura, carriles y sentidos de las hojas de corredera"
-            >
-              <Sliders className="w-3 h-3" />
-              <span>{ventana.correccionGeometria ? 'Ajustada' : 'Ajustar'}</span>
-            </button>
-          )}
-
-          {/* Travesaños que HETMO no comunica */}
-          {!esProtex && (
-            <button
-              onClick={() => onEditTravesanos?.(ventana)}
-              className={`text-[11px] font-semibold flex items-center gap-1 transition-all px-2 py-0.5 rounded-lg border cursor-pointer ${
-                tieneTravesanosManuales
-                  ? 'bg-brand-600/10 text-brand-600 border-brand-600/30 font-bold'
-                  : 'bg-white text-slate-700 border-slate-200 hover:text-slate-900 hover:bg-slate-100/80 shadow-2xs'
-              }`}
-              title="Agregar travesaños que HETMO no comunica"
-            >
-              <Rows3 className="w-3 h-3" />
-              <span>{tieneTravesanosManuales ? `Travesaños (${ventana.correccionGeometria?.travesanos?.length})` : 'Travesaños'}</span>
-            </button>
-          )}
-
-          {/* Invertir mano de la apertura (puertas / practicables) */}
-          {puedeInvertirMano && (
-            <button
-              onClick={() => onInvertirMano?.(ventana)}
-              disabled={isInvirtiendoMano}
-              className={`text-[11px] font-semibold flex items-center gap-1 transition-all px-2 py-0.5 rounded-lg border cursor-pointer disabled:opacity-50 ${
-                ventana.correccionGeometria?.invertirMano
-                  ? 'bg-brand-600/10 text-brand-600 border-brand-600/30 font-bold'
-                  : 'bg-white text-slate-700 border-slate-200 hover:text-slate-900 hover:bg-slate-100/80 shadow-2xs'
-              }`}
-              title="Invertir la mano de la apertura (bisagras y manilla al lado contrario); no espeja el resto del dibujo"
-            >
-              {isInvirtiendoMano ? <Loader2 className="w-3 h-3 animate-spin" /> : <FlipHorizontal className="w-3 h-3" />}
-              <span>{ventana.correccionGeometria?.invertirMano ? 'Mano invertida' : 'Invertir mano'}</span>
-            </button>
-          )}
-
-          {/* Invertir orden en Compuestas */}
-          {isComposite && (
-            <button
-              onClick={() => onInvertirOrden?.(ventana)}
-              disabled={isInvirtiendoOrden}
-              className={`text-[11px] font-semibold flex items-center gap-1 transition-all px-2 py-0.5 rounded-lg border cursor-pointer disabled:opacity-50 ${
-                ventana.ordenPanelesInvertido
-                  ? 'bg-brand-600/10 text-brand-600 border-brand-600/30 font-bold'
-                  : 'bg-white text-slate-700 border-slate-200 hover:text-slate-900 hover:bg-slate-100/80 shadow-2xs'
-              }`}
-              title="Invertir qué paño va arriba y cuál abajo en el dibujo"
-            >
-              {isInvirtiendoOrden ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowUpDown className="w-3 h-3" />}
-              <span>{ventana.ordenPanelesInvertido ? 'Invertido' : 'Invertir'}</span>
-            </button>
-          )}
-
-          {/* Quitar Línea Manual */}
-          {esManual && (
+        {/* Quitar Línea Manual */}
+        {esManual && (
+          <div className="flex items-center pt-2 border-t border-slate-200/60">
             <button
               onClick={() => onDeleteLineaManual?.(ventana)}
               disabled={isDeletingLineaManual}
@@ -385,8 +263,8 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
               {isDeletingLineaManual ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
               <span>Quitar</span>
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </footer>
     </article>
   );
