@@ -138,7 +138,8 @@ export const CorrectorCorrederaModal: React.FC<CorrectorCorrederaModalProps> = (
   // Ventana provisional para el renderizador SVG en vivo
   const previewVentana = useMemo<Ventana>(() => {
     const draftCorrection: CorreccionGeometria = {
-      esquema: 1,
+      ...ventana.correccionGeometria,
+      esquema: 2,
       lineaHetmo: ventana.lineaHetmo,
       apertura: selectedAperture,
       hojas: draftHojas,
@@ -158,8 +159,10 @@ export const CorrectorCorrederaModal: React.FC<CorrectorCorrederaModalProps> = (
     setIsSaving(true);
     setErrorMessage(null);
     try {
+      // Conserva travesaños manuales / mano invertida ya guardados.
       const payload: CorreccionGeometria = {
-        esquema: 1,
+        ...ventana.correccionGeometria,
+        esquema: 2,
         lineaHetmo: ventana.lineaHetmo,
         apertura: selectedAperture,
         hojas: draftHojas,
