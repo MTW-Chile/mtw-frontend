@@ -1,14 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Download, FileSpreadsheet, Loader2, RefreshCw, Ruler, Settings2, Upload, X } from 'lucide-react';
-import {
-  crearCubicacion,
-  descargarInformeCubicacion,
-  descargarPlantillaCubicacion,
-  getCubicacion,
-  importarPlanillaCubicacion,
-  sincronizarCubicacion,
-} from '../../../api/client';
+import { descargarInformeCubicacion, descargarPlantillaCubicacion, getCubicacion, importarPlanillaCubicacion, sincronizarCubicacion } from '../../../api/client';
 import { SubTabs } from '../../../components/ui/PageHeader';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
@@ -38,10 +31,10 @@ const Dato: React.FC<{ titulo: string; valor: React.ReactNode; detalle?: React.R
 
 const Resumen: React.FC<{ r: ResumenCubicacion }> = ({ r }) => (
   <div className="grid grid-cols-2 lg:grid-cols-4 gap-2" data-testid="resumen-cubicacion">
-    <Dato titulo="Ventanas con posición" valor={`${r.posicionadas} de ${r.ventanas}`} detalle={r.sinPosicion > 0 ? `${r.sinPosicion} sin piso ni depto` : 'todas tienen su lugar'} />
+    <Dato titulo="Ventanas con posición" valor={`${r.posicionadas} de ${r.ventanas}`} detalle={r.sinPosicion > 0 ? `${r.sinPosicion} sin unidad asignada` : 'todas tienen su lugar'} />
     <Dato titulo="Rectificadas" valor={r.rectificadas} detalle={r.ventanas ? `${Math.round((r.rectificadas / r.ventanas) * 100)} % de las ventanas` : '—'} />
     <Dato titulo="Superficie" valor={`${r.m2.toLocaleString('es-CL', { maximumFractionDigits: 1 })} m²`} detalle="fabricación si ya se rectificó; si no, plano" />
-    <Dato titulo="Contratado" valor={formatoMonto(r.precio.contratado, r.moneda)} detalle={`Saldo por posicionar ${formatoMonto(r.precio.saldo, r.moneda)}`} />
+    <Dato titulo="Contratado" valor={formatoMonto(r.precio.contratado, r.moneda ?? 'UF')} detalle={`Saldo por posicionar ${formatoMonto(r.precio.saldo, r.moneda ?? 'UF')}`} />
   </div>
 );
 
@@ -54,21 +47,22 @@ const panelDeImportacion = (r: ReporteImportacionCubicacion): ResultadoPanel => 
 });
 const panelDeSincronizacion = (r: ReporteSincronizacionCubicacion, titulo: string): ResultadoPanel => ({ titulo, lineas: [lineaReporteSincronizacion(r)], advertencias: r.avisos });
 
-// Cubicacion de la obra: paso previo y OPCIONAL de las fases. TODO lo que ya sabemos (el presupuesto de HETMO: codigo,
-// sistema, medidas, cantidades y precios) se lee solo; la persona completa lo que falta -- donde va cada ventana y su
-// rasgo medido en obra -- en pantalla o en una planilla Excel que descarga, llena y vuelve a subir. Sin cubicacion, las
-// fases se crean con el modal de siempre.
+// Cubicacion de la obra: paso previo y OPCIONAL de las fases. Toda obra tiene cubicador implicito (no hay
+// paso de "crear"). TODO lo que ya sabemos (el presupuesto de HETMO: codigo, sistema, medidas, cantidades y
+// precios) se lee solo; la persona completa lo que falta -- donde va cada ventana y su rasgo medido en obra --
+// en pantalla o en una planilla Excel que descarga, llena y vuelve a subir. Sin cubicacion, las fases se crean
+// con el modal de siempre.
 export const CubicacionTab: React.FC<Props> = ({ proyecto }) => {
   const queryClient = useQueryClient();
   const entrada = useRef<HTMLInputElement>(null);
   const [vista, setVista] = useState<'estructura' | 'ventanas' | 'tipos'>('estructura');
   const [config, setConfig] = useState(false);
-  const [filtro, setFiltro] = useState<FiltroVentanas>({ piso: '', torre: '' });
+  const [filtro, setFiltro] = useState<FiltroVentanas>({ pisoId: '', torreId: '' });
   const [panel, setPanel] = useState<ResultadoPanel | null>(null);
 
   const { data, isLoading, isError } = useQuery({ queryKey: ['cubicacion', proyecto.id], queryFn: () => getCubicacion(proyecto.id) });
-  const cubicacion = data?.cubicacion ?? null;
-  const resumen = data?.resumen ?? null;
+  const cubicacion = data?.cubicacion;
+  const resumen = data?.resumen;
   const presupuesto = data?.presupuesto ?? null;
 
   const refrescar = () => {
@@ -77,18 +71,10 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto }) => {
     queryClient.invalidateQueries({ queryKey: ['cubicacionUbicaciones', proyecto.id] });
   };
 
-  const crear = useMutation({
-    mutationFn: (desdePresupuesto: boolean) => crearCubicacion(proyecto.id, { desdePresupuesto }),
-    onSuccess: (r) => {
-      if (r.reporte) setPanel(panelDeSincronizacion(r.reporte, 'Cubicación creada desde el presupuesto'));
-      refrescar();
-    },
-    onError: aviso,
-  });
   const sincronizar = useMutation({
     mutationFn: () => sincronizarCubicacion(proyecto.id),
     onSuccess: (r) => {
-      setPanel(panelDeSincronizacion(r.reporte, 'Presupuesto leído de nuevo'));
+      setPanel(panelDeSincronizacion(r.reporte, resumen && resumen.tipos > 0 ? 'Presupuesto leído de nuevo' : 'Cubicación completada desde el presupuesto'));
       refrescar();
     },
     onError: aviso,
@@ -107,7 +93,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto }) => {
     onError: aviso,
   });
   const informe = useMutation({
-    mutationFn: (soloRectificadas: boolean) => descargarInformeCubicacion(proyecto.id, { piso: filtro.piso, torre: filtro.torre, soloRectificadas }),
+    mutationFn: (soloRectificadas: boolean) => descargarInformeCubicacion(proyecto.id, { torreId: filtro.torreId, pisoId: filtro.pisoId, soloRectificadas }),
     onSuccess: (blob) => descargarBlob(blob, `Cubicación ${proyecto.obra}.xlsx`),
     onError: aviso,
   });
@@ -134,7 +120,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto }) => {
       </div>
     );
   }
-  if (isError) {
+  if (isError || !cubicacion || !resumen) {
     return <div className="p-8 text-center rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">No se pudo cargar la cubicación. Intenta de nuevo en unos minutos.</div>;
   }
 
@@ -149,7 +135,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto }) => {
             cada ventana y su rasgo medido en obra. Sin cubicación, las fases se crean con el modal de siempre.
           </p>
         </div>
-        {cubicacion && (
+        {resumen.tipos > 0 && (
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="primary" size="sm" leftIcon={<Download className="w-3.5 h-3.5" />} isLoading={plantilla.isPending} onClick={() => plantilla.mutate()} title="Excel con una fila por ventana y lo que el sistema ya sabe, para completar piso, depto y rasgo">
               Descargar planilla para completar
@@ -187,10 +173,10 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto }) => {
         </div>
       )}
 
-      {!cubicacion || !resumen ? (
+      {resumen.tipos === 0 ? (
         <div className="p-8 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs space-y-3">
           <Ruler className="w-6 h-6 text-slate-300 mx-auto" />
-          <p className="font-bold text-slate-700">Esta obra aún no tiene cubicación.</p>
+          <p className="font-bold text-slate-700">Esta obra aún no tiene tipos de ventana cargados.</p>
           {presupuesto ? (
             <>
               <p className="max-w-xl mx-auto" data-testid="presupuesto-disponible">
@@ -198,18 +184,14 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto }) => {
                 (áreas comunes){presupuesto.moneda ? `, en ${presupuesto.moneda}` : ''}. Se leen solas: después solo falta indicar dónde va cada ventana y medir el rasgo.
               </p>
               <div className="flex flex-wrap items-center justify-center gap-2">
-                <Button variant="primary" size="sm" leftIcon={<RefreshCw className="w-3.5 h-3.5" />} isLoading={crear.isPending} onClick={() => crear.mutate(true)}>
-                  Crear cubicación desde el presupuesto
+                <Button variant="primary" size="sm" leftIcon={<RefreshCw className="w-3.5 h-3.5" />} isLoading={sincronizar.isPending} onClick={() => sincronizar.mutate()}>
+                  Completar desde el presupuesto
                 </Button>
               </div>
               <p className="text-[11px] text-slate-400">
                 ¿Ya tienes una planilla de cubicación (la de siempre)?{' '}
                 <button type="button" className="text-brand-700 hover:underline cursor-pointer" onClick={() => entrada.current?.click()}>
                   Súbela
-                </button>{' '}
-                o{' '}
-                <button type="button" className="text-brand-700 hover:underline cursor-pointer" onClick={() => crear.mutate(false)}>
-                  crea la cubicación vacía
                 </button>
                 .
               </p>
@@ -217,14 +199,14 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto }) => {
           ) : (
             <>
               <p className="max-w-lg mx-auto">
-                Esta obra no tiene líneas de ventana en un presupuesto de HETMO, así que no hay nada que leer solo. Crea la cubicación vacía y agrega las ventanas, o sube una planilla de cubicación.
+                Esta obra no tiene líneas de ventana en un presupuesto de HETMO, así que no hay nada que leer solo. Sube una planilla de cubicación o agrega un tipo a mano en la pestaña Tipos.
               </p>
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <Button variant="outline" size="sm" leftIcon={<FileSpreadsheet className="w-3.5 h-3.5" />} isLoading={subir.isPending} onClick={() => entrada.current?.click()}>
                   Subir planilla (.xlsx)
                 </Button>
-                <Button variant="outline" size="sm" isLoading={crear.isPending} onClick={() => crear.mutate(false)}>
-                  Crear cubicación vacía
+                <Button variant="outline" size="sm" onClick={() => setVista('tipos')}>
+                  Ir a Tipos
                 </Button>
               </div>
             </>
@@ -251,9 +233,9 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto }) => {
           {vista === 'estructura' ? (
             <EstructuraVisual proyectoId={proyecto.id} cubicacion={cubicacion} tipos={resumen.porTipo} />
           ) : vista === 'ventanas' ? (
-            <VentanasCubicacion proyectoId={proyecto.id} cubicacion={cubicacion} tipos={resumen.porTipo} filtro={filtro} onFiltro={setFiltro} />
+            <VentanasCubicacion proyectoId={proyecto.id} cubicacion={cubicacion} moneda={resumen.moneda} tipos={resumen.porTipo} filtro={filtro} onFiltro={setFiltro} />
           ) : (
-            <TiposCubicacion proyectoId={proyecto.id} moneda={cubicacion.moneda} tipos={resumen.porTipo} />
+            <TiposCubicacion proyectoId={proyecto.id} moneda={resumen.moneda ?? 'UF'} tipos={resumen.porTipo} />
           )}
           <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 border-t border-slate-100 pt-3">
             <span className="mr-2">
@@ -277,7 +259,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto }) => {
         </>
       )}
 
-      {config && cubicacion && <ConfigCubicacionModal proyectoId={proyecto.id} cubicacion={cubicacion} onClose={() => setConfig(false)} />}
+      {config && <ConfigCubicacionModal proyectoId={proyecto.id} cubicacion={cubicacion} onClose={() => setConfig(false)} />}
     </div>
   );
 };

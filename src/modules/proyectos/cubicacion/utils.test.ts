@@ -2,29 +2,29 @@ import { describe, it, expect } from 'vitest';
 import { FORMATO_NOMENCLATURA_DEFECTO, estadoSaldo, formatoMonto, generarNomenclatura, leerEntero, leerTorres, lineaReporteSincronizacion, lineasReporteImportacion, mensajeAsignacion, mensajeCopiaPiso, mmATexto, rangoPisos, textoTorre, validarFormato } from './utils';
 
 describe('generarNomenclatura', () => {
-  it('el código original va primero: V01, piso 1, depto 1, torre A -> V01_101A', () => {
-    expect(generarNomenclatura(FORMATO_NOMENCLATURA_DEFECTO, { codigo: 'V01', torre: 'A', piso: 1, dpto: 1 })).toBe('V01_101A');
+  it('el código original va primero: V01, unidad "101", torre A -> V01_101A', () => {
+    expect(generarNomenclatura(FORMATO_NOMENCLATURA_DEFECTO, { codigo: 'V01', torre: 'A', nombreUnidad: '101' })).toBe('V01_101A');
   });
-  it('piso de dos cifras, torre en minúscula y sin torre', () => {
-    expect(generarNomenclatura(FORMATO_NOMENCLATURA_DEFECTO, { codigo: 'PV01', torre: 'b', piso: 12, dpto: 3 })).toBe('PV01_1203B');
-    expect(generarNomenclatura(FORMATO_NOMENCLATURA_DEFECTO, { codigo: 'V02', torre: null, piso: 3, dpto: 10 })).toBe('V02_310');
+  it('torre en minúscula y sin torre', () => {
+    expect(generarNomenclatura(FORMATO_NOMENCLATURA_DEFECTO, { codigo: 'PV01', torre: 'b', nombreUnidad: '1203' })).toBe('PV01_1203B');
+    expect(generarNomenclatura(FORMATO_NOMENCLATURA_DEFECTO, { codigo: 'V02', torre: null, nombreUnidad: '310' })).toBe('V02_310');
   });
-  it('sin piso o departamento no hay nomenclatura final', () => {
-    expect(generarNomenclatura(FORMATO_NOMENCLATURA_DEFECTO, { codigo: 'V02', piso: 3 })).toBeNull();
+  it('sin unidad no hay nomenclatura final', () => {
+    expect(generarNomenclatura(FORMATO_NOMENCLATURA_DEFECTO, { codigo: 'V02' })).toBeNull();
   });
 });
 
 describe('validarFormato', () => {
   it('acepta el formato por defecto y variantes', () => {
     expect(validarFormato(FORMATO_NOMENCLATURA_DEFECTO)).toBeNull();
-    expect(validarFormato('{codigo}-{torre}{piso}{dpto}')).toBeNull();
+    expect(validarFormato('{codigo}-{torre}{nombreUnidad}')).toBeNull();
   });
   it('rechaza lo que el servidor rechaza', () => {
     expect(validarFormato('')).toMatch(/vacío/);
-    expect(validarFormato('{piso}{dpto}_{codigo}')).toMatch(/empezar con \{codigo\}/);
-    expect(validarFormato('{codigo}_{foo}{piso}')).toMatch(/desconocida/);
-    expect(validarFormato('{codigo}_{torre}')).toMatch(/\{piso\} o \{dpto\}/);
-    expect(validarFormato('{codigo}/{piso}')).toMatch(/no permitidos/);
+    expect(validarFormato('{nombreUnidad}_{codigo}')).toMatch(/empezar con \{codigo\}/);
+    expect(validarFormato('{codigo}_{foo}{nombreUnidad}')).toMatch(/desconocida/);
+    expect(validarFormato('{codigo}_{torre}')).toMatch(/\{nombreUnidad\}/);
+    expect(validarFormato('{codigo}/{nombreUnidad}')).toMatch(/no permitidos/);
   });
 });
 

@@ -7,6 +7,7 @@ import {
   crearDeptosCubicacion,
   crearPisosCubicacion,
   crearTorreCubicacion,
+  crearUnidadEspecialCubicacion,
   renombrarTorreCubicacion,
 } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
@@ -148,10 +149,10 @@ export const TorreModal: React.FC<Base> = ({ proyectoId, onClose, onHecho }) => 
   );
 };
 
-export const RenombrarTorreModal: React.FC<Base & { torre: string }> = ({ proyectoId, torre, onClose, onHecho }) => {
+export const RenombrarTorreModal: React.FC<Base & { torreId: string; nombreActual: string }> = ({ proyectoId, torreId, nombreActual, onClose, onHecho }) => {
   const [nombre, setNombre] = useState('');
   const renombrar = useMutation({
-    mutationFn: () => renombrarTorreCubicacion(proyectoId, { de: torre, a: nombre.trim().toUpperCase() }),
+    mutationFn: () => renombrarTorreCubicacion(proyectoId, { torreId, nombre: nombre.trim().toUpperCase() }),
     onSuccess: () => {
       onHecho();
       onClose();
@@ -160,7 +161,7 @@ export const RenombrarTorreModal: React.FC<Base & { torre: string }> = ({ proyec
   });
   return (
     <Marco
-      titulo={torre === '' ? 'Ponerle nombre a la torre' : `Cambiar nombre de la ${textoTorre(torre).toLowerCase()}`}
+      titulo={nombreActual === '' ? 'Ponerle nombre a la torre' : `Cambiar nombre de la ${textoTorre(nombreActual).toLowerCase()}`}
       textoEnviar="Guardar"
       puedeEnviar={nombre.trim() !== ''}
       cargando={renombrar.isPending}
@@ -168,6 +169,24 @@ export const RenombrarTorreModal: React.FC<Base & { torre: string }> = ({ proyec
       onClose={onClose}
     >
       <Campo id="renombrar-nombre" etiquetaTexto="Nombre nuevo" valor={nombre} onCambio={setNombre} placeholder="A" max={10} ayuda="Las nomenclaturas de sus ventanas se recalculan con el nombre nuevo." />
+    </Marco>
+  );
+};
+
+// ---- Unidad especial sin piso (areas comunes, fachada...) ----
+export const UnidadEspecialModal: React.FC<Base & { torreId: string }> = ({ proyectoId, torreId, onClose, onHecho }) => {
+  const [nombre, setNombre] = useState('');
+  const crear = useMutation({
+    mutationFn: () => crearUnidadEspecialCubicacion(proyectoId, { torreId, nombre: nombre.trim() }),
+    onSuccess: () => {
+      onHecho();
+      onClose();
+    },
+    onError: avisoError,
+  });
+  return (
+    <Marco titulo="Agregar unidad especial" textoEnviar="Agregar" puedeEnviar={nombre.trim() !== ''} cargando={crear.isPending} onEnviar={() => crear.mutate()} onClose={onClose}>
+      <Campo id="especial-nombre" etiquetaTexto="Nombre" valor={nombre} onCambio={setNombre} placeholder="Áreas comunes" max={60} ayuda="Una unidad sin piso, para ventanas que no van en un depto puntual (fachada, áreas comunes...)." />
     </Marco>
   );
 };
@@ -238,7 +257,7 @@ export const DeptosModal: React.FC<Base & { torre: string; piso?: number }> = ({
 
 // ---- Copiar un piso (piso tipo) a otros ----
 export const CopiarPisoModal: React.FC<Base & { torre: NodoTorreCubicacion; piso: number }> = ({ proyectoId, torre, piso, onClose, onHecho }) => {
-  const otros = torre.pisos.map((p) => p.piso).filter((p) => p !== piso);
+  const otros = torre.pisos.map((p) => p.numero).filter((p) => p !== piso);
   const [elegidos, setElegidos] = useState<number[]>([]);
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
@@ -250,10 +269,10 @@ export const CopiarPisoModal: React.FC<Base & { torre: NodoTorreCubicacion; piso
     setElegidos((prev) => [...new Set([...prev, ...rango])].sort((a, b) => a - b));
   };
   const alternar = (p: number) => setElegidos((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p].sort((a, b) => a - b)));
-  const origen = torre.pisos.find((p) => p.piso === piso);
+  const origen = torre.pisos.find((p) => p.numero === piso);
 
   const copiar = useMutation({
-    mutationFn: () => copiarPisoCubicacion(proyectoId, { torre: torre.nombre, desde: piso, hacia: elegidos }),
+    mutationFn: () => copiarPisoCubicacion(proyectoId, { torreId: torre.id, desde: piso, hacia: elegidos }),
     onSuccess: (r) => {
       mostrarToast(mensajeCopiaPiso(r), { tipo: 'info', duracionMs: 15000 });
       onHecho();
@@ -310,12 +329,12 @@ export const CopiarPisoModal: React.FC<Base & { torre: NodoTorreCubicacion; piso
 
 const RECINTOS = ['DORM 1', 'DORM 2', 'DORM 3', 'ESTAR', 'COMEDOR', 'COCINA', 'BAÑO 1', 'BAÑO 2', 'LOGGIA', 'TERRAZA', 'PASILLO'];
 
-// ---- Asignar ventanas a un departamento ----
-export const AsignarModal: React.FC<Base & { torre: string; piso: number; dpto: number; tipos: TipoCubicacion[]; tipoInicial?: string }> = ({
+// ---- Asignar ventanas a un departamento (o unidad especial) ----
+export const AsignarModal: React.FC<Base & { unidadId: string; torre: string; nombreUnidad: string; tipos: TipoCubicacion[]; tipoInicial?: string }> = ({
   proyectoId,
+  unidadId,
   torre,
-  piso,
-  dpto,
+  nombreUnidad,
   tipos,
   tipoInicial,
   onClose,
@@ -333,7 +352,7 @@ export const AsignarModal: React.FC<Base & { torre: string; piso: number; dpto: 
   const valido = !!tipo && n !== null && n >= 1 && n <= 50 && (!pasa || exceder);
 
   const asignar = useMutation({
-    mutationFn: () => asignarVentanasCubicacion(proyectoId, { torre, piso, dpto, tipoId, cantidad: n!, ubicacion: ubicacion.trim() || null, excederContratadas: pasa && exceder }),
+    mutationFn: () => asignarVentanasCubicacion(proyectoId, { unidadId, tipoId, cantidad: n!, ubicacion: ubicacion.trim() || null, excederContratadas: pasa && exceder }),
     onSuccess: (r) => {
       if (r.faltan > 0) mostrarToast(mensajeAsignacion(r, tipo!.codigo), { tipo: 'info', duracionMs: 15000 });
       onHecho();
@@ -343,7 +362,7 @@ export const AsignarModal: React.FC<Base & { torre: string; piso: number; dpto: 
   });
 
   return (
-    <Marco titulo={`Agregar ventanas · ${textoTorre(torre)}, depto ${piso}${String(dpto).padStart(2, '0')}`} textoEnviar="Agregar" puedeEnviar={valido} cargando={asignar.isPending} onEnviar={() => asignar.mutate()} onClose={onClose}>
+    <Marco titulo={`Agregar ventanas · ${textoTorre(torre)}, depto ${nombreUnidad}`} textoEnviar="Agregar" puedeEnviar={valido} cargando={asignar.isPending} onEnviar={() => asignar.mutate()} onClose={onClose}>
       <div>
         <label htmlFor="asignar-tipo" className={etiqueta}>
           Tipo de ventana
