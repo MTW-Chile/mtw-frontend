@@ -658,7 +658,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                       className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${colapsada ? '-rotate-90' : ''}`}
                     />
                     <span className="font-bold text-sm text-slate-900 whitespace-nowrap">{familia}</span>
-                    <span className="text-[10px] font-mono text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                    <span className="text-[10px] text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded-md whitespace-nowrap">
                       {materiales.length} ítems · $ {formatNumber(totalFamiliaCLP, 0)}
                       {descuentoActual > 0 && ` (-${descuentoActual}%)`}
                       {recargoActual > 0 && ` (+${recargoActual}%)`}

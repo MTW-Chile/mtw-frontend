@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Lock, RotateCcw, ShieldCheck } from 'lucide-react';
+import { Badge } from '../../../../components/ui/Badge';
 import type { Proyecto, ProyectoVersion } from '../../../../types';
 
 export type CotizadorStep = 1 | 2 | 3 | 4 | 5;
@@ -78,6 +79,40 @@ export const HeaderContexto: React.FC<HeaderContextoProps> = ({
 
   return createPortal(
     <>
+      <Badge
+        size="sm"
+        className="font-mono font-bold text-slate-600"
+        title="Número de proyecto"
+      >
+        {proyecto.codigoInterno || `PRJ-${proyecto.numeroPresupuesto}`}
+      </Badge>
+
+      <Badge
+        size="sm"
+        variant={activeVersion?.esCongelado ? 'success' : 'brand'}
+        className="hidden md:inline-flex"
+      >
+        {activeVersion?.esCongelado &&
+          (activeVersion.estadoAprobacion === 'APROBADO_GERENCIA' || activeVersion.estadoAprobacion === 'ACEPTADO_CLIENTE' ? (
+            <ShieldCheck className="w-3 h-3" />
+          ) : (
+            <Lock className="w-3 h-3" />
+          ))}
+        {estadoTexto}
+      </Badge>
+
+      {/* Acciones a la derecha: reimportar y selector de paso */}
+      <div className="ml-auto flex items-center gap-2 shrink-0">
+      <button
+        onClick={onOpenReimport}
+        disabled={activeVersion?.esCongelado}
+        className="w-9 h-9 xl:w-auto xl:px-3 xl:py-1.5 rounded-xl bg-white hover:bg-amber-50 text-slate-600 hover:text-amber-700 border border-slate-200 hover:border-amber-400 text-xs font-medium transition-all flex items-center justify-center gap-1.5 shadow-2xs disabled:opacity-40 cursor-pointer shrink-0"
+        title="Restablecer presupuesto leyendo los datos originales de HETMO"
+        aria-label="Reimportar HETMO"
+      >
+        <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
+        <span className="hidden xl:inline">Reimportar HETMO</span>
+      </button>
       <div className="relative shrink-0" ref={menuRef}>
         <button
           onClick={() => setOpen((o) => !o)}
@@ -101,7 +136,7 @@ export const HeaderContexto: React.FC<HeaderContextoProps> = ({
         {open && (
           <div
             role="listbox"
-            className="absolute left-0 top-full mt-2 w-64 rounded-2xl bg-white border border-slate-200 shadow-xl p-1.5 z-50 animate-fade-in"
+            className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-white border border-slate-200 shadow-xl p-1.5 z-50 animate-fade-in"
           >
             {STEPS.map((s) => {
               const activo = s.step === currentStep;
@@ -133,45 +168,7 @@ export const HeaderContexto: React.FC<HeaderContextoProps> = ({
           </div>
         )}
       </div>
-
-      <span className="hidden lg:inline text-xs px-2 py-0.5 rounded-full font-mono bg-slate-100 border border-slate-300 text-slate-700 shrink-0">
-        {proyecto.codigoInterno || `PRJ-${proyecto.numeroPresupuesto}`}
-      </span>
-
-      {activeVersion?.esCongelado ? (
-        <span className="hidden md:flex text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-700 font-semibold items-center gap-1 shrink-0 whitespace-nowrap">
-          {activeVersion.estadoAprobacion === 'APROBADO_GERENCIA' || activeVersion.estadoAprobacion === 'ACEPTADO_CLIENTE' ? (
-            <ShieldCheck className="w-3 h-3 text-emerald-600" />
-          ) : (
-            <Lock className="w-3 h-3 text-emerald-600" />
-          )}
-          <span>{estadoTexto}</span>
-        </span>
-      ) : (
-        <span className="hidden md:inline text-[10px] px-2 py-0.5 rounded-full font-semibold bg-brand-600/10 border border-brand-600/30 text-brand-600 shrink-0 whitespace-nowrap">
-          {estadoTexto}
-        </span>
-      )}
-
-      {activeVersion && (
-        <span
-          className="hidden md:inline px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-[11px] font-semibold text-slate-600 shrink-0"
-          title="La versión a presupuestar se elige en el Paso 1"
-        >
-          Rev {activeVersion.versionNumero}
-        </span>
-      )}
-
-      <button
-        onClick={onOpenReimport}
-        disabled={activeVersion?.esCongelado}
-        className="w-9 h-9 xl:w-auto xl:px-3 xl:py-1.5 rounded-xl bg-white hover:bg-amber-50 text-slate-600 hover:text-amber-700 border border-slate-200 hover:border-amber-400 text-xs font-medium transition-all flex items-center justify-center gap-1.5 shadow-2xs disabled:opacity-40 cursor-pointer shrink-0"
-        title="Restablecer presupuesto leyendo los datos originales de HETMO"
-        aria-label="Reimportar HETMO"
-      >
-        <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
-        <span className="hidden xl:inline">Reimportar HETMO</span>
-      </button>
+      </div>
     </>,
     slot
   );

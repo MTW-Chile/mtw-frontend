@@ -141,7 +141,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Contexto de la pantalla abierta (ej. selector de paso y estado del
           cotizador, ver HeaderContexto.tsx): cada pantalla lo llena por portal. */}
-      <div id="header-contexto" className="flex-1 min-w-0 flex items-center justify-end gap-2 empty:hidden" />
+      <div id="header-contexto" className="flex-1 min-w-0 flex items-center gap-2 empty:hidden" />
 
       {/* Lado Derecho */}
       {/* relative aqui (y no en el wrapper de la campanita) para que el

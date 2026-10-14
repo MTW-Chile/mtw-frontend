@@ -100,7 +100,7 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="px-2 py-0.5 rounded-full bg-brand-600/10 text-brand-600 border border-brand-600/20 font-bold text-xs font-mono">
+          <span className="px-2 py-0.5 rounded-full bg-brand-600/10 text-brand-600 border border-brand-600/20 font-bold text-xs">
             {ventana.unidades} {ventana.unidades === 1 ? 'ud' : 'uds'}
           </span>
         </div>
