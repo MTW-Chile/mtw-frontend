@@ -274,11 +274,26 @@ export interface CorreccionHoja {
   movimiento: SentidoMovimientoHoja;
 }
 
+// Travesaño que HETMO no comunicó y se agrega a mano en el dibujo. La cota
+// se mide en mm desde ARRIBA del paño (horizontal) o desde la IZQUIERDA
+// (vertical). `panel` es el numero_ventana del paño en una línea compuesta;
+// null/ausente = la línea completa (línea de un solo paño).
+export interface CorreccionTravesano {
+  eje: 'horizontal' | 'vertical';
+  cota: number;
+  panel?: number | null;
+}
+
 export interface CorreccionGeometria {
-  esquema: number; // 1
+  esquema: number; // 1 = solo hojas de corredera; 2 = además travesaños/mano
   lineaHetmo: number;
   apertura: number;
+  // Vacío en una corrección que no toca hojas (solo travesaños / mano): en
+  // ese caso `apertura` es informativa y NO reemplaza la de HETMO.
   hojas: CorreccionHoja[];
+  // Espeja la mano de puertas/abatibles (derecha <-> izquierda).
+  invertirMano?: boolean;
+  travesanos?: CorreccionTravesano[];
 }
 
 export interface Ventana {

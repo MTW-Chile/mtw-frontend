@@ -107,19 +107,25 @@ export function toWindowLine(ventana: Ventana): WindowLine | null {
   const alto = toPositive(ventana.altoMm) ?? 1;
 
   const correccion = ventana.correccionGeometria;
-  const effectiveAperture = correccion?.apertura ?? ventana.dibujoTipoApertura ?? undefined;
+  // La apertura de la corrección solo manda cuando corrige hojas de corredera;
+  // una corrección de solo travesaños / mano no debe reemplazar la de HETMO.
+  const corrigeHojas = Boolean(correccion?.hojas?.length);
+  const mirror = (code: number | null | undefined) =>
+    correccion?.invertirMano && code != null ? (core.mirroredAperture(code) ?? code) : code;
+  const effectiveAperture = mirror(
+    (corrigeHojas ? correccion?.apertura : undefined) ?? ventana.dibujoTipoApertura ?? undefined
+  ) ?? undefined;
 
   // Pre-procesar geometrías para asignar perteneceHueco correctamente y aplicar apertura corregida si existe
   let geometrias = Array.isArray(ventana.geometrias) && ventana.geometrias.length > 0
     ? assignPanelNumbers(ventana.geometrias)
     : undefined;
 
-  if (geometrias && correccion?.apertura) {
+  if (geometrias && (corrigeHojas || correccion?.invertirMano)) {
     geometrias = geometrias.map(g => {
-      if (Number(g.tipoElemento) === 3) {
-        return { ...g, tipoApertura: correccion.apertura };
-      }
-      return g;
+      if (Number(g.tipoElemento) !== 3) return g;
+      const code = corrigeHojas ? correccion!.apertura : g.tipoApertura;
+      return { ...g, tipoApertura: mirror(code) ?? code };
     });
   }
 
