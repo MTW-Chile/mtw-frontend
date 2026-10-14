@@ -383,7 +383,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
                   congelado={congelado}
                   onGuardado={(patch) => setVentanasLocal((prev) => ({ ...prev, [v.id]: { ...prev[v.id], ...patch } }))}
                 />
-                <span className="px-2 py-0.5 rounded-full bg-brand-600/10 text-brand-600 border border-brand-600/20 font-bold text-xs font-mono shrink-0">
+                <span className="px-2 py-0.5 rounded-full bg-brand-600/10 text-brand-600 border border-brand-600/20 font-bold text-xs shrink-0">
                   {v.unidades} {v.unidades === 1 ? 'ud' : 'uds'}
                 </span>
               </header>

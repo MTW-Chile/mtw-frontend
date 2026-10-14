@@ -430,7 +430,7 @@ export const CotizacionesPage: React.FC<{
                               )}
                             </td>
                             <td className="px-5 py-4 text-center whitespace-nowrap hidden 2xl:table-cell">
-                              <span className="px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold bg-slate-100 text-slate-700 whitespace-nowrap">
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 whitespace-nowrap">
                                 v{activeVersion?.versionNumero || 1}
                               </span>
                             </td>

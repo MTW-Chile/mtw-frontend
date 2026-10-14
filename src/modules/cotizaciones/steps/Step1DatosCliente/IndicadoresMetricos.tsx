@@ -130,7 +130,7 @@ export const IndicadoresMetricos: React.FC<IndicadoresMetricosProps> = ({ active
             </h3>
           </div>
         </div>
-        <span className="text-[11px] font-mono text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg self-start sm:self-auto">
+        <span className="text-[11px] text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg self-start sm:self-auto">
           Rev {activeVersion?.versionNumero || 1} · {tipologiasDistintas} tipologías
         </span>
       </div>

@@ -52,7 +52,7 @@ export const CotizacionDetalleModal: React.FC<{
                 <h2 className="text-sm sm:text-base font-black text-slate-900 line-clamp-1">
                   {proyecto?.obra || 'Cargando Obra...'}
                 </h2>
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700 font-mono font-bold">
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 font-mono font-bold">
                   {proyecto?.codigoInterno || `PRJ-${proyecto?.numeroPresupuesto}`}
                 </span>
               </div>

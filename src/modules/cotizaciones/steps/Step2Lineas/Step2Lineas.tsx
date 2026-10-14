@@ -195,7 +195,7 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
                 <h2 className="text-xs sm:text-base font-bold text-slate-900 truncate">
                   Revisión Técnica de Líneas y Tipologías
                 </h2>
-                <span className="px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200/80 shrink-0 whitespace-nowrap">
+                <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200/80 shrink-0 whitespace-nowrap">
                   {filteredVentanas.length} de {ventanas.length} modelos
                 </span>
               </div>
