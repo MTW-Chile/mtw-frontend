@@ -37,6 +37,35 @@ import type {
   Usuario,
   MisPermisos,
   AprobacionesPendientes,
+  FabricacionHetmo,
+  FabricacionHetmoBusqueda,
+  ResultadoVinculoFabricacion,
+  ResultadoDeteccionFabricaciones,
+  MaterialesFabricacion,
+  EtapaPendiente,
+  ObraPendiente,
+  ObraPendienteDetalle,
+  AdjuntoPendiente,
+  OneDriveObra,
+  OneDriveEstado,
+  Cubicacion,
+  ResumenCubicacion,
+  TipoCubicacion,
+  UnidadCubicacion,
+  ReporteImportacionCubicacion,
+  ReporteSincronizacionCubicacion,
+  InfoPresupuestoCubicacion,
+  FiltroUnidadesCubicacion,
+  EstructuraCubicacion,
+  ResultadoAsignacionCubicacion,
+  ResultadoCopiaPisoCubicacion,
+  CarpetaOneDrive,
+  CarpetaOneDriveSugerida,
+  ItemOneDrive,
+  ContenidoCarpetaOneDrive,
+  EstadoPendiente,
+  DestinoPendiente,
+  NuevoPendientePayload,
 } from '../types';
 
 // withCredentials: true es lo que hace que el navegador mande la cookie de
@@ -96,6 +125,9 @@ export async function getProyectos(params?: {
   skip?: number;
   limit?: number;
   estado?: number;
+  // Origenes a dejar fuera (coma-separado), ej. 'MANUAL_OBRA': Presupuestos
+  // no cuenta las obras manuales porque nunca se cotizaron.
+  excluirOrigen?: string;
 }): Promise<ProyectosResponse> {
   const response = await apiClient.get<ProyectosResponse>('/proyectos', { params });
   return response.data;
@@ -103,9 +135,72 @@ export async function getProyectos(params?: {
 
 export async function createProyectoManual(payload: {
   obra: string;
+  // Cliente del maestro. clienteNombre (texto) queda solo por compatibilidad.
+  clienteId?: string;
   clienteNombre?: string;
+  direccion?: string;
 }): Promise<{ proyecto: Proyecto }> {
   const response = await apiClient.post<{ proyecto: Proyecto }>('/proyectos/manual', payload);
+  return response.data;
+}
+
+// Obra en seguimiento creada a mano (Control de Obras): sin presupuesto de
+// HETMO detras. No es lo mismo que createProyectoManual (presupuesto manual
+// de Cotizaciones).
+export async function crearObraManual(payload: {
+  obra: string;
+  clienteId: string;
+  direccion?: string;
+}): Promise<{ proyecto: Proyecto }> {
+  const response = await apiClient.post<{ proyecto: Proyecto }>('/obras/manual', payload);
+  return response.data;
+}
+
+// ---- Control de Obras: fabricacion ----
+
+export async function buscarFabricacionesHetmo(params?: {
+  q?: string;
+  estado?: number;
+  limite?: number;
+}): Promise<FabricacionHetmoBusqueda[]> {
+  const response = await apiClient.get<FabricacionHetmoBusqueda[]>('/hetmo/fabricaciones', { params });
+  return response.data;
+}
+
+export async function getFabricacionesProyecto(proyectoId: string): Promise<FabricacionHetmo[]> {
+  const response = await apiClient.get<FabricacionHetmo[]>(`/proyectos/${proyectoId}/fabricaciones`);
+  return response.data;
+}
+
+export async function getFabricacionDetalle(proyectoId: string, fabId: string): Promise<FabricacionHetmo> {
+  const response = await apiClient.get<FabricacionHetmo>(`/proyectos/${proyectoId}/fabricaciones/${fabId}`);
+  return response.data;
+}
+
+export async function vincularFabricacion(proyectoId: string, hetmoId: number): Promise<ResultadoVinculoFabricacion> {
+  const response = await apiClient.post<ResultadoVinculoFabricacion>(`/proyectos/${proyectoId}/fabricaciones`, { hetmoId });
+  return response.data;
+}
+
+export async function detectarFabricaciones(proyectoId: string): Promise<ResultadoDeteccionFabricaciones> {
+  const response = await apiClient.post<ResultadoDeteccionFabricaciones>(`/proyectos/${proyectoId}/fabricaciones/detectar`);
+  return response.data;
+}
+
+export async function refrescarFabricacion(proyectoId: string, fabId: string): Promise<ResultadoVinculoFabricacion> {
+  const response = await apiClient.post<ResultadoVinculoFabricacion>(`/proyectos/${proyectoId}/fabricaciones/${fabId}/refrescar`);
+  return response.data;
+}
+
+// POST y no DELETE: Cloudflare Access bloquea DELETE/PUT en produccion.
+export async function desvincularFabricacion(proyectoId: string, fabId: string): Promise<void> {
+  await apiClient.post(`/proyectos/${proyectoId}/fabricaciones/${fabId}/desvincular`);
+}
+
+// Lectura en vivo de HETMO (no se guarda en la base): vidrios y materiales
+// por ventana del documento de fabricacion.
+export async function getMaterialesFabricacion(proyectoId: string, fabId: string): Promise<MaterialesFabricacion> {
+  const response = await apiClient.get<MaterialesFabricacion>(`/proyectos/${proyectoId}/fabricaciones/${fabId}/materiales`);
   return response.data;
 }
 
@@ -1047,5 +1142,330 @@ export async function updateUsuario(
   return response.data;
 }
 
+// ---- Control de Pendientes ----
 
+export async function getPendientes(proyectoId: string): Promise<ObraPendiente[]> {
+  const response = await apiClient.get<ObraPendiente[]>(`/proyectos/${proyectoId}/pendientes`);
+  return response.data;
+}
 
+export async function getPendiente(id: string): Promise<ObraPendienteDetalle> {
+  const response = await apiClient.get<ObraPendienteDetalle>(`/pendientes/${id}`);
+  return response.data;
+}
+
+export async function crearPendiente(proyectoId: string, payload: NuevoPendientePayload): Promise<ObraPendiente> {
+  const response = await apiClient.post<ObraPendiente>(`/proyectos/${proyectoId}/pendientes`, payload);
+  return response.data;
+}
+
+// Pasa el pendiente de estado. EN_CURSO + etapaId elige/cambia la etapa; solo
+// quien creo el pendiente (o un administrador) puede resolverlo o reabrirlo.
+export async function cambiarEstadoPendiente(
+  id: string,
+  payload: { estado: EstadoPendiente; etapaId?: string; comentario?: string }
+): Promise<ObraPendiente> {
+  const response = await apiClient.patch<ObraPendiente>(`/pendientes/${id}/estado`, payload);
+  return response.data;
+}
+
+// POST y no DELETE: Cloudflare Access bloquea DELETE/PUT en produccion.
+export async function eliminarPendiente(id: string): Promise<void> {
+  await apiClient.post(`/pendientes/${id}/eliminar`);
+}
+
+export async function getEtapasPendiente(todas = false): Promise<EtapaPendiente[]> {
+  const response = await apiClient.get<EtapaPendiente[]>('/pendientes-etapas', { params: todas ? { todas: 1 } : undefined });
+  return response.data;
+}
+
+export async function crearEtapaPendiente(payload: { nombre: string; destino?: DestinoPendiente | null }): Promise<EtapaPendiente> {
+  const response = await apiClient.post<EtapaPendiente>('/pendientes-etapas', payload);
+  return response.data;
+}
+
+export async function editarEtapaPendiente(
+  id: string,
+  payload: { nombre?: string; destino?: DestinoPendiente | null; orden?: number; activa?: boolean }
+): Promise<EtapaPendiente> {
+  const response = await apiClient.patch<EtapaPendiente>(`/pendientes-etapas/${id}`, payload);
+  return response.data;
+}
+
+// ---- Adjuntos de pendientes (OneDrive) ----
+
+export async function getOneDriveObra(proyectoId: string): Promise<OneDriveObra> {
+  const response = await apiClient.get<OneDriveObra>(`/proyectos/${proyectoId}/onedrive`);
+  return response.data;
+}
+
+export async function buscarCarpetasOneDrive(proyectoId: string, q: string): Promise<CarpetaOneDriveSugerida[]> {
+  const response = await apiClient.get<CarpetaOneDriveSugerida[]>(`/proyectos/${proyectoId}/onedrive/carpetas`, { params: q ? { q } : undefined });
+  return response.data;
+}
+
+// Vincula la obra a una carpeta existente ({ carpetaId }) o crea una nueva ({ crear: true, nombre }).
+export async function vincularCarpetaOneDrive(
+  proyectoId: string,
+  payload: { carpetaId: string } | { crear: true; nombre?: string }
+): Promise<CarpetaOneDrive> {
+  const response = await apiClient.post<{ carpeta: CarpetaOneDrive }>(`/proyectos/${proyectoId}/onedrive/carpeta`, payload);
+  return response.data.carpeta;
+}
+
+export async function desvincularCarpetaOneDrive(proyectoId: string): Promise<void> {
+  await apiClient.post(`/proyectos/${proyectoId}/onedrive/desvincular`);
+}
+
+// Sube el archivo tal cual en el cuerpo (sin multipart); el nombre va en la URL.
+export async function subirAdjuntoPendiente(pendienteId: string, archivo: Blob, nombre: string, mime: string): Promise<AdjuntoPendiente> {
+  const response = await apiClient.post<AdjuntoPendiente>(`/pendientes/${pendienteId}/adjuntos`, archivo, {
+    params: { nombre },
+    headers: { 'Content-Type': mime },
+    timeout: 120000,
+  });
+  return response.data;
+}
+
+export async function getContenidoAdjunto(pendienteId: string, adjuntoId: string): Promise<Blob> {
+  const response = await apiClient.get<Blob>(`/pendientes/${pendienteId}/adjuntos/${adjuntoId}/contenido`, { responseType: 'blob', timeout: 120000 });
+  return response.data;
+}
+
+export async function quitarAdjuntoPendiente(pendienteId: string, adjuntoId: string): Promise<void> {
+  await apiClient.post(`/pendientes/${pendienteId}/adjuntos/${adjuntoId}/quitar`);
+}
+
+// ---- Documentos de la obra (navegar la carpeta de OneDrive ya vinculada) ----
+
+export async function getDocumentosObra(proyectoId: string, carpetaId?: string): Promise<ContenidoCarpetaOneDrive> {
+  const response = await apiClient.get<ContenidoCarpetaOneDrive>(`/proyectos/${proyectoId}/onedrive/documentos`, {
+    params: carpetaId ? { carpetaId } : undefined,
+  });
+  return response.data;
+}
+
+export async function crearCarpetaDocumento(proyectoId: string, carpetaId: string, nombre: string): Promise<ItemOneDrive> {
+  const response = await apiClient.post<{ item: ItemOneDrive }>(`/proyectos/${proyectoId}/onedrive/documentos/carpeta`, { carpetaId, nombre });
+  return response.data.item;
+}
+
+// Sube el archivo tal cual en el cuerpo (sin multipart); carpetaId y nombre van en la URL.
+export async function subirDocumentoObra(proyectoId: string, carpetaId: string, archivo: Blob, nombre: string, mime: string): Promise<ItemOneDrive> {
+  const response = await apiClient.post<{ item: ItemOneDrive }>(`/proyectos/${proyectoId}/onedrive/documentos/archivo`, archivo, {
+    params: { carpetaId, nombre },
+    headers: { 'Content-Type': mime },
+    timeout: 120000,
+  });
+  return response.data.item;
+}
+
+export async function getContenidoDocumentoObra(proyectoId: string, itemId: string, nombre: string): Promise<Blob> {
+  const response = await apiClient.get<Blob>(`/proyectos/${proyectoId}/onedrive/documentos/${itemId}/contenido`, {
+    params: { nombre },
+    responseType: 'blob',
+    timeout: 120000,
+  });
+  return response.data;
+}
+
+// ---- Configuracion de OneDrive (conexion con la cuenta central) ----
+
+export async function getOneDriveEstado(probar = false): Promise<OneDriveEstado> {
+  const response = await apiClient.get<OneDriveEstado>('/onedrive/estado', { params: probar ? { probar: 1 } : undefined });
+  return response.data;
+}
+
+// Devuelve la URL de Microsoft a la que hay que mandar al administrador para iniciar sesion.
+export async function iniciarConexionOneDrive(): Promise<string> {
+  const response = await apiClient.get<{ url: string }>('/onedrive/conexion/iniciar');
+  return response.data.url;
+}
+
+export async function guardarCarpetaRaizOneDrive(carpetaRaiz: string): Promise<{ carpetaRaiz: string; existe: boolean }> {
+  const response = await apiClient.patch<{ carpetaRaiz: string; existe: boolean }>('/onedrive/configuracion', { carpetaRaiz });
+  return response.data;
+}
+
+export async function desconectarOneDrive(): Promise<void> {
+  await apiClient.post('/onedrive/desconectar');
+}
+
+// ---- Cubicador ----
+
+export async function getCubicacion(
+  proyectoId: string
+): Promise<{ cubicacion: Cubicacion | null; resumen: ResumenCubicacion | null; presupuesto: InfoPresupuestoCubicacion | null }> {
+  const response = await apiClient.get(`/proyectos/${proyectoId}/cubicacion`);
+  return response.data;
+}
+
+// Por defecto se completa sola con las lineas del presupuesto de HETMO (si la obra las tiene); desdePresupuesto:false la crea vacia.
+export async function crearCubicacion(proyectoId: string, payload: { holguraMm?: number; formatoNomenclatura?: string; desdePresupuesto?: boolean } = {}) {
+  const response = await apiClient.post<{ cubicacion: Cubicacion; resumen: ResumenCubicacion; reporte: ReporteSincronizacionCubicacion | null }>(
+    `/proyectos/${proyectoId}/cubicacion`,
+    payload
+  );
+  return response.data;
+}
+
+// Vuelve a leer el presupuesto de HETMO (si cambio): no pisa posiciones ni rasgos ya cargados.
+export async function sincronizarCubicacion(proyectoId: string) {
+  const response = await apiClient.post<{ reporte: ReporteSincronizacionCubicacion; cubicacion: Cubicacion; resumen: ResumenCubicacion }>(
+    `/proyectos/${proyectoId}/cubicacion/sincronizar`
+  );
+  return response.data;
+}
+
+// Excel con una fila por ventana y lo que el sistema ya sabe; se completa y se vuelve a subir.
+export async function descargarPlantillaCubicacion(proyectoId: string): Promise<Blob> {
+  const response = await apiClient.get<Blob>(`/proyectos/${proyectoId}/cubicacion/plantilla`, { responseType: 'blob', timeout: 180000 });
+  return response.data;
+}
+
+export async function actualizarCubicacion(proyectoId: string, payload: { nombre?: string; holguraMm?: number; formatoNomenclatura?: string }) {
+  const response = await apiClient.patch<{ cubicacion: Cubicacion; resumen: ResumenCubicacion }>(`/proyectos/${proyectoId}/cubicacion`, payload);
+  return response.data;
+}
+
+// Importa la planilla (.xlsx) tal cual en el cuerpo. No pisa lo ya trabajado.
+export async function importarPlanillaCubicacion(proyectoId: string, archivo: Blob) {
+  const response = await apiClient.post<{ reporte: ReporteImportacionCubicacion; cubicacion: Cubicacion; resumen: ResumenCubicacion }>(
+    `/proyectos/${proyectoId}/cubicacion/importar`,
+    archivo,
+    { headers: { 'Content-Type': 'application/octet-stream' }, timeout: 180000 }
+  );
+  return response.data;
+}
+
+export async function getTiposCubicacion(proyectoId: string): Promise<TipoCubicacion[]> {
+  const response = await apiClient.get<TipoCubicacion[]>(`/proyectos/${proyectoId}/cubicacion/tipos`);
+  return response.data;
+}
+
+export type DatosTipoCubicacion = {
+  codigo?: string;
+  sistema?: string;
+  anchoPlanoMm?: number | null;
+  altoPlanoMm?: number | null;
+  cuadros?: number | null;
+  precioUnitario?: number | null;
+  cantidadContratada?: number;
+  holguraMm?: number | null;
+  esAreaComun?: boolean;
+};
+
+export async function crearTipoCubicacion(proyectoId: string, payload: DatosTipoCubicacion & { codigo: string; sistema: string }) {
+  const response = await apiClient.post(`/proyectos/${proyectoId}/cubicacion/tipos`, payload);
+  return response.data;
+}
+
+export async function editarTipoCubicacion(id: string, payload: DatosTipoCubicacion) {
+  const response = await apiClient.patch(`/cubicacion-tipos/${id}`, payload);
+  return response.data;
+}
+
+export async function eliminarTipoCubicacion(id: string): Promise<void> {
+  await apiClient.post(`/cubicacion-tipos/${id}/eliminar`);
+}
+
+export async function getUnidadesCubicacion(proyectoId: string, filtro: FiltroUnidadesCubicacion = {}): Promise<{ total: number; unidades: UnidadCubicacion[] }> {
+  const params: Record<string, string | number> = {};
+  if (filtro.piso !== undefined && filtro.piso !== '') params.piso = filtro.piso;
+  if (filtro.torre) params.torre = filtro.torre;
+  if (filtro.tipoId) params.tipoId = filtro.tipoId;
+  if (filtro.q?.trim()) params.q = filtro.q.trim();
+  if (filtro.sinRectificar) params.sinRectificar = 1;
+  if (filtro.estado) params.estado = filtro.estado;
+  if (filtro.areasComunes) params.areasComunes = 1;
+  if (filtro.limit) params.limit = filtro.limit;
+  const response = await apiClient.get(`/proyectos/${proyectoId}/cubicacion/unidades`, { params });
+  return response.data;
+}
+
+export async function getUbicacionesCubicacion(proyectoId: string): Promise<{ torres: string[]; pisos: number[] }> {
+  const response = await apiClient.get(`/proyectos/${proyectoId}/cubicacion/ubicaciones`);
+  return response.data;
+}
+
+export type DatosUnidadCubicacion = {
+  tipoId?: string;
+  torre?: string | null;
+  piso?: number | null;
+  dpto?: number | null;
+  ubicacion?: string | null;
+  apertura?: string | null;
+  rasgoAnchoMm?: number | null;
+  rasgoAltoMm?: number | null;
+};
+
+export async function crearUnidadCubicacion(proyectoId: string, payload: DatosUnidadCubicacion & { tipoId: string }): Promise<UnidadCubicacion> {
+  const response = await apiClient.post<UnidadCubicacion>(`/proyectos/${proyectoId}/cubicacion/unidades`, payload);
+  return response.data;
+}
+
+export async function editarUnidadCubicacion(id: string, payload: DatosUnidadCubicacion): Promise<UnidadCubicacion> {
+  const response = await apiClient.patch<UnidadCubicacion>(`/cubicacion-unidades/${id}`, payload);
+  return response.data;
+}
+
+export async function eliminarUnidadCubicacion(id: string): Promise<void> {
+  await apiClient.post(`/cubicacion-unidades/${id}/eliminar`);
+}
+
+// Informe Excel para crear la fase en HETMO (nomenclatura + medidas de fabricacion).
+export async function descargarInformeCubicacion(proyectoId: string, filtro: { piso?: number | ''; torre?: string; soloRectificadas?: boolean } = {}): Promise<Blob> {
+  const params: Record<string, string | number> = {};
+  if (filtro.piso !== undefined && filtro.piso !== '') params.piso = filtro.piso;
+  if (filtro.torre) params.torre = filtro.torre;
+  if (filtro.soloRectificadas) params.soloRectificadas = 1;
+  const response = await apiClient.get<Blob>(`/proyectos/${proyectoId}/cubicacion/informe`, { params, responseType: 'blob', timeout: 120000 });
+  return response.data;
+}
+
+// ---- Cubicador visual (torres -> pisos -> departamentos -> ventanas) ----
+const rutaEstructura = (proyectoId: string) => `/proyectos/${proyectoId}/cubicacion/estructura`;
+
+export async function getEstructuraCubicacion(proyectoId: string): Promise<EstructuraCubicacion> {
+  const response = await apiClient.get<EstructuraCubicacion>(rutaEstructura(proyectoId));
+  return response.data;
+}
+
+export async function crearTorreCubicacion(proyectoId: string, nombre: string): Promise<void> {
+  await apiClient.post(`${rutaEstructura(proyectoId)}/torres`, { nombre });
+}
+
+export async function crearPisosCubicacion(proyectoId: string, payload: { torre: string; desde: number; hasta: number }): Promise<void> {
+  await apiClient.post(`${rutaEstructura(proyectoId)}/pisos`, payload);
+}
+
+// Sin `piso`, crea los departamentos en todos los pisos de la torre.
+export async function crearDeptosCubicacion(proyectoId: string, payload: { torre: string; piso?: number; desde?: number; hasta: number }): Promise<void> {
+  await apiClient.post(`${rutaEstructura(proyectoId)}/deptos`, payload);
+}
+
+export async function renombrarTorreCubicacion(proyectoId: string, payload: { de: string; a: string }): Promise<void> {
+  await apiClient.post(`${rutaEstructura(proyectoId)}/renombrar-torre`, payload);
+}
+
+export async function eliminarLugarCubicacion(proyectoId: string, payload: { torre: string; piso?: number; dpto?: number }): Promise<{ ventanasSinPosicion: number }> {
+  const response = await apiClient.post<{ ventanasSinPosicion: number }>(`${rutaEstructura(proyectoId)}/eliminar`, payload);
+  return response.data;
+}
+
+export async function asignarVentanasCubicacion(
+  proyectoId: string,
+  payload: { torre: string; piso: number; dpto: number; tipoId: string; cantidad: number; ubicacion?: string | null; excederContratadas?: boolean }
+): Promise<ResultadoAsignacionCubicacion> {
+  const response = await apiClient.post<ResultadoAsignacionCubicacion>(`${rutaEstructura(proyectoId)}/asignar`, payload);
+  return response.data;
+}
+
+export async function copiarPisoCubicacion(proyectoId: string, payload: { torre: string; desde: number; hacia: number[] }): Promise<ResultadoCopiaPisoCubicacion> {
+  const response = await apiClient.post<ResultadoCopiaPisoCubicacion>(`${rutaEstructura(proyectoId)}/copiar-piso`, payload);
+  return response.data;
+}
+
+export async function quitarPosicionVentanaCubicacion(id: string): Promise<void> {
+  await apiClient.post(`/cubicacion-unidades/${id}/quitar-posicion`);
+}

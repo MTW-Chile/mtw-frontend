@@ -13,6 +13,7 @@ import { formatNumber } from '../../lib/utils';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import type { Ventana } from '../../types';
+import { glosaEstadoPresupuesto } from '../../lib/estadosHetmo';
 
 // OC, Bodega y Control de Presupuesto viven en el modulo Proyectos (ver
 // modules/proyectos/ProyectoWorkspace.tsx), no aca -- esta ficha es solo
@@ -107,7 +108,7 @@ export const CotizacionDetalleModal: React.FC<{
                 <div className="text-[10px] text-slate-500">
                   Estado:{' '}
                   <span className="text-emerald-700 font-bold">
-                    {version?.estadoGlosa || 'Terminado'}
+                    {glosaEstadoPresupuesto(version?.estadoHetmo)}
                   </span>
                 </div>
               </div>

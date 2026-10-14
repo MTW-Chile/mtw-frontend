@@ -16,6 +16,7 @@ interface ClienteManagerProps {
   onVincularCliente: (clienteId: string | null) => void;
   onCrearCliente: () => void;
   isCrearPending: boolean;
+  embedded?: boolean;
 }
 
 export const ClienteManager: React.FC<ClienteManagerProps> = ({
@@ -31,16 +32,26 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
   onVincularCliente,
   onCrearCliente,
   isCrearPending,
+  embedded = false,
 }) => {
   return (
-    <div className="p-4 sm:p-6 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-2 font-bold text-sm text-slate-900">
-          <User className="w-4 h-4 text-brand-600 shrink-0" />
-          <span>1. Identificación y Asignación del Cliente</span>
+    <div className={embedded ? "space-y-3.5 sm:space-y-4" : "p-4 sm:p-6 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-4"}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-3 border-b border-slate-100">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-brand-600/10 text-brand-600 border border-brand-600/20 flex items-center justify-center shrink-0">
+            <User className="w-4 h-4 sm:w-5 sm:h-5" />
+          </div>
+          <div>
+            <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+              Identificación Comercial
+            </div>
+            <div className="text-xs sm:text-sm font-bold text-slate-900">
+              Identificación y Asignación del Cliente
+            </div>
+          </div>
         </div>
-        <div className="text-xs text-slate-500 font-medium">
-          Origen HETMO: <strong className="text-slate-800">{proyecto.clienteNombreRaw || 'Sin nombre'}</strong> ({proyecto.clienteRutRaw || 'Sin RUT'})
+        <div className="text-[11px] sm:text-xs text-slate-500 font-medium self-start sm:self-auto">
+          Origen HETMO: <strong className="text-slate-800">{proyecto.clienteNombreRaw || 'Sin nombre'}</strong> {proyecto.clienteRutRaw ? `(${proyecto.clienteRutRaw})` : ''}
         </div>
       </div>
 
@@ -71,7 +82,7 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-1 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-xs">
             <div>
               <span className="text-slate-500 block">Razón Social:</span>
               <strong className="text-slate-900 text-sm">{currentClient.nombre}</strong>
@@ -224,7 +235,7 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             <div className="space-y-1">
               <label className="font-semibold text-slate-700">Razón Social *</label>
               <input

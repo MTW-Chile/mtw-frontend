@@ -8,7 +8,7 @@ interface WorkspaceStepperProps {
 }
 
 const STEPS: { step: CotizadorStep; label: string }[] = [
-  { step: 1, label: 'Datos & Cliente' },
+  { step: 1, label: 'Identificación' },
   { step: 2, label: 'Revisión de Líneas' },
   { step: 3, label: 'Analítica de Materiales' },
   { step: 4, label: 'Hoja de Fijación' },

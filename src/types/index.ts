@@ -400,9 +400,17 @@ export interface Proyecto {
   clienteLocalidadRaw: string | null;
   clienteId: string | null;
   cliente?: Cliente | null;
+  // Carpeta de OneDrive de la obra (adjuntos de pendientes); null = sin vincular.
+  onedriveCarpetaId?: string | null;
+  onedriveCarpetaNombre?: string | null;
+  onedriveCarpetaUrl?: string | null;
   // Version (ProyectoVersion.hetmoId) elegida para cotizar. null = nunca
   // se eligio y hay que caer de vuelta a la de versionNumero mas alto.
   versionActivaHetmoId: number | null;
+  // Como nacio el proyecto: HETMO, MANUAL_PRESUPUESTO (creado desde
+  // Cotizaciones) o MANUAL_OBRA (creado desde Obras, ya aceptado, sin
+  // presupuesto). Cotizaciones oculta MANUAL_OBRA. Ver Proyecto.origen en mtw-api.
+  origen?: 'HETMO' | 'MANUAL_PRESUPUESTO' | 'MANUAL_OBRA';
   // Nombre EXACTO del centro de costo de esta obra en Clay -- se usa al
   // contabilizar las facturas de sus OC. null = sin centro de costo.
   clayCentroCosto: string | null;
@@ -910,4 +918,436 @@ export interface CheckoutFactura {
     errores: string[];
     advertencias: string[];
   };
+}
+
+
+// ==========================================
+// Control de Obras: fabricacion (copia de lectura de HETMO)
+// ==========================================
+// Los Decimal de Prisma llegan como string en JSON ("1144.5") -- siempre
+// convertir con Number() antes de mostrar.
+export interface FabricacionCuadro {
+  id: string;
+  ventanaId: string;
+  numeroCuadro: number;
+  numeroCuadroInterno: number | null;
+  tipo: 'MARCO' | 'HOJA';
+  anchoMm: number | string | null;
+  altoMm: number | string | null;
+  retirada: boolean;
+}
+
+export interface FabricacionVentana {
+  id: string;
+  fabricacionId: string;
+  hetmoVentanaId: number;
+  hetmoVentanaMadreId: number | null;
+  orden: number;
+  modelo: string;
+  anchoMm: number | string;
+  altoMm: number | string;
+  unidades: number;
+  retirada: boolean;
+  cuadros?: FabricacionCuadro[];
+}
+
+export interface FabricacionHetmo {
+  id: string;
+  proyectoId: string;
+  hetmoId: number;
+  numero: number | null;
+  descripcion: string | null;
+  hetmoVentaId: number | null;
+  estadoHetmo: number;
+  estadoGlosa: string | null;
+  fechaInicioFab: string | null;
+  fechaFinFab: string | null;
+  origenVinculo: 'MANUAL' | 'AUTOMATICO';
+  sincronizadoEn: string;
+  creadoEn: string;
+  _count?: { ventanas: number };
+  ventanas?: FabricacionVentana[];
+}
+
+// GET /api/hetmo/fabricaciones -- lotes de HETMO, aun no necesariamente
+// vinculados a una obra.
+export interface FabricacionHetmoBusqueda {
+  hetmo: number;
+  anio: number | null;
+  numero: number | null;
+  fecha: string | null;
+  referencia: string | null;
+  descripcion: string | null;
+  estado_documento: number;
+  estado_glosa: string | null;
+  estado_glosa_pantalla: string | null;
+  hetmo_venta: number | null;
+  venta_fase: number | null;
+  hetmo_madre: number | null;
+  vinculadoA: { id: string; obra: string } | null;
+}
+
+export interface ResultadoVinculoFabricacion {
+  fabricacionId: string;
+  hetmoId: number;
+  ventanas: { nuevas: number; actualizadas: number; retiradas: number };
+  cuadros: { nuevos: number; actualizados: number; retirados: number };
+  advertencias: string[];
+}
+
+export interface ResultadoDeteccionFabricaciones {
+  vinculadas: ResultadoVinculoFabricacion[];
+  yaVinculadas: number[];
+  enOtraObra: { hetmoId: number; obra: string }[];
+}
+
+export interface VidrioFabricacion {
+  material_hetmo: number;
+  linea_hetmo: number;
+  codigo_articulo: string;
+  descripcion_articulo: string;
+  UDS: number;
+  ANCHO: number;
+  ALTO: number;
+  m2: number;
+}
+
+export interface MaterialFabricacion {
+  linea_hetmo: number;
+  codigo_articulo: string;
+  descripcion_articulo: string;
+  familia?: string;
+  cantidad: number;
+  longitud_total_mm?: number | null;
+  piezas?: number | null;
+}
+
+export interface MaterialesFabricacion {
+  fabricacionId: string;
+  hetmoVentaId: number;
+  ventanas: {
+    ventana: {
+      id: string;
+      hetmoVentanaId: number;
+      orden: number;
+      modelo: string;
+      anchoMm: number | string;
+      altoMm: number | string;
+      unidades: number;
+    };
+    vidrios: VidrioFabricacion[];
+    materiales: MaterialFabricacion[];
+  }[];
+  advertencias: string[];
+}
+
+// ==========================================
+// Control de Pendientes
+// ==========================================
+export type EstadoPendiente = 'INGRESADO' | 'EN_CURSO' | 'RESUELTO';
+// Area a la que va el pendiente; la asigna el servidor segun tipo y motivo.
+export type DestinoPendiente = 'TECNICA' | 'FABRICA';
+export type OrigenPendiente = 'FABRICACION' | 'OBRA';
+export type TipoElementoPendiente = 'VENTANA' | 'HOJA' | 'MATERIAL' | 'VIDRIO' | 'OTRO';
+export type MotivoPendiente = 'FALLA' | 'DANO_OBRA' | 'DANO_INSTALACION' | 'NO_RECEPCION' | 'NO_FABRICADO';
+
+// Catalogo editable de etapas de un pendiente EN_CURSO. destino null = aplica a
+// ambos destinos. No se borran: se desactivan.
+export interface EtapaPendiente {
+  id: string;
+  nombre: string;
+  destino: DestinoPendiente | null;
+  orden: number;
+  activa: boolean;
+}
+
+export interface ObraPendienteEvento {
+  id: string;
+  estadoAnterior: EstadoPendiente | null;
+  estadoNuevo: EstadoPendiente;
+  etapaNombre: string | null;
+  comentario: string | null;
+  usuario?: { id: string; nombre: string } | null;
+  creadoEn: string;
+}
+
+export interface ObraPendiente {
+  id: string;
+  numero: number;
+  proyectoId: string;
+  origen: OrigenPendiente;
+  destino: DestinoPendiente;
+  tipo: TipoElementoPendiente;
+  motivo: MotivoPendiente;
+  estado: EstadoPendiente;
+  etapaId: string | null;
+  etapa: { id: string; nombre: string } | null;
+  // Titulo armado por el sistema; lo que escribe la persona va en `notas`.
+  descripcion: string;
+  notas: string | null;
+  responsable: string | null;
+  // Rectificacion de medidas (ventana o vidrio); los decimales llegan como texto.
+  anchoOriginalMm: string | null;
+  altoOriginalMm: string | null;
+  anchoRectificadoMm: string | null;
+  altoRectificadoMm: string | null;
+  ventanaRef: string | null;
+  fabricacionVentanaId: string | null;
+  fabricacionVentana?: { id: string; hetmoVentanaId: number; orden: number; modelo: string } | null;
+  fabricacionCuadroId: string | null;
+  fabricacionCuadro?: { id: string; numeroCuadro: number; tipo: 'MARCO' | 'HOJA' } | null;
+  materialId: string | null;
+  material?: { id: string; skuInterno: string; descripcion: string } | null;
+  fechaRequerida: string | null;
+  reportadoPor?: { id: string; nombre: string; email: string } | null;
+  fechaReporte: string;
+  resueltoPor?: { id: string; nombre: string } | null;
+  fechaResolucion: string | null;
+  notasResolucion: string | null;
+  creadoEn: string;
+  // Cantidad de adjuntos (fotos/documentos en OneDrive).
+  _count?: { adjuntos: number };
+}
+
+// Foto o documento de un pendiente. El archivo vive en OneDrive; se ve a
+// traves de la API (/pendientes/:id/adjuntos/:adjId/contenido).
+export interface AdjuntoPendiente {
+  id: string;
+  pendienteId: string;
+  nombre: string;
+  mime: string;
+  tamano: number;
+  webUrl: string | null;
+  subidoPor?: { id: string; nombre: string } | null;
+  creadoEn: string;
+  puedeQuitar?: boolean;
+}
+
+export interface CarpetaOneDrive {
+  id: string;
+  nombre: string | null;
+  url: string | null;
+}
+
+export interface CarpetaOneDriveSugerida {
+  id: string;
+  nombre: string;
+  url: string | null;
+  puntaje?: number;
+}
+
+// Estado de la carpeta de OneDrive de una obra. `configurado` false = el
+// servidor no tiene OneDrive configurado (se oculta la opcion de adjuntar).
+export interface ItemOneDrive {
+  id: string;
+  nombre: string;
+  tipo: 'carpeta' | 'archivo';
+  tamano: number | null;
+  mime: string | null;
+  webUrl: string | null;
+  modificadoEn: string | null;
+}
+
+export interface ContenidoCarpetaOneDrive {
+  carpetaId: string;
+  items: ItemOneDrive[];
+}
+
+export interface OneDriveObra {
+  configurado: boolean;
+  // La conexion vencio: se siguen viendo los adjuntos ya subidos pero no se puede subir
+  // hasta que un administrador reconecte la cuenta (Configuracion > OneDrive).
+  requiereReconexion?: boolean;
+  carpeta: CarpetaOneDrive | null;
+  sugerencias: CarpetaOneDriveSugerida[];
+  nombreSugeridoNueva?: string;
+}
+
+export interface ObraPendienteDetalle extends ObraPendiente {
+  eventos: ObraPendienteEvento[];
+  adjuntos: AdjuntoPendiente[];
+  // Quien creo el pendiente (o un administrador): el unico que puede
+  // resolverlo, reabrirlo, editarlo o eliminarlo.
+  puedeResolver: boolean;
+}
+
+export interface NuevoPendientePayload {
+  origen: OrigenPendiente;
+  tipo: TipoElementoPendiente;
+  motivo: MotivoPendiente;
+  // Titulo armado por el sistema segun lo elegido.
+  descripcion: string;
+  notas?: string;
+  // Obligatorio con DANO_OBRA / DANO_INSTALACION.
+  responsable?: string;
+  // Solo ventana o vidrio. Para un vidrio van tambien las medidas originales.
+  rectificacion?: { anchoMm: number; altoMm: number; anchoOriginalMm?: number; altoOriginalMm?: number };
+  ventanaRef?: string;
+  fabricacionVentanaId?: string;
+  fabricacionCuadroId?: string;
+  materialId?: string;
+  fechaRequerida?: string;
+}
+
+// Estado de la conexion con OneDrive (Configuracion > OneDrive). Los datos de la
+// cuenta y de quien la conecto solo llegan a los administradores.
+export interface OneDriveEstado {
+  appConfigurada: boolean;
+  conectada: boolean;
+  estado: 'CONECTADA' | 'REQUIERE_RECONEXION' | null;
+  cuenta: { email: string; nombre: string | null } | null;
+  carpetaRaiz: string;
+  conectadoPorEmail: string | null;
+  conectadoEn: string | null;
+  ultimoError: string | null;
+  redirectUri: string | null;
+  puedeAdministrar: boolean;
+  // Solo con ?probar=1
+  conexionOk?: boolean;
+  raizEnOneDrive?: { id: string; nombre: string };
+  error?: string;
+}
+
+// ---- Cubicador (paso previo y opcional de las fases) ----
+
+export interface Cubicacion {
+  id: string;
+  nombre: string;
+  // mm que se restan al rasgo (por dimension) para la medida de fabricacion.
+  holguraMm: number;
+  // Tokens {codigo} {piso} {dpto} {torre}; el codigo va siempre al principio.
+  formatoNomenclatura: string;
+  moneda: string;
+}
+
+export interface TipoCubicacion {
+  id: string;
+  codigo: string;
+  sistema: string;
+  esAreaComun: boolean;
+  precioUnitario: number | null;
+  cantidadContratada: number;
+  cubicadas: number;
+  // contratadas - cubicadas: lo que falta cubicar.
+  saldo: number;
+  anchoPlanoMm: number | null;
+  altoPlanoMm: number | null;
+  cuadros: number | null;
+  holguraMm: number | null;
+  // Linea del presupuesto de HETMO de la que sale este tipo; null si lo creo una persona.
+  lineaHetmo: number | null;
+}
+
+// Cubicador visual: torre -> piso -> departamento -> ventanas. torre "" = obra sin torres.
+export interface NodoDeptoCubicacion {
+  dpto: number;
+  ventanas: UnidadCubicacion[];
+}
+export interface NodoPisoCubicacion {
+  piso: number;
+  deptos: NodoDeptoCubicacion[];
+}
+export interface NodoTorreCubicacion {
+  nombre: string;
+  pisos: NodoPisoCubicacion[];
+}
+export interface EstructuraCubicacion {
+  torres: NodoTorreCubicacion[];
+  // Ventanas que aun no tienen piso y departamento.
+  sinPosicion: number;
+}
+export interface ResultadoAsignacionCubicacion {
+  asignadas: number;
+  faltan: number;
+}
+export interface ResultadoCopiaPisoCubicacion {
+  pisos: number;
+  ventanas: number;
+  deptosOmitidos: number;
+  faltan: { codigo: string; cantidad: number }[];
+}
+
+export interface ResumenCubicacion {
+  tipos: number;
+  ventanas: number;
+  posicionadas: number;
+  sinPosicion: number;
+  rectificadas: number;
+  m2: number;
+  moneda: string;
+  precio: { contratado: number; cubicado: number; saldo: number };
+  porTipo: TipoCubicacion[];
+}
+
+export interface UnidadCubicacion {
+  id: string;
+  tipoId: string;
+  codigo: string;
+  sistema: string;
+  esAreaComun: boolean;
+  cuadros: number | null;
+  torre: string | null;
+  piso: number | null;
+  dpto: number | null;
+  ubicacion: string | null;
+  cantidad: number;
+  anchoPlanoMm: number | null;
+  altoPlanoMm: number | null;
+  rasgoAnchoMm: number | null;
+  rasgoAltoMm: number | null;
+  holguraMm: number;
+  anchoFabricacionMm: number | null;
+  altoFabricacionMm: number | null;
+  rectificada: boolean;
+  m2: number | null;
+  apertura: string | null;
+  rectificadoPor: string | null;
+  rectificadoEn: string | null;
+  nomenclatura: string | null;
+  posicionada: boolean;
+}
+
+// Lo que ya se sabe de la obra por su presupuesto de HETMO (null si no tiene lineas de ventana).
+export interface InfoPresupuestoCubicacion {
+  versionNumero: number;
+  moneda: string | null;
+  lineas: number;
+  ventanas: number;
+  areasComunes: number;
+}
+
+export interface ReporteSincronizacionCubicacion {
+  tipos: { nuevos: number; actualizados: number };
+  unidadesCreadas: number;
+  unidadesQuitadas: number;
+  avisos: string[];
+}
+
+// Resultado de subir una planilla: la que descarga el sistema ('plantilla') o la HR de siempre ('hr').
+export type ReporteImportacionCubicacion =
+  | {
+      formato: 'plantilla';
+      filas: number;
+      actualizadas: number;
+      sinCambios: number;
+      posicionadasAhora: number;
+      rectificadasAhora: number;
+      advertencias: string[];
+    }
+  | {
+      formato: 'hr';
+      tipos: { nuevos: number; actualizados: number };
+      unidades: { nuevas: number; asignadas: number; existentes: number; rectificadasAhora: number; areasComunes: number };
+      advertencias: string[];
+    };
+
+export interface FiltroUnidadesCubicacion {
+  piso?: number | '';
+  torre?: string;
+  tipoId?: string;
+  q?: string;
+  sinRectificar?: boolean;
+  estado?: '' | 'sinPosicion' | 'posicionadas';
+  areasComunes?: boolean;
+  limit?: number;
 }

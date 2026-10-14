@@ -39,7 +39,7 @@ export const CentroNotificacionesPage: React.FC<CentroNotificacionesPageProps> =
     <div className="w-full min-w-0 p-3 sm:p-5 md:p-6 xl:p-8 max-w-3xl mx-auto space-y-6 animate-fade-in">
       <PageHeader
         title="Centro de Notificaciones"
-        description="Cotizaciones y Órdenes de Compra esperando tu aprobación gerencial."
+        description="Presupuestos y Órdenes de Compra esperando tu aprobación gerencial."
         icon={Bell}
       />
 
@@ -74,7 +74,7 @@ export const CentroNotificacionesPage: React.FC<CentroNotificacionesPageProps> =
                   ) : (
                     <>
                       <h3 className="text-sm font-bold text-slate-900 truncate">{item.obra}</h3>
-                      <p className="text-xs text-slate-500 truncate">{item.codigoInterno || 'Cotización'} · Esperando aprobación gerencial</p>
+                      <p className="text-xs text-slate-500 truncate">{item.codigoInterno || 'Presupuesto'} · Esperando aprobación gerencial</p>
                     </>
                   )}
                 </div>

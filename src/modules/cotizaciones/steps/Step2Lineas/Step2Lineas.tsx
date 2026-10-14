@@ -6,7 +6,9 @@ import {
   ArrowUpDown,
   FileDown,
   Loader2,
-  Plus
+  Plus,
+  X,
+  ChevronDown
 } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
 import { renderPdf, eliminarLineaManual, espejarVentana, invertirOrdenPanelesVentana } from '../../../../api/client';
@@ -164,80 +166,103 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Barra de Control, Búsqueda y Filtros */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-brand-600/10 text-brand-600 border border-brand-600/20 flex items-center justify-center shrink-0">
-            <Layers className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm sm:text-base font-bold text-slate-900">
-                Revisión Técnica de Líneas y Tipologías
-              </h2>
-              <span className="text-xs px-2.5 py-0.5 rounded-full font-mono font-bold bg-slate-100 border border-slate-300 text-slate-700">
-                {filteredVentanas.length} de {ventanas.length} modelos
-              </span>
+      <div className="p-4 sm:p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-4">
+        {/* Fila Superior: Encabezado y Acciones Principales */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-3.5 border-b border-slate-100">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-brand-600/10 text-brand-600 border border-brand-600/20 flex items-center justify-center shrink-0">
+              <Layers className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <p className="text-xs text-slate-500">
-              {totalVentanasFiltradas} ventanas totales · {formatNumber(totalM2Filtradas, 2)} m² de superficie
-            </p>
+            <div className="min-w-0">
+              <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+                Catálogo Técnico de Obra
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-xs sm:text-base font-bold text-slate-900 truncate">
+                  Revisión Técnica de Líneas y Tipologías
+                </h2>
+                <span className="px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200/80 shrink-0 whitespace-nowrap">
+                  {filteredVentanas.length} de {ventanas.length} modelos
+                </span>
+              </div>
+              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
+                {totalVentanasFiltradas} ventanas totales · <strong className="font-mono text-slate-700">{formatNumber(totalM2Filtradas, 2)} m²</strong> de superficie
+              </p>
+            </div>
+          </div>
+
+          {/* Botones de Acción Primaria */}
+          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+            <button
+              onClick={exportarCatalogoPDF}
+              disabled={isExportingCatalogo || !filteredVentanas.length}
+              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200/90 text-slate-700 font-semibold text-xs shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Exportar Catálogo Técnico en PDF"
+            >
+              {isExportingCatalogo ? (
+                <Loader2 className="w-3.5 h-3.5 text-brand-600 animate-spin" />
+              ) : (
+                <FileDown className="w-3.5 h-3.5 text-slate-500" />
+              )}
+              <span>{isExportingCatalogo ? 'Generando…' : 'Exportar PDF'}</span>
+            </button>
+
+            {activeVersion && (
+              <button
+                onClick={() => setShowAgregarLinea(true)}
+                className="px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-sm shadow-brand-600/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                title="Agregar una línea que no viene de HETMO"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Agregar Línea</span>
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        {/* Fila Inferior: Buscador y Filtro de Orden */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {/* Buscador */}
-          <div className="relative min-w-[220px] flex-1 sm:flex-initial">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar por modelo, acabado o comentario..."
-              className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white transition-colors"
+              className="w-full pl-10 pr-9 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-brand-600 transition-all"
             />
-          </div>
-
-          {/* Ordenar */}
-          <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700">
-            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="bg-transparent font-semibold text-slate-800 focus:outline-none cursor-pointer"
-            >
-              <option value="linea">Nº Línea</option>
-              <option value="modelo">Modelo</option>
-              <option value="unidades">Cantidad Uds</option>
-              <option value="superficie">Superficie m²</option>
-            </select>
-          </div>
-
-          {/* Exportar Catálogo PDF */}
-          <button
-            onClick={exportarCatalogoPDF}
-            disabled={isExportingCatalogo || !filteredVentanas.length}
-            className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Exportar Catálogo Técnico en PDF"
-          >
-            {isExportingCatalogo ? (
-              <Loader2 className="w-4 h-4 text-brand-600 animate-spin" />
-            ) : (
-              <FileDown className="w-4 h-4 text-brand-600" />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                aria-label="Limpiar búsqueda"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             )}
-            <span className="hidden sm:inline">{isExportingCatalogo ? 'Generando…' : 'Exportar PDF'}</span>
-          </button>
+          </div>
 
-          {/* Agregar Línea Manual (vidrio DVH fijo, puerta Protex...) */}
-          {activeVersion && (
-            <button
-              onClick={() => setShowAgregarLinea(true)}
-              className="px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 border border-brand-600 text-white font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
-              title="Agregar una línea que no viene de HETMO"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Agregar Línea</span>
-            </button>
-          )}
+          {/* Selector de Orden */}
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden md:inline">
+              Ordenar:
+            </span>
+            <div className="relative w-full sm:w-auto">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="w-full sm:w-auto pl-8 pr-8 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:bg-white focus:border-brand-600 cursor-pointer appearance-none"
+              >
+                <option value="linea">Nº Línea (Hetmo)</option>
+                <option value="modelo">Modelo</option>
+                <option value="unidades">Cantidad Uds</option>
+                <option value="superficie">Superficie m²</option>
+              </select>
+              <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
         </div>
       </div>
 

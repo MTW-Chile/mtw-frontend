@@ -13,7 +13,7 @@ import {
   X,
   ChevronDown,
 } from 'lucide-react';
-import { getProyectos, getSyncLogs, triggerManualSync, createProyectoManual, eliminarProyecto } from '../../api/client';
+import { getSyncLogs, triggerManualSync, createProyectoManual, eliminarProyecto } from '../../api/client';
 import { formatNumber } from '../../lib/utils';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilters';
@@ -24,16 +24,20 @@ import { Button } from '../../components/ui/Button';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { CotizacionDetalleModal } from './CotizacionDetalleModal';
 import { CotizadorWorkspace } from './CotizadorWorkspace';
-import type { Proyecto } from '../../types';
+import type { Cliente, Proyecto } from '../../types';
+import { ClientePicker } from '../clientes/ClientePicker';
 import { useUrlParam, actualizarParams } from '../../lib/navigation';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { esPresupuestoPrincipal, etiquetaEstadoProyecto, varianteEstadoProyecto } from '../../lib/estadosHetmo';
+import { clavePresupuestos, consultarPresupuestos } from './presupuestosQuery';
 
-type EstadoFiltro = 'TERMINADOS' | 'PEDIDOS' | 'TODOS';
+// PRINCIPAL = presupuestos cerrados en HETMO (estado 2) + presupuestos
+// manuales; TODOS = cualquier estado de HETMO. Ver esPresupuestoPrincipal.
+type EstadoFiltro = 'PRINCIPAL' | 'TODOS';
 
 const ESTADOS_FILTRO: { id: EstadoFiltro; label: string }[] = [
-  { id: 'TERMINADOS', label: 'Presupuesto Terminado' },
-  { id: 'PEDIDOS', label: 'Pedidos / Aprobados' },
-  { id: 'TODOS', label: 'Todos los Estados' },
+  { id: 'PRINCIPAL', label: 'Cerrados y manuales' },
+  { id: 'TODOS', label: 'Todos los estados' },
 ];
 
 export const CotizacionesPage: React.FC<{
@@ -42,8 +46,8 @@ export const CotizacionesPage: React.FC<{
 }> = ({ searchTerm: externalSearch = '', onSearchChange }) => {
   const queryClient = useQueryClient();
   const [internalSearch, setInternalSearch] = useState(externalSearch);
-  // Por defecto muestra solo proyectos con estado 2 (Presupuesto Terminado)
-  const [statusFilter, setStatusFilter] = useState<EstadoFiltro>('TERMINADOS');
+  // Por defecto: presupuestos cerrados (estado 2 de HETMO) y manuales.
+  const [statusFilter, setStatusFilter] = useState<EstadoFiltro>('PRINCIPAL');
   const [selectedProyectoId, setSelectedProyectoId] = useState<string | null>(null);
   // El proyecto abierto en el Cotizador vive en la URL (?cotizar=<id>, y
   // el paso en ?paso=N) -- Atras del navegador vuelve al listado, F5 deja
@@ -54,13 +58,23 @@ export const CotizacionesPage: React.FC<{
   const [isSyncing, setIsSyncing] = useState(false);
   const [mostrarModalManual, setMostrarModalManual] = useState(false);
   const [obraManual, setObraManual] = useState('');
-  const [clienteManual, setClienteManual] = useState('');
+  // Igual que la obra manual (Obras): pide un cliente del maestro (adjuntar o
+  // crear) y una direccion opcional -- misma estructura, distinto origen.
+  const [clienteManual, setClienteManual] = useState<Cliente | null>(null);
+  const [direccionManual, setDireccionManual] = useState('');
   const crearManualMutation = useMutation({
-    mutationFn: () => createProyectoManual({ obra: obraManual, clienteNombre: clienteManual }),
+    mutationFn: () =>
+      createProyectoManual({
+        obra: obraManual.trim(),
+        clienteId: clienteManual!.id,
+        direccion: direccionManual.trim() || undefined,
+      }),
     onSuccess: ({ proyecto }) => {
       setMostrarModalManual(false);
       setObraManual('');
-      setClienteManual('');
+      setClienteManual(null);
+      setDireccionManual('');
+      queryClient.invalidateQueries({ queryKey: ['proyectos'] });
       setCotizarProyectoId(proyecto.id);
     },
   });
@@ -87,17 +101,13 @@ export const CotizacionesPage: React.FC<{
 
   const effectiveSearch = internalSearch;
 
-  // Filtro por estado en el SERVIDOR, no en el navegador -- el listado
-  // pagina por actualizadoEn desc (mas recientes primero), asi que si se
-  // filtrara solo del lado del cliente, un resync amplio que toque muchos
-  // proyectos de golpe puede llenar toda la pagina con proyectos de OTRO
-  // estado y dejar la pestana actual vacia aunque los proyectos reales
-  // sigan intactos en la base (confirmado en produccion).
-  const estadoServidor = statusFilter === 'TERMINADOS' ? 2 : statusFilter === 'PEDIDOS' ? 30 : undefined;
-
+  // El filtro por estado va en el SERVIDOR (ver presupuestosQuery.ts), no solo en el
+  // navegador: un resync amplio puede llenar la pagina con otros estados.
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['proyectos', statusFilter],
-    queryFn: () => getProyectos({ limit: 100, estado: estadoServidor }),
+    // Misma clave y misma consulta que la insignia del menu (App.tsx) para el
+    // filtro por defecto: lista e insignia comparten datos y siempre coinciden.
+    queryKey: clavePresupuestos(statusFilter),
+    queryFn: () => consultarPresupuestos(statusFilter),
     // El default global (5 min, sin refetch al volver a la pestaña) dejaba
     // esta lista mostrando el estado de HETMO desactualizado por minutos
     // despues de una resincronizacion (automatica o manual) -- incluida la
@@ -113,7 +123,11 @@ export const CotizacionesPage: React.FC<{
     queryFn: () => getSyncLogs(1),
   });
 
-  const proyectos = data?.data || [];
+  // Las obras manuales (creadas desde Obras, nunca cotizadas) no son
+  // presupuestos: viven solo en Obras (el servidor ya las excluye; el filtro
+  // es una segunda guarda). Un presupuesto manual, aunque despues se acepte,
+  // se queda aca como cualquier otro.
+  const proyectos = (data?.data || []).filter((p) => p.origen !== 'MANUAL_OBRA');
   const lastSync = syncLogs?.[0];
 
   const handleManualSync = async () => {
@@ -142,16 +156,8 @@ export const CotizacionesPage: React.FC<{
 
       if (!matchSearch) return false;
 
-      const activeVersion = p.versiones[0];
-      const estado = activeVersion?.estadoHetmo;
-      const glosa = activeVersion?.estadoGlosa?.toLowerCase() || '';
-
-      const isTerminado = estado === 2 || glosa.includes('terminado');
-      const isPedido = estado === 30 || glosa.includes('pedido');
-
-      if (statusFilter === 'TERMINADOS') return isTerminado;
-      if (statusFilter === 'PEDIDOS') return isPedido;
-      if (statusFilter === 'TODOS') return true;
+      // Por el CODIGO de estado de HETMO, nunca por su glosa.
+      if (statusFilter === 'PRINCIPAL') return esPresupuestoPrincipal(p);
       return true;
     });
   }, [proyectos, effectiveSearch, statusFilter]);
@@ -182,8 +188,8 @@ export const CotizacionesPage: React.FC<{
     <div className={PAGE_CONTAINER_CLASS}>
       {/* ENCABEZADO: TITULO + SINCRONIZACIÓN RELAY / HETMO */}
       <PageHeader
-        title="Cotizaciones"
-        description="Presupuestos y obras importados desde HETMO."
+        title="Presupuestos"
+        description="Presupuestos de HETMO y presupuestos manuales."
         icon={Building2}
         count={proyectos.length}
         actions={
@@ -335,9 +341,9 @@ export const CotizacionesPage: React.FC<{
                 No se encontraron obras
               </h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                {statusFilter === 'TERMINADOS'
-                  ? 'No hay obras en estado "Presupuesto Terminado" (Estado 2). Puedes cambiar el filtro a "Todos los Estados" para ver otros proyectos.'
-                  : 'No hay proyectos importados que coincidan con los filtros aplicados.'}
+                {statusFilter === 'PRINCIPAL'
+                  ? 'No hay presupuestos cerrados (estado 2 de HETMO) ni presupuestos manuales. Puedes cambiar el filtro a "Todos los estados" para ver el resto.'
+                  : 'No hay presupuestos importados que coincidan con los filtros aplicados.'}
               </p>
               {(effectiveSearch || statusFilter !== 'TODOS') && (
                 <Button
@@ -388,9 +394,6 @@ export const CotizacionesPage: React.FC<{
                     <tbody className="divide-y divide-slate-100">
                       {proyectosVisibles.map((p) => {
                         const activeVersion = p.versiones[0];
-                        const isPedido =
-                          activeVersion?.estadoHetmo === 30 ||
-                          activeVersion?.estadoGlosa?.toLowerCase().includes('pedido');
 
                         return (
                           <tr
@@ -441,12 +444,8 @@ export const CotizacionesPage: React.FC<{
                               {activeVersion?.totalVentanas || 0}
                             </td>
                             <td className="px-5 py-4 text-center whitespace-nowrap">
-                              <Badge
-                                variant={isPedido ? 'success' : 'info'}
-                                size="sm"
-                                dot
-                              >
-                                {activeVersion?.estadoGlosa || 'Terminado'}
+                              <Badge variant={varianteEstadoProyecto(p)} size="sm" dot>
+                                {etiquetaEstadoProyecto(p)}
                               </Badge>
                             </td>
                             <td
@@ -495,9 +494,6 @@ export const CotizacionesPage: React.FC<{
               <div className="space-y-3.5">
                 {proyectosVisibles.map((p) => {
                   const activeVersion = p.versiones[0];
-                  const isPedido =
-                    activeVersion?.estadoHetmo === 30 ||
-                    activeVersion?.estadoGlosa?.toLowerCase().includes('pedido');
 
                   return (
                     <div
@@ -508,12 +504,8 @@ export const CotizacionesPage: React.FC<{
                         <span className="font-mono font-bold text-xs px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 whitespace-nowrap">
                           {p.codigoInterno || `PRJ-${p.numeroPresupuesto}`}
                         </span>
-                        <Badge
-                          variant={isPedido ? 'success' : 'info'}
-                          size="sm"
-                          dot
-                        >
-                          {activeVersion?.estadoGlosa || 'Terminado'}
+                        <Badge variant={varianteEstadoProyecto(p)} size="sm" dot>
+                          {etiquetaEstadoProyecto(p)}
                         </Badge>
                       </div>
 
@@ -606,7 +598,7 @@ export const CotizacionesPage: React.FC<{
           directo al cotizador para agregar lineas de inmediato. */}
       {mostrarModalManual && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 space-y-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[92vh] overflow-y-auto p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-black text-slate-900">Nuevo Presupuesto Manual</h3>
               <button
@@ -630,12 +622,13 @@ export const CotizacionesPage: React.FC<{
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600"
                 />
               </div>
+              <ClientePicker value={clienteManual} onChange={setClienteManual} />
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Cliente (opcional)</label>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Dirección de la obra (opcional)</label>
                 <input
-                  value={clienteManual}
-                  onChange={(e) => setClienteManual(e.target.value)}
-                  placeholder="Nombre del cliente"
+                  value={direccionManual}
+                  onChange={(e) => setDireccionManual(e.target.value)}
+                  placeholder="Si se deja vacía, se usa la del cliente"
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600"
                 />
               </div>
@@ -650,7 +643,7 @@ export const CotizacionesPage: React.FC<{
               <Button
                 variant="primary"
                 size="sm"
-                disabled={!obraManual.trim() || crearManualMutation.isPending}
+                disabled={!obraManual.trim() || !clienteManual || crearManualMutation.isPending}
                 onClick={() => crearManualMutation.mutate()}
                 leftIcon={crearManualMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : undefined}
               >

@@ -11,6 +11,7 @@ interface VersionActivaCardProps {
   numeroInterno: string;
   onGuardarNumeroInterno: (numero: string) => void;
   isSavingNumeroInterno: boolean;
+  children?: React.ReactNode;
 }
 
 // Confirmacion explicita de que version de HETMO se va a presupuestar.
@@ -26,6 +27,7 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
   numeroInterno,
   onGuardarNumeroInterno,
   isSavingNumeroInterno,
+  children,
 }) => {
   const hayVariasVersiones = proyecto.versiones.length > 1;
 
@@ -40,7 +42,7 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
   };
 
   return (
-    <div className="p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-3">
+    <div className="p-4 sm:p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-4 sm:space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-brand-600/10 text-brand-600 border border-brand-600/20 flex items-center justify-center shrink-0">
@@ -91,7 +93,7 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
       {/* Numero de presupuesto INTERNO de MTW -- distinto al de HETMO.
           Siempre "numero-version": la persona solo escribe el numero, la
           version se pega sola de la Revision activa de arriba. */}
-      <div className="flex items-center gap-2.5 pt-3 border-t border-slate-100">
+      <div className="flex items-center gap-2.5 pt-3.5 sm:pt-4 border-t border-slate-100">
         <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
           <Hash className="w-4 h-4 sm:w-5 sm:h-5" />
         </div>
@@ -120,6 +122,13 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Identificación y Asignación del Cliente */}
+      {children && (
+        <div className="pt-3.5 sm:pt-4 border-t border-slate-100">
+          {children}
+        </div>
+      )}
     </div>
   );
 };

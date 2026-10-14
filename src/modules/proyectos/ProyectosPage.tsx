@@ -1,8 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, FolderKanban, ChevronRight, AlertCircle } from 'lucide-react';
+import { Loader2, FolderKanban, ChevronRight, AlertCircle, Plus } from 'lucide-react';
 import { getProyectos } from '../../api/client';
 import { ProyectoWorkspace } from './ProyectoWorkspace';
+import { CarpetaObraBoton } from './pendientes/adjuntos/CarpetaObraBoton';
+import { NuevaObraManualModal } from './NuevaObraManualModal';
+import { Button } from '../../components/ui/Button';
 import { useUrlParam, actualizarParams } from '../../lib/navigation';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilters';
@@ -43,6 +46,7 @@ export const ProyectosPage: React.FC = () => {
   const [proyectoId] = useUrlParam('proyecto');
   const [seccionUrl] = useUrlParam('seccion');
   const setProyectoId = (id: string | null) => actualizarParams({ proyecto: id, seccion: null });
+  const [creandoObraManual, setCreandoObraManual] = useState(false);
   const isDesktop = useMediaQuery(BREAKPOINT_DESKTOP);
 
   const { data, isLoading, isError, error } = useQuery({
@@ -74,6 +78,10 @@ export const ProyectosPage: React.FC = () => {
     );
   }
 
+  // Una obra manual no tiene presupuesto ni fases planificadas: entra directo a
+  // Fabricacion, que es donde se le vinculan sus documentos.
+  const abrir = (p: Proyecto) => actualizarParams({ proyecto: p.id, seccion: p.origen === 'MANUAL_OBRA' ? 'fabricacion' : null });
+
   const filaFases = (p: Proyecto) => {
     const resumen = p.fasesResumen;
     if (!resumen || resumen.total === 0) return 'Sin fases planificadas';
@@ -83,10 +91,15 @@ export const ProyectosPage: React.FC = () => {
   return (
     <div className={PAGE_CONTAINER_CLASS}>
       <PageHeader
-        title="Proyectos en curso"
-        description="Obras ya aceptadas por el cliente. Entra a una para ver presupuesto, OC y bodega."
+        title="Obras en curso"
+        description="Obras ya aceptadas por el cliente, o creadas a mano. Entra a una para ver presupuesto, fabricación, OC y bodega."
         icon={FolderKanban}
         count={isLoading ? undefined : proyectosEnCurso.length}
+        actions={
+          <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setCreandoObraManual(true)}>
+            Nueva obra manual
+          </Button>
+        }
       />
 
       {isLoading ? (
@@ -96,15 +109,15 @@ export const ProyectosPage: React.FC = () => {
       ) : isError ? (
         <div className="p-12 text-center rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex flex-col items-center gap-2">
           <AlertCircle className="w-5 h-5" />
-          {(error as any)?.response?.data?.error || 'No se pudo cargar la lista de proyectos. Intenta de nuevo en unos minutos.'}
+          {(error as any)?.response?.data?.error || 'No se pudo cargar la lista de obras. Intenta de nuevo en unos minutos.'}
         </div>
       ) : proyectosEnCurso.length === 0 ? (
         <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
-          Todavía no hay proyectos aceptados por el cliente. Un proyecto pasa a "en curso" cuando su versión llega a estado ACEPTADO_CLIENTE en Cotizaciones.
+          Todavía no hay obras en curso. Una obra pasa a "en curso" cuando su versión llega a estado ACEPTADO_CLIENTE en Presupuestos, o la creas a mano con "Nueva obra manual".
         </div>
       ) : filtrados.length === 0 ? (
         <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
-          Ningún proyecto coincide con los filtros.
+          Ninguna obra coincide con los filtros.
         </div>
       ) : isDesktop ? (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
@@ -117,6 +130,7 @@ export const ProyectosPage: React.FC = () => {
                   <th className="px-4 py-3 font-bold text-right">Presupuesto</th>
                   <th className="px-4 py-3 font-bold text-right">Comprometido en OC</th>
                   <th className="px-4 py-3 font-bold">Fases en producción</th>
+                  <th className="px-4 py-3 font-bold">OneDrive</th>
                   <th className="px-4 py-3 font-bold w-10"></th>
                 </tr>
                 <tr className="border-b border-slate-100 bg-white">
@@ -126,14 +140,14 @@ export const ProyectosPage: React.FC = () => {
                   <th className="px-4 py-2">
                     <ColumnFilterHeader columna={columnas[1]} valor={valores.cliente || ''} onChange={(v) => setValor('cliente', v)} />
                   </th>
-                  <th className="px-4 py-2" colSpan={4} />
+                  <th className="px-4 py-2" colSpan={5} />
                 </tr>
               </thead>
               <tbody>
                 {filtrados.map((p) => (
                   <tr
                     key={p.id}
-                    onClick={() => setProyectoId(p.id)}
+                    onClick={() => abrir(p)}
                     className="border-b border-slate-50 hover:bg-slate-50/70 transition-colors cursor-pointer"
                   >
                     <td className="px-4 py-3 min-w-[15rem]">
@@ -161,6 +175,9 @@ export const ProyectosPage: React.FC = () => {
                     <td className="px-4 py-3 text-[11px] text-slate-500 whitespace-nowrap" title={filaFases(p)}>
                       <AvanceFases resumen={p.fasesResumen} />
                     </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <CarpetaObraBoton proyecto={p} />
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <ChevronRight className="w-4 h-4 text-slate-300 inline-block" />
                     </td>
@@ -173,11 +190,8 @@ export const ProyectosPage: React.FC = () => {
       ) : (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm divide-y divide-slate-50">
           {filtrados.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => setProyectoId(p.id)}
-              className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-slate-50/70 transition-colors cursor-pointer"
-            >
+            <div key={p.id} className="px-5 py-4 space-y-2 hover:bg-slate-50/70 transition-colors">
+            <button onClick={() => abrir(p)} className="w-full flex items-center justify-between gap-3 text-left cursor-pointer">
               <div className="min-w-0 space-y-1">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-slate-900 truncate">{p.obra}</h3>
@@ -196,8 +210,20 @@ export const ProyectosPage: React.FC = () => {
               </div>
               <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
             </button>
+            <CarpetaObraBoton proyecto={p} />
+            </div>
           ))}
         </div>
+      )}
+
+      {creandoObraManual && (
+        <NuevaObraManualModal
+          onClose={() => setCreandoObraManual(false)}
+          onCreada={(proyecto) => {
+            setCreandoObraManual(false);
+            abrir(proyecto);
+          }}
+        />
       )}
     </div>
   );
