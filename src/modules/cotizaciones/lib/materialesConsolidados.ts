@@ -81,7 +81,7 @@ export function computeMaterialesConsolidados(
     mats.forEach((mv) => {
       const mat = mv.material;
       const key = mv.materialId || mv.id;
-      if (mv.origen === 'PERSONALIZADO' && mv.reemplazaMaterialId) conReemplazo.add(key);
+      if (mv.origen === 'PERSONALIZADO' && (mv.reemplazaMaterialId || mv.cambioMaterialDesde)) conReemplazo.add(key);
       const ajuste = ajustesPorMaterial.get(mv.materialId);
       const familiaCruda = (ajuste?.familiaPersonalizada || mat?.familia || 'ACCESORIOS').toUpperCase().trim();
       const familia = normalizarFamilia(familiaCruda);

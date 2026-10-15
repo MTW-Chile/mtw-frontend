@@ -23,10 +23,10 @@ export const DivisasForm: React.FC<DivisasFormProps> = ({ dolar, setDolar, uf, s
   const setters = { dolar: setDolar, uf: setUf, euro: setEuro };
 
   return (
-    <section className="rounded-2xl bg-white border border-slate-200 shadow-xs p-4 sm:p-6 space-y-5">
+    <section className="rounded-2xl bg-white border border-slate-200 shadow-xs p-4 sm:p-5 space-y-4">
       <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-brand-50 border border-brand-100 text-brand-600 flex items-center justify-center shrink-0">
-          <Coins className="w-5 h-5" />
+        <div className="w-9 h-9 rounded-xl bg-brand-50 border border-brand-100 text-brand-600 flex items-center justify-center shrink-0">
+          <Coins className="w-4 h-4" />
         </div>
         <div className="min-w-0">
           <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Parámetros económicos</div>
@@ -39,7 +39,7 @@ export const DivisasForm: React.FC<DivisasFormProps> = ({ dolar, setDolar, uf, s
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {CAMPOS.map((c) => (
-          <label key={c.key} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 space-y-2 block">
+          <label key={c.key} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-1.5 block">
             <span className="flex items-center justify-between gap-2">
               <span className="text-xs font-semibold text-slate-700">{c.label}</span>
               <span className="text-[10px] font-bold text-brand-600">CLP</span>
@@ -49,13 +49,13 @@ export const DivisasForm: React.FC<DivisasFormProps> = ({ dolar, setDolar, uf, s
               value={valores[c.key]}
               onChange={(e) => setters[c.key](e.target.value)}
               placeholder={c.placeholder}
-              className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-900 tabular-nums focus:outline-none focus:border-brand-600 transition-colors"
+              className="w-full px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-900 tabular-nums focus:outline-none focus:border-brand-600 transition-colors"
             />
           </label>
         ))}
       </div>
 
-      {footer && <div className="pt-4 border-t border-slate-100">{footer}</div>}
+      {footer && <div className="pt-3 border-t border-slate-100">{footer}</div>}
     </section>
   );
 };

@@ -575,14 +575,13 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
       />
 
       {/* 3. ANALÍTICA Y DESGLOSE DE MATERIALES */}
-      <section className="rounded-2xl bg-white border border-slate-200 shadow-xs p-4 sm:p-6 space-y-5">
+      <section className="rounded-2xl bg-white border border-slate-200 shadow-xs p-4 sm:p-5 space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-start gap-3 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-brand-50 border border-brand-100 text-brand-600 flex items-center justify-center shrink-0">
               <Boxes className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Costo origen</div>
               <h2 className="text-base font-extrabold text-slate-900">Analítica de materiales</h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 {materialesConsolidados.length} materiales consolidados en fábrica
@@ -632,19 +631,19 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
           </div>
         </div>
 
-        {/* Resumen */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+        {/* Resumen: una sola barra con los tres indicadores */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 rounded-xl border border-slate-200 bg-slate-50/60 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
+          <div className="px-4 py-2.5">
             <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Insumos visibles / activos</div>
             <div className="text-lg font-extrabold text-slate-900 mt-1 tabular-nums">
               {filteredMateriales.filter((m) => !m.excluido).length} <span className="text-xs font-semibold text-slate-500">artículos</span>
             </div>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+          <div className="px-4 py-2.5">
             <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Costo materiales (CLP)</div>
             <div className="text-lg font-extrabold text-slate-900 mt-1 tabular-nums whitespace-nowrap">$ {formatNumber(costoTotalCLP, 0)}</div>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+          <div className="px-4 py-2.5">
             <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Costo materiales (UF)</div>
             <div className="text-lg font-extrabold text-brand-600 mt-1 tabular-nums whitespace-nowrap">{formatUF(costoTotalUF)} UF</div>
           </div>

@@ -32,6 +32,17 @@ describe('computeMaterialesConsolidados - reemplazado', () => {
             material: material('B', 'ACCESORIOS'),
           },
           { id: 'mv3', materialId: 'C', origen: 'HETMO', cantidad: 1, precioOrigen: 5, monedaOrigen: '2', material: material('C', 'ACCESORIOS') },
+          {
+            id: 'mv4',
+            materialId: 'D',
+            origen: 'PERSONALIZADO',
+            cantidad: 3,
+            precioOrigen: 10,
+            monedaOrigen: '2',
+            reemplazaMaterialId: null,
+            cambioMaterialDesde: 'E',
+            material: material('D', 'ACCESORIOS'),
+          },
         ],
       },
     ],
@@ -42,5 +53,7 @@ describe('computeMaterialesConsolidados - reemplazado', () => {
     const porId = new Map(consolidados.map((m) => [m.materialId, m]));
     expect(porId.get('B')?.reemplazado).toBe(true);
     expect(porId.get('C')?.reemplazado).toBe(false);
+    // Fila agregada a mano y cambiada de material en la Analítica (sin receta HETMO de por medio).
+    expect(porId.get('D')?.reemplazado).toBe(true);
   });
 });
