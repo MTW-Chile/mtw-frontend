@@ -14,6 +14,8 @@ interface Step1DatosClienteProps {
   numeroInterno: string;
   onGuardarNumeroInterno: (numero: string) => void;
   isSavingNumeroInterno: boolean;
+  onGuardarObra: (obra: string) => void;
+  isSavingObra: boolean;
   // Cliente
   clientMode: 'view' | 'select' | 'create';
   setClientMode: (mode: 'view' | 'select' | 'create') => void;
@@ -37,6 +39,8 @@ export const Step1DatosCliente: React.FC<Step1DatosClienteProps> = ({
   numeroInterno,
   onGuardarNumeroInterno,
   isSavingNumeroInterno,
+  onGuardarObra,
+  isSavingObra,
   clientMode,
   setClientMode,
   searchClientTerm,
@@ -61,6 +65,8 @@ export const Step1DatosCliente: React.FC<Step1DatosClienteProps> = ({
         numeroInterno={numeroInterno}
         onGuardarNumeroInterno={onGuardarNumeroInterno}
         isSavingNumeroInterno={isSavingNumeroInterno}
+        onGuardarObra={onGuardarObra}
+        isSavingObra={isSavingObra}
         onOpenReimport={onOpenReimport}
       />
 

@@ -1,14 +1,22 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Boxes, Search, FileSpreadsheet, FileDown, CheckCircle2, Check, ChevronDown, ShieldCheck } from 'lucide-react';
+import { Boxes, Search, FileSpreadsheet, FileDown, CheckCircle2, Check, ChevronDown, ShieldCheck, ArrowRightLeft } from 'lucide-react';
 import { Badge } from '../../../../components/ui/Badge';
 import { Button } from '../../../../components/ui/Button';
 import { TABLE_CLASS, TABLE_WRAPPER_CLASS } from '../../../../lib/designSystem';
 import { formatNumber } from '../../../../lib/utils';
 import { useMonedas, resolverMoneda, formatMonto } from '../../../../lib/monedas';
-import { saveMaterialAjuste, setFamiliaAprobacion, setFamiliaDescuento, setFamiliaRecargo, updateEstadoAprobacion } from '../../../../api/client';
+import {
+  reemplazarMaterialEnVersion,
+  saveMaterialAjuste,
+  setFamiliaAprobacion,
+  setFamiliaDescuento,
+  setFamiliaRecargo,
+  updateEstadoAprobacion,
+} from '../../../../api/client';
 import type { Proyecto, ProyectoVersion } from '../../../../types';
 import { DivisasForm } from '../Step1DatosCliente/DivisasForm';
+import { ReemplazarMaterialModal } from './ReemplazarMaterialModal';
 import {
   computeMaterialesConsolidados,
   montoConAjuste,
@@ -39,6 +47,12 @@ const normalizarEstado = (estado: string) => (estado === 'BORRADOR' ? 'EN_COTIZA
 // siempre redondeado a entero, formatNumber(x, 0) ya lo hace bien.
 const formatUF = (valor: number) =>
   new Intl.NumberFormat('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(valor);
+
+// El backend responde { error } en los 4xx; si no, usa el mensaje del propio error.
+const mensajeDeError = (err: unknown, fallback: string) => {
+  const del = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+  return del || (err instanceof Error ? err.message : fallback);
+};
 
 // Orden de categorias pedido explicitamente, no alfabetico. Cualquier
 // familia que no este en la lista (ej. "Otros") va al final, alfabetica.
@@ -107,6 +121,24 @@ const EstadoMaterial: React.FC<{ excluido: boolean; disabled: boolean; onClick: 
     <Badge size="sm" variant={excluido ? 'warning' : 'success'}>
       {excluido ? 'Excluido' : 'Incluido'}
     </Badge>
+  </button>
+);
+
+// Reemplazo de este material en todas las líneas de la versión (ver
+// ReemplazarMaterialModal). Solo se muestra si el material está en alguna línea.
+const BotonReemplazar: React.FC<{ disabled: boolean; onClick: () => void }> = ({ disabled, onClick }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    title={disabled ? 'Categoría aprobada o presupuesto congelado -- no se puede modificar' : 'Reemplazar este material en todas las líneas'}
+    aria-label="Reemplazar material"
+    className={`shrink-0 w-7 h-7 rounded-lg border flex items-center justify-center transition-colors disabled:cursor-not-allowed ${
+      disabled
+        ? 'bg-slate-100 border-slate-200 text-slate-300'
+        : 'bg-white border-slate-200 text-slate-500 hover:text-brand-600 hover:border-brand-600/40 cursor-pointer'
+    }`}
+  >
+    <ArrowRightLeft className="w-3.5 h-3.5" />
   </button>
 );
 
@@ -254,6 +286,21 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     onSuccess: invalidar,
   });
 
+  // Reemplazo de un material en todas las líneas de la versión (ver
+  // ReemplazarMaterialModal). Al terminar, refresca el detalle como cualquier
+  // otro ajuste de esta pantalla.
+  const [reemplazoOrigen, setReemplazoOrigen] = useState<MaterialConsolidado | null>(null);
+  const reemplazoMutation = useMutation({
+    mutationFn: (payload: { materialIdOriginal: string; materialIdNuevo: string }) => {
+      if (!versionId) return Promise.reject(new Error('No hay una versión activa.'));
+      return reemplazarMaterialEnVersion(versionId, payload);
+    },
+    onSuccess: () => {
+      invalidar();
+      setReemplazoOrigen(null);
+    },
+  });
+
   // Consolidar todos los materiales de las ventanas de esta versión, con los
   // ajustes ya guardados (exclusion / familia personalizada) aplicados.
   // Logica compartida con Step4Fijaciones -- ver materialesConsolidados.ts.
@@ -261,6 +308,28 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     () => computeMaterialesConsolidados(activeVersion, tasaDolar, tasaEuro, tasaUf, monedas),
     [activeVersion, tasaDolar, tasaEuro, tasaUf, monedas]
   );
+
+  // Líneas de la versión que contienen cada material (HETMO o agregado a mano).
+  // Solo cuenta lo visible: un HETMO ya reemplazado no aparece en la línea.
+  const lineasPorMaterial = useMemo(() => {
+    const map = new Map<string, number>();
+    (activeVersion?.ventanas || []).forEach((v) => {
+      new Set((v.materiales || []).map((mv) => mv.materialId)).forEach((id) => map.set(id, (map.get(id) ?? 0) + 1));
+    });
+    return map;
+  }, [activeVersion]);
+
+  // Unidad de medida tal como viene del maestro (no la de la Analítica, que
+  // puede ser BARRA en Perfilería): es la que decide con qué materiales se puede reemplazar.
+  const unidadMaestroPorMaterial = useMemo(() => {
+    const map = new Map<string, string>();
+    (activeVersion?.ventanas || []).forEach((v) =>
+      (v.materiales || []).forEach((mv) => {
+        if (!map.has(mv.materialId) && mv.material?.unidadMedida) map.set(mv.materialId, mv.material.unidadMedida);
+      })
+    );
+    return map;
+  }, [activeVersion]);
 
   // Filtrado por buscador
   const filteredMateriales = useMemo(() => {
@@ -722,18 +791,29 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                 $ {formatNumber(m.precioCLP * m.cantidadTotal * factorFamilia, 0)}
                               </td>
                               <td className="px-4 py-2.5 align-top text-center">
-                                <EstadoMaterial
-                                  excluido={m.excluido}
-                                  disabled={edicionBloqueada || ajusteMutation.isPending}
-                                  onClick={() => guardarAjuste(m, { excluido: !m.excluido })}
-                                  title={
-                                    edicionBloqueada
-                                      ? 'Categoría aprobada o presupuesto congelado -- no se puede modificar'
-                                      : m.excluido
-                                      ? 'Click para incluir'
-                                      : 'Click para excluir'
-                                  }
-                                />
+                                <div className="flex items-center justify-center gap-2">
+                                  {lineasPorMaterial.get(m.materialId) ? (
+                                    <BotonReemplazar
+                                      disabled={edicionBloqueada}
+                                      onClick={() => {
+                                        reemplazoMutation.reset();
+                                        setReemplazoOrigen(m);
+                                      }}
+                                    />
+                                  ) : null}
+                                  <EstadoMaterial
+                                    excluido={m.excluido}
+                                    disabled={edicionBloqueada || ajusteMutation.isPending}
+                                    onClick={() => guardarAjuste(m, { excluido: !m.excluido })}
+                                    title={
+                                      edicionBloqueada
+                                        ? 'Categoría aprobada o presupuesto congelado -- no se puede modificar'
+                                        : m.excluido
+                                        ? 'Click para incluir'
+                                        : 'Click para excluir'
+                                    }
+                                  />
+                                </div>
                               </td>
                             </tr>
                           ))}
@@ -757,12 +837,23 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                 {m.precioModificado && <Badge size="sm" variant="info">Precio editado</Badge>}
                               </div>
                             </div>
-                            <EstadoMaterial
-                              excluido={m.excluido}
-                              disabled={edicionBloqueada || ajusteMutation.isPending}
-                              onClick={() => guardarAjuste(m, { excluido: !m.excluido })}
-                              title={edicionBloqueada ? 'Categoría aprobada o presupuesto congelado' : m.excluido ? 'Click para incluir' : 'Click para excluir'}
-                            />
+                            <div className="flex items-center gap-2 shrink-0">
+                              {lineasPorMaterial.get(m.materialId) ? (
+                                <BotonReemplazar
+                                  disabled={edicionBloqueada}
+                                  onClick={() => {
+                                    reemplazoMutation.reset();
+                                    setReemplazoOrigen(m);
+                                  }}
+                                />
+                              ) : null}
+                              <EstadoMaterial
+                                excluido={m.excluido}
+                                disabled={edicionBloqueada || ajusteMutation.isPending}
+                                onClick={() => guardarAjuste(m, { excluido: !m.excluido })}
+                                title={edicionBloqueada ? 'Categoría aprobada o presupuesto congelado' : m.excluido ? 'Click para incluir' : 'Click para excluir'}
+                              />
+                            </div>
                           </div>
 
                           <div className="grid grid-cols-2 gap-3">
@@ -809,6 +900,21 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
           )}
         </div>
       </section>
+
+      {reemplazoOrigen && (
+        <ReemplazarMaterialModal
+          original={reemplazoOrigen}
+          lineasAfectadas={lineasPorMaterial.get(reemplazoOrigen.materialId) ?? 0}
+          unidadOriginal={unidadMaestroPorMaterial.get(reemplazoOrigen.materialId) ?? ''}
+          familiasAprobadas={Array.from(aprobacionesPorFamilia.entries())
+            .filter(([, a]) => a?.aprobada)
+            .map(([familia]) => familia)}
+          isPending={reemplazoMutation.isPending}
+          error={reemplazoMutation.error ? mensajeDeError(reemplazoMutation.error, 'No se pudo reemplazar el material.') : null}
+          onConfirm={(nuevo) => reemplazoMutation.mutate({ materialIdOriginal: reemplazoOrigen.materialId, materialIdNuevo: nuevo.id })}
+          onClose={() => setReemplazoOrigen(null)}
+        />
+      )}
     </div>
   );
 };

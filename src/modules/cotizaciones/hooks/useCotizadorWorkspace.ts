@@ -7,6 +7,7 @@ import {
   triggerManualSync,
   updateProyectoCliente,
   updateCodigoInterno,
+  updateProyectoObra,
   getClientes,
   createCliente,
   setVersionActiva,
@@ -114,6 +115,16 @@ export function useCotizadorWorkspace(proyectoId: string, pasoInicial: 1 | 2 | 3
   // en handleGuardarNumeroInterno/handleSelectVersion.
   const codigoInternoMutation = useMutation({
     mutationFn: async (codigoInterno: string | null) => updateCodigoInterno(proyectoId, codigoInterno),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyectoId] });
+      queryClient.invalidateQueries({ queryKey: ['proyectos'] });
+    },
+  });
+
+  // Nombre de la obra (ver VersionActivaCard). El listado de proyectos también
+  // muestra la obra, por eso se invalida igual que el número interno.
+  const obraMutation = useMutation({
+    mutationFn: async (obra: string) => updateProyectoObra(proyectoId, obra),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyectoId] });
       queryClient.invalidateQueries({ queryKey: ['proyectos'] });
@@ -310,6 +321,7 @@ export function useCotizadorWorkspace(proyectoId: string, pasoInicial: 1 | 2 | 3
     numeroInterno,
     handleGuardarNumeroInterno,
     codigoInternoMutation,
+    obraMutation,
     estadoAprobacionMutation,
     handleCrearVersionInterna,
     showReimportModal,

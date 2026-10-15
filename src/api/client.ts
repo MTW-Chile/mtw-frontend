@@ -278,6 +278,19 @@ export async function updateCodigoInterno(
   return response.data;
 }
 
+// Nombre de la obra, corregible a mano si HETMO lo trajo mal (ver
+// PATCH /proyectos/:id/obra en mtw-api).
+export async function updateProyectoObra(
+  id: string,
+  obra: string
+): Promise<{ success: boolean; proyecto: Omit<Proyecto, 'versiones'> }> {
+  const response = await apiClient.patch<{ success: boolean; proyecto: Omit<Proyecto, 'versiones'> }>(
+    `/proyectos/${id}/obra`,
+    { obra }
+  );
+  return response.data;
+}
+
 export async function updateClayCentroCosto(
   id: string,
   clayCentroCosto: string | null
@@ -981,6 +994,20 @@ export async function reemplazarVentanaMaterial(
 ): Promise<{ success: boolean; data: Ventana }> {
   const response = await apiClient.post<{ success: boolean; data: Ventana }>(
     `/ventanas/${ventanaId}/materiales/reemplazar`,
+    payload
+  );
+  return response.data;
+}
+
+// Reemplazo del mismo material en TODAS las líneas de la versión que lo
+// contengan -- desde la Analítica de materiales (Paso 3). Ver comentario junto
+// al endpoint homónimo en mtw-api/src/index.ts.
+export async function reemplazarMaterialEnVersion(
+  versionId: string,
+  payload: { materialIdOriginal: string; materialIdNuevo: string }
+): Promise<{ success: boolean; lineasAfectadas: number; unidadesReemplazadas: number }> {
+  const response = await apiClient.post<{ success: boolean; lineasAfectadas: number; unidadesReemplazadas: number }>(
+    `/versiones/${versionId}/materiales/reemplazar`,
     payload
   );
   return response.data;
