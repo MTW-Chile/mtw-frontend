@@ -63,7 +63,7 @@ export const Badge: React.FC<BadgeProps> = ({
           aria-hidden="true"
         />
       )}
-      <span className="whitespace-nowrap">{children}</span>
+      <span className="inline-flex items-center gap-1 whitespace-nowrap">{children}</span>
     </span>
   );
 };

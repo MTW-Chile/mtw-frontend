@@ -1,21 +1,15 @@
 import React, { useState } from 'react';
-import { X, User, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { X, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { SECCIONES_FRONTEND } from '../../lib/accessControl';
-import { displayName } from '../../lib/useCloudflareAccessSession';
-
-interface UsuarioSidebar {
-  nombre: string | null;
-  email: string;
-  rol: string | null;
-}
 
 // Preferencia de esta pantalla (no de datos): si el menú queda fijado abierto.
 const CLAVE_FIJADO = 'mtw-sidebar-fijado';
+// Por defecto el menú va desplegado; solo queda contraído si la persona lo contrajo.
 const leerFijado = () => {
   try {
-    return localStorage.getItem(CLAVE_FIJADO) === '1';
+    return localStorage.getItem(CLAVE_FIJADO) !== '0';
   } catch {
-    return false;
+    return true;
   }
 };
 const guardarFijado = (valor: boolean) => {
@@ -41,7 +35,6 @@ export const Sidebar: React.FC<{
   totalProyectosEnCurso?: number;
   // null = administrador, ve todas las secciones sin filtrar.
   seccionesPermitidas: string[] | null;
-  usuarioActual?: UsuarioSidebar;
 }> = ({
   activeTab,
   setActiveTab,
@@ -50,7 +43,6 @@ export const Sidebar: React.FC<{
   totalProyectos = 0,
   totalProyectosEnCurso = 0,
   seccionesPermitidas,
-  usuarioActual,
 }) => {
   const [fijado, setFijado] = useState(leerFijado);
   const expandido = fijado;
@@ -103,15 +95,18 @@ export const Sidebar: React.FC<{
                 setActiveTab('inicio');
                 onClose();
               }}
-              className="shrink-0 cursor-pointer focus:outline-none rounded-lg"
+              className="flex items-center gap-3 group text-left cursor-pointer focus:outline-none min-w-0"
               title="Ir al Inicio de MTW ERP"
-              aria-label="Ir al Inicio de MTW ERP"
             >
               <img
-                src={`${import.meta.env.BASE_URL}favicon.svg`}
-                alt=""
-                className="w-7 h-7 transition-transform hover:scale-105"
+                src={`${import.meta.env.BASE_URL}mtw-logo-light.png`}
+                alt="MTW ERP"
+                className={`h-8 w-auto object-contain transition-all duration-200 group-hover:scale-105 ${expandido ? '' : 'md:h-auto md:w-9'}`}
               />
+              <div className={`min-w-0 ${ocultarEnRiel}`}>
+                <h2 className="text-xs font-black tracking-tight uppercase text-white">MTW ERP</h2>
+                <span className="text-[10px] font-mono text-brand-300 tracking-wider uppercase font-medium">Alpha V1</span>
+              </div>
             </button>
 
             <button
@@ -182,29 +177,6 @@ export const Sidebar: React.FC<{
           </div>
         </div>
 
-        {/* Usuario actual */}
-        {usuarioActual && (
-          <div
-            className={`p-3 rounded-xl bg-white/5 border border-white/8 space-y-1.5 ${
-              expandido ? '' : 'md:p-1.5 md:bg-transparent md:border-transparent'
-            }`}
-          >
-            <div className={`flex items-center gap-2.5 ${expandido ? '' : 'md:justify-center'}`}>
-              <div className="w-8 h-8 rounded-full bg-brand-500/25 flex items-center justify-center text-brand-200 shrink-0">
-                <User className="w-4 h-4" />
-              </div>
-              <div className={`min-w-0 ${ocultarEnRiel}`}>
-                <div className="text-xs font-semibold text-white truncate">
-                  {displayName({ nombre: usuarioActual.nombre ?? undefined, email: usuarioActual.email })}
-                </div>
-                <div className="text-[10px] text-slate-500 truncate">{usuarioActual.email}</div>
-              </div>
-            </div>
-            <div className={`text-[10px] text-brand-300 font-semibold truncate pl-[42px] ${ocultarEnRiel}`}>
-              {usuarioActual.rol ?? 'Sin rol asignado'}
-            </div>
-          </div>
-        )}
       </aside>
     </>
   );
