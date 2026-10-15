@@ -754,7 +754,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                             <tr
                               key={m.id}
                               title={m.precioModificado ? 'Precio modificado a mano -- distinto al original de HETMO' : undefined}
-                              className={`transition-colors hover:bg-slate-50 ${m.excluido ? 'opacity-40' : m.precioModificado ? 'bg-sky-50/60' : ''}`}
+                              className={`transition-colors hover:bg-slate-50 ${m.excluido ? 'opacity-40' : m.reemplazado ? 'bg-violet-50/60' : m.precioModificado ? 'bg-sky-50/60' : ''}`}
                             >
                               <td className="px-4 py-2.5 align-top font-semibold text-slate-900 whitespace-nowrap">{m.skuInterno}</td>
                               <td className="px-4 py-2.5 align-top min-w-0">
@@ -762,6 +762,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                 <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                                   <span className="text-[11px] text-slate-500">{m.proveedorNombre}</span>
                                   {m.precioModificado && <Badge size="sm" variant="info">Precio editado</Badge>}
+                                  {m.reemplazado && <Badge size="sm" variant="violet">Reemplazado</Badge>}
                                 </div>
                               </td>
                               <td className="px-4 py-2.5 align-top text-right">
@@ -825,7 +826,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                       {materiales.map((m) => (
                         <li
                           key={m.id}
-                          className={`p-4 space-y-3 ${m.excluido ? 'opacity-50' : m.precioModificado ? 'bg-sky-50/60' : ''}`}
+                          className={`p-4 space-y-3 ${m.excluido ? 'opacity-50' : m.reemplazado ? 'bg-violet-50/60' : m.precioModificado ? 'bg-sky-50/60' : ''}`}
                           title={m.precioModificado ? 'Precio modificado a mano -- distinto al original de HETMO' : undefined}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -835,6 +836,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                               <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                 <span className="text-[11px] text-slate-500">{m.proveedorNombre}</span>
                                 {m.precioModificado && <Badge size="sm" variant="info">Precio editado</Badge>}
+                                {m.reemplazado && <Badge size="sm" variant="violet">Reemplazado</Badge>}
                               </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
