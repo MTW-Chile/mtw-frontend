@@ -670,7 +670,8 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
             // version esta congelada (aprobacion global mas adelante en el
             // flujo, o presupuesto ya emitido).
             const edicionBloqueada = aprobada || congelado;
-            const colapsada = familiaColapsada[familia] ?? false;
+            // Las categorías parten colapsadas: el usuario las despliega si necesita el detalle.
+            const colapsada = familiaColapsada[familia] ?? true;
             const descuentoActual = Number(aprobacion?.descuentoPct) || 0;
             const recargoActual = Number(aprobacion?.recargoPct) || 0;
             const factorFamilia = (1 - descuentoActual / 100) * (1 + recargoActual / 100);
