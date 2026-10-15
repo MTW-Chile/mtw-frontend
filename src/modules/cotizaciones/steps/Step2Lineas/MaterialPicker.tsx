@@ -6,6 +6,8 @@ import { getMateriales } from '../../../../api/client';
 interface MaterialPickerProps {
   onSelect: (material: Material) => void;
   placeholder?: string;
+  // Opcional: deja fuera de los resultados los materiales que no cumplan (ej. otra unidad de medida).
+  filtrar?: (material: Material) => boolean;
 }
 
 /**
@@ -14,7 +16,7 @@ interface MaterialPickerProps {
  * reemplazar uno existente -- la diferencia entre ambos flujos vive en quien
  * lo embebe (ver MaterialLineaForm), no acá.
  */
-export const MaterialPicker: React.FC<MaterialPickerProps> = ({ onSelect, placeholder }) => {
+export const MaterialPicker: React.FC<MaterialPickerProps> = ({ onSelect, placeholder, filtrar }) => {
   const [term, setTerm] = useState('');
   const [results, setResults] = useState<Material[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -39,6 +41,8 @@ export const MaterialPicker: React.FC<MaterialPickerProps> = ({ onSelect, placeh
       clearTimeout(timer);
     };
   }, [term]);
+
+  const visibles = filtrar ? results.filter(filtrar) : results;
 
   return (
     <div className="space-y-2">
@@ -65,10 +69,10 @@ export const MaterialPicker: React.FC<MaterialPickerProps> = ({ onSelect, placeh
       </div>
       {term.trim().length >= 2 && (
         <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 divide-y divide-slate-100 bg-white">
-          {results.length === 0 && !isLoading ? (
+          {visibles.length === 0 && !isLoading ? (
             <div className="p-3 text-[11px] text-slate-400 text-center">Sin resultados</div>
           ) : (
-            results.map((m) => (
+            visibles.map((m) => (
               <button
                 key={m.id}
                 type="button"

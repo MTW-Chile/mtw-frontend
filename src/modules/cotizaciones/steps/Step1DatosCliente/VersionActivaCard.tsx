@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { GitBranch, Loader2, Hash, RotateCcw } from 'lucide-react';
+import { GitBranch, Loader2, Hash, RotateCcw, Building2 } from 'lucide-react';
 import type { Proyecto, ProyectoVersion } from '../../../../types';
 
 interface VersionActivaCardProps {
@@ -11,6 +11,8 @@ interface VersionActivaCardProps {
   numeroInterno: string;
   onGuardarNumeroInterno: (numero: string) => void;
   isSavingNumeroInterno: boolean;
+  onGuardarObra: (obra: string) => void;
+  isSavingObra: boolean;
   onOpenReimport: () => void;
 }
 
@@ -27,9 +29,24 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
   numeroInterno,
   onGuardarNumeroInterno,
   isSavingNumeroInterno,
+  onGuardarObra,
+  isSavingObra,
   onOpenReimport,
 }) => {
   const hayVariasVersiones = proyecto.versiones.length > 1;
+
+  // Nombre de la obra: viene de HETMO, pero puede venir mal escrito. Mismo
+  // patrón que el número interno: borrador local, se guarda al salir del campo.
+  const [draftObra, setDraftObra] = useState(proyecto.obra || '');
+  useEffect(() => setDraftObra(proyecto.obra || ''), [proyecto.obra]);
+  const confirmarObra = () => {
+    const limpia = draftObra.trim();
+    if (!limpia) {
+      setDraftObra(proyecto.obra || '');
+      return;
+    }
+    if (limpia !== (proyecto.obra || '').trim()) onGuardarObra(limpia);
+  };
 
   // Draft local del "numero" que la persona escribe -- solo se guarda al
   // perder foco o con Enter (mismo patron que PrecioEditable en la
@@ -96,6 +113,36 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
             <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
             <span>Reimportar HETMO</span>
           </button>
+        </div>
+      </div>
+
+      {/* Nombre de la obra: corregible si HETMO lo trajo mal */}
+      <div className="pt-5 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-3 sm:gap-6 sm:items-center">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
+            <Building2 className="w-4 h-4" />
+          </div>
+          <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold leading-tight">
+            Nombre de la
+            <br />
+            obra
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2.5">
+          <input
+            type="text"
+            value={draftObra}
+            onChange={(e) => setDraftObra(e.target.value)}
+            onBlur={confirmarObra}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+            }}
+            maxLength={200}
+            placeholder="Nombre de la obra"
+            className="flex-1 min-w-0 sm:max-w-md px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white"
+          />
+          {isSavingObra && <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin shrink-0" />}
         </div>
       </div>
 

@@ -45,6 +45,7 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
     numeroInterno,
     handleGuardarNumeroInterno,
     codigoInternoMutation,
+    obraMutation,
     estadoAprobacionMutation,
     handleCrearVersionInterna,
     showReimportModal,
@@ -117,6 +118,8 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
             numeroInterno={numeroInterno}
             onGuardarNumeroInterno={handleGuardarNumeroInterno}
             isSavingNumeroInterno={codigoInternoMutation.isPending}
+            onGuardarObra={(obra) => obraMutation.mutate(obra)}
+            isSavingObra={obraMutation.isPending}
             clientMode={clientMode}
             setClientMode={setClientMode}
             searchClientTerm={searchClientTerm}
