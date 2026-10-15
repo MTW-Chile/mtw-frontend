@@ -25,6 +25,7 @@ interface Step1DatosClienteProps {
   onVincularCliente: (clienteId: string | null) => void;
   onCrearCliente: () => void;
   isCrearPending: boolean;
+  onOpenReimport: () => void;
 }
 
 export const Step1DatosCliente: React.FC<Step1DatosClienteProps> = ({
@@ -46,10 +47,11 @@ export const Step1DatosCliente: React.FC<Step1DatosClienteProps> = ({
   onVincularCliente,
   onCrearCliente,
   isCrearPending,
+  onOpenReimport,
 }) => {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 items-stretch animate-fade-in">
-      {/* 1. Contenedor: Versión de HETMO, Número de Presupuesto y Selector de Cliente (50% desktop, responsivo) */}
+    <div className="max-w-5xl mx-auto space-y-5 sm:space-y-6 animate-fade-in">
+      {/* 1. Versión a presupuestar y número interno */}
       <VersionActivaCard
         proyecto={proyecto}
         activeVersion={activeVersion}
@@ -59,25 +61,26 @@ export const Step1DatosCliente: React.FC<Step1DatosClienteProps> = ({
         numeroInterno={numeroInterno}
         onGuardarNumeroInterno={onGuardarNumeroInterno}
         isSavingNumeroInterno={isSavingNumeroInterno}
-      >
-        <ClienteManager
-          proyecto={proyecto}
-          currentClient={proyecto.cliente}
-          clientMode={clientMode}
-          setClientMode={setClientMode}
-          searchClientTerm={searchClientTerm}
-          setSearchClientTerm={setSearchClientTerm}
-          filteredMasterClientes={filteredMasterClientes}
-          nuevoCliente={nuevoCliente}
-          onUpdateNuevoCliente={onUpdateNuevoCliente}
-          onVincularCliente={onVincularCliente}
-          onCrearCliente={onCrearCliente}
-          isCrearPending={isCrearPending}
-          embedded
-        />
-      </VersionActivaCard>
+        onOpenReimport={onOpenReimport}
+      />
 
-      {/* 2. Contenedor General: Indicadores Técnicos y Métricos de la Obra (50% desktop, vertical) */}
+      {/* 2. Cliente: vinculado, a vincular o a crear */}
+      <ClienteManager
+        proyecto={proyecto}
+        currentClient={proyecto.cliente}
+        clientMode={clientMode}
+        setClientMode={setClientMode}
+        searchClientTerm={searchClientTerm}
+        setSearchClientTerm={setSearchClientTerm}
+        filteredMasterClientes={filteredMasterClientes}
+        nuevoCliente={nuevoCliente}
+        onUpdateNuevoCliente={onUpdateNuevoCliente}
+        onVincularCliente={onVincularCliente}
+        onCrearCliente={onCrearCliente}
+        isCrearPending={isCrearPending}
+      />
+
+      {/* 3. Resumen técnico de la obra */}
       <IndicadoresMetricos activeVersion={activeVersion} />
     </div>
   );

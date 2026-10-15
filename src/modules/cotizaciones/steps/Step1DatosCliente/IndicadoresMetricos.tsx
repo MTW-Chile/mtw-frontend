@@ -5,13 +5,14 @@ import {
   Boxes, 
   Sparkles, 
   Maximize2, 
-  SquareDot, 
+  SquareDot,
+  Square,
   Hash 
 } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
 import type { ProyectoVersion, Ventana } from '../../../../types';
 import { toWindowLine } from '../../components/drawing/ventanaAdapter';
-import { cuadrosFor } from '../../components/drawing/geometryCore';
+import { marcosFor, vidriosFor } from '../../components/drawing/geometryCore';
 
 interface IndicadoresMetricosProps {
   activeVersion?: ProyectoVersion;
@@ -32,12 +33,17 @@ export const IndicadoresMetricos: React.FC<IndicadoresMetricosProps> = ({ active
   // Estimación de m2 de vidrios (aprox. 82% de superficie o paños)
   const totalM2Vidrios = totalM2Ventanas * 0.82;
   
-  // Total de cuadros (marcos de PVC soldados, ver cuadrosFor en geometryCore.ts)
-  const totalCuadrosHojas = ventanas.reduce((acc, v) => {
-    const line = toWindowLine(v);
-    const count = line ? cuadrosFor(line) : 0;
-    return acc + count * (v.unidades || 1);
-  }, 0);
+  // Marcos de PVC soldados y vidrios individuales (ver marcosFor / vidriosFor en geometryCore.ts)
+  const { totalMarcos, totalVidrios } = ventanas.reduce(
+    (acc, v) => {
+      const line = toWindowLine(v);
+      const uds = v.unidades || 1;
+      acc.totalMarcos += (line ? marcosFor(line) : 0) * uds;
+      acc.totalVidrios += (line ? vidriosFor(line) : 0) * uds;
+      return acc;
+    },
+    { totalMarcos: 0, totalVidrios: 0 }
+  );
 
   const totalMateriales = activeVersion?.totalMateriales || 0;
 
@@ -83,13 +89,23 @@ export const IndicadoresMetricos: React.FC<IndicadoresMetricosProps> = ({ active
       highlight: false,
     },
     {
-      id: 'panos',
-      label: 'Paños / Hojas Totales',
-      sublabel: 'Marcos y hojas soldadas',
-      value: String(totalCuadrosHojas),
-      unit: 'hojas',
+      id: 'marcos',
+      label: 'Marcos',
+      sublabel: 'Cuadros de PVC soldados',
+      value: String(totalMarcos),
+      unit: 'marcos',
       icon: SquareDot,
       iconColor: 'bg-amber-50 text-amber-600 border-amber-100',
+      highlight: false,
+    },
+    {
+      id: 'vidrios',
+      label: 'Vidrios',
+      sublabel: 'Paños de vidrio individuales',
+      value: String(totalVidrios),
+      unit: 'vidrios',
+      icon: Square,
+      iconColor: 'bg-sky-50 text-sky-600 border-sky-100',
       highlight: false,
     },
     {
@@ -115,61 +131,42 @@ export const IndicadoresMetricos: React.FC<IndicadoresMetricosProps> = ({ active
   ];
 
   return (
-    <div className="p-4 sm:p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex flex-col gap-4 sm:gap-5">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 pb-3.5 border-b border-slate-100">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-brand-600/10 text-brand-600 border border-brand-600/20 flex items-center justify-center shrink-0">
-            <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
+    <section className="rounded-2xl bg-white border border-slate-200 shadow-xs p-4 sm:p-6 space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-brand-50 border border-brand-100 text-brand-600 flex items-center justify-center shrink-0">
+            <Sparkles className="w-5 h-5" />
           </div>
-          <div>
-            <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-              Resumen Técnico de Obra
-            </div>
-            <h3 className="text-xs sm:text-sm font-bold text-slate-900">
-              Indicadores Técnicos y Métricos de la Obra
-            </h3>
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Resumen técnico de obra</div>
+            <h2 className="text-base font-extrabold text-slate-900">Indicadores técnicos y métricos</h2>
           </div>
         </div>
-        <span className="text-[11px] text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg self-start sm:self-auto">
+        <span className="text-xs font-mono text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg self-start sm:self-auto">
           Rev {activeVersion?.versionNumero || 1} · {tipologiasDistintas} tipologías
         </span>
       </div>
 
-      <div className="flex-1 flex flex-col justify-between divide-y divide-slate-100">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {metricas.map((m) => {
           const Icon = m.icon;
           return (
-            <div
-              key={m.id}
-              className="py-2.5 sm:py-3 flex items-center justify-between gap-3 first:pt-0 last:pb-0 hover:bg-slate-50/70 rounded-xl px-2.5 -mx-2.5 transition-colors"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl border flex items-center justify-center shrink-0 ${m.iconColor}`}>
-                  <Icon className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs sm:text-sm font-semibold text-slate-800 truncate">
-                    {m.label}
-                  </div>
-                  <div className="text-[10px] sm:text-[11px] text-slate-400 truncate">
-                    {m.sublabel}
-                  </div>
-                </div>
+            <div key={m.id} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 flex flex-col gap-3 min-w-0">
+              <div className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 ${m.iconColor}`}>
+                <Icon className="w-4 h-4" />
               </div>
-              <div className="text-right shrink-0">
-                <span className={`text-sm sm:text-base font-bold font-mono ${m.highlight ? 'text-emerald-600' : 'text-slate-900'}`}>
+              <div className="min-w-0">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 leading-tight">{m.label}</div>
+                <div className="text-lg font-extrabold text-slate-900 leading-none whitespace-nowrap">
                   {m.value}
-                </span>
-                {m.unit && (
-                  <span className="ml-1 text-[10px] sm:text-xs font-normal text-slate-500">
-                    {m.unit}
-                  </span>
-                )}
+                  {m.unit && <span className="ml-1 text-xs font-semibold text-slate-500">{m.unit}</span>}
+                </div>
+                <div className="text-[11px] text-slate-500 mt-1 truncate" title={m.sublabel}>{m.sublabel}</div>
               </div>
             </div>
           );
         })}
       </div>
-    </div>
+    </section>
   );
 };

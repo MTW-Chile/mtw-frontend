@@ -29,6 +29,12 @@ function subscribe(onChange: () => void) {
   };
 }
 
+// Prefijo de la app (Vite `base`): vacio en produccion, "/proxy/5173" en la
+// vista por code-server. Las rutas de la app no lo llevan; la URL si.
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+const conBase = (pathname: string) =>
+  BASE && pathname.startsWith('/') && !pathname.startsWith(BASE + '/') && pathname !== BASE ? BASE + pathname : pathname;
+
 const getHref = () => window.location.pathname + window.location.search;
 
 /** Reactivo a cualquier cambio de URL (navegar, Atras/Adelante). */
@@ -64,7 +70,7 @@ export function navegar(
     if (v !== null && v !== undefined && v !== '') sp.set(k, String(v));
   }
   const qs = sp.toString();
-  const destino = pathname + (qs ? `?${qs}` : '');
+  const destino = conBase(pathname) + (qs ? `?${qs}` : '');
   if (destino === getHref()) return;
   if (replace) {
     window.history.replaceState({ mtwIdx: indiceActual() }, '', destino);
@@ -76,7 +82,8 @@ export function navegar(
 
 /** Seccion actual = primer segmento del path ('' en la raiz). */
 export function seccionDesdePath(pathname = window.location.pathname): string {
-  return decodeURIComponent(pathname.split('/').filter(Boolean)[0] || '');
+  const rel = BASE && pathname.startsWith(BASE + '/') ? pathname.slice(BASE.length) : pathname;
+  return decodeURIComponent(rel.split('/').filter(Boolean)[0] || '');
 }
 
 /**

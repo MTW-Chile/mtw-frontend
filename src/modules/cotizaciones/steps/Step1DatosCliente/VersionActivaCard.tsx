@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { GitBranch, Loader2, Hash } from 'lucide-react';
+import { GitBranch, Loader2, Hash, RotateCcw } from 'lucide-react';
 import type { Proyecto, ProyectoVersion } from '../../../../types';
 
 interface VersionActivaCardProps {
@@ -11,7 +11,7 @@ interface VersionActivaCardProps {
   numeroInterno: string;
   onGuardarNumeroInterno: (numero: string) => void;
   isSavingNumeroInterno: boolean;
-  children?: React.ReactNode;
+  onOpenReimport: () => void;
 }
 
 // Confirmacion explicita de que version de HETMO se va a presupuestar.
@@ -27,7 +27,7 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
   numeroInterno,
   onGuardarNumeroInterno,
   isSavingNumeroInterno,
-  children,
+  onOpenReimport,
 }) => {
   const hayVariasVersiones = proyecto.versiones.length > 1;
 
@@ -42,29 +42,28 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
   };
 
   return (
-    <div className="p-4 sm:p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-4 sm:space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-brand-600/10 text-brand-600 border border-brand-600/20 flex items-center justify-center shrink-0">
-            <GitBranch className="w-4 h-4 sm:w-5 sm:h-5" />
+    <section className="rounded-2xl bg-white border border-slate-200 shadow-xs p-4 sm:p-6 space-y-5">
+      {/* Cabecera: revisión activa + selector de revisión + reimportar */}
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-brand-50 border border-brand-100 text-brand-600 flex items-center justify-center shrink-0">
+            <GitBranch className="w-5 h-5" />
           </div>
-          <div>
-            <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-              Versión a Presupuestar
-            </div>
-            <div className="text-xs sm:text-sm font-bold text-slate-900">
-              Revisión {activeVersion?.versionNumero ?? '—'}
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Versión a presupuestar</div>
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <h2 className="text-base font-extrabold text-slate-900">Revisión {activeVersion?.versionNumero ?? '—'}</h2>
               {activeVersion?.fechaDocumento && (
-                <span className="ml-2 text-[11px] sm:text-xs font-normal text-slate-500">
-                  ({new Date(activeVersion.fechaDocumento).toLocaleDateString('es-CL')})
+                <span className="text-xs text-slate-500">
+                  del {new Date(activeVersion.fechaDocumento).toLocaleDateString('es-CL')}
                 </span>
               )}
             </div>
           </div>
         </div>
 
-        {hayVariasVersiones ? (
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          {hayVariasVersiones ? (
             <div className="flex items-center rounded-xl p-1 bg-slate-100 border border-slate-200">
               {proyecto.versiones.map((v, idx) => (
                 <button
@@ -72,63 +71,67 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
                   onClick={() => onSelectVersion(idx)}
                   disabled={isSaving}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 cursor-pointer ${
-                    selectedVersionIdx === idx
-                      ? 'bg-brand-600 text-white font-bold shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                    selectedVersionIdx === idx ? 'bg-brand-600 text-white font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   Rev {v.versionNumero}
                 </button>
               ))}
             </div>
-            {isSaving && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
-          </div>
-        ) : (
-          <span className="text-[11px] sm:text-xs text-slate-500">
-            Única versión sincronizada desde HETMO para esta obra.
-          </span>
-        )}
-      </div>
+          ) : (
+            <span className="text-xs text-slate-500">Única versión sincronizada desde HETMO</span>
+          )}
+          {isSaving && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
 
-      {/* Numero de presupuesto INTERNO de MTW -- distinto al de HETMO.
-          Siempre "numero-version": la persona solo escribe el numero, la
-          version se pega sola de la Revision activa de arriba. */}
-      <div className="flex items-center gap-2.5 pt-3.5 sm:pt-4 border-t border-slate-100">
-        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
-          <Hash className="w-4 h-4 sm:w-5 sm:h-5" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1">
-            Número de Presupuesto Interno (MTW)
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={draftNumero}
-              onChange={(e) => setDraftNumero(e.target.value)}
-              onBlur={confirmarNumero}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-              }}
-              placeholder="Ej: 4521"
-              className="w-28 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white"
-            />
-            {isSavingNumeroInterno && <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin shrink-0" />}
-            {draftNumero.trim() && (
-              <span className="text-[11px] sm:text-xs font-mono text-slate-500 truncate">
-                → <strong className="text-slate-800">{draftNumero.trim()}-{activeVersion?.versionNumero ?? '—'}</strong>
-              </span>
-            )}
-          </div>
+          <button
+            onClick={onOpenReimport}
+            disabled={activeVersion?.esCongelado}
+            className="px-3 py-1.5 rounded-xl bg-white hover:bg-amber-50 text-slate-600 hover:text-amber-700 border border-slate-200 hover:border-amber-400 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            title={
+              activeVersion?.esCongelado
+                ? 'La versión está congelada: no se puede reimportar'
+                : 'Restablecer presupuesto leyendo los datos originales de HETMO'
+            }
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
+            <span>Reimportar HETMO</span>
+          </button>
         </div>
       </div>
 
-      {/* Identificación y Asignación del Cliente */}
-      {children && (
-        <div className="pt-3.5 sm:pt-4 border-t border-slate-100">
-          {children}
+      {/* Número de presupuesto interno (MTW): el número lo escribe la persona, la revisión se agrega sola */}
+      <div className="pt-5 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-3 sm:gap-6 sm:items-center">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
+            <Hash className="w-4 h-4" />
+          </div>
+          <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold leading-tight">
+            Número de presupuesto
+            <br />
+            interno (MTW)
+          </div>
         </div>
-      )}
-    </div>
+
+        <div className="flex flex-wrap items-center gap-2.5">
+          <input
+            type="text"
+            value={draftNumero}
+            onChange={(e) => setDraftNumero(e.target.value)}
+            onBlur={confirmarNumero}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+            }}
+            placeholder="Ej: 4521"
+            className="w-36 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono font-bold text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white"
+          />
+          {isSavingNumeroInterno && <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin shrink-0" />}
+          {draftNumero.trim() && (
+            <span className="text-xs text-slate-500">
+              se presupuesta como <strong className="font-mono text-slate-800">{draftNumero.trim()}-{activeVersion?.versionNumero ?? '—'}</strong>
+            </span>
+          )}
+        </div>
+      </div>
+    </section>
   );
 };

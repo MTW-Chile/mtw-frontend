@@ -102,16 +102,10 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-slate-50 text-slate-900 animate-fade-in">
       {/* Contexto del cotizador (paso, código, estado, Rev, reimportar) dentro del Header del sitio */}
-      <HeaderContexto
-        proyecto={proyecto}
-        activeVersion={activeVersion}
-        currentStep={currentStep}
-        onStepChange={setCurrentStep}
-        onOpenReimport={() => setShowReimportModal(true)}
-      />
+      <HeaderContexto proyecto={proyecto} activeVersion={activeVersion} />
 
       {/* CONTENIDO PRINCIPAL SEGÚN EL PASO ACTIVO */}
-      <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-6xl w-full mx-auto space-y-6">
+      <div className="flex-1 p-4 sm:p-6 md:p-8 max-w-6xl w-full mx-auto space-y-6">
       <Suspense fallback={<StepFallback />}>
         {currentStep === 1 && (
           <Step1DatosCliente
@@ -133,6 +127,7 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
             onVincularCliente={(id) => vincularClienteMutation.mutate(id)}
             onCrearCliente={() => crearClienteMutation.mutate()}
             isCrearPending={crearClienteMutation.isPending}
+            onOpenReimport={() => setShowReimportModal(true)}
           />
         )}
 
@@ -183,15 +178,10 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
           />
         )}
       </Suspense>
-      </main>
+      </div>
 
       {/* FOOTER INFERIOR DE NAVEGACIÓN */}
-      <WorkspaceFooter
-        currentStep={currentStep}
-        saveSuccess={saveSuccess}
-        onPrevStep={() => setCurrentStep((prev) => (prev - 1) as any)}
-        onNextStep={() => setCurrentStep((prev) => (prev + 1) as any)}
-      />
+      <WorkspaceFooter currentStep={currentStep} saveSuccess={saveSuccess} onStepChange={setCurrentStep} />
 
       {/* MODAL REIMPORTAR HETMO */}
       <ReimportModal

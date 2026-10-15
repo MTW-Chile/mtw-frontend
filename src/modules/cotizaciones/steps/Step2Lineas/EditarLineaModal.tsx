@@ -247,7 +247,7 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
               <span>Editar Línea:</span>
               <span className="text-brand-600">{v.modelo}</span>
             </h3>
-            <span className="text-xs text-slate-500 font-mono">
+            <span className="text-xs text-slate-500">
               Línea #{v.lineaHetmo} · {v.unidades} {v.unidades === 1 ? 'unidad' : 'unidades'} ({formatNumber(v.anchoMm, 0)} × {formatNumber(v.altoMm, 0)} mm)
             </span>
           </div>
@@ -273,19 +273,19 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
                 {sinGuardar && <span className="text-[11px] font-bold text-amber-600">Cambios sin guardar</span>}
               </div>
 
-              <div className="bg-[#f8fafc] rounded-xl p-4 flex items-center justify-center border border-slate-100 min-h-[220px] flex-1 lg:min-h-0 overflow-hidden">
+              <div className="bg-[#f8fafc] rounded-xl p-4 flex items-center justify-center border border-slate-100 h-56 sm:h-72 lg:h-auto lg:flex-1 lg:min-h-0 overflow-hidden">
                 <WindowRendererSvg ventana={preview} className="w-full h-full max-h-full" />
               </div>
 
               <div className="space-y-3 pt-1 text-xs shrink-0">
                 <div className="grid grid-cols-2 gap-2 text-slate-700">
-                  <div className="flex items-center gap-1.5 font-mono font-bold text-slate-900 text-sm">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-900 text-sm">
                     <Maximize2 className="w-4 h-4 text-slate-400 shrink-0" />
                     <span>{formatNumber(v.anchoMm, 0)} × {formatNumber(v.altoMm, 0)} mm</span>
                   </div>
                   <div className="flex items-center gap-1.5 justify-end text-sm">
                     <span className="text-slate-400">Área:</span>
-                    <span className="font-mono font-bold text-slate-900">{formatNumber(sup, 2)} m²</span>
+                    <span className=" font-bold text-slate-900">{formatNumber(sup, 2)} m²</span>
                   </div>
                 </div>
 
@@ -421,7 +421,7 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
                       <span className="text-xs font-bold text-slate-800">
                         {items.length} {items.length === 1 ? 'artículo' : 'artículos'}
                       </span>
-                      <span className="text-[11px] font-mono font-medium text-slate-500">{formatNumber(totalUds, 0)} uds</span>
+                      <span className="text-[11px] font-medium text-slate-500">{formatNumber(totalUds, 0)} uds</span>
                     </div>,
                     <div className="overflow-x-auto">
                           <table className="w-full text-left text-xs">
@@ -455,7 +455,7 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
                                         {m.material?.descripcion || 'Material de fabricación'}
                                       </div>
                                     </td>
-                                    <td className="py-2 px-2 align-top text-right font-mono whitespace-nowrap">
+                                    <td className="py-2 px-2 align-top text-right whitespace-nowrap">
                                       <div className="font-bold text-slate-800">
                                         {Number(m.cantidad || 1).toLocaleString('es-CL')} un
                                       </div>
@@ -465,7 +465,7 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
                                         </div>
                                       )}
                                     </td>
-                                    <td className="py-2 px-2 align-top text-center font-mono text-[11px] whitespace-nowrap">
+                                    <td className="py-2 px-2 align-top text-center text-[11px] whitespace-nowrap">
                                       {m.acabado ? (
                                         <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px]">
                                           {m.acabado}

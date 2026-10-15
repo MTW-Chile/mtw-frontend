@@ -102,13 +102,13 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-2.5 sm:px-6 flex items-center justify-between gap-3">
+    <header className="@container sticky top-0 z-30 h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-2.5 sm:px-6 flex items-center justify-between gap-3">
       {/* Lado Izquierdo */}
-      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink">
         {/* Móvil: Menú Hamburguesa */}
         <button
           onClick={onOpenSidebar}
-          className="p-2 -ml-1 rounded-xl lg:hidden text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors shrink-0 cursor-pointer"
+          className="p-2 -ml-1 rounded-xl md:hidden text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors shrink-0 cursor-pointer"
           aria-label="Abrir menú de navegación"
         >
           <Menu className="w-5 h-5" />
@@ -118,11 +118,11 @@ export const Header: React.FC<HeaderProps> = ({
             pantallas muy angostas cede su lugar a Atrás/Actualizar). */}
         <button
           onClick={onNavigateHome}
-          className="hidden min-[400px]:flex lg:hidden items-center group cursor-pointer shrink-0"
+          className="hidden min-[400px]:flex md:hidden items-center group cursor-pointer shrink-0"
           title="Ir al Inicio de MTW ERP"
         >
           <img
-            src="/mtw-logo.png"
+            src={`${import.meta.env.BASE_URL}mtw-logo.png`}
             alt="MTW"
             className="h-6 w-auto object-contain transition-transform group-hover:scale-105"
           />
@@ -130,18 +130,18 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Navegación dentro de la app: Atrás + Actualizar datos + migas
             de pan (sección › obra abierta). Ver NavControls.tsx. */}
-        <div className="flex items-center gap-0.5 shrink-0 border-l border-slate-200 pl-1.5 lg:border-0 lg:pl-0 lg:-ml-2">
+        <div className="flex items-center gap-0.5 shrink-0 border-l border-slate-200 pl-1.5 md:border-0 md:pl-0 md:-ml-2">
           <BotonAtras />
           <BotonRecargar />
         </div>
-        <div className="hidden md:flex min-w-0 pl-1">
+        <div className="hidden md:flex min-w-0 overflow-hidden pl-1">
           <MigasDePan seccion={seccionActual} titulo={moduleTitle} />
         </div>
       </div>
 
       {/* Contexto de la pantalla abierta (ej. selector de paso y estado del
           cotizador, ver HeaderContexto.tsx): cada pantalla lo llena por portal. */}
-      <div id="header-contexto" className="flex-1 min-w-0 flex items-center gap-2 empty:hidden" />
+      <div id="header-contexto" className="grow min-w-0 flex items-center gap-2 empty:hidden" />
 
       {/* Lado Derecho */}
       {/* relative aqui (y no en el wrapper de la campanita) para que el

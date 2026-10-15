@@ -8,75 +8,54 @@ interface DivisasFormProps {
   setUf: (val: string) => void;
   euro: string;
   setEuro: (val: string) => void;
+  /** Pie de la tarjeta (ej. mensaje y botón de guardar). */
+  footer?: React.ReactNode;
 }
 
-export const DivisasForm: React.FC<DivisasFormProps> = ({
-  dolar,
-  setDolar,
-  uf,
-  setUf,
-  euro,
-  setEuro,
-}) => {
+const CAMPOS: { key: 'dolar' | 'uf' | 'euro'; label: string; placeholder: string }[] = [
+  { key: 'dolar', label: 'Dólar observado (USD)', placeholder: '950' },
+  { key: 'uf', label: 'Unidad de fomento (UF)', placeholder: '38500' },
+  { key: 'euro', label: 'Euro oficial (EUR)', placeholder: '1030' },
+];
+
+export const DivisasForm: React.FC<DivisasFormProps> = ({ dolar, setDolar, uf, setUf, euro, setEuro, footer }) => {
+  const valores = { dolar, uf, euro };
+  const setters = { dolar: setDolar, uf: setUf, euro: setEuro };
+
   return (
-    <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
-      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-2 font-bold text-sm text-slate-900">
-          <Coins className="w-4 h-4 text-brand-600" />
-          <span>2. Parámetros Económicos y Divisas de la Obra</span>
+    <section className="rounded-2xl bg-white border border-slate-200 shadow-xs p-4 sm:p-6 space-y-5">
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 rounded-xl bg-brand-50 border border-brand-100 text-brand-600 flex items-center justify-center shrink-0">
+          <Coins className="w-5 h-5" />
         </div>
-        <span className="text-[11px] font-mono text-slate-500">
-          Valores específicos para este presupuesto
-        </span>
-      </div>
-
-      <p className="text-xs text-slate-600">
-        Define los tipos de cambio para convertir las compras internacionales (USD/EUR) al costo real en pesos chilenos y cotizar en UF.
-      </p>
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-          <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
-            <span>Dólar Observado (USD)</span>
-            <span className="text-[10px] text-brand-600 font-mono font-bold">$ CLP</span>
-          </label>
-          <input
-            type="number"
-            value={dolar}
-            onChange={(e) => setDolar(e.target.value)}
-            placeholder="950.00"
-            className="w-full px-3 py-2 rounded-lg bg-white border border-slate-300 font-mono font-bold text-sm text-slate-900 focus:outline-none focus:border-brand-600 transition-colors"
-          />
-        </div>
-
-        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-          <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
-            <span>Unidad de Fomento (UF)</span>
-            <span className="text-[10px] text-brand-600 font-mono font-bold">$ CLP</span>
-          </label>
-          <input
-            type="number"
-            value={uf}
-            onChange={(e) => setUf(e.target.value)}
-            placeholder="38500.00"
-            className="w-full px-3 py-2 rounded-lg bg-white border border-slate-300 font-mono font-bold text-sm text-slate-900 focus:outline-none focus:border-brand-600 transition-colors"
-          />
-        </div>
-
-        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-          <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
-            <span>Euro Oficial (EUR)</span>
-            <span className="text-[10px] text-brand-600 font-mono font-bold">$ CLP</span>
-          </label>
-          <input
-            type="number"
-            value={euro}
-            onChange={(e) => setEuro(e.target.value)}
-            placeholder="1030.00"
-            className="w-full px-3 py-2 rounded-lg bg-white border border-slate-300 font-mono font-bold text-sm text-slate-900 focus:outline-none focus:border-brand-600 transition-colors"
-          />
+        <div className="min-w-0">
+          <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Parámetros económicos</div>
+          <h2 className="text-base font-extrabold text-slate-900">Divisas de la obra</h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Tipos de cambio para convertir las compras en USD y EUR a pesos chilenos, y cotizar en UF. Son propios de este presupuesto.
+          </p>
         </div>
       </div>
-    </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {CAMPOS.map((c) => (
+          <label key={c.key} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 space-y-2 block">
+            <span className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-slate-700">{c.label}</span>
+              <span className="text-[10px] font-bold text-brand-600">CLP</span>
+            </span>
+            <input
+              type="number"
+              value={valores[c.key]}
+              onChange={(e) => setters[c.key](e.target.value)}
+              placeholder={c.placeholder}
+              className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-900 tabular-nums focus:outline-none focus:border-brand-600 transition-colors"
+            />
+          </label>
+        ))}
+      </div>
+
+      {footer && <div className="pt-4 border-t border-slate-100">{footer}</div>}
+    </section>
   );
 };

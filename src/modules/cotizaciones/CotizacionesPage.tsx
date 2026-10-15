@@ -27,7 +27,7 @@ import { CotizadorWorkspace } from './CotizadorWorkspace';
 import type { Cliente, Proyecto } from '../../types';
 import { ClientePicker } from '../clientes/ClientePicker';
 import { useUrlParam, actualizarParams } from '../../lib/navigation';
-import { PageHeader } from '../../components/ui/PageHeader';
+import { HeaderSlot } from '../../components/layout/HeaderSlot';
 import { esPresupuestoPrincipal, etiquetaEstadoProyecto, varianteEstadoProyecto } from '../../lib/estadosHetmo';
 import { clavePresupuestos, consultarPresupuestos } from './presupuestosQuery';
 
@@ -186,15 +186,16 @@ export const CotizacionesPage: React.FC<{
 
   return (
     <div className={PAGE_CONTAINER_CLASS}>
-      {/* ENCABEZADO: TITULO + SINCRONIZACIÓN RELAY / HETMO */}
-      <PageHeader
-        title="Presupuestos"
-        description="Presupuestos de HETMO y presupuestos manuales."
-        icon={Building2}
-        count={proyectos.length}
-        actions={
-        <>
-          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs bg-white border border-slate-200 text-slate-600 shadow-xs">
+      {/* Titulo, contador y acciones viven en el Header del sitio (portal), no en una cabecera propia. */}
+      <HeaderSlot>
+        {/* Las migas del Header se ocultan bajo md: ahí el título va aquí. */}
+        <span className="hidden sm:inline md:hidden text-sm font-bold text-slate-900 truncate min-w-0">Presupuestos</span>
+        <Badge size="sm" variant="default" className="hidden min-[420px]:inline-flex font-mono font-bold text-slate-600" title={`${proyectos.length} presupuestos`}>
+          {proyectos.length}
+        </Badge>
+
+        <div className="ml-auto flex items-center gap-2 shrink-0">
+          <div className="hidden @5xl:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs bg-white border border-slate-200 text-slate-600 shadow-xs">
             <Clock className="w-3.5 h-3.5 text-brand-600" />
             <span>
               Última importación:{' '}
@@ -210,36 +211,17 @@ export const CotizacionesPage: React.FC<{
           </div>
 
           <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setMostrarModalManual(true)}
-            leftIcon={<Plus className="w-3.5 h-3.5" />}
-          >
-            <span className="hidden sm:inline">Presupuesto Manual</span>
-            <span className="sm:hidden">Manual</span>
-          </Button>
-
-          <Button
             variant="outline"
             size="sm"
             onClick={handleManualSync}
             disabled={isSyncing}
-            leftIcon={
-              <RotateCcw
-                className={`w-3.5 h-3.5 text-brand-600 ${
-                  isSyncing ? 'animate-spin' : ''
-                }`}
-              />
-            }
+            aria-label="Sincronizar HETMO"
+            leftIcon={<RotateCcw className={`w-3.5 h-3.5 text-brand-600 ${isSyncing ? 'animate-spin' : ''}`} />}
           >
-            <span className="hidden sm:inline">
-              {isSyncing ? 'Sincronizando...' : 'Sincronizar HETMO'}
-            </span>
-            <span className="sm:hidden">{isSyncing ? 'Sync...' : 'Sync'}</span>
+            <span className="hidden @3xl:inline">{isSyncing ? 'Sincronizando...' : 'Sincronizar HETMO'}</span>
           </Button>
-        </>
-        }
-      />
+        </div>
+      </HeaderSlot>
 
       {/* CONTENIDO: LISTADO DE PROYECTOS -- Maestro de Materiales vive solo en
           el menu lateral (ver Sidebar.tsx), ya no como sub-pestana aca. */}
@@ -291,27 +273,40 @@ export const CotizacionesPage: React.FC<{
               </div>
             </div>
 
-            {/* FILTROS EN CHIPS HORIZONTALES PARA PANTALLAS GRANDES (System-Wide) */}
-            <div className="hidden md:flex items-center gap-2 overflow-x-auto pb-1 pt-1 -mx-1 px-1 scrollbar-none">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
-                Estado:
-              </span>
-              {ESTADOS_FILTRO.map((pill) => {
-                const isActive = statusFilter === pill.id;
-                return (
-                  <button
-                    key={pill.id}
-                    onClick={() => setStatusFilter(pill.id)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium shrink-0 whitespace-nowrap transition-all cursor-pointer ${
-                      isActive
-                        ? 'bg-slate-900 text-white font-bold shadow-xs'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/60'
-                    }`}
-                  >
-                    {pill.label}
-                  </button>
-                );
-              })}
+            {/* FILA INFERIOR: filtros de estado a la izquierda, acción principal a la derecha */}
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <div className="hidden md:flex items-center gap-2 overflow-x-auto pb-1 pt-1 -mx-1 px-1 scrollbar-none min-w-0">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
+                  Estado:
+                </span>
+                {ESTADOS_FILTRO.map((pill) => {
+                  const isActive = statusFilter === pill.id;
+                  return (
+                    <button
+                      key={pill.id}
+                      onClick={() => setStatusFilter(pill.id)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium shrink-0 whitespace-nowrap transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-slate-900 text-white font-bold shadow-xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/60'
+                      }`}
+                    >
+                      {pill.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="ml-auto shrink-0">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setMostrarModalManual(true)}
+                  leftIcon={<Plus className="w-3.5 h-3.5" />}
+                >
+                  Presupuesto manual
+                </Button>
+              </div>
             </div>
           </div>
 
