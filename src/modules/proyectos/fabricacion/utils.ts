@@ -1,5 +1,5 @@
 import type { BadgeVariant } from '../../../components/ui/Badge';
-import type { FabricacionCuadro } from '../../../types';
+import type { FabricacionCuadro, ReporteVinculacionCubicacion } from '../../../types';
 
 // Estados del documento de fabricacion en HETMO (catalogo "lote", plantilla
 // 50001): 0 generando, 1 cerrado, 2 optimizado, 3 autorizado, 4 en
@@ -37,6 +37,18 @@ export function resumenCuadros(cuadros: FabricacionCuadro[] | undefined): string
   if (marcos) partes.push(`${marcos} ${marcos === 1 ? 'marco' : 'marcos'}`);
   if (hojas) partes.push(`${hojas} ${hojas === 1 ? 'hoja' : 'hojas'}`);
   return partes.join(' · ');
+}
+
+// Resumen corto del intento de conectar las ventanas de este lote con el
+// cubicador (ver vincularFabricacionConCubicacion en mtw-api) -- se agrega
+// al aviso de "Actualizado:" de siempre, no es un aviso aparte.
+export function textoVinculacionCubicacion(r: ReporteVinculacionCubicacion): string {
+  const partes: string[] = [];
+  if (r.vinculadas > 0) partes.push(`${r.vinculadas} ventana(s) conectada(s) con la cubicación`);
+  if (r.sinMatch.length > 0) partes.push(`${r.sinMatch.length} sin match de nomenclatura (vincular a mano abajo)`);
+  if (r.faseInferida) partes.push(`fase detectada: ${r.faseInferida.nombre}`);
+  else if (r.faseConflicto) partes.push('ventanas de más de una fase nuestra: revisar a mano');
+  return partes.length ? partes.join(', ') + '.' : '';
 }
 
 export function formatoFechaHora(valor: string | null | undefined): string {

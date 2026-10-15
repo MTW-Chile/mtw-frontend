@@ -8,7 +8,7 @@ import { mostrarToast } from '../../../lib/toast';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
 import { BREAKPOINT_DESKTOP } from '../../../lib/designSystem';
 import type { FabricacionHetmoBusqueda } from '../../../types';
-import { formatoFechaHora, textoEstadoFabricacion, varianteEstadoFabricacion } from './utils';
+import { formatoFechaHora, textoEstadoFabricacion, textoVinculacionCubicacion, varianteEstadoFabricacion } from './utils';
 
 interface Props {
   proyectoId: string;
@@ -43,7 +43,8 @@ export const BuscarFabricacionModal: React.FC<Props> = ({ proyectoId, onClose })
       queryClient.invalidateQueries({ queryKey: ['fabricaciones', proyectoId] });
       queryClient.invalidateQueries({ queryKey: ['hetmoFabricaciones'] });
       mostrarToast(
-        `Documento vinculado: ${r.ventanas.nuevas} ventana(s) leídas${r.advertencias.length ? `. ${r.advertencias.join(' ')}` : ''}.`,
+        `Documento vinculado: ${r.ventanas.nuevas} ventana(s) leídas${r.advertencias.length ? `. ${r.advertencias.join(' ')}` : ''}` +
+          (r.vinculacionCubicacion ? ` ${textoVinculacionCubicacion(r.vinculacionCubicacion)}` : '.'),
         { tipo: 'info' }
       );
     },

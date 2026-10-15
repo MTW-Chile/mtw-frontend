@@ -5,7 +5,7 @@ import { descargarInformeCubicacion, descargarPlantillaCubicacion, getCubicacion
 import { SubTabs } from '../../../components/ui/PageHeader';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
-import type { Proyecto, ReporteImportacionCubicacion, ReporteSincronizacionCubicacion, ResumenCubicacion } from '../../../types';
+import type { Proyecto, ProyectoVersion, ReporteImportacionCubicacion, ReporteSincronizacionCubicacion, ResumenCubicacion } from '../../../types';
 import { ConfigCubicacionModal } from './ConfigCubicacionModal';
 import { EstructuraVisual } from './EstructuraVisual';
 import { TiposCubicacion } from './TiposCubicacion';
@@ -14,6 +14,7 @@ import { descargarBlob, formatoMonto, lineaReporteSincronizacion, lineasReporteI
 
 interface Props {
   proyecto: Proyecto;
+  activeVersion?: ProyectoVersion;
 }
 
 const aviso = (e: unknown) => {
@@ -52,7 +53,7 @@ const panelDeSincronizacion = (r: ReporteSincronizacionCubicacion, titulo: strin
 // precios) se lee solo; la persona completa lo que falta -- donde va cada ventana y su rasgo medido en obra --
 // en pantalla o en una planilla Excel que descarga, llena y vuelve a subir. Sin cubicacion, las fases se crean
 // con el modal de siempre.
-export const CubicacionTab: React.FC<Props> = ({ proyecto }) => {
+export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
   const queryClient = useQueryClient();
   const entrada = useRef<HTMLInputElement>(null);
   const [vista, setVista] = useState<'estructura' | 'ventanas' | 'tipos'>('estructura');
@@ -231,7 +232,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto }) => {
             onChange={setVista}
           />
           {vista === 'estructura' ? (
-            <EstructuraVisual proyectoId={proyecto.id} cubicacion={cubicacion} tipos={resumen.porTipo} />
+            <EstructuraVisual proyectoId={proyecto.id} cubicacion={cubicacion} tipos={resumen.porTipo} versionId={activeVersion?.id} />
           ) : vista === 'ventanas' ? (
             <VentanasCubicacion proyectoId={proyecto.id} cubicacion={cubicacion} moneda={resumen.moneda} tipos={resumen.porTipo} filtro={filtro} onFiltro={setFiltro} />
           ) : (

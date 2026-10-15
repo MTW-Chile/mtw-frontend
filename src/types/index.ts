@@ -964,6 +964,9 @@ export interface FabricacionVentana {
   unidades: number;
   retirada: boolean;
   cuadros?: FabricacionCuadro[];
+  // Ventana(s) cubicada(s) ya conectadas a esta fila (ver vincularFabricacionConCubicacion
+  // en mtw-api) -- normalmente 0 o 1. Vacío = todavía sin vincular (a mano o automático).
+  individualizaciones?: { id: string; nomenclatura: string | null }[];
 }
 
 export interface FabricacionHetmo {
@@ -980,6 +983,7 @@ export interface FabricacionHetmo {
   origenVinculo: 'MANUAL' | 'AUTOMATICO';
   sincronizadoEn: string;
   creadoEn: string;
+  faseId: string | null;
   _count?: { ventanas: number };
   ventanas?: FabricacionVentana[];
 }
@@ -1002,12 +1006,20 @@ export interface FabricacionHetmoBusqueda {
   vinculadoA: { id: string; obra: string } | null;
 }
 
+export interface ReporteVinculacionCubicacion {
+  vinculadas: number;
+  sinMatch: { fabricacionVentanaId: string; modelo: string }[];
+  faseInferida: { id: string; nombre: string } | null;
+  faseConflicto: boolean;
+}
+
 export interface ResultadoVinculoFabricacion {
   fabricacionId: string;
   hetmoId: number;
   ventanas: { nuevas: number; actualizadas: number; retiradas: number };
   cuadros: { nuevos: number; actualizados: number; retirados: number };
   advertencias: string[];
+  vinculacionCubicacion: ReporteVinculacionCubicacion | null;
 }
 
 export interface ResultadoDeteccionFabricaciones {
@@ -1282,6 +1294,27 @@ export interface TorreConPisos {
   nombre: string;
   pisos: { id: string; numero: number }[];
 }
+// Crear una fase seleccionando torres/pisos/deptos/ventanas ya cubicadas en
+// vez de tipear línea+cantidad a mano -- ver resolverSeleccionParaFase en
+// mtw-api/src/cubicador-estructura.ts.
+export interface SeleccionFaseCubicacion {
+  torreIds?: string[];
+  pisoIds?: string[];
+  unidadIds?: string[];
+  ventanaIndividualizadaIds?: string[];
+}
+
+export interface ExclusionFaseCubicacion {
+  nivel: 'ventana' | 'depto' | 'piso';
+  nombre: string;
+}
+
+export interface CandidatoVinculoCubicacion {
+  id: string;
+  nomenclatura: string | null;
+  codigo: string;
+}
+
 export interface ResultadoAsignacionCubicacion {
   asignadas: number;
   faltan: number;

@@ -60,6 +60,9 @@ import type {
   TorreConPisos,
   ResultadoAsignacionCubicacion,
   ResultadoCopiaPisoCubicacion,
+  SeleccionFaseCubicacion,
+  ExclusionFaseCubicacion,
+  CandidatoVinculoCubicacion,
   CarpetaOneDrive,
   CarpetaOneDriveSugerida,
   ItemOneDrive,
@@ -205,6 +208,25 @@ export async function getMaterialesFabricacion(proyectoId: string, fabId: string
   return response.data;
 }
 
+// Candidatas para vincular a mano una ventana del lote que no calzo sola
+// por nomenclatura (ver vincularFabricacionConCubicacion en mtw-api).
+export async function getCandidatosVinculoCubicacion(
+  fabId: string
+): Promise<{ candidatos: CandidatoVinculoCubicacion[]; acotadoAFase: boolean }> {
+  const response = await apiClient.get<{ candidatos: CandidatoVinculoCubicacion[]; acotadoAFase: boolean }>(
+    `/fabricaciones/${fabId}/candidatos-cubicacion`
+  );
+  return response.data;
+}
+
+export async function vincularCubicacionFabricacion(
+  fabId: string,
+  fabricacionVentanaId: string,
+  ventanaIndividualizadaId: string
+): Promise<void> {
+  await apiClient.post(`/fabricaciones/${fabId}/ventanas/${fabricacionVentanaId}/vincular-cubicacion`, { ventanaIndividualizadaId });
+}
+
 export async function eliminarProyecto(id: string): Promise<{ success: boolean; obra: string }> {
   // POST, no DELETE -- Cloudflare Access bloquea DELETE/PUT con "Network
   // Error" en produccion (ver comentario en mtw-api junto al endpoint).
@@ -324,10 +346,14 @@ export async function createFase(
     descripcion?: string;
     fechaInicio?: string;
     fechaEntrega?: string;
-    ventanas: { ventanaId: string; unidades: number; notas?: string }[];
+    // Una u otra, nunca las dos: "ventanas" es el modo manual de siempre
+    // (línea + cantidad); "seleccionCubicacion" arma lo mismo a partir de
+    // torres/pisos/deptos/ventanas ya cubicadas (ver SeleccionFaseCubicacion).
+    ventanas?: { ventanaId: string; unidades: number; notas?: string }[];
+    seleccionCubicacion?: SeleccionFaseCubicacion;
   }
-): Promise<{ success: boolean; fase: Fase }> {
-  const response = await apiClient.post<{ success: boolean; fase: Fase }>(
+): Promise<{ success: boolean; fase: Fase; avisos: ExclusionFaseCubicacion[] }> {
+  const response = await apiClient.post<{ success: boolean; fase: Fase; avisos: ExclusionFaseCubicacion[] }>(
     `/versiones/${versionId}/fases`,
     payload
   );
