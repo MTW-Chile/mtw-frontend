@@ -10,6 +10,8 @@ import {
   Hash 
 } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
+import { StatCard } from '../../../../components/ui/StatCard';
+import { Badge } from '../../../../components/ui/Badge';
 import type { ProyectoVersion, Ventana } from '../../../../types';
 import { toWindowLine } from '../../components/drawing/ventanaAdapter';
 import { marcosFor, vidriosFor } from '../../components/drawing/geometryCore';
@@ -142,30 +144,25 @@ export const IndicadoresMetricos: React.FC<IndicadoresMetricosProps> = ({ active
             <h2 className="text-base font-extrabold text-slate-900">Indicadores técnicos y métricos</h2>
           </div>
         </div>
-        <span className="text-xs font-mono text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg self-start sm:self-auto">
+        <Badge size="sm" variant="default" className="self-start sm:self-auto">
           Rev {activeVersion?.versionNumero || 1} · {tipologiasDistintas} tipologías
-        </span>
+        </Badge>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {metricas.map((m) => {
-          const Icon = m.icon;
-          return (
-            <div key={m.id} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 flex flex-col gap-3 min-w-0">
-              <div className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 ${m.iconColor}`}>
-                <Icon className="w-4 h-4" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 leading-tight">{m.label}</div>
-                <div className="text-lg font-extrabold text-slate-900 leading-none whitespace-nowrap">
-                  {m.value}
-                  {m.unit && <span className="ml-1 text-xs font-semibold text-slate-500">{m.unit}</span>}
-                </div>
-                <div className="text-[11px] text-slate-500 mt-1 truncate" title={m.sublabel}>{m.sublabel}</div>
-              </div>
-            </div>
-          );
-        })}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+        {metricas.map((m) => (
+          <StatCard
+            key={m.id}
+            title={m.label}
+            value={m.value}
+            unit={m.unit}
+            subtitle={m.sublabel}
+            icon={m.icon}
+            iconBgColor={m.iconColor}
+            iconColor=""
+            className="p-3.5 sm:p-4"
+          />
+        ))}
       </div>
     </section>
   );

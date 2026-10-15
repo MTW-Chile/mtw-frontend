@@ -42,11 +42,11 @@ export const StatCard: React.FC<StatCardProps> = ({
             {title}
           </p>
           <div className="flex items-baseline gap-1.5 flex-wrap">
-            <span className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 font-mono">
+            <span className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900 tabular-nums">
               {value}
             </span>
             {unit && (
-              <span className="text-xs font-semibold text-slate-500 font-sans whitespace-nowrap">
+              <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">
                 {unit}
               </span>
             )}

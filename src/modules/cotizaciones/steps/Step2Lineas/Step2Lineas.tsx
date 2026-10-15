@@ -180,7 +180,7 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-5 sm:space-y-6 animate-fade-in">
+    <div className="space-y-5 sm:space-y-6 animate-fade-in">
       {/* Encabezado, acciones y búsqueda */}
       <section className="rounded-2xl bg-white border border-slate-200 shadow-xs p-4 sm:p-6 space-y-5">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">

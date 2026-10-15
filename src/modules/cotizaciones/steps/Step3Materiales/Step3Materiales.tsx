@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Boxes, Search, FileSpreadsheet, FileDown, CheckCircle2, Check, ChevronDown, ShieldCheck } from 'lucide-react';
 import { Badge } from '../../../../components/ui/Badge';
 import { Button } from '../../../../components/ui/Button';
+import { TABLE_CLASS, TABLE_WRAPPER_CLASS } from '../../../../lib/designSystem';
 import { formatNumber } from '../../../../lib/utils';
 import { useMonedas, resolverMoneda, formatMonto } from '../../../../lib/monedas';
 import { saveMaterialAjuste, setFamiliaAprobacion, setFamiliaDescuento, setFamiliaRecargo, updateEstadoAprobacion } from '../../../../api/client';
@@ -469,7 +470,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-5 sm:space-y-6 animate-fade-in">
+    <div className="space-y-5 sm:space-y-6 animate-fade-in">
       {/* 1. PARÁMETROS ECONÓMICOS */}
       <DivisasForm
         dolar={dolar}
@@ -666,8 +667,8 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                 {!colapsada && (
                   // @container: la tabla exige ancho real; en tablet y móvil cada material va en tarjeta.
                   <div className="@container">
-                    <div className="hidden @4xl:block overflow-x-auto">
-                      <table className="w-full text-left text-xs text-slate-700">
+                    <div className={`hidden @4xl:block ${TABLE_WRAPPER_CLASS}`}>
+                      <table className={`${TABLE_CLASS} text-left text-slate-700`}>
                         <thead className="bg-white text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-100">
                           <tr>
                             <th className="px-4 py-2.5 font-semibold">SKU</th>
