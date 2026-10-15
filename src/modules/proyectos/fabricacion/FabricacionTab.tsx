@@ -13,7 +13,7 @@ import { mostrarToast } from '../../../lib/toast';
 import type { FabricacionHetmo, Proyecto } from '../../../types';
 import { BuscarFabricacionModal } from './BuscarFabricacionModal';
 import { FabricacionDetalle } from './FabricacionDetalle';
-import { formatoFechaHora, textoEstadoFabricacion, varianteEstadoFabricacion } from './utils';
+import { formatoFechaHora, textoEstadoFabricacion, textoVinculacionCubicacion, varianteEstadoFabricacion } from './utils';
 
 interface Props {
   proyecto: Proyecto;
@@ -66,7 +66,8 @@ export const FabricacionTab: React.FC<Props> = ({ proyecto }) => {
       const cambios = r.ventanas.nuevas + r.ventanas.actualizadas + r.ventanas.retiradas;
       mostrarToast(
         (cambios === 0 ? 'Sin cambios en HETMO.' : `Actualizado: ${r.ventanas.nuevas} nueva(s), ${r.ventanas.actualizadas} modificada(s), ${r.ventanas.retiradas} retirada(s).`) +
-          (r.advertencias.length ? ` ${r.advertencias.join(' ')}` : ''),
+          (r.advertencias.length ? ` ${r.advertencias.join(' ')}` : '') +
+          (r.vinculacionCubicacion ? ` ${textoVinculacionCubicacion(r.vinculacionCubicacion)}` : ''),
         { tipo: 'info' }
       );
     },

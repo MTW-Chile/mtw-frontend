@@ -20,11 +20,13 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { StatCard } from '../../components/ui/StatCard';
 import { createFase, updateFase, deleteFase, getBodegaProyecto } from '../../api/client';
+import { mostrarToast } from '../../lib/toast';
 import { useMonedas } from '../../lib/monedas';
 import { computeMaterialesFasePorProveedor } from '../cotizaciones/lib/materialesConsolidados';
 import { CATEGORIA_GASTO_LABEL } from '../abastecimiento/categoriaGasto';
 import { NuevaOrdenCompraModal } from '../abastecimiento/NuevaOrdenCompraModal';
-import type { CategoriaGasto, Fase, Proyecto, ProyectoVersion } from '../../types';
+import { SelectorFaseDesdeCubicacion } from './cubicacion/SelectorFaseDesdeCubicacion';
+import type { CategoriaGasto, Fase, Proyecto, ProyectoVersion, SeleccionFaseCubicacion } from '../../types';
 
 const formatoMoneda = (valor: number) => valor.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
@@ -64,6 +66,13 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaEntrega, setFechaEntrega] = useState('');
   const [cantidades, setCantidades] = useState<Record<string, string>>({});
+  // Por defecto se crea seleccionando desde la cubicación (mas preciso: sabe
+  // exactamente que ventana fisica queda en la fase, no solo "cuantas" de
+  // la linea). El modo manual (linea+cantidad) sigue disponible como
+  // alternativa, y es el unico modo al editar una fase ya creada.
+  const [modoCreacion, setModoCreacion] = useState<'cubicacion' | 'manual'>('cubicacion');
+  const [seleccionCubicacion, setSeleccionCubicacion] = useState<SeleccionFaseCubicacion>({});
+  const [resumenSeleccion, setResumenSeleccion] = useState('nada seleccionado todavía');
   const [busqueda, setBusqueda] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [expandidas, setExpandidas] = useState<Set<string>>(new Set());
@@ -197,6 +206,9 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
     setFechaInicio('');
     setFechaEntrega('');
     setCantidades({});
+    setModoCreacion('cubicacion');
+    setSeleccionCubicacion({});
+    setResumenSeleccion('nada seleccionado todavía');
     setBusqueda('');
     setError(null);
   };
@@ -214,6 +226,7 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
     const iniciales: Record<string, string> = {};
     (fase.ventanasFase || []).forEach((vf) => (iniciales[vf.ventanaId] = String(vf.unidades)));
     setCantidades(iniciales);
+    setModoCreacion('manual'); // editar siempre reemplaza por linea+cantidad, igual que antes
     setBusqueda('');
     setError(null);
   };
@@ -223,20 +236,38 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
       .filter(([, v]) => Number(v) > 0)
       .map(([ventanaId, v]) => ({ ventanaId, unidades: Number(v) }));
 
+  const esNueva = editando === 'nueva' || editando === null;
+  const usaModoCubicacion = esNueva && modoCreacion === 'cubicacion';
+
   const guardarMutation = useMutation({
     mutationFn: () => {
-      const payload = {
+      if (esNueva) {
+        return usaModoCubicacion
+          ? createFase(activeVersion!.id, {
+              nombre: nombre.trim(),
+              fechaInicio: fechaInicio || undefined,
+              fechaEntrega: fechaEntrega || undefined,
+              seleccionCubicacion,
+            })
+          : createFase(activeVersion!.id, {
+              nombre: nombre.trim(),
+              fechaInicio: fechaInicio || undefined,
+              fechaEntrega: fechaEntrega || undefined,
+              ventanas: ventanasPayload(),
+            });
+      }
+      return updateFase(editando!, {
         nombre: nombre.trim(),
         fechaInicio: fechaInicio || undefined,
         fechaEntrega: fechaEntrega || undefined,
         ventanas: ventanasPayload(),
-      };
-      return editando === 'nueva' || editando === null
-        ? createFase(activeVersion!.id, payload)
-        : updateFase(editando, payload);
+      });
     },
-    onSuccess: () => {
+    onSuccess: (resultado: { success: boolean; fase: Fase; avisos?: { nivel: string; nombre: string }[] }) => {
       queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyecto.id] });
+      if (resultado.avisos && resultado.avisos.length) {
+        mostrarToast(`Fase creada. ${resultado.avisos.length} exclusión(es): algo ya pertenecía a otra fase.`, { tipo: 'info' });
+      }
       resetForm();
     },
     onError: (err: any) => setError(err?.response?.data?.error || 'No se pudo guardar la fase.'),
@@ -354,69 +385,103 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
               <Input label="Fecha inicio" type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} />
               <Input label="Fecha entrega" type="date" value={fechaEntrega} onChange={(e) => setFechaEntrega(e.target.value)} />
             </div>
+
+            {esNueva && (
+              <div className="flex items-center gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setModoCreacion('cubicacion')}
+                  className={`px-2.5 py-1 rounded-lg font-bold cursor-pointer ${modoCreacion === 'cubicacion' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >
+                  Desde la cubicación
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModoCreacion('manual')}
+                  className={`px-2.5 py-1 rounded-lg font-bold cursor-pointer ${modoCreacion === 'manual' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >
+                  Ventanas individuales (sin cubicar)
+                </button>
+              </div>
+            )}
           </div>
 
-          <div className="p-3 border-b border-slate-100">
-            <Input
-              placeholder="Buscar línea por modelo o N°..."
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              leftIcon={<Search className="w-3.5 h-3.5" />}
-            />
-          </div>
+          {usaModoCubicacion ? (
+            <div className="p-4 space-y-2">
+              <SelectorFaseDesdeCubicacion
+                proyectoId={proyecto.id}
+                onChange={(s, resumen) => {
+                  setSeleccionCubicacion(s);
+                  setResumenSeleccion(resumen);
+                }}
+              />
+              <p className="text-[11px] text-slate-500">Seleccionado: {resumenSeleccion}. Una ventana que ya esté en otra fase se excluye sola, con aviso.</p>
+            </div>
+          ) : (
+            <>
+              <div className="p-3 border-b border-slate-100">
+                <Input
+                  placeholder="Buscar línea por modelo o N°..."
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  leftIcon={<Search className="w-3.5 h-3.5" />}
+                />
+              </div>
 
-          <div className="max-h-96 overflow-auto">
-            <table className="w-full text-xs">
-              <thead className="sticky top-0 bg-slate-50/95 backdrop-blur">
-                <tr className="border-b border-slate-100 text-left text-slate-500 uppercase tracking-wider text-[10px]">
-                  <th className="px-4 py-2.5 font-bold">Línea</th>
-                  <th className="px-4 py-2.5 font-bold text-right">Total</th>
-                  <th className="px-4 py-2.5 font-bold text-right">En otras fases</th>
-                  <th className="px-4 py-2.5 font-bold text-right">Restante</th>
-                  <th className="px-4 py-2.5 font-bold text-right w-28">En esta fase</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filasFiltradas.map((f) => {
-                  const asignadaAqui = Number(cantidades[f.ventanaId]) || 0;
-                  const restante = f.unidadesTotal - f.asignadoOtrasFases;
-                  const excedida = asignadaAqui > restante;
-                  return (
-                    <tr key={f.ventanaId} className="border-b border-slate-50 hover:bg-slate-50/50">
-                      <td className="px-4 py-2 text-slate-700">
-                        <span className="font-mono text-slate-400 mr-1.5">#{f.lineaHetmo}</span>
-                        {f.modelo}
-                        {f.descripcionCorta && <span className="text-slate-400"> · {f.descripcionCorta}</span>}
-                      </td>
-                      <td className="px-4 py-2 text-right font-mono text-slate-600">{f.unidadesTotal}</td>
-                      <td className="px-4 py-2 text-right font-mono text-slate-500">{f.asignadoOtrasFases}</td>
-                      <td className={`px-4 py-2 text-right font-mono font-semibold ${restante <= 0 ? 'text-slate-300' : 'text-slate-700'}`}>
-                        {restante}
-                      </td>
-                      <td className="px-4 py-2 text-right">
-                        <input
-                          type="number"
-                          min={0}
-                          value={cantidades[f.ventanaId] || ''}
-                          onChange={(e) => setCantidades((prev) => ({ ...prev, [f.ventanaId]: e.target.value }))}
-                          className={`w-20 text-right text-xs border rounded-lg px-2 py-1 outline-none ${
-                            excedida ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-slate-200 focus:border-brand-600'
-                          }`}
-                        />
-                      </td>
+              <div className="max-h-96 overflow-auto">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-slate-50/95 backdrop-blur">
+                    <tr className="border-b border-slate-100 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                      <th className="px-4 py-2.5 font-bold">Línea</th>
+                      <th className="px-4 py-2.5 font-bold text-right">Total</th>
+                      <th className="px-4 py-2.5 font-bold text-right">En otras fases</th>
+                      <th className="px-4 py-2.5 font-bold text-right">Restante</th>
+                      <th className="px-4 py-2.5 font-bold text-right w-28">En esta fase</th>
                     </tr>
-                  );
-                })}
-                {filasFiltradas.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
-                      Sin líneas que calcen con la búsqueda.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody>
+                    {filasFiltradas.map((f) => {
+                      const asignadaAqui = Number(cantidades[f.ventanaId]) || 0;
+                      const restante = f.unidadesTotal - f.asignadoOtrasFases;
+                      const excedida = asignadaAqui > restante;
+                      return (
+                        <tr key={f.ventanaId} className="border-b border-slate-50 hover:bg-slate-50/50">
+                          <td className="px-4 py-2 text-slate-700">
+                            <span className="font-mono text-slate-400 mr-1.5">#{f.lineaHetmo}</span>
+                            {f.modelo}
+                            {f.descripcionCorta && <span className="text-slate-400"> · {f.descripcionCorta}</span>}
+                          </td>
+                          <td className="px-4 py-2 text-right font-mono text-slate-600">{f.unidadesTotal}</td>
+                          <td className="px-4 py-2 text-right font-mono text-slate-500">{f.asignadoOtrasFases}</td>
+                          <td className={`px-4 py-2 text-right font-mono font-semibold ${restante <= 0 ? 'text-slate-300' : 'text-slate-700'}`}>
+                            {restante}
+                          </td>
+                          <td className="px-4 py-2 text-right">
+                            <input
+                              type="number"
+                              min={0}
+                              value={cantidades[f.ventanaId] || ''}
+                              onChange={(e) => setCantidades((prev) => ({ ...prev, [f.ventanaId]: e.target.value }))}
+                              className={`w-20 text-right text-xs border rounded-lg px-2 py-1 outline-none ${
+                                excedida ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-slate-200 focus:border-brand-600'
+                              }`}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {filasFiltradas.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+                          Sin líneas que calcen con la búsqueda.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
 
           <div className="p-3.5 flex items-center justify-end gap-2 bg-slate-50/70">
             <Button variant="outline" size="sm" onClick={resetForm}>
@@ -425,7 +490,15 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
             <Button
               size="sm"
               isLoading={guardarMutation.isPending}
-              disabled={!nombre.trim()}
+              disabled={
+                !nombre.trim() ||
+                (usaModoCubicacion &&
+                  (seleccionCubicacion.torreIds?.length || 0) +
+                    (seleccionCubicacion.pisoIds?.length || 0) +
+                    (seleccionCubicacion.unidadIds?.length || 0) +
+                    (seleccionCubicacion.ventanaIndividualizadaIds?.length || 0) ===
+                    0)
+              }
               onClick={() => guardarMutation.mutate()}
             >
               Guardar fase

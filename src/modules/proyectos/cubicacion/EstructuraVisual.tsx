@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, Copy, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Building2, Copy, Layers, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { asignarVentanasCubicacion, editarUnidadCubicacion, eliminarLugarCubicacion, getEstructuraCubicacion, quitarPosicionVentanaCubicacion } from '../../../api/client';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import type { ConfigCubicacion, NodoDeptoCubicacion, NodoTorreCubicacion, TipoCubicacion, UnidadCubicacion } from '../../../types';
 import { formatoMm } from '../fabricacion/utils';
+import { CrearFaseDesdeCubicacionModal } from './CrearFaseDesdeCubicacionModal';
 import { AsignarModal, ArmarEdificioModal, CopiarPisoModal, DeptosModal, PisosModal, RenombrarTorreModal, TorreModal, UnidadEspecialModal } from './EstructuraModales';
 import { UnidadModal } from './UnidadModal';
 import { mensajeAsignacion, textoTorre } from './utils';
@@ -15,6 +16,10 @@ interface Props {
   proyectoId: string;
   cubicacion: ConfigCubicacion;
   tipos: TipoCubicacion[];
+  // Para "Crear fase con esta selección" -- sin version activa (obra sin
+  // presupuesto) esa accion no aplica, no deberia llegar a pasar hoy porque
+  // el cubicador quedo exclusivo de obras cotizadas, pero se guarda igual.
+  versionId?: string;
 }
 
 // Destino de asignar/mover una ventana: siempre una Unidad (depto o especial) ya existente en el arbol.
@@ -31,7 +36,8 @@ type ModalAbierto =
   | { tipo: 'especial'; torreId: string }
   | { tipo: 'copiar'; torre: NodoTorreCubicacion; pisoNumero: number }
   | { tipo: 'asignar'; destino: Destino }
-  | { tipo: 'ventana'; unidad: UnidadCubicacion };
+  | { tipo: 'ventana'; unidad: UnidadCubicacion }
+  | { tipo: 'crearFase' };
 
 const aviso = (e: unknown) => {
   const { mensaje, detalle } = extraerErrorParaToast(e);
@@ -116,7 +122,7 @@ const TarjetaUnidad: React.FC<{
 // Cubicador visual: se arma el edificio (torres -> pisos -> departamentos) y se le van asignando las ventanas
 // del presupuesto. Escribe las mismas unidades que la planilla Excel (torre, piso, depto, ubicacion), asi que
 // la planilla, la lista de ventanas y el informe para HETMO salen identicos.
-export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipos }) => {
+export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipos, versionId }) => {
   const queryClient = useQueryClient();
   const [modal, setModal] = useState<ModalAbierto | null>(null);
   const [activo, setActivo] = useState<string | null>(null);
@@ -215,6 +221,17 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
           <Button variant="outline" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setModal({ tipo: 'torre' })}>
             Agregar torre
           </Button>
+          {versionId && (
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Layers className="w-3.5 h-3.5" />}
+              onClick={() => setModal({ tipo: 'crearFase' })}
+              title="Selecciona torres, pisos, deptos o ventanas ya cubicadas para crear una fase de fabricación"
+            >
+              Crear fase con selección
+            </Button>
+          )}
         </div>
       </div>
 
@@ -429,6 +446,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
       {modal?.tipo === 'copiar' && <CopiarPisoModal {...base} torre={modal.torre} piso={modal.pisoNumero} />}
       {modal?.tipo === 'asignar' && <AsignarModal {...base} unidadId={modal.destino.unidadId} torre={modal.destino.torre} nombreUnidad={modal.destino.nombreUnidad} tipos={tipos} tipoInicial={activo ?? undefined} />}
       {modal?.tipo === 'ventana' && <UnidadModal proyectoId={proyectoId} cubicacion={cubicacion} tipos={tipos} unidad={modal.unidad} onClose={() => setModal(null)} />}
+      {modal?.tipo === 'crearFase' && versionId && <CrearFaseDesdeCubicacionModal proyectoId={proyectoId} versionId={versionId} onClose={() => setModal(null)} />}
     </div>
   );
 };

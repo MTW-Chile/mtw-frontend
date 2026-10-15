@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Loader2 } from 'lucide-react';
-import { getFabricacionDetalle, getMaterialesFabricacion } from '../../../api/client';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AlertTriangle, Check, Loader2 } from 'lucide-react';
+import { getCandidatosVinculoCubicacion, getFabricacionDetalle, getMaterialesFabricacion, vincularCubicacionFabricacion } from '../../../api/client';
 import { Badge } from '../../../components/ui/Badge';
-import type { MaterialFabricacion, MaterialesFabricacion } from '../../../types';
+import { Button } from '../../../components/ui/Button';
+import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
+import type { FabricacionVentana, MaterialFabricacion, MaterialesFabricacion } from '../../../types';
 import { formatoMm, resumenCuadros } from './utils';
 
 interface Props {
@@ -97,6 +99,70 @@ const Materiales: React.FC<{ datos: MaterialesFabricacion }> = ({ datos }) => (
   </div>
 );
 
+// Si ya se vinculo sola (por nomenclatura, ver vincularFabricacionConCubicacion
+// en mtw-api) muestra la nomenclatura; si no, deja elegir a mano entre las
+// ventanas cubicadas candidatas (normalmente pocas, acotadas a la Fase ya
+// inferida para este lote) -- una vez elegida queda guardada como vinculo
+// real, no se vuelve a pedir.
+const CeldaVinculoCubicacion: React.FC<{ fabricacionId: string; ventana: FabricacionVentana; proyectoId: string }> = ({ fabricacionId, ventana, proyectoId }) => {
+  const queryClient = useQueryClient();
+  const [elegido, setElegido] = useState('');
+  const vinculada = (ventana.individualizaciones?.length ?? 0) > 0;
+
+  const candidatos = useQuery({
+    queryKey: ['candidatosVinculoCubicacion', fabricacionId],
+    queryFn: () => getCandidatosVinculoCubicacion(fabricacionId),
+    enabled: !vinculada,
+    staleTime: 1000 * 30,
+  });
+
+  const vincular = useMutation({
+    mutationFn: () => vincularCubicacionFabricacion(fabricacionId, ventana.id, elegido),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['fabricacionDetalle', proyectoId, fabricacionId] });
+      queryClient.invalidateQueries({ queryKey: ['candidatosVinculoCubicacion', fabricacionId] });
+    },
+    onError: (e) => {
+      const { mensaje, detalle } = extraerErrorParaToast(e);
+      mostrarToast(mensaje, { detalle });
+    },
+  });
+
+  if (vinculada) {
+    return (
+      <span className="inline-flex items-center gap-1 text-emerald-700 font-mono">
+        <Check className="w-3.5 h-3.5" /> {ventana.individualizaciones![0].nomenclatura || '—'}
+      </span>
+    );
+  }
+
+  if (candidatos.isLoading) return <span className="text-slate-300">...</span>;
+  const opciones = candidatos.data?.candidatos ?? [];
+  if (opciones.length === 0) {
+    return <span className="text-slate-400">Sin candidatas</span>;
+  }
+  return (
+    <div className="flex items-center gap-1">
+      <select
+        value={elegido}
+        onChange={(e) => setElegido(e.target.value)}
+        className="text-[11px] border border-slate-200 rounded-md px-1 py-0.5 max-w-[9rem]"
+        aria-label={`Vincular ventana de fabricación ${ventana.modelo} a una ventana cubicada`}
+      >
+        <option value="">Elegir...</option>
+        {opciones.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.codigo} {c.nomenclatura}
+          </option>
+        ))}
+      </select>
+      <Button size="sm" variant="outline" disabled={!elegido} isLoading={vincular.isPending} onClick={() => vincular.mutate()}>
+        Vincular
+      </Button>
+    </div>
+  );
+};
+
 // Contenido de un documento de fabricacion vinculado: sus ventanas (lo que
 // se copio de HETMO) y, a pedido, los materiales y vidrios por ventana, que
 // se leen EN VIVO de HETMO con la medida real de cada ventana.
@@ -163,6 +229,7 @@ export const FabricacionDetalle: React.FC<Props> = ({ proyectoId, fabricacionId 
                 <th className="px-3 py-2 font-bold text-right">Medida (mm)</th>
                 <th className="px-3 py-2 font-bold text-right">Uds</th>
                 <th className="px-3 py-2 font-bold">Cuadros</th>
+                <th className="px-3 py-2 font-bold">Cubicación</th>
               </tr>
             </thead>
             <tbody>
@@ -182,6 +249,9 @@ export const FabricacionDetalle: React.FC<Props> = ({ proyectoId, fabricacionId 
                   </td>
                   <td className="px-3 py-2 text-right font-mono text-slate-700">{v.unidades}</td>
                   <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{resumenCuadros(v.cuadros)}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    {!v.retirada && <CeldaVinculoCubicacion fabricacionId={fabricacionId} ventana={v} proyectoId={proyectoId} />}
+                  </td>
                 </tr>
               ))}
             </tbody>

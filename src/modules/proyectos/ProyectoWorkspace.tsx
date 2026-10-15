@@ -132,7 +132,7 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
             <>
               {seccion === 'presupuesto' && <ControlPresupuestoTab proyecto={proyecto} activeVersion={activeVersion} />}
               {seccion === 'documentos' && <DocumentosObraTab proyecto={proyecto} />}
-              {seccion === 'cubicacion' && <CubicacionTab proyecto={proyecto} />}
+              {seccion === 'cubicacion' && <CubicacionTab proyecto={proyecto} activeVersion={activeVersion} />}
               {seccion === 'fases' && <FasesTab proyecto={proyecto} activeVersion={activeVersion} />}
               {seccion === 'abastecimiento' && <OrdenesCompraList proyectoId={proyectoId} proyectoLabel={proyecto.obra} />}
               {seccion === 'fabricacion' && <FabricacionTab proyecto={proyecto} />}
