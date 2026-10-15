@@ -1,15 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import {
-  Search,
-  Layers,
-  ArrowUpDown,
-  FileDown,
-  Loader2,
-  Plus,
-  X,
-  ChevronDown
-} from 'lucide-react';
+import { Search, Layers, FileDown, Loader2, Plus, X, ChevronDown } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
 import { renderPdf, eliminarLineaManual, espejarVentana, invertirOrdenPanelesVentana } from '../../../../api/client';
 import type { Proyecto, ProyectoVersion, Ventana } from '../../../../types';
@@ -18,6 +9,8 @@ import { EditarLineaModal } from './EditarLineaModal';
 import { AgregarLineaManualModal } from './AgregarLineaManualModal';
 import { guardarCorreccionDibujo } from './correccionDibujo';
 import { buildCatalogoHtml, rasterizarDibujos } from './catalogoPdf';
+import { Button } from '../../../../components/ui/Button';
+import { Paginacion, paginar } from '../../../../components/ui/Paginacion';
 
 interface Step2LineasProps {
   proyecto: Proyecto;
@@ -149,6 +142,15 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
   const [isExportingCatalogo, setIsExportingCatalogo] = useState(false);
   const [catalogoError, setCatalogoError] = useState<string | null>(null);
 
+  // Paginación: 15 por página por defecto; 0 = todas. Vuelve a la página 1 al buscar u ordenar.
+  const [pagina, setPagina] = useState(1);
+  const [porPagina, setPorPagina] = useState<number>(15);
+  useEffect(() => setPagina(1), [searchTerm, sortBy]);
+  const { visibles: ventanasPagina, paginaEfectiva } = useMemo(
+    () => paginar(filteredVentanas, pagina, porPagina),
+    [filteredVentanas, pagina, porPagina]
+  );
+
   const exportarCatalogoPDF = async () => {
     if (!filteredVentanas.length) return;
     setCatalogoError(null);
@@ -178,78 +180,63 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Barra de Control, Búsqueda y Filtros */}
-      <div className="p-4 sm:p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-4">
-        {/* Fila Superior: Encabezado y Acciones Principales */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-3.5 border-b border-slate-100">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-brand-600/10 text-brand-600 border border-brand-600/20 flex items-center justify-center shrink-0">
-              <Layers className="w-4 h-4 sm:w-5 sm:h-5" />
+    <div className="max-w-6xl mx-auto space-y-5 sm:space-y-6 animate-fade-in">
+      {/* Encabezado, acciones y búsqueda */}
+      <section className="rounded-2xl bg-white border border-slate-200 shadow-xs p-4 sm:p-6 space-y-5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-brand-50 border border-brand-100 text-brand-600 flex items-center justify-center shrink-0">
+              <Layers className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-                Catálogo Técnico de Obra
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-xs sm:text-base font-bold text-slate-900 truncate">
-                  Revisión Técnica de Líneas y Tipologías
-                </h2>
-                <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200/80 shrink-0 whitespace-nowrap">
-                  {filteredVentanas.length} de {ventanas.length} modelos
-                </span>
-              </div>
-              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
-                {totalVentanasFiltradas} ventanas totales · <strong className="font-mono text-slate-700">{formatNumber(totalM2Filtradas, 2)} m²</strong> de superficie
+              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Catálogo técnico de obra</div>
+              <h2 className="text-base font-extrabold text-slate-900">Revisión técnica de líneas</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {filteredVentanas.length} de {ventanas.length} líneas · {totalVentanasFiltradas} ventanas ·{' '}
+                <strong className="text-slate-700">{formatNumber(totalM2Filtradas, 2)} m²</strong>
               </p>
             </div>
           </div>
 
-          {/* Botones de Acción Primaria */}
-          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-            <button
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
               onClick={exportarCatalogoPDF}
               disabled={isExportingCatalogo || !filteredVentanas.length}
-              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200/90 text-slate-700 font-semibold text-xs shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              leftIcon={isExportingCatalogo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
               title="Exportar Catálogo Técnico en PDF"
             >
-              {isExportingCatalogo ? (
-                <Loader2 className="w-3.5 h-3.5 text-brand-600 animate-spin" />
-              ) : (
-                <FileDown className="w-3.5 h-3.5 text-slate-500" />
-              )}
-              <span>{isExportingCatalogo ? 'Generando…' : 'Exportar PDF'}</span>
-            </button>
-
+              {isExportingCatalogo ? 'Generando…' : 'Exportar PDF'}
+            </Button>
             {activeVersion && (
-              <button
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={() => setShowAgregarLinea(true)}
-                className="px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-sm shadow-brand-600/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                leftIcon={<Plus className="w-3.5 h-3.5" />}
                 title="Agregar una línea que no viene de HETMO"
               >
-                <Plus className="w-4 h-4" />
-                <span>Agregar Línea</span>
-              </button>
+                Agregar línea
+              </Button>
             )}
           </div>
         </div>
 
-        {/* Fila Inferior: Buscador y Filtro de Orden */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          {/* Buscador */}
-          <div className="relative flex-1">
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 pt-5 border-t border-slate-100">
+          <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por modelo, acabado o comentario..."
-              className="w-full pl-10 pr-9 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-brand-600 transition-all"
+              placeholder="Buscar por modelo, acabado o comentario…"
+              className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-brand-600 transition-colors"
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
                 aria-label="Limpiar búsqueda"
               >
                 <X className="w-3.5 h-3.5" />
@@ -257,61 +244,64 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
             )}
           </div>
 
-          {/* Selector de Orden */}
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden md:inline">
-              Ordenar:
-            </span>
-            <div className="relative w-full sm:w-auto">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="w-full sm:w-auto pl-8 pr-8 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:bg-white focus:border-brand-600 cursor-pointer appearance-none"
-              >
-                <option value="linea">Nº Línea (Hetmo)</option>
-                <option value="modelo">Modelo</option>
-                <option value="unidades">Cantidad Uds</option>
-                <option value="superficie">Superficie m²</option>
-              </select>
-              <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
+          <div className="relative sm:w-64">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              aria-label="Ordenar líneas"
+              className="w-full pl-3.5 pr-9 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:bg-white focus:border-brand-600 appearance-none cursor-pointer"
+            >
+              <option value="linea">Orden: Nº línea (HETMO)</option>
+              <option value="modelo">Orden: Modelo</option>
+              <option value="unidades">Orden: Cantidad de uds</option>
+              <option value="superficie">Orden: Superficie m²</option>
+            </select>
+            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
         </div>
-      </div>
+      </section>
 
       {catalogoError && (
-        <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
-          {catalogoError}
-        </div>
+        <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">{catalogoError}</div>
       )}
 
-      {/* Grid de Tarjetas de Ventana con Esquemas Vectoriales */}
       {filteredVentanas.length === 0 ? (
         <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 space-y-2">
-          <p className="text-xs text-slate-500">No se encontraron líneas que coincidan con el criterio de búsqueda.</p>
-          <button
-            onClick={() => setSearchTerm('')}
-            className="text-xs font-bold text-brand-600 hover:underline cursor-pointer"
-          >
+          <p className="text-sm text-slate-500">No se encontraron líneas que coincidan con el criterio de búsqueda.</p>
+          <button onClick={() => setSearchTerm('')} className="text-xs font-bold text-brand-600 hover:underline cursor-pointer">
             Limpiar filtro
           </button>
         </div>
       ) : (
-        <div className="@container">
-        {/* @container: el Sidebar le quita 256px al contenido desde lg, así que las columnas se deciden por el ancho real, no por el viewport. */}
-        <div className="grid grid-cols-1 @2xl:grid-cols-2 @5xl:grid-cols-3 gap-5">
-          {filteredVentanas.map((v) => (
-            <VentanaCard
-              key={v.id}
-              ventana={v}
-              onEditar={(ventana) => setSelectedVentanaIdForEdicion(ventana.id)}
-              onDeleteLineaManual={handleEliminarLineaManual}
-              isDeletingLineaManual={eliminandoLineaId === v.id}
-            />
-          ))}
-        </div>
-        </div>
+        <>
+          {/* @container: el Sidebar le quita ancho al contenido, así que las columnas
+              se deciden por el ancho real del área, no por el viewport. */}
+          <div className="@container">
+            <div className="grid grid-cols-1 @2xl:grid-cols-2 @5xl:grid-cols-3 gap-4 sm:gap-5">
+              {ventanasPagina.map((v) => (
+                <VentanaCard
+                  key={v.id}
+                  ventana={v}
+                  onEditar={(ventana) => setSelectedVentanaIdForEdicion(ventana.id)}
+                  onDeleteLineaManual={handleEliminarLineaManual}
+                  isDeletingLineaManual={eliminandoLineaId === v.id}
+                />
+              ))}
+            </div>
+          </div>
+
+          <Paginacion
+            total={filteredVentanas.length}
+            pagina={paginaEfectiva}
+            porPagina={porPagina}
+            onPaginaChange={setPagina}
+            onPorPaginaChange={(n) => {
+              setPorPagina(n);
+              setPagina(1);
+            }}
+            etiqueta="líneas"
+          />
+        </>
       )}
 
       {/* Modal: Editar Línea (dibujo en vivo + materiales) */}

@@ -268,7 +268,7 @@ export const CorrederaEditor: React.FC<CorrederaEditorProps> = ({ ventana, onDra
                             value={hoja.ancho || ''}
                             onChange={(e) => updateHoja(idx, { ancho: Number(e.target.value) || 0 })}
                             disabled={isHidden}
-                            className="w-full px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white disabled:bg-slate-100 disabled:text-slate-400"
+                            className="w-full px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white disabled:bg-slate-100 disabled:text-slate-400"
                           />
                         </div>
 

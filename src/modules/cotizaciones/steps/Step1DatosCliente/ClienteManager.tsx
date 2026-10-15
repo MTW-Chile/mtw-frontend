@@ -35,7 +35,7 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
   embedded = false,
 }) => {
   return (
-    <div className={embedded ? "space-y-3.5 sm:space-y-4" : "p-4 sm:p-6 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-4"}>
+    <section className={embedded ? 'space-y-3.5 sm:space-y-4' : 'rounded-2xl bg-white border border-slate-200 shadow-xs p-4 sm:p-6 space-y-4'}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-3 border-b border-slate-100">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-brand-600/10 text-brand-600 border border-brand-600/20 flex items-center justify-center shrink-0">
@@ -344,6 +344,6 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 };

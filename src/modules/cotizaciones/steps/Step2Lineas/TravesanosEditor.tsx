@@ -108,7 +108,7 @@ export const TravesanosEditor: React.FC<TravesanosEditorProps> = ({ ventana, onD
                       min={1}
                       value={t.cota || ''}
                       onChange={(e) => update(i, { cota: Number(e.target.value) })}
-                      className="w-28 text-xs font-mono border border-slate-200 rounded-lg px-2 py-1.5"
+                      className="w-28 text-xs border border-slate-200 rounded-lg px-2 py-1.5"
                       placeholder="mm"
                     />
                     <span className="text-[11px] text-slate-400 flex-1">

@@ -1,57 +1,55 @@
 import React from 'react';
-import { ArrowRight, CheckCircle2 } from 'lucide-react';
-import type { CotizadorStep } from './HeaderContexto';
+import { ArrowLeft, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { SelectorPaso } from './SelectorPaso';
+import { STEPS, type CotizadorStep } from './pasos';
 
 interface WorkspaceFooterProps {
   currentStep: CotizadorStep;
   saveSuccess: boolean;
-  onPrevStep: () => void;
-  onNextStep: () => void;
+  onStepChange: (step: CotizadorStep) => void;
 }
 
-const STEP_NEXT_LABELS: Record<number, string> = {
-  1: 'Revisión de Líneas',
-  2: 'Analítica de Materiales',
-  3: 'Hoja de Fijación',
-  4: 'Presupuesto en PDF',
-};
+// Navegación del cotizador: Anterior / Continuar a la izquierda, selector de
+// paso a la derecha. Los textos salen de STEPS (pasos.ts).
+export const WorkspaceFooter: React.FC<WorkspaceFooterProps> = ({ currentStep, saveSuccess, onStepChange }) => {
+  const anterior = STEPS.find((s) => s.step === currentStep - 1);
+  const siguiente = STEPS.find((s) => s.step === currentStep + 1);
 
-export const WorkspaceFooter: React.FC<WorkspaceFooterProps> = ({
-  currentStep,
-  saveSuccess,
-  onPrevStep,
-  onNextStep,
-}) => {
   return (
-    <footer className="sticky bottom-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-md px-3.5 sm:px-8 py-2.5 sm:py-3.5">
-      <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4 w-full">
-        <div className="flex items-center gap-2 empty:hidden">
-          {saveSuccess && (
-            <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1.5 animate-fade-in">
-              <CheckCircle2 className="w-4 h-4 shrink-0" /> Parámetros guardados con éxito
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
-          {currentStep > 1 && (
+    <footer className="sticky bottom-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-md px-3.5 sm:px-8 py-2.5 sm:py-3">
+      <div className="max-w-6xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          {anterior && (
             <button
-              onClick={onPrevStep}
-              className="flex-1 sm:flex-initial px-3.5 sm:px-4 py-2 rounded-xl text-xs font-semibold transition-colors border bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300 cursor-pointer text-center"
+              onClick={() => onStepChange(anterior.step)}
+              className="px-3 sm:px-4 py-2 rounded-xl text-xs font-semibold transition-colors border bg-white hover:bg-slate-50 text-slate-700 border-slate-300 shadow-2xs flex items-center gap-1.5 cursor-pointer shrink-0"
             >
-              ← Anterior
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Anterior</span>
             </button>
           )}
 
-          {currentStep < 5 && (
+          {siguiente && (
             <button
-              onClick={onNextStep}
-              className="flex-1 sm:flex-initial px-4 sm:px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md shadow-brand-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              onClick={() => onStepChange(siguiente.step)}
+              className="px-3.5 sm:px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md shadow-brand-600/20 transition-all flex items-center gap-2 cursor-pointer min-w-0"
             >
-              <span>Continuar<span className="hidden sm:inline"> a {STEP_NEXT_LABELS[currentStep] || `Paso ${currentStep + 1}`}</span></span>
+              <span className="truncate">
+                <span className="hidden sm:inline">Continuar a </span>
+                {siguiente.label}
+              </span>
               <ArrowRight className="w-4 h-4 shrink-0" />
             </button>
           )}
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0">
+          {saveSuccess && (
+            <span className="hidden md:flex text-xs text-emerald-600 font-semibold items-center gap-1.5 animate-fade-in">
+              <CheckCircle2 className="w-4 h-4 shrink-0" /> Parámetros guardados con éxito
+            </span>
+          )}
+          <SelectorPaso currentStep={currentStep} onStepChange={onStepChange} />
         </div>
       </div>
     </footer>

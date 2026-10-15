@@ -1,17 +1,9 @@
 import React, { useMemo } from 'react';
-import {
-  Maximize2,
-  Paintbrush,
-  MessageSquareText,
-  Wrench,
-  Boxes,
-  DoorClosed,
-  ChevronDown,
-  Trash2,
-  Loader2
-} from 'lucide-react';
+import { Maximize2, MessageSquareText, Wrench, ChevronDown, Trash2, Loader2, Pencil } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
 import type { Ventana } from '../../../../types';
+import { Badge } from '../../../../components/ui/Badge';
+import { Button } from '../../../../components/ui/Button';
 import { WindowRendererSvg } from '../../components/drawing/WindowRendererSvg';
 import { buildProtexDoorSvg } from '../../components/drawing/protexDoorSvg';
 import { toWindowLine } from '../../components/drawing/ventanaAdapter';
@@ -25,12 +17,15 @@ interface VentanaCardProps {
   isDeletingLineaManual?: boolean;
 }
 
-export const VentanaCard: React.FC<VentanaCardProps> = ({
-  ventana,
-  onEditar,
-  onDeleteLineaManual,
-  isDeletingLineaManual,
-}) => {
+// Etiqueta de sección dentro de la tarjeta (mismo criterio que el resto del módulo).
+const Dato: React.FC<{ label: string; children: React.ReactNode; className?: string }> = ({ label, children, className = '' }) => (
+  <div className={`min-w-0 ${className}`}>
+    <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">{label}</div>
+    <div className="text-xs font-semibold text-slate-900 truncate">{children}</div>
+  </div>
+);
+
+export const VentanaCard: React.FC<VentanaCardProps> = ({ ventana, onEditar, onDeleteLineaManual, isDeletingLineaManual }) => {
   const superficie = ventana.m2Ventana ?? ((ventana.anchoMm * ventana.altoMm) / 1_000_000);
   const esManual = ventana.origen === 'PERSONALIZADO';
   const esProtex = ventana.tipoLineaManual === 'PROTEX';
@@ -49,81 +44,60 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
     [ventana.acabadoCodigo, ventana.acabadoDescripcion]
   );
   const apertureLabel = useMemo(() => {
-    // Una puerta Protex no pasa por el motor de aperturas de HETMO (ver
-    // esProtex mas abajo, usa un esquema fijo aparte) -- "Ventana fija"
-    // ahi seria enganoso, es una puerta abatible con herrajes, no un paño
-    // sin apertura.
+    // Una puerta Protex no pasa por el motor de aperturas de HETMO (usa un
+    // esquema fijo aparte) -- "Ventana fija" ahí sería engañoso.
     if (ventana.tipoLineaManual === 'PROTEX') return 'Puerta Protex';
     if (!windowLine) return ventana.modelo || '—';
     return core.apertureLabel(windowLine);
   }, [windowLine, ventana.modelo, ventana.tipoLineaManual]);
   // El nombre comercial de la serie (Advance/Efficient/Prime/Jumbo) viaja en
-  // descripcionCorta ("Puerta Efficient DC 55-100..."), no en modelo (que
-  // trae el codigo de obra/item, ej. "CASA A - PV02") -- profileSeries lee
-  // line.modelo, asi que le pasamos descripcionCorta como fuente.
+  // descripcionCorta, no en modelo (que trae el código de obra).
   const lineaProducto = useMemo(
     () => core.profileSeries({ modelo: ventana.descripcionCorta || ventana.modelo }),
     [ventana.descripcionCorta, ventana.modelo]
   );
 
   return (
-    <article className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all flex flex-col overflow-hidden group">
-      {/* Cabecera de la Tarjeta */}
-      <header className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between gap-2">
-        <div>
-          <div className="flex items-center gap-2">
+    <article className="bg-white rounded-2xl border border-slate-200 shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col overflow-hidden">
+      {/* Cabecera: modelo, serie y unidades */}
+      <header className="px-4 py-3 border-b border-slate-100 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
             {!isFrameless && (
               <span
-                className="w-2.5 h-2.5 rounded-full shrink-0"
+                className="w-2.5 h-2.5 rounded-full shrink-0 border border-slate-300"
                 style={{ backgroundColor: finish.frame }}
                 title={`Acabado: ${finishLabel}`}
               />
             )}
-            <h4 className="text-sm font-black text-slate-900 group-hover:text-brand-600 transition-colors">
+            <h3 className="text-sm font-bold text-slate-900 truncate" title={ventana.modelo}>
               {ventana.modelo}
-            </h4>
+            </h3>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
             {esManual ? (
-              <span className="text-[10px] font-bold uppercase text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded-md">
-                Manual
-              </span>
+              <Badge size="sm" variant="info">Manual</Badge>
             ) : (
-              <span className="text-[10px] font-mono text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded-md">
-                #{ventana.lineaHetmo}
-              </span>
+              <Badge size="sm" variant="outline">#{ventana.lineaHetmo}</Badge>
+            )}
+            {lineaProducto && lineaProducto !== 'Línea no especificada' && (
+              <span className="text-[11px] text-slate-500 truncate">{lineaProducto}</span>
             )}
           </div>
-          {lineaProducto && lineaProducto !== 'Línea no especificada' && (
-            <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-              {lineaProducto}
-            </p>
-          )}
         </div>
-
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span className="px-2 py-0.5 rounded-full bg-brand-600/10 text-brand-600 border border-brand-600/20 font-bold text-xs">
-            {ventana.unidades} {ventana.unidades === 1 ? 'ud' : 'uds'}
-          </span>
-        </div>
+        <Badge size="sm" variant="brand" className="shrink-0">
+          {ventana.unidades} {ventana.unidades === 1 ? 'ud' : 'uds'}
+        </Badge>
       </header>
 
-      {/* Contenedor del Dibujo Técnico SVG (o esquema simple para líneas Protex) */}
-      <div className="bg-[#f8fafc] w-full p-4 flex flex-col items-center justify-center border-b border-slate-100 min-h-[180px] group-hover:bg-[#f1f5f9] transition-colors relative">
+      {/* Dibujo técnico (o esquema propio para puertas Protex) */}
+      <div className="relative bg-[#f8fafc] p-4 flex flex-col items-center justify-center border-b border-slate-100 min-h-[180px]">
         {esProtex ? (
-          // Las puertas Protex no vienen de la geometria parametrica de
-          // HETMO -- dibujo propio y aislado (protexDoorSvg.ts), no pasa
-          // por el motor vectorial compartido (ver comentario ahi mismo:
-          // isFrameless() forzaria "sin marco" sin bisagras/manilla, y
-          // conectarla al motor de puertas real tocaria una regla que
-          // comparten TODAS las ventanas y el PDF).
           <div className="flex flex-col items-center gap-1.5">
             <div
               className="w-full max-w-[200px] h-[172px]"
               dangerouslySetInnerHTML={{
-                __html: buildProtexDoorSvg(
-                  ventana.numeroCuadrosHojas === 2 ? 2 : 1,
-                  ventana.anchoMm,
-                  ventana.altoMm
-                ),
+                __html: buildProtexDoorSvg(ventana.numeroCuadrosHojas === 2 ? 2 : 1, ventana.anchoMm, ventana.altoMm),
               }}
             />
             <span className="text-[11px] font-semibold text-slate-500 text-center max-w-[200px]">{ventana.modelo}</span>
@@ -133,138 +107,97 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({
         )}
 
         {import.meta.env.DEV && (
-          <details className="absolute top-2 right-2 text-[8px] max-w-[200px] bg-white/80 p-1 opacity-20 hover:opacity-100 z-50">
+          <details className="absolute top-2 right-2 text-[8px] max-w-[200px] bg-white/80 p-1 opacity-20 hover:opacity-100 z-10">
             <summary className="cursor-pointer text-slate-500 font-bold">Debug Geo</summary>
-            <pre className="overflow-auto max-h-32 text-left text-slate-700">
-              {JSON.stringify(ventana.geometrias, null, 2)}
-            </pre>
+            <pre className="overflow-auto max-h-32 text-left text-slate-700">{JSON.stringify(ventana.geometrias, null, 2)}</pre>
           </details>
         )}
       </div>
 
-      {/* Cuerpo y Especificaciones */}
-      <div className="p-4 flex-1 space-y-3 text-xs">
-        {/* Metadatos principales */}
-        <div className="grid grid-cols-2 gap-x-2 gap-y-2 text-slate-600">
-          {/* Medidas mm */}
-          <div className="flex items-center gap-1.5">
-            <Maximize2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span className="font-mono font-bold text-slate-900">
+      {/* Especificaciones */}
+      <div className="px-4 py-3.5 flex-1 space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <Dato label="Medidas">
+            <span className="inline-flex items-center gap-1.5">
+              <Maximize2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               {formatNumber(ventana.anchoMm, 0)} × {formatNumber(ventana.altoMm, 0)} mm
             </span>
-          </div>
-
-          {/* Superficie m2 */}
-          <div className="flex items-center gap-1.5 justify-end">
-            <span className="text-slate-400">Área:</span>
-            <span className="font-mono font-bold text-slate-900">
-              {formatNumber(superficie, 2)} m²
-            </span>
-          </div>
-
-          {/* Apertura técnica */}
-          <div className="col-span-2 pt-1.5 border-t border-slate-100 flex items-start gap-1.5">
-            <DoorClosed className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-            <div className="flex-1 min-w-0">
-              <span className="text-slate-400 block text-[10px] uppercase tracking-wider font-semibold">Apertura</span>
-              <span className="font-bold text-slate-900 leading-snug block">
-                {apertureLabel}
-              </span>
-            </div>
-          </div>
-
-          {/* Acabado con Chip de color -- no aplica a ventanas sin marco (solo DVH) */}
+          </Dato>
+          <Dato label="Superficie">{formatNumber(superficie, 2)} m²</Dato>
+          <Dato label="Apertura" className="col-span-2">{apertureLabel}</Dato>
           {!isFrameless && (
-            <div className="col-span-2 pt-1.5 border-t border-slate-100 flex items-center gap-2 min-w-0">
-              <Paintbrush className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="text-slate-400 text-[10px] uppercase tracking-wider font-semibold">Acabado:</span>
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold border border-slate-200 bg-slate-50 text-slate-800 min-w-0">
-                <span
-                  className="w-2.5 h-2.5 rounded-full border border-slate-300 shadow-inner shrink-0"
-                  style={{ backgroundColor: finish.frame }}
-                />
-                <span className="truncate max-w-[200px]" title={finishLabel}>
-                  {finishLabel}
-                </span>
+            <Dato label="Acabado" className="col-span-2">
+              <span className="inline-flex items-center gap-1.5 min-w-0">
+                <span className="w-2.5 h-2.5 rounded-full border border-slate-300 shrink-0" style={{ backgroundColor: finish.frame }} />
+                <span className="truncate">{finishLabel}</span>
               </span>
-            </div>
+            </Dato>
           )}
         </div>
 
-        {/* Comentario de Presupuesto (Desplegable - cerrado por defecto) */}
         {ventana.comentarioPresupuesto && (
-          <details className="group/pres rounded-xl bg-amber-50/70 border border-amber-200/80 overflow-hidden text-amber-900 text-xs transition-all">
-            <summary className="flex items-center justify-between px-3 py-2 cursor-pointer font-bold text-[10px] uppercase tracking-wider text-amber-800 select-none hover:bg-amber-100/50">
-              <span className="flex items-center gap-1.5">
+          <details className="group rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs overflow-hidden">
+            <summary className="flex items-center justify-between gap-2 px-3 py-2 cursor-pointer select-none hover:bg-amber-100/60">
+              <span className="flex items-center gap-1.5 font-semibold">
                 <MessageSquareText className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <span>Comentario de Presupuesto</span>
+                Comentario de presupuesto
               </span>
-              <ChevronDown className="w-3.5 h-3.5 text-amber-600 transition-transform duration-200 group-open/pres:rotate-180" />
+              <ChevronDown className="w-3.5 h-3.5 text-amber-600 transition-transform group-open:rotate-180" />
             </summary>
-            <div className="px-3 pb-2.5 pt-1 text-[11px] leading-relaxed font-medium border-t border-amber-200/50 bg-white/50">
-              {ventana.comentarioPresupuesto}
-            </div>
+            <div className="px-3 pb-2.5 pt-1 leading-relaxed border-t border-amber-200/60 bg-white/60">{ventana.comentarioPresupuesto}</div>
           </details>
         )}
 
-        {/* Comentario de Fabricación (Desplegable - cerrado por defecto) */}
         {ventana.comentarioFabricacion && (
-          <details className="group/fab rounded-xl bg-blue-50/70 border border-blue-200/80 overflow-hidden text-blue-900 text-xs transition-all">
-            <summary className="flex items-center justify-between px-3 py-2 cursor-pointer font-bold text-[10px] uppercase tracking-wider text-blue-800 select-none hover:bg-blue-100/50">
-              <span className="flex items-center gap-1.5">
+          <details className="group rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs overflow-hidden">
+            <summary className="flex items-center justify-between gap-2 px-3 py-2 cursor-pointer select-none hover:bg-blue-100/60">
+              <span className="flex items-center gap-1.5 font-semibold">
                 <Wrench className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                <span>Comentario de Taller / Fábrica</span>
+                Comentario de taller / fábrica
               </span>
-              <ChevronDown className="w-3.5 h-3.5 text-blue-600 transition-transform duration-200 group-open/fab:rotate-180" />
+              <ChevronDown className="w-3.5 h-3.5 text-blue-600 transition-transform group-open:rotate-180" />
             </summary>
-            <div className="px-3 pb-2.5 pt-1 text-[11px] leading-relaxed font-medium border-t border-blue-200/50 bg-white/50">
-              {ventana.comentarioFabricacion}
-            </div>
+            <div className="px-3 pb-2.5 pt-1 leading-relaxed border-t border-blue-200/60 bg-white/60">{ventana.comentarioFabricacion}</div>
           </details>
         )}
-
       </div>
 
-      {/* Footer de Tarjeta / Revisión de Materiales y Herramientas Técnicas */}
-      <footer className="px-3.5 sm:px-4 py-2.5 bg-slate-50/80 border-t border-slate-100 space-y-2 text-xs">
-        {/* Fila 1: Contador y Botón Editar Línea */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <Boxes className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span className="text-[11px] text-slate-600 truncate font-medium">
-              {ventana.materiales?.length ? (
-                <>
-                  <strong className="font-mono font-bold text-slate-800">{ventana.materiales.length}</strong> artículos
-                </>
-              ) : (
-                'Despiece estándar'
-              )}
-            </span>
-          </div>
-
-          <button
-            onClick={() => onEditar?.(ventana)}
-            className="px-2.5 py-1 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-bold text-[11px] shadow-2xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
-            title="Editar el dibujo y los materiales de esta línea"
-          >
-            <span>Editar Línea</span>
-          </button>
+      {/* Pie: despiece y acciones */}
+      <footer className="px-4 py-3 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between gap-2">
+        <div className="min-w-0 text-xs text-slate-600 truncate">
+          {ventana.materiales?.length ? (
+            <>
+              <strong className="font-bold text-slate-900">{ventana.materiales.length}</strong> artículos
+            </>
+          ) : (
+            'Despiece estándar'
+          )}
         </div>
 
-        {/* Quitar Línea Manual */}
-        {esManual && (
-          <div className="flex items-center pt-2 border-t border-slate-200/60">
-            <button
+        <div className="flex items-center gap-1.5 shrink-0">
+          {esManual && (
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => onDeleteLineaManual?.(ventana)}
               disabled={isDeletingLineaManual}
-              className="text-[11px] font-semibold flex items-center gap-1 transition-all px-2 py-0.5 rounded-lg text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-200 cursor-pointer disabled:opacity-50 ml-auto"
+              className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+              leftIcon={isDeletingLineaManual ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
               title="Quitar esta línea manual"
             >
-              {isDeletingLineaManual ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-              <span>Quitar</span>
-            </button>
-          </div>
-        )}
+              Quitar
+            </Button>
+          )}
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => onEditar?.(ventana)}
+            leftIcon={<Pencil className="w-3.5 h-3.5" />}
+            title="Editar el dibujo y los materiales de esta línea"
+          >
+            Editar línea
+          </Button>
+        </div>
       </footer>
     </article>
   );

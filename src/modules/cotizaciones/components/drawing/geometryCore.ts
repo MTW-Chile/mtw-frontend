@@ -958,31 +958,53 @@
   // nivel de línea completa, porque HETMO puede declarar una corredera de
   // varias hojas en una sola fila. Sin datos suficientes para esa expansión,
   // se cae de vuelta a aperturaCount como mejor esfuerzo.
+  // Hojas (con vidrio) de un paño de una línea compuesta. Un paño fijo no
+  // tiene hojas. Compartido por cuadrosFor (marcos + hojas) y vidriosFor.
+  function hojasDePanel(line, panel) {
+    if (panel.aperturaCount <= 0) return 0;
+    const definition = apertureDefinition(line, panel.apertura);
+    if (definition.symbol === 'sliding') {
+      const pieces = slidingPieces({
+        apertura: panel.apertura,
+        raw: panel.raw,
+        width: panel.width,
+        movilLado: panel.movilLado,
+        movilAncho: panel.movilAncho,
+        materiales: line && line.materiales,
+        unidades: number(line && line.uds)
+      });
+      if (pieces) return pieces.length;
+    }
+    return panel.aperturaCount;
+  }
+
   export function cuadrosFor(line) {
     if (isFrameless(line)) return 0;
 
     const composite = compositePanels(line);
     if (composite) {
-      return composite.panels.reduce((total, panel) => {
-        if (panel.aperturaCount <= 0) return total + 1;
-        const definition = apertureDefinition(line, panel.apertura);
-        if (definition.symbol === 'sliding') {
-          const pieces = slidingPieces({
-            apertura: panel.apertura,
-            raw: panel.raw,
-            width: panel.width,
-            movilLado: panel.movilLado,
-            movilAncho: panel.movilAncho,
-            materiales: line && line.materiales,
-            unidades: number(line && line.uds)
-          });
-          if (pieces) return total + 1 + pieces.length;
-        }
-        return total + 1 + panel.aperturaCount;
-      }, 0);
+      return composite.panels.reduce((total, panel) => total + 1 + hojasDePanel(line, panel), 0);
     }
 
     return 1 + leavesFor(line).length;
+  }
+
+  // Marcos de PVC soldados (solo los cuadros de marco, sin hojas): un marco
+  // por paño de una compuesta, o uno si es de una sola pieza. Sin marco (DVH) -> 0.
+  export function marcosFor(line) {
+    if (isFrameless(line)) return 0;
+    const composite = compositePanels(line);
+    return composite ? composite.panels.length : 1;
+  }
+
+  // Vidrios individuales: cada hoja lleva un vidrio, y cada paño fijo, un
+  // vidrio suelto. Una línea sin marco (DVH) es un solo vidrio.
+  export function vidriosFor(line) {
+    const composite = compositePanels(line);
+    if (composite) {
+      return composite.panels.reduce((total, panel) => total + (panel.aperturaCount <= 0 ? 1 : hojasDePanel(line, panel)), 0);
+    }
+    return Math.max(1, leavesFor(line).length);
   }
 
   export function apertureLabel(line) {

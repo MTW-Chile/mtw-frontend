@@ -1,17 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Boxes,
-  Search,
-  FileSpreadsheet,
-  FileDown,
-  CheckCircle2,
-  Check,
-  ChevronDown,
-  ShieldCheck,
-  Lock,
-  Loader2,
-} from 'lucide-react';
+import { Boxes, Search, FileSpreadsheet, FileDown, CheckCircle2, Check, ChevronDown, ShieldCheck } from 'lucide-react';
+import { Badge } from '../../../../components/ui/Badge';
+import { Button } from '../../../../components/ui/Button';
 import { formatNumber } from '../../../../lib/utils';
 import { useMonedas, resolverMoneda, formatMonto } from '../../../../lib/monedas';
 import { saveMaterialAjuste, setFamiliaAprobacion, setFamiliaDescuento, setFamiliaRecargo, updateEstadoAprobacion } from '../../../../api/client';
@@ -90,10 +81,41 @@ const PrecioEditable: React.FC<{
       onKeyDown={(e) => {
         if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
       }}
-      className="w-20 px-1.5 py-1 rounded-md border border-slate-200 bg-white text-right font-mono text-xs text-slate-800 focus:outline-none focus:border-brand-600 disabled:bg-slate-50 disabled:text-slate-400 disabled:border-transparent"
+      className="w-24 px-2 py-1 rounded-lg border border-slate-200 bg-white text-right tabular-nums text-xs font-semibold text-slate-800 focus:outline-none focus:border-brand-600 disabled:bg-slate-50 disabled:text-slate-400 disabled:border-transparent"
     />
   );
 };
+
+// Unidad que se muestra para un material: vidrios van en m², juntas en metros.
+const unidadDe = (m: MaterialConsolidado, familia: string) =>
+  familia === 'VIDRIOS' ? 'M²' : m.familiaCruda === 'JUNTAS' ? 'M' : m.unidadMedida;
+
+// Botón de estado Incluido / Excluido (cada material se puede excluir del total).
+const EstadoMaterial: React.FC<{ excluido: boolean; disabled: boolean; onClick: () => void; title: string }> = ({
+  excluido,
+  disabled,
+  onClick,
+  title,
+}) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    title={title}
+    className="shrink-0 disabled:cursor-not-allowed cursor-pointer disabled:opacity-50"
+  >
+    <Badge size="sm" variant={excluido ? 'warning' : 'success'}>
+      {excluido ? 'Excluido' : 'Incluido'}
+    </Badge>
+  </button>
+);
+
+// Dato con etiqueta encima (mismo patrón que la tarjeta de línea).
+const Campo: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <div className="min-w-0">
+    <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">{label}</div>
+    <div className="text-xs text-slate-800">{children}</div>
+  </div>
+);
 
 export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   proyecto,
@@ -273,7 +295,6 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
 
   const todasLasFamiliasAprobadas =
     gruposPorFamilia.length > 0 && gruposPorFamilia.every(([familia]) => aprobacionesPorFamilia.get(familia)?.aprobada);
-  const familiasPendientes = gruposPorFamilia.filter(([familia]) => !aprobacionesPorFamilia.get(familia)?.aprobada);
 
   // Totales -- el descuento y el recargo de cada familia se aplican sobre
   // el total CLP de sus materiales incluidos (nunca sobre el precio de
@@ -448,186 +469,130 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* 1. SECCIÓN: EDITOR DE DIVISAS DE LA OBRA */}
-      <div className="space-y-2">
-        <DivisasForm
-          dolar={dolar}
-          setDolar={setDolar}
-          uf={uf}
-          setUf={setUf}
-          euro={euro}
-          setEuro={setEuro}
-        />
-        <div className="flex items-center justify-between px-2">
-          {saveSuccess ? (
-            <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1.5 animate-fade-in">
-              <CheckCircle2 className="w-4 h-4" /> Tipos de cambio guardados en la versión
-            </span>
-          ) : (
-            <span className="text-[11px] text-slate-500">
-              Ajusta las tasas para recalcular el costo en pesos chilenos y cotizar en UF.
-            </span>
-          )}
-
-          <button
-            onClick={onSaveDivisas}
-            disabled={isSavingDivisas}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
-          >
-            <Check className="w-3.5 h-3.5" />
-            <span>{isSavingDivisas ? 'Guardando...' : 'Guardar Divisas'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 2. BANNER GLOBAL DE APROBACIÓN DE LA ANALÍTICA */}
-      {versionId && (
-        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-2.5">
-              {congelado ? <Lock className="w-4 h-4 text-slate-500" /> : <Boxes className="w-4 h-4 text-slate-400" />}
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                Aprobación de la Analítica de Materiales
-              </h3>
-            </div>
-            <span className="text-[11px] text-slate-500">
-              {gruposPorFamilia.length - familiasPendientes.length} de {gruposPorFamilia.length} familias aprobadas
-            </span>
-          </div>
-
-          {estadoActual === 'EN_COTIZACION' ? (
-            <div className="flex items-center gap-3 flex-wrap">
-              {!todasLasFamiliasAprobadas && (
-                <button
-                  onClick={() => aprobarTodoMutation.mutate()}
-                  disabled={gruposPorFamilia.length === 0 || aprobarTodoMutation.isPending}
-                  className="px-3.5 py-2 rounded-xl bg-brand-600 text-white text-xs font-bold flex items-center gap-1.5 hover:bg-brand-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  title="Aprueba todas las categorías que falten"
-                >
-                  {aprobarTodoMutation.isPending ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                  )}
-                  Aprobar Analítica Completa
-                </button>
-              )}
-              {!todasLasFamiliasAprobadas && (
-                <span className="text-[11px] text-slate-500">
-                  Pendientes: {familiasPendientes.map(([familia]) => familia).join(', ')} (se aprueban solas al usar el botón)
-                </span>
-              )}
-              {todasLasFamiliasAprobadas && (
-                <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5" /> Analítica aprobada -- congelá el presupuesto desde la Hoja de Fijación (Paso 4)
-                </span>
-              )}
-            </div>
-          ) : puedeDeshacerAca ? (
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="px-3 py-1 rounded-full text-xs font-bold border bg-amber-50 text-amber-700 border-amber-300">
-                Esperando Aprobación Comercial -- presupuesto congelado
+    <div className="max-w-6xl mx-auto space-y-5 sm:space-y-6 animate-fade-in">
+      {/* 1. PARÁMETROS ECONÓMICOS */}
+      <DivisasForm
+        dolar={dolar}
+        setDolar={setDolar}
+        uf={uf}
+        setUf={setUf}
+        euro={euro}
+        setEuro={setEuro}
+        footer={
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            {saveSuccess ? (
+              <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1.5 animate-fade-in">
+                <CheckCircle2 className="w-4 h-4" /> Tipos de cambio guardados en la versión
               </span>
-              <button
-                onClick={() => estadoAprobacionMutation.mutate('EN_COTIZACION')}
-                disabled={estadoAprobacionMutation.isPending}
-                className="px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors disabled:opacity-50 flex items-center gap-1.5"
-              >
-                {estadoAprobacionMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                Deshacer Aprobación (vuelve a habilitar edición)
-              </button>
-            </div>
-          ) : (
-            <span className="px-3 py-1 rounded-full text-xs font-bold border bg-emerald-50 text-emerald-700 border-emerald-300 inline-block">
-              Analítica aprobada -- presupuesto avanzado, deshacer desde el Paso 5
-            </span>
-          )}
-        </div>
-      )}
+            ) : (
+              <span className="text-xs text-slate-500">
+                Ajusta las tasas para recalcular el costo en pesos chilenos y cotizar en UF.
+              </span>
+            )}
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={onSaveDivisas}
+              disabled={isSavingDivisas}
+              isLoading={isSavingDivisas}
+              leftIcon={<Check className="w-3.5 h-3.5" />}
+              className="sm:ml-auto"
+            >
+              {isSavingDivisas ? 'Guardando…' : 'Guardar divisas'}
+            </Button>
+          </div>
+        }
+      />
 
-      {/* 3. SECCIÓN: ANALÍTICA Y DESGLOSE DE MATERIALES */}
-      <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-5">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-600/10 text-brand-600 border border-brand-600/20 flex items-center justify-center shrink-0">
+      {/* 3. ANALÍTICA Y DESGLOSE DE MATERIALES */}
+      <section className="rounded-2xl bg-white border border-slate-200 shadow-xs p-4 sm:p-6 space-y-5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-brand-50 border border-brand-100 text-brand-600 flex items-center justify-center shrink-0">
               <Boxes className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900">
-                Analítica de Materiales y Costo Origen
-              </h3>
-              <p className="text-xs text-slate-500">
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Costo origen</div>
+              <h2 className="text-base font-extrabold text-slate-900">Analítica de materiales</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
                 {materialesConsolidados.length} materiales consolidados en fábrica
                 {cantidadExcluidos > 0 && ` · ${cantidadExcluidos} excluidos`}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
-            <button
-              onClick={exportarPDF}
-              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm"
-              title="Exportar materiales a PDF"
-            >
-              <FileDown className="w-4 h-4 text-brand-600" />
-              <span>Exportar PDF</span>
-            </button>
-
-            <button
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end shrink-0">
+            {versionId && estadoActual === 'EN_COTIZACION' && !todasLasFamiliasAprobadas && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => aprobarTodoMutation.mutate()}
+                disabled={gruposPorFamilia.length === 0 || aprobarTodoMutation.isPending}
+                isLoading={aprobarTodoMutation.isPending}
+                leftIcon={<ShieldCheck className="w-3.5 h-3.5" />}
+                title="Aprueba todas las categorías que falten"
+              >
+                Aprobar analítica completa
+              </Button>
+            )}
+            {versionId && puedeDeshacerAca && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => estadoAprobacionMutation.mutate('EN_COTIZACION')}
+                disabled={estadoAprobacionMutation.isPending}
+                isLoading={estadoAprobacionMutation.isPending}
+                title="Vuelve a habilitar la edición del presupuesto"
+              >
+                Deshacer aprobación
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={exportarPDF} leftIcon={<FileDown className="w-3.5 h-3.5" />} title="Exportar materiales a PDF">
+              Exportar PDF
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={exportarCSV}
-              className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm"
+              leftIcon={<FileSpreadsheet className="w-3.5 h-3.5" />}
               title="Exportar materiales a CSV (se abre directo en Excel)"
             >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span>Exportar CSV</span>
-            </button>
+              Exportar CSV
+            </Button>
           </div>
         </div>
 
-        {/* Resumen de Costos de Materiales */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-            <span className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider block">
-              Insumos Visibles / Activos
-            </span>
-            <strong className="text-lg font-mono text-slate-900 font-bold">
-              {filteredMateriales.filter((m) => !m.excluido).length} artículos
-            </strong>
+        {/* Resumen */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Insumos visibles / activos</div>
+            <div className="text-lg font-extrabold text-slate-900 mt-1 tabular-nums">
+              {filteredMateriales.filter((m) => !m.excluido).length} <span className="text-xs font-semibold text-slate-500">artículos</span>
+            </div>
           </div>
-
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-            <span className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider block">
-              Costo Materiales (CLP)
-            </span>
-            <strong className="text-lg font-mono text-slate-900 font-bold whitespace-nowrap">
-              $ {formatNumber(costoTotalCLP, 0)}
-            </strong>
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Costo materiales (CLP)</div>
+            <div className="text-lg font-extrabold text-slate-900 mt-1 tabular-nums whitespace-nowrap">$ {formatNumber(costoTotalCLP, 0)}</div>
           </div>
-
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-            <span className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider block">
-              Costo Materiales (UF)
-            </span>
-            <strong className="text-lg font-mono text-emerald-600 font-bold whitespace-nowrap">
-              {formatUF(costoTotalUF)} UF
-            </strong>
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Costo materiales (UF)</div>
+            <div className="text-lg font-extrabold text-brand-600 mt-1 tabular-nums whitespace-nowrap">{formatUF(costoTotalUF)} UF</div>
           </div>
         </div>
 
         {/* Buscador */}
-        <div className="relative min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <div className="relative">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar SKU o descripción..."
-            className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white"
+            placeholder="Buscar SKU o descripción…"
+            className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-brand-600 transition-colors"
           />
         </div>
 
-        {/* Grupos por Familia */}
+        {/* Familias */}
         <div className="space-y-3">
           {gruposPorFamilia.map(([familia, materiales]) => {
             const aprobacion = aprobacionesPorFamilia.get(familia);
@@ -642,173 +607,207 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
             const factorFamilia = (1 - descuentoActual / 100) * (1 + recargoActual / 100);
             const totalFamiliaBruto = materiales.filter((m) => !m.excluido).reduce((acc, m) => acc + m.precioCLP * m.cantidadTotal, 0);
             const totalFamiliaCLP = totalFamiliaBruto * factorFamilia;
-            // Vidrios se cotiza y muestra por m2, pero Material.unidadMedida
-            // suele venir "UN" desde HETMO -- la cantidad ya esta bien en m2,
-            // solo el rotulo de unidad estaba mal.
-            const unidadDisplay = familia === 'VIDRIOS' ? 'M²' : undefined;
+            const decimalesCantidad = familia === 'VIDRIOS' ? 2 : 0;
 
             return (
-              <div key={familia} className="rounded-xl border border-slate-200 overflow-hidden">
-                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3 bg-slate-50 border-b border-slate-100">
+              <div key={familia} className="rounded-2xl border border-slate-200 overflow-hidden">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 px-4 py-3 bg-slate-50/70 border-b border-slate-100">
                   <button
                     onClick={() => setFamiliaColapsada((prev) => ({ ...prev, [familia]: !colapsada }))}
-                    className="flex items-center gap-2 min-w-0 text-left"
+                    className="flex flex-wrap items-center gap-x-2.5 gap-y-1 min-w-0 text-left cursor-pointer"
                   >
-                    <ChevronDown
-                      className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${colapsada ? '-rotate-90' : ''}`}
-                    />
-                    <span className="font-bold text-sm text-slate-900 whitespace-nowrap">{familia}</span>
-                    <span className="text-[10px] text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded-md whitespace-nowrap">
-                      {materiales.length} ítems · $ {formatNumber(totalFamiliaCLP, 0)}
+                    <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${colapsada ? '-rotate-90' : ''}`} />
+                    <span className="font-bold text-sm text-slate-900">{familia}</span>
+                    <Badge size="sm" variant="default">{materiales.length} {materiales.length === 1 ? 'ítem' : 'ítems'}</Badge>
+                    <span className="text-xs text-slate-600 tabular-nums">
+                      $ {formatNumber(totalFamiliaCLP, 0)}
                       {descuentoActual > 0 && ` (-${descuentoActual}%)`}
                       {recargoActual > 0 && ` (+${recargoActual}%)`}
                     </span>
                   </button>
 
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <div className="flex items-center gap-1" title="Descuento comercial de la categoría (aplicado al total, no a los precios individuales)">
-                      <span className="text-[10px] text-slate-500 whitespace-nowrap">Desc.</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="flex items-center gap-1.5 text-[11px] text-slate-500" title="Descuento comercial de la categoría (aplicado al total, no a los precios individuales)">
+                      Desc.
                       <PrecioEditable
                         valor={descuentoActual}
                         disabled={edicionBloqueada}
-                        onGuardar={(nuevo) =>
-                          familiaDescuentoMutation.mutate({ familia, descuentoPct: Math.min(100, Math.max(0, nuevo)) })
-                        }
+                        onGuardar={(nuevo) => familiaDescuentoMutation.mutate({ familia, descuentoPct: Math.min(100, Math.max(0, nuevo)) })}
                       />
-                      <span className="text-[10px] text-slate-500">%</span>
-                    </div>
-                    <div className="flex items-center gap-1" title="Recargo comercial de la categoría (aplicado al total, no a los precios individuales)">
-                      <span className="text-[10px] text-slate-500 whitespace-nowrap">Rec.</span>
+                      %
+                    </label>
+                    <label className="flex items-center gap-1.5 text-[11px] text-slate-500" title="Recargo comercial de la categoría (aplicado al total, no a los precios individuales)">
+                      Rec.
                       <PrecioEditable
                         valor={recargoActual}
                         disabled={edicionBloqueada}
-                        onGuardar={(nuevo) =>
-                          familiaRecargoMutation.mutate({ familia, recargoPct: Math.min(100, Math.max(0, nuevo)) })
-                        }
+                        onGuardar={(nuevo) => familiaRecargoMutation.mutate({ familia, recargoPct: Math.min(100, Math.max(0, nuevo)) })}
                       />
-                      <span className="text-[10px] text-slate-500">%</span>
-                    </div>
+                      %
+                    </label>
                     {aprobada && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-700 font-semibold flex items-center gap-1 whitespace-nowrap">
+                      <Badge size="sm" variant="success" className="gap-1">
                         <ShieldCheck className="w-3 h-3" /> Aprobada
-                      </span>
+                      </Badge>
                     )}
                     {estadoActual === 'EN_COTIZACION' && (
-                      <button
+                      <Button
+                        variant={aprobada ? 'outline' : 'primary'}
+                        size="sm"
                         onClick={() => familiaAprobacionMutation.mutate({ familia, aprobada: !aprobada })}
                         disabled={familiaAprobacionMutation.isPending}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all disabled:opacity-50 whitespace-nowrap ${
-                          aprobada
-                            ? 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-50'
-                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                        }`}
                       >
                         {aprobada ? 'Deshacer' : 'Aprobar categoría'}
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
 
                 {!colapsada && (
-                  <div className="overflow-x-auto max-h-96">
-                    <table className="w-full text-left text-xs text-slate-700">
-                      <thead className="bg-slate-100 text-[11px] uppercase tracking-wider sticky top-0 text-slate-600">
-                        <tr>
-                          <th className="px-3.5 py-2.5 font-semibold">SKU</th>
-                          <th className="px-3.5 py-2.5 font-semibold">Descripción del Material</th>
-                          <th className="px-3.5 py-2.5 font-semibold">Proveedor</th>
-                          <th className="px-3.5 py-2.5 font-semibold text-right">Precio Unitario Origen</th>
-                          <th className="px-3.5 py-2.5 font-semibold text-right">Precio Unitario CLP</th>
-                          <th className="px-3.5 py-2.5 font-semibold text-right">Cantidad</th>
-                          <th className="px-3.5 py-2.5 font-semibold text-center">Unidad</th>
-                          <th className="px-3.5 py-2.5 font-semibold text-right">Total CLP</th>
-                          <th className="px-3.5 py-2.5 font-semibold text-center">Estado</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200">
-                        {materiales.map((m) => (
-                          <tr
-                            key={m.id}
-                            title={m.precioModificado ? 'Precio modificado a mano -- distinto al original de HETMO' : undefined}
-                            className={`hover:bg-slate-50 transition-colors ${m.excluido ? 'opacity-40 bg-slate-50' : m.precioModificado ? 'bg-sky-50/60 border-l-2 border-l-sky-400' : ''}`}
-                          >
-                            <td className="px-3.5 py-2 font-mono font-bold text-slate-900">{m.skuInterno}</td>
-                            <td className="px-3.5 py-2 font-medium text-slate-800">
-                              {m.descripcion}
-                              {m.precioModificado && (
-                                <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-sky-100 text-sky-700 border border-sky-200">
-                                  Precio editado
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-3.5 py-2 text-slate-500">{m.proveedorNombre}</td>
-                            <td className="px-3.5 py-2 text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <span className="text-slate-400 font-mono text-[10px]">
-                                  {resolverMoneda(m.monedaOrigen, monedas).simbolo}
-                                </span>
+                  // @container: la tabla exige ancho real; en tablet y móvil cada material va en tarjeta.
+                  <div className="@container">
+                    <div className="hidden @4xl:block overflow-x-auto">
+                      <table className="w-full text-left text-xs text-slate-700">
+                        <thead className="bg-white text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-100">
+                          <tr>
+                            <th className="px-4 py-2.5 font-semibold">SKU</th>
+                            <th className="px-4 py-2.5 font-semibold">Material</th>
+                            <th className="px-4 py-2.5 font-semibold text-right">Precio origen</th>
+                            <th className="px-4 py-2.5 font-semibold text-right">Precio CLP</th>
+                            <th className="px-4 py-2.5 font-semibold text-right">Cantidad</th>
+                            <th className="px-4 py-2.5 font-semibold text-right">Total CLP</th>
+                            <th className="px-4 py-2.5 font-semibold text-center">Estado</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {materiales.map((m) => (
+                            <tr
+                              key={m.id}
+                              title={m.precioModificado ? 'Precio modificado a mano -- distinto al original de HETMO' : undefined}
+                              className={`transition-colors hover:bg-slate-50 ${m.excluido ? 'opacity-40' : m.precioModificado ? 'bg-sky-50/60' : ''}`}
+                            >
+                              <td className="px-4 py-2.5 align-top font-semibold text-slate-900 whitespace-nowrap">{m.skuInterno}</td>
+                              <td className="px-4 py-2.5 align-top min-w-0">
+                                <div className="font-medium text-slate-800">{m.descripcion}</div>
+                                <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                  <span className="text-[11px] text-slate-500">{m.proveedorNombre}</span>
+                                  {m.precioModificado && <Badge size="sm" variant="info">Precio editado</Badge>}
+                                </div>
+                              </td>
+                              <td className="px-4 py-2.5 align-top text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <span className="text-slate-400 text-[10px]">{resolverMoneda(m.monedaOrigen, monedas).simbolo}</span>
+                                  <PrecioEditable
+                                    valor={m.precioOrigen}
+                                    disabled={edicionBloqueada}
+                                    onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo, monedaOrigen: m.monedaOrigen })}
+                                  />
+                                </div>
+                              </td>
+                              <td className="px-4 py-2.5 align-top text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <span className="text-slate-400 text-[10px]">$</span>
+                                  <PrecioEditable
+                                    valor={Math.round(m.precioCLP * 100) / 100}
+                                    disabled={edicionBloqueada}
+                                    onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo / m.factorBarra, monedaOrigen: 'CLP' })}
+                                  />
+                                </div>
+                              </td>
+                              <td className="px-4 py-2.5 align-top text-right tabular-nums text-slate-800 whitespace-nowrap">
+                                {formatNumber(m.cantidadTotal, decimalesCantidad)} <span className="text-slate-400">{unidadDe(m, familia)}</span>
+                              </td>
+                              <td className="px-4 py-2.5 align-top text-right tabular-nums font-bold text-slate-900 whitespace-nowrap">
+                                $ {formatNumber(m.precioCLP * m.cantidadTotal * factorFamilia, 0)}
+                              </td>
+                              <td className="px-4 py-2.5 align-top text-center">
+                                <EstadoMaterial
+                                  excluido={m.excluido}
+                                  disabled={edicionBloqueada || ajusteMutation.isPending}
+                                  onClick={() => guardarAjuste(m, { excluido: !m.excluido })}
+                                  title={
+                                    edicionBloqueada
+                                      ? 'Categoría aprobada o presupuesto congelado -- no se puede modificar'
+                                      : m.excluido
+                                      ? 'Click para incluir'
+                                      : 'Click para excluir'
+                                  }
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <ul className="@4xl:hidden divide-y divide-slate-100">
+                      {materiales.map((m) => (
+                        <li
+                          key={m.id}
+                          className={`p-4 space-y-3 ${m.excluido ? 'opacity-50' : m.precioModificado ? 'bg-sky-50/60' : ''}`}
+                          title={m.precioModificado ? 'Precio modificado a mano -- distinto al original de HETMO' : undefined}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-[11px] font-semibold text-slate-500 tracking-wide">{m.skuInterno}</div>
+                              <div className="text-sm font-semibold text-slate-900 leading-snug">{m.descripcion}</div>
+                              <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                <span className="text-[11px] text-slate-500">{m.proveedorNombre}</span>
+                                {m.precioModificado && <Badge size="sm" variant="info">Precio editado</Badge>}
+                              </div>
+                            </div>
+                            <EstadoMaterial
+                              excluido={m.excluido}
+                              disabled={edicionBloqueada || ajusteMutation.isPending}
+                              onClick={() => guardarAjuste(m, { excluido: !m.excluido })}
+                              title={edicionBloqueada ? 'Categoría aprobada o presupuesto congelado' : m.excluido ? 'Click para incluir' : 'Click para excluir'}
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <Campo label="Precio origen">
+                              <div className="flex items-center gap-1">
+                                <span className="text-slate-400 text-[10px]">{resolverMoneda(m.monedaOrigen, monedas).simbolo}</span>
                                 <PrecioEditable
                                   valor={m.precioOrigen}
                                   disabled={edicionBloqueada}
                                   onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo, monedaOrigen: m.monedaOrigen })}
                                 />
                               </div>
-                            </td>
-                            <td className="px-3.5 py-2 text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <span className="text-slate-400 font-mono text-[10px]">$</span>
+                            </Campo>
+                            <Campo label="Precio CLP">
+                              <div className="flex items-center gap-1">
+                                <span className="text-slate-400 text-[10px]">$</span>
                                 <PrecioEditable
                                   valor={Math.round(m.precioCLP * 100) / 100}
                                   disabled={edicionBloqueada}
                                   onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo / m.factorBarra, monedaOrigen: 'CLP' })}
                                 />
                               </div>
-                            </td>
-                            <td className="px-3.5 py-2 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
-                              {formatNumber(m.cantidadTotal, familia === 'VIDRIOS' ? 2 : 0)}
-                            </td>
-                            <td className="px-3.5 py-2 text-center text-slate-500 font-mono">
-                              {unidadDisplay ?? (m.familiaCruda === 'JUNTAS' ? 'M' : m.unidadMedida)}
-                            </td>
-                            <td className="px-3.5 py-2 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
-                              $ {formatNumber(m.precioCLP * m.cantidadTotal * factorFamilia, 0)}
-                            </td>
-                            <td className="px-3.5 py-2 text-center">
-                              <button
-                                onClick={() => guardarAjuste(m, { excluido: !m.excluido })}
-                                disabled={edicionBloqueada || ajusteMutation.isPending}
-                                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                                  m.excluido
-                                    ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
-                                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200'
-                                }`}
-                                title={
-                                  edicionBloqueada
-                                    ? 'Categoría aprobada o presupuesto congelado -- no se puede modificar'
-                                    : m.excluido
-                                    ? 'Click para incluir'
-                                    : 'Click para excluir'
-                                }
-                              >
-                                {m.excluido ? 'Excluido' : 'Incluido'}
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                            </Campo>
+                            <Campo label="Cantidad">
+                              <span className="tabular-nums font-semibold">
+                                {formatNumber(m.cantidadTotal, decimalesCantidad)}
+                              </span>{' '}
+                              <span className="text-slate-400">{unidadDe(m, familia)}</span>
+                            </Campo>
+                            <Campo label="Total CLP">
+                              <span className="tabular-nums font-bold">$ {formatNumber(m.precioCLP * m.cantidadTotal * factorFamilia, 0)}</span>
+                            </Campo>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </div>
             );
           })}
           {gruposPorFamilia.length === 0 && (
-            <p className="text-center text-xs text-slate-500 py-8">
-              No hay materiales que coincidan con la búsqueda.
-            </p>
+            <p className="text-center text-sm text-slate-500 py-8">No hay materiales que coincidan con la búsqueda.</p>
           )}
         </div>
-      </div>
+      </section>
     </div>
   );
 };

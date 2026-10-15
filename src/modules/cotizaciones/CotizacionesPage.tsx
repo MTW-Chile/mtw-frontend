@@ -189,8 +189,8 @@ export const CotizacionesPage: React.FC<{
       {/* Titulo, contador y acciones viven en el Header del sitio (portal), no en una cabecera propia. */}
       <HeaderSlot>
         {/* Las migas del Header se ocultan bajo md: ahí el título va aquí. */}
-        <span className="md:hidden text-sm font-bold text-slate-900 truncate">Presupuestos</span>
-        <Badge size="sm" variant="default" className="font-mono font-bold text-slate-600" title={`${proyectos.length} presupuestos`}>
+        <span className="hidden sm:inline md:hidden text-sm font-bold text-slate-900 truncate min-w-0">Presupuestos</span>
+        <Badge size="sm" variant="default" className="hidden min-[420px]:inline-flex font-mono font-bold text-slate-600" title={`${proyectos.length} presupuestos`}>
           {proyectos.length}
         </Badge>
 
@@ -209,16 +209,6 @@ export const CotizacionesPage: React.FC<{
               </strong>
             </span>
           </div>
-
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setMostrarModalManual(true)}
-            leftIcon={<Plus className="w-3.5 h-3.5" />}
-            aria-label="Presupuesto Manual"
-          >
-            <span className="hidden @3xl:inline">Presupuesto Manual</span>
-          </Button>
 
           <Button
             variant="outline"
@@ -283,27 +273,40 @@ export const CotizacionesPage: React.FC<{
               </div>
             </div>
 
-            {/* FILTROS EN CHIPS HORIZONTALES PARA PANTALLAS GRANDES (System-Wide) */}
-            <div className="hidden md:flex items-center gap-2 overflow-x-auto pb-1 pt-1 -mx-1 px-1 scrollbar-none">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
-                Estado:
-              </span>
-              {ESTADOS_FILTRO.map((pill) => {
-                const isActive = statusFilter === pill.id;
-                return (
-                  <button
-                    key={pill.id}
-                    onClick={() => setStatusFilter(pill.id)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium shrink-0 whitespace-nowrap transition-all cursor-pointer ${
-                      isActive
-                        ? 'bg-slate-900 text-white font-bold shadow-xs'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/60'
-                    }`}
-                  >
-                    {pill.label}
-                  </button>
-                );
-              })}
+            {/* FILA INFERIOR: filtros de estado a la izquierda, acción principal a la derecha */}
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <div className="hidden md:flex items-center gap-2 overflow-x-auto pb-1 pt-1 -mx-1 px-1 scrollbar-none min-w-0">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
+                  Estado:
+                </span>
+                {ESTADOS_FILTRO.map((pill) => {
+                  const isActive = statusFilter === pill.id;
+                  return (
+                    <button
+                      key={pill.id}
+                      onClick={() => setStatusFilter(pill.id)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium shrink-0 whitespace-nowrap transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-slate-900 text-white font-bold shadow-xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/60'
+                      }`}
+                    >
+                      {pill.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="ml-auto shrink-0">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setMostrarModalManual(true)}
+                  leftIcon={<Plus className="w-3.5 h-3.5" />}
+                >
+                  Presupuesto manual
+                </Button>
+              </div>
             </div>
           </div>
 

@@ -125,7 +125,7 @@ export const MaterialLineaForm: React.FC<MaterialLineaFormProps> = ({
                 value={cantidad}
                 onChange={(e) => setCantidad(e.target.value)}
                 disabled={isSaving}
-                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-brand-600/30"
+                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-brand-600/30"
               />
             </label>
             <label className="text-[10px] font-bold uppercase text-slate-500 space-y-1 block">
@@ -138,7 +138,7 @@ export const MaterialLineaForm: React.FC<MaterialLineaFormProps> = ({
                 onChange={(e) => setPiezas(e.target.value)}
                 disabled={isSaving}
                 placeholder="—"
-                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-brand-600/30"
+                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-brand-600/30"
               />
             </label>
             <label className="text-[10px] font-bold uppercase text-slate-500 space-y-1 block">
