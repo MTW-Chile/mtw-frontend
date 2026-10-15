@@ -172,6 +172,8 @@ export interface MaterialVentana {
   origen: 'HETMO' | 'PERSONALIZADO';
   excluido: boolean;
   reemplazaMaterialId: string | null;
+  // Material original de una fila agregada a mano que se cambió de material en la Analítica.
+  cambioMaterialDesde?: string | null;
   material?: Material;
 }
 

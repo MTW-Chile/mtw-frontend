@@ -26,6 +26,9 @@ export interface MaterialConsolidado {
   // (ProyectoMaterialAjuste.precioPersonalizado), no del precio original de
   // HETMO -- para destacar visualmente que este item fue tocado a mano.
   precioModificado: boolean;
+  // true cuando al menos una fila de este material llegó por "Reemplazar" en
+  // una línea (o en toda la versión desde la Analítica), no por la receta HETMO.
+  reemplazado: boolean;
 }
 
 // moneda_origen_codigo de HETMO viene hardcodeado en '2' para TODO material
@@ -67,6 +70,7 @@ export function computeMaterialesConsolidados(
   monedas: MonedaHetmo[]
 ): MaterialConsolidado[] {
   const map = new Map<string, MaterialConsolidado>();
+  const conReemplazo = new Set<string>();
   const familiaCrudaPorMaterial = new Map<string, string>();
   const ventanas = activeVersion?.ventanas || [];
   const ajustesPorMaterial = new Map((activeVersion?.materialAjustes || []).map((a) => [a.materialId, a]));
@@ -77,6 +81,7 @@ export function computeMaterialesConsolidados(
     mats.forEach((mv) => {
       const mat = mv.material;
       const key = mv.materialId || mv.id;
+      if (mv.origen === 'PERSONALIZADO' && (mv.reemplazaMaterialId || mv.cambioMaterialDesde)) conReemplazo.add(key);
       const ajuste = ajustesPorMaterial.get(mv.materialId);
       const familiaCruda = (ajuste?.familiaPersonalizada || mat?.familia || 'ACCESORIOS').toUpperCase().trim();
       const familia = normalizarFamilia(familiaCruda);
@@ -175,6 +180,7 @@ export function computeMaterialesConsolidados(
           factorBarra: 1,
           excluido: ajuste?.excluido ?? mv.excluido ?? false,
           precioModificado: ajuste?.precioPersonalizado != null,
+          reemplazado: false,
         });
       }
     });
@@ -215,6 +221,9 @@ export function computeMaterialesConsolidados(
     (activeVersion?.materialesResumen || []).map((r) => [r.materialId, Number(r.cantidadHetmo) || 0])
   );
   const consolidados = Array.from(map.values());
+  consolidados.forEach((m) => {
+    m.reemplazado = conReemplazo.has(m.materialId);
+  });
   consolidados.forEach((m) => {
     const familiaCruda = familiaCrudaPorMaterial.get(m.materialId) || m.familia;
     if (!FAMILIAS_CANTIDAD_RESUMEN.has(familiaCruda)) return;

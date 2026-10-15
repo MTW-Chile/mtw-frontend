@@ -575,14 +575,13 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
       />
 
       {/* 3. ANALÍTICA Y DESGLOSE DE MATERIALES */}
-      <section className="rounded-2xl bg-white border border-slate-200 shadow-xs p-4 sm:p-6 space-y-5">
+      <section className="rounded-2xl bg-white border border-slate-200 shadow-xs p-4 sm:p-5 space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-start gap-3 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-brand-50 border border-brand-100 text-brand-600 flex items-center justify-center shrink-0">
               <Boxes className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Costo origen</div>
               <h2 className="text-base font-extrabold text-slate-900">Analítica de materiales</h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 {materialesConsolidados.length} materiales consolidados en fábrica
@@ -632,19 +631,19 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
           </div>
         </div>
 
-        {/* Resumen */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+        {/* Resumen: una sola barra con los tres indicadores */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 rounded-xl border border-slate-200 bg-slate-50/60 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
+          <div className="px-4 py-2.5">
             <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Insumos visibles / activos</div>
             <div className="text-lg font-extrabold text-slate-900 mt-1 tabular-nums">
               {filteredMateriales.filter((m) => !m.excluido).length} <span className="text-xs font-semibold text-slate-500">artículos</span>
             </div>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+          <div className="px-4 py-2.5">
             <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Costo materiales (CLP)</div>
             <div className="text-lg font-extrabold text-slate-900 mt-1 tabular-nums whitespace-nowrap">$ {formatNumber(costoTotalCLP, 0)}</div>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+          <div className="px-4 py-2.5">
             <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Costo materiales (UF)</div>
             <div className="text-lg font-extrabold text-brand-600 mt-1 tabular-nums whitespace-nowrap">{formatUF(costoTotalUF)} UF</div>
           </div>
@@ -754,7 +753,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                             <tr
                               key={m.id}
                               title={m.precioModificado ? 'Precio modificado a mano -- distinto al original de HETMO' : undefined}
-                              className={`transition-colors hover:bg-slate-50 ${m.excluido ? 'opacity-40' : m.precioModificado ? 'bg-sky-50/60' : ''}`}
+                              className={`transition-colors hover:bg-slate-50 ${m.excluido ? 'opacity-40' : m.reemplazado ? 'bg-violet-50/60' : m.precioModificado ? 'bg-sky-50/60' : ''}`}
                             >
                               <td className="px-4 py-2.5 align-top font-semibold text-slate-900 whitespace-nowrap">{m.skuInterno}</td>
                               <td className="px-4 py-2.5 align-top min-w-0">
@@ -762,6 +761,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                 <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                                   <span className="text-[11px] text-slate-500">{m.proveedorNombre}</span>
                                   {m.precioModificado && <Badge size="sm" variant="info">Precio editado</Badge>}
+                                  {m.reemplazado && <Badge size="sm" variant="violet">Reemplazado</Badge>}
                                 </div>
                               </td>
                               <td className="px-4 py-2.5 align-top text-right">
@@ -825,7 +825,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                       {materiales.map((m) => (
                         <li
                           key={m.id}
-                          className={`p-4 space-y-3 ${m.excluido ? 'opacity-50' : m.precioModificado ? 'bg-sky-50/60' : ''}`}
+                          className={`p-4 space-y-3 ${m.excluido ? 'opacity-50' : m.reemplazado ? 'bg-violet-50/60' : m.precioModificado ? 'bg-sky-50/60' : ''}`}
                           title={m.precioModificado ? 'Precio modificado a mano -- distinto al original de HETMO' : undefined}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -835,6 +835,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                               <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                 <span className="text-[11px] text-slate-500">{m.proveedorNombre}</span>
                                 {m.precioModificado && <Badge size="sm" variant="info">Precio editado</Badge>}
+                                {m.reemplazado && <Badge size="sm" variant="violet">Reemplazado</Badge>}
                               </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
