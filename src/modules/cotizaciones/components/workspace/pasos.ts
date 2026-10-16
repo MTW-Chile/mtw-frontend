@@ -8,5 +8,5 @@ export const STEPS: { step: CotizadorStep; label: string }[] = [
   { step: 2, label: 'Revisión de Líneas' },
   { step: 3, label: 'Analítica de Materiales' },
   { step: 4, label: 'Hoja de Fijación' },
-  { step: 5, label: 'Consolidación & PDF' },
+  { step: 5, label: 'Oferta Comercial' },
 ];

@@ -33,12 +33,17 @@ import { clavePresupuestos, consultarPresupuestos } from './presupuestosQuery';
 
 // PRINCIPAL = presupuestos cerrados en HETMO (estado 2) + presupuestos
 // manuales; TODOS = cualquier estado de HETMO. Ver esPresupuestoPrincipal.
-type EstadoFiltro = 'PRINCIPAL' | 'TODOS';
+// ACEPTADOS = los aceptados por el cliente (estado comercial interno): son
+// obras en curso, así que salen de las demás vistas y solo se ven acá.
+type EstadoFiltro = 'PRINCIPAL' | 'TODOS' | 'ACEPTADOS';
 
 const ESTADOS_FILTRO: { id: EstadoFiltro; label: string }[] = [
   { id: 'PRINCIPAL', label: 'Cerrados y manuales' },
   { id: 'TODOS', label: 'Todos los estados' },
+  { id: 'ACEPTADOS', label: 'Aceptado por Cliente' },
 ];
+
+const estaAceptado = (p: Proyecto) => p.versiones[0]?.estadoAprobacion === 'ACEPTADO_CLIENTE';
 
 export const CotizacionesPage: React.FC<{
   searchTerm?: string;
@@ -103,11 +108,14 @@ export const CotizacionesPage: React.FC<{
 
   // El filtro por estado va en el SERVIDOR (ver presupuestosQuery.ts), no solo en el
   // navegador: un resync amplio puede llenar la pagina con otros estados.
+  // Los aceptados por el cliente no tienen por qué estar en estado 2 de HETMO:
+  // para ese filtro se trae todo y se filtra en el navegador.
+  const filtroServidor = statusFilter === 'ACEPTADOS' ? 'TODOS' : statusFilter;
   const { data, isLoading, isError, refetch } = useQuery({
     // Misma clave y misma consulta que la insignia del menu (App.tsx) para el
     // filtro por defecto: lista e insignia comparten datos y siempre coinciden.
-    queryKey: clavePresupuestos(statusFilter),
-    queryFn: () => consultarPresupuestos(statusFilter),
+    queryKey: clavePresupuestos(filtroServidor),
+    queryFn: () => consultarPresupuestos(filtroServidor),
     // El default global (5 min, sin refetch al volver a la pestaña) dejaba
     // esta lista mostrando el estado de HETMO desactualizado por minutos
     // despues de una resincronizacion (automatica o manual) -- incluida la
@@ -155,6 +163,10 @@ export const CotizacionesPage: React.FC<{
         p.clienteRutRaw?.toLowerCase().includes(term);
 
       if (!matchSearch) return false;
+
+      if (statusFilter === 'ACEPTADOS') return estaAceptado(p);
+      // Ocultos en todas las demás vistas: ya son obras en curso.
+      if (estaAceptado(p)) return false;
 
       // Por el CODIGO de estado de HETMO, nunca por su glosa.
       if (statusFilter === 'PRINCIPAL') return esPresupuestoPrincipal(p);
@@ -338,7 +350,9 @@ export const CotizacionesPage: React.FC<{
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
                 {statusFilter === 'PRINCIPAL'
                   ? 'No hay presupuestos cerrados (estado 2 de HETMO) ni presupuestos manuales. Puedes cambiar el filtro a "Todos los estados" para ver el resto.'
-                  : 'No hay presupuestos importados que coincidan con los filtros aplicados.'}
+                  : statusFilter === 'ACEPTADOS'
+                    ? 'No hay presupuestos aceptados por el cliente.'
+                    : 'No hay presupuestos importados que coincidan con los filtros aplicados.'}
               </p>
               {(effectiveSearch || statusFilter !== 'TODOS') && (
                 <Button

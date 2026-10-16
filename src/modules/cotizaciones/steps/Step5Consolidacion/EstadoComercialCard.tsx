@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Lock, Unlock, ArrowRight, ArrowLeft, GitFork, Loader2 } from 'lucide-react';
+import { Lock, Unlock, ArrowRight, ArrowLeft, GitFork, Loader2 } from 'lucide-react';
 import type { ProyectoVersion } from '../../../../types';
 
 type Estado = 'EN_COTIZACION' | 'ESPERANDO_APROBACION_COMERCIAL' | 'APROBADO_GERENCIA' | 'ACEPTADO_CLIENTE';
 
 const ESTADOS_INFO: Record<Estado, { label: string; color: string }> = {
   EN_COTIZACION: { label: 'En Cotización', color: 'bg-slate-100 text-slate-700 border-slate-300' },
-  ESPERANDO_APROBACION_COMERCIAL: { label: 'Esperando Aprobación Comercial', color: 'bg-amber-50 text-amber-700 border-amber-300' },
+  ESPERANDO_APROBACION_COMERCIAL: { label: 'Esperando Aprobación Gerencial', color: 'bg-amber-50 text-amber-700 border-amber-300' },
   APROBADO_GERENCIA: { label: 'Aprobado Gerencia', color: 'bg-emerald-50 text-emerald-700 border-emerald-300' },
   ACEPTADO_CLIENTE: { label: 'Aceptado por Cliente', color: 'bg-blue-50 text-blue-700 border-blue-300' },
 };
@@ -72,33 +72,15 @@ export const EstadoComercialCard: React.FC<EstadoComercialCardProps> = ({
 
       <div className="flex items-center gap-2 flex-wrap">
         {estado === 'EN_COTIZACION' && (
-          // El congelamiento ahora se dispara desde la Analitica de
-          // Materiales (Paso 3) cuando todas las familias quedan aprobadas
-          // -- no hay accion manual acá para esta transicion.
           <p className="text-xs text-slate-500">
-            Aprueba la Analítica de Materiales por completo en el Paso 3 para congelar el presupuesto y avanzar.
+            Aprueba la Analítica de Materiales por completo en el Paso 3 y luego solicita la aprobación gerencial desde la Hoja de Fijación (Paso 4).
           </p>
         )}
 
         {estado === 'ESPERANDO_APROBACION_COMERCIAL' && (
-          <>
-            <button
-              onClick={() => onCambiarEstado('APROBADO_GERENCIA')}
-              disabled={isCambiandoEstado}
-              className="px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center gap-1.5 hover:bg-emerald-700 transition-colors disabled:opacity-50"
-            >
-              {isCambiandoEstado ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
-              Aprobar (Gerencia)
-            </button>
-            <button
-              onClick={() => onCambiarEstado('EN_COTIZACION')}
-              disabled={isCambiandoEstado}
-              className="px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-slate-600 text-xs font-semibold flex items-center gap-1.5 hover:bg-slate-50 transition-colors disabled:opacity-50"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Volver a Cotización
-            </button>
-          </>
+          <p className="text-xs text-slate-500">
+            Pendiente de aprobación gerencial. Se aprueba desde la Hoja de Fijación (Paso 4).
+          </p>
         )}
 
         {estado === 'APROBADO_GERENCIA' && (

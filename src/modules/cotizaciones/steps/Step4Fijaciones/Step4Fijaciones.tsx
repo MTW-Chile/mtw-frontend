@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Calculator, Check, Loader2, Plus, Trash2, FileDown, Lock } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Calculator, Check, Plus, Trash2, FileDown, Lock, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
 import { useMonedas } from '../../../../lib/monedas';
-import { updateFijacionConfig, updateEstadoAprobacion } from '../../../../api/client';
+import { updateFijacionConfig, updateEstadoAprobacion, getMisPermisos } from '../../../../api/client';
 import type { Proyecto, ProyectoVersion, FijacionExtra } from '../../../../types';
+import { Button } from '../../../../components/ui/Button';
 import {
   computeMaterialesConsolidados,
   montoConAjuste,
@@ -19,6 +20,10 @@ interface Step4FijacionesProps {
   dolar: string;
   uf: string;
   euro: string;
+  // Aprobación gerencial: vive acá (antes estaba en el Paso 5). Solo la
+  // puede dar quien tiene el permiso 'gerencial' (o es admin).
+  onCambiarEstadoAprobacion: (estado: 'EN_COTIZACION' | 'ESPERANDO_APROBACION_COMERCIAL' | 'APROBADO_GERENCIA') => void;
+  isCambiandoEstadoAprobacion: boolean;
 }
 
 // Mismo agrupado que la Analitica de Materiales (Step3Materiales): Juntas
@@ -47,8 +52,18 @@ const numeroInput = (value: unknown) => Math.max(0, Number(value) || 0);
 // comercial; se trata igual que EN_COTIZACION (ver relay-api).
 const normalizarEstado = (estado: string) => (estado === 'BORRADOR' ? 'EN_COTIZACION' : estado);
 
-export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, activeVersion, dolar, uf, euro }) => {
+export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
+  proyecto,
+  activeVersion,
+  dolar,
+  uf,
+  euro,
+  onCambiarEstadoAprobacion,
+  isCambiandoEstadoAprobacion,
+}) => {
   const queryClient = useQueryClient();
+  const { data: permisos } = useQuery({ queryKey: ['misPermisos'], queryFn: getMisPermisos });
+  const puedeAprobarGerencia = !!permisos && (permisos.esAdmin || permisos.aprobaciones.includes('gerencial'));
   const monedas = useMonedas();
   const tasaDolar = Number(dolar) || 950;
   const tasaUf = Number(uf) || 38500;
@@ -108,6 +123,11 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
   const familiasTotales = new Set((activeVersion?.familiaAprobaciones || []).map((f) => f.familia)).size;
   const todasLasFamiliasAprobadas = familiasTotales > 0 && familiasAprobadas === familiasTotales;
   const puedeCongelar = !congelado && todasLasFamiliasAprobadas;
+
+  // Hay cambios sin guardar si el draft (o los extras) difieren de lo último
+  // guardado en la config. "Guardar" es el único botón que persiste la hoja.
+  const hayCambios =
+    JSON.stringify({ ...draft, extras }) !== JSON.stringify({ ...defaultDraft(), extras: config?.extras ?? [] });
 
   // Congelar el presupuesto: guarda la Hoja de Fijacion (si hay cambios sin
   // guardar) y recien ahi pide el cambio de estado -- el backend rechaza el
@@ -392,48 +412,75 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({ proyecto, acti
             <p className="text-[11px] text-slate-500">{proyecto.obra}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {congelado && (
-            <span className="text-[11px] text-slate-500 flex items-center gap-1.5">
-              <Lock className="w-3.5 h-3.5" /> Presupuesto congelado -- solo lectura
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {congelado ? (
+            <span className="text-[11px] text-slate-500 flex items-center gap-1.5 mr-1">
+              <Lock className="w-3.5 h-3.5" />
+              {estadoActual === 'ESPERANDO_APROBACION_COMERCIAL'
+                ? 'Esperando Aprobación Gerencial'
+                : 'Presupuesto congelado -- solo lectura'}
             </span>
+          ) : (
+            hayCambios && <span className="text-[11px] font-semibold text-amber-600 mr-1">Cambios sin guardar</span>
           )}
-          <button
-            onClick={() => setMostrarAnalisis((v) => !v)}
-            className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors"
-          >
+          <Button variant="outline" size="sm" onClick={() => setMostrarAnalisis((v) => !v)}>
             {mostrarAnalisis ? 'Ocultar % venta' : 'Analizar precio'}
-          </button>
-          <button
-            onClick={exportarPDF}
-            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors"
-          >
-            <FileDown className="w-3.5 h-3.5" /> Exportar PDF
-          </button>
+          </Button>
+          <Button variant="secondary" size="sm" onClick={exportarPDF} leftIcon={<FileDown className="w-3.5 h-3.5" />}>
+            Exportar PDF
+          </Button>
           {!congelado && (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => guardarMutation.mutate()}
-              disabled={guardarMutation.isPending}
-              className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 hover:bg-slate-50 transition-colors disabled:opacity-50"
+              disabled={!hayCambios}
+              isLoading={guardarMutation.isPending}
+              leftIcon={<Check className="w-3.5 h-3.5" />}
             >
-              {guardarMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
               Guardar
-            </button>
+            </Button>
           )}
           {!congelado && (
-            <button
+            <Button
+              variant="primary"
+              size="sm"
               onClick={() => congelarMutation.mutate()}
-              disabled={!puedeCongelar || congelarMutation.isPending}
+              disabled={!puedeCongelar}
+              isLoading={congelarMutation.isPending}
               title={
                 todasLasFamiliasAprobadas
-                  ? 'Guarda la Hoja de Fijación y congela el presupuesto'
+                  ? 'Guarda la Hoja de Fijación y la envía a aprobación gerencial'
                   : 'Faltan familias por aprobar en la Analítica de Materiales (Paso 3)'
               }
-              className="px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              leftIcon={<ShieldCheck className="w-3.5 h-3.5" />}
             >
-              {congelarMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
-              Congelar Presupuesto
-            </button>
+              Solicitar Aprobación Gerencial
+            </Button>
+          )}
+          {estadoActual === 'ESPERANDO_APROBACION_COMERCIAL' && (
+            <>
+              {puedeAprobarGerencia && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => onCambiarEstadoAprobacion('APROBADO_GERENCIA')}
+                  isLoading={isCambiandoEstadoAprobacion}
+                  leftIcon={<ShieldCheck className="w-3.5 h-3.5" />}
+                >
+                  Aprobar (Gerencia)
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onCambiarEstadoAprobacion('EN_COTIZACION')}
+                disabled={isCambiandoEstadoAprobacion}
+                leftIcon={<ArrowLeft className="w-3.5 h-3.5" />}
+              >
+                Volver a Cotización
+              </Button>
+            </>
           )}
         </div>
       </div>

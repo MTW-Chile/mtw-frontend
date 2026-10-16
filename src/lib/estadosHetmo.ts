@@ -36,7 +36,7 @@ export function varianteEstadoPresupuesto(estado: number | null | undefined): Ba
   return ESTADOS_PRESUPUESTO_HETMO[estado]?.variant ?? 'default';
 }
 
-type ProyectoMinimo = Pick<Proyecto, 'origen'> & { versiones: { estadoHetmo: number }[] };
+type ProyectoMinimo = Pick<Proyecto, 'origen'> & { versiones: { estadoHetmo: number; estadoAprobacion?: string }[] };
 
 // Un presupuesto manual no tiene estado real en HETMO (el 2 que guarda es
 // sintetico): se rotula como lo que es.
@@ -52,9 +52,11 @@ export function varianteEstadoProyecto(p: ProyectoMinimo): BadgeVariant {
 
 // Lista por defecto de Presupuestos: los presupuestos cerrados en HETMO
 // (estado 2) y los presupuestos manuales. "Todos los estados" muestra el resto.
+// Los aceptados por el cliente ya son obras en curso y no aparecen aca.
 // La insignia numerica del menu cuenta exactamente esto.
 export function esPresupuestoPrincipal(p: ProyectoMinimo): boolean {
   if (p.origen === 'MANUAL_OBRA') return false;
+  if (p.versiones[0]?.estadoAprobacion === 'ACEPTADO_CLIENTE') return false;
   if (p.origen === 'MANUAL_PRESUPUESTO') return true;
   return p.versiones[0]?.estadoHetmo === 2;
 }
