@@ -1,14 +1,17 @@
 import type { Proyecto } from '../../types';
 
-export type SeccionObra = 'presupuesto' | 'documentos' | 'cubicacion' | 'fases' | 'abastecimiento' | 'fabricacion' | 'pendientes' | 'bodega';
+// 'fases' se fusiono dentro de 'fabricacion' (sub-pestañas Fases /
+// Documentos de fabricación) -- fabricacion ya estaba siempre disponible,
+// la sub-pestaña Fases se oculta ahi mismo para una obra manual.
+export type SeccionObra = 'presupuesto' | 'documentos' | 'cubicacion' | 'abastecimiento' | 'fabricacion' | 'pendientes' | 'bodega';
 
-export const SECCIONES_OBRA: SeccionObra[] = ['presupuesto', 'documentos', 'cubicacion', 'fases', 'abastecimiento', 'fabricacion', 'pendientes', 'bodega'];
+export const SECCIONES_OBRA: SeccionObra[] = ['presupuesto', 'documentos', 'cubicacion', 'abastecimiento', 'fabricacion', 'pendientes', 'bodega'];
 
 // Secciones que dependen de haber cotizado la obra (presupuesto, ventanas,
 // fases...). Una obra manual (origen MANUAL_OBRA) nunca se cotizo, asi que
 // esas secciones se muestran en gris. Es una decision POR AHORA: si se habilita
 // alguna para obras manuales, basta quitarla de esta lista y el menu se activa.
-export const SECCIONES_QUE_REQUIEREN_PRESUPUESTO: SeccionObra[] = ['presupuesto', 'fases', 'abastecimiento', 'bodega'];
+export const SECCIONES_QUE_REQUIEREN_PRESUPUESTO: SeccionObra[] = ['presupuesto', 'abastecimiento', 'bodega'];
 
 export function seccionDisponible(seccion: SeccionObra, origen: Proyecto['origen']): boolean {
   return !(origen === 'MANUAL_OBRA' && SECCIONES_QUE_REQUIEREN_PRESUPUESTO.includes(seccion));

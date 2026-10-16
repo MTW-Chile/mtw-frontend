@@ -107,7 +107,7 @@ const TarjetaUnidad: React.FC<{
           }`}
         >
           <button type="button" onClick={() => onEditarVentana(v)} className="inline-flex items-baseline gap-1 cursor-pointer" aria-label={`Editar ${v.nomenclatura ?? v.codigo}`}>
-            <b className="font-mono">{v.codigo}</b>
+            <b className="font-mono">{v.nomenclatura ?? v.codigo}</b>
             {v.ubicacion && <span className="text-slate-500 max-w-[5.5rem] truncate">{v.ubicacion}</span>}
           </button>
           <button type="button" onClick={() => onQuitarVentana(v.id)} className="p-0.5 text-slate-300 hover:text-rose-600 cursor-pointer" aria-label={`Sacar ${v.nomenclatura ?? v.codigo}`} title="Sacar de esta unidad">

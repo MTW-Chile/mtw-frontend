@@ -8,7 +8,6 @@ describe('seccionDisponible', () => {
     expect(seccionDisponible('cubicacion', 'MANUAL_OBRA')).toBe(true);
     expect(seccionDisponible('documentos', 'MANUAL_OBRA')).toBe(true);
     expect(seccionDisponible('presupuesto', 'MANUAL_OBRA')).toBe(false);
-    expect(seccionDisponible('fases', 'MANUAL_OBRA')).toBe(false);
     expect(seccionDisponible('abastecimiento', 'MANUAL_OBRA')).toBe(false);
     expect(seccionDisponible('bodega', 'MANUAL_OBRA')).toBe(false);
   });
@@ -27,7 +26,7 @@ describe('seccionDisponible', () => {
 
 describe('seccionEfectiva', () => {
   it('respeta la seccion pedida si esta disponible', () => {
-    expect(seccionEfectiva('fases', 'HETMO')).toBe('fases');
+    expect(seccionEfectiva('cubicacion', 'HETMO')).toBe('cubicacion');
     expect(seccionEfectiva('fabricacion', 'MANUAL_OBRA')).toBe('fabricacion');
   });
   it('una obra manual con un enlace a una seccion en gris cae a Fabricacion', () => {

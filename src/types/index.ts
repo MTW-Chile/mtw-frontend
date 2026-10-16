@@ -202,6 +202,11 @@ export interface Fase {
   fechaInicio: string | null;
   fechaEntrega: string | null;
   ventanasFase?: VentanaFase[];
+  // ventanasIndividualizadas > 0 = se creo seleccionando desde la cubicación
+  // (tiene ventanas EXACTAS, ver FaseVentanaIndividualizada) -- requisito
+  // para el Informe HETMO. fabricaciones > 0 = ya tiene un documento de
+  // fabricación vinculado -- el estado deja de editarse a mano.
+  _count?: { fabricaciones: number; ventanasIndividualizadas: number };
   creadoEn: string;
   actualizadoEn: string;
 }
