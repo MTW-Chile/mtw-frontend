@@ -176,10 +176,10 @@ const AppContent: React.FC = () => {
     }
   };
 
-  // Abre el Cotizador de ese proyecto directo en el Paso 5 (Consolidación),
+  // Abre el Cotizador de ese proyecto directo en el Paso 4 (Hoja de Fijación),
   // donde está "Aprobar (Gerencia)" -- CotizacionesPage lee estos params.
   const abrirCotizacion = (proyectoId: string, opts?: { replace?: boolean }) => {
-    navegar('/cotizaciones', { cotizar: proyectoId, paso: 5 }, opts);
+    navegar('/cotizaciones', { cotizar: proyectoId, paso: 4 }, opts);
   };
 
   // Deep-link desde el link "Ver Centro de Notificaciones" de los correos

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { getProyectoById } from '../../api/client';
 import { formatNumber } from '../../lib/utils';
+import { Loader } from '../../components/ui/Loader';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import type { Ventana } from '../../types';
@@ -76,10 +77,7 @@ export const CotizacionDetalleModal: React.FC<{
 
         {/* Modal Body */}
         {isLoading ? (
-          <div className="p-12 flex flex-col items-center justify-center gap-3 text-slate-500">
-            <div className="w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin"></div>
-            <span className="text-xs font-mono">Cargando desglose de ventanas y cotas...</span>
-          </div>
+          <Loader block size="lg" label="Cargando desglose de ventanas y cotas..." />
         ) : (
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
             {/* Version Selector & Summary Cards */}

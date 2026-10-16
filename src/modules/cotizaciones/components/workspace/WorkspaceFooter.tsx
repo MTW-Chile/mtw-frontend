@@ -9,8 +9,8 @@ interface WorkspaceFooterProps {
   onStepChange: (step: CotizadorStep) => void;
 }
 
-// Navegación del cotizador: Anterior / Continuar a la izquierda, selector de
-// paso a la derecha. Los textos salen de STEPS (pasos.ts).
+// Navegación del cotizador: selector de paso a la izquierda, Anterior /
+// Continuar a la derecha. Los textos salen de STEPS (pasos.ts).
 export const WorkspaceFooter: React.FC<WorkspaceFooterProps> = ({ currentStep, saveSuccess, onStepChange }) => {
   const anterior = STEPS.find((s) => s.step === currentStep - 1);
   const siguiente = STEPS.find((s) => s.step === currentStep + 1);
@@ -18,7 +18,15 @@ export const WorkspaceFooter: React.FC<WorkspaceFooterProps> = ({ currentStep, s
   return (
     <footer className="sticky bottom-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-md px-3.5 sm:px-8 py-2.5 sm:py-3">
       <div className="max-w-6xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
+        <SelectorPaso currentStep={currentStep} onStepChange={onStepChange} />
+
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          {saveSuccess && (
+            <span className="hidden md:flex text-xs text-emerald-600 font-semibold items-center gap-1.5 animate-fade-in mr-1">
+              <CheckCircle2 className="w-4 h-4 shrink-0" /> Parámetros guardados con éxito
+            </span>
+          )}
+
           {anterior && (
             <button
               onClick={() => onStepChange(anterior.step)}
@@ -41,15 +49,6 @@ export const WorkspaceFooter: React.FC<WorkspaceFooterProps> = ({ currentStep, s
               <ArrowRight className="w-4 h-4 shrink-0" />
             </button>
           )}
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          {saveSuccess && (
-            <span className="hidden md:flex text-xs text-emerald-600 font-semibold items-center gap-1.5 animate-fade-in">
-              <CheckCircle2 className="w-4 h-4 shrink-0" /> Parámetros guardados con éxito
-            </span>
-          )}
-          <SelectorPaso currentStep={currentStep} onStepChange={onStepChange} />
         </div>
       </div>
     </footer>

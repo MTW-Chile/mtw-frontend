@@ -8,7 +8,7 @@ import type { Proyecto, ProyectoVersion } from '../../../../types';
 const ESTADO_CORTO: Record<string, string> = {
   BORRADOR: 'En Cotización',
   EN_COTIZACION: 'En Cotización',
-  ESPERANDO_APROBACION_COMERCIAL: 'Esp. Aprob. Comercial',
+  ESPERANDO_APROBACION_COMERCIAL: 'Esp. Aprob. Gerencial',
   APROBADO_GERENCIA: 'Aprob. Gerencia',
   ACEPTADO_CLIENTE: 'Aceptado',
 };
@@ -18,7 +18,7 @@ const ESTADO_CORTO: Record<string, string> = {
 const ESTADO_LABEL: Record<string, string> = {
   BORRADOR: 'En Cotización',
   EN_COTIZACION: 'En Cotización',
-  ESPERANDO_APROBACION_COMERCIAL: 'Esperando Aprobación Comercial',
+  ESPERANDO_APROBACION_COMERCIAL: 'Esperando Aprobación Gerencial',
   APROBADO_GERENCIA: 'Aprobado Gerencia',
   ACEPTADO_CLIENTE: 'Aceptado por Cliente',
 };

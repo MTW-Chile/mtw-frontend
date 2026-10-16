@@ -3,6 +3,7 @@ import { useCotizadorWorkspace } from './hooks/useCotizadorWorkspace';
 import { HeaderContexto } from './components/workspace/HeaderContexto';
 import { WorkspaceFooter } from './components/workspace/WorkspaceFooter';
 import { ReimportModal } from './components/workspace/ReimportModal';
+import { Loader } from '../../components/ui/Loader';
 
 // Cada paso se carga sólo cuando el usuario lo abre, no en el primer
 // render del cotizador: Step2 arrastra todo el motor de geometría SVG
@@ -15,18 +16,14 @@ const Step3Materiales = lazy(() => import('./steps/Step3Materiales/Step3Material
 const Step4Fijaciones = lazy(() => import('./steps/Step4Fijaciones/Step4Fijaciones').then((m) => ({ default: m.Step4Fijaciones })));
 const Step5Consolidacion = lazy(() => import('./steps/Step5Consolidacion/Step5Consolidacion').then((m) => ({ default: m.Step5Consolidacion })));
 
-const StepFallback: React.FC = () => (
-  <div className="flex items-center justify-center p-16">
-    <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
-  </div>
-);
+const StepFallback: React.FC = () => <Loader block size="lg" />;
 
 interface CotizadorWorkspaceProps {
   proyectoId: string;
   onBack: () => void;
   // Deep-link (ej. desde el Centro de Notificaciones o el link de un
-  // correo de aprobacion pendiente) -- salta directo al Paso 5
-  // (Consolidación), donde está el botón "Aprobar (Gerencia)", en vez de
+  // correo de aprobacion pendiente) -- salta directo al Paso 4
+  // (Hoja de Fijación), donde está el botón "Aprobar (Gerencia)", en vez de
   // arrancar siempre en el Paso 1.
   pasoInicial?: 1 | 2 | 3 | 4 | 5;
 }
@@ -75,11 +72,8 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8 bg-slate-50 text-slate-700">
-        <div className="text-center space-y-3">
-          <div className="w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <div className="text-xs font-mono">Cargando cotizador de la obra...</div>
-        </div>
+      <div className="flex-1 flex items-center justify-center bg-slate-50">
+        <Loader block size="lg" label="Cargando cotizador de la obra..." />
       </div>
     );
   }
@@ -164,6 +158,8 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
             dolar={dolar}
             uf={uf}
             euro={euro}
+            onCambiarEstadoAprobacion={(estado) => estadoAprobacionMutation.mutate(estado)}
+            isCambiandoEstadoAprobacion={estadoAprobacionMutation.isPending}
           />
         )}
 
