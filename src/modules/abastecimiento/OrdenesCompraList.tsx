@@ -203,7 +203,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ordenesCompra'] });
       // Puede crear (Solicitar aprobación) o resolver (Aprobar/Rechazar) un
-      // pendiente gerencial -- se invalida para que la campanita/Centro de
+      // pendiente gerencial -- se invalida para que el menú de usuario/Centro de
       // Notificaciones se actualicen al toque, sin esperar el proximo poll.
       queryClient.invalidateQueries({ queryKey: ['misAprobacionesPendientes'] });
       setRechazandoId(null);

@@ -1,7 +1,9 @@
 import React from 'react';
 import { actualizarParams } from '../../lib/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Building2, Loader2, Wallet, ShoppingCart, Warehouse, Factory, ClipboardList, Ruler, FolderOpen } from 'lucide-react';
+import { Loader2, Wallet, ShoppingCart, Warehouse, Factory, ClipboardList, Ruler, FolderOpen } from 'lucide-react';
+import { HeaderSlot } from '../../components/layout/HeaderSlot';
+import { Badge } from '../../components/ui/Badge';
 import { getProyectoById } from '../../api/client';
 import { OrdenesCompraList } from '../abastecimiento/OrdenesCompraList';
 import { BodegaProyectoTab } from '../abastecimiento/BodegaProyectoTab';
@@ -34,7 +36,6 @@ const SECCIONES: { id: Seccion; label: string; hint: string; icon: React.ReactNo
 export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: string; onVolver: () => void }> = ({
   proyectoId,
   seccionInicial,
-  onVolver,
 }) => {
   // La seccion activa vive en la URL (?seccion=...) -- Atras del navegador
   // vuelve a la seccion anterior. replace: cambiar de pestaña dentro del
@@ -61,32 +62,22 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-5 sm:px-8 py-4 border-b border-slate-200 bg-white flex items-center gap-3 shrink-0">
-        <button
-          onClick={onVolver}
-          className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-colors shrink-0"
-          aria-label="Volver a Obras"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-        <div className="w-9 h-9 rounded-xl bg-brand-600/10 border border-brand-600/20 flex items-center justify-center text-brand-600 shrink-0">
-          <Building2 className="w-4.5 h-4.5" />
-        </div>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h1 className="text-sm font-black text-slate-900 truncate">{proyecto?.obra || 'Cargando...'}</h1>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 font-mono font-bold shrink-0">
-              {proyecto?.codigoInterno || (proyecto ? `PRJ-${proyecto.numeroPresupuesto}` : '')}
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 truncate">{proyecto?.clienteNombreRaw}</p>
-        </div>
+      {/* Código, cliente y centro de costo viven en el Header del sitio (portal), igual que Presupuestos. */}
+      <HeaderSlot>
         {proyecto && (
-          <div className="ml-auto hidden sm:block">
-            <ClayCentroCostoEditor proyectoId={proyecto.id} valor={proyecto.clayCentroCosto} />
-          </div>
+          <>
+            <Badge size="sm" className="hidden sm:inline-flex font-mono font-bold text-slate-600" title="Código de la obra">
+              {proyecto.codigoInterno || `PRJ-${proyecto.numeroPresupuesto}`}
+            </Badge>
+            <span className="hidden @3xl:inline text-xs text-slate-500 truncate max-w-[220px]" title={proyecto.clienteNombreRaw}>
+              {proyecto.clienteNombreRaw}
+            </span>
+            <div className="ml-auto hidden sm:block">
+              <ClayCentroCostoEditor proyectoId={proyecto.id} valor={proyecto.clayCentroCosto} />
+            </div>
+          </>
         )}
-      </div>
+      </HeaderSlot>
 
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Menu superior -- unica nav, para cualquier ancho (antes era un

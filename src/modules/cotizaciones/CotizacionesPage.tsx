@@ -56,7 +56,7 @@ export const CotizacionesPage: React.FC<{
   const [selectedProyectoId, setSelectedProyectoId] = useState<string | null>(null);
   // El proyecto abierto en el Cotizador vive en la URL (?cotizar=<id>, y
   // el paso en ?paso=N) -- Atras del navegador vuelve al listado, F5 deja
-  // el cotizador abierto, y el deep-link de la campanita (App.tsx >
+  // el cotizador abierto, y el deep-link de las notificaciones (App.tsx >
   // abrirCotizacion) es solo navegar a esa URL.
   const [cotizarProyectoId] = useUrlParam('cotizar');
   const setCotizarProyectoId = (id: string | null) => actualizarParams({ cotizar: id, paso: null });

@@ -20,7 +20,7 @@ import { mostrarToast, extraerErrorParaToast } from './lib/toast';
 import { navegar, seccionDesdePath, useLocationHref, inicializarHistorial } from './lib/navigation';
 
 // Tab especial, fuera de SECCIONES_FRONTEND a proposito (no va en el
-// Sidebar -- solo se llega ahi desde la campanita del Header o el link de
+// Sidebar -- solo se llega ahi desde el menú de usuario del Header o el link de
 // un correo de aprobacion pendiente, ver puedeVerCentro mas abajo).
 const TAB_CENTRO_NOTIFICACIONES = 'centro-notificaciones';
 
@@ -123,9 +123,9 @@ const AppContent: React.FC = () => {
   // null = administrador, ve todo sin filtrar.
   const seccionesPermitidas = permisos ? (permisos.esAdmin ? null : permisos.secciones) : [];
   // El Centro de Notificaciones no es una seccion real (no vive en
-  // SECCIONES_FRONTEND/Sidebar) -- su acceso depende de poder aprobar
-  // gerencial, no de secciones habilitadas.
-  const puedeVerCentroNotificaciones = !!permisos && (permisos.esAdmin || permisos.aprobaciones.includes('gerencial'));
+  // SECCIONES_FRONTEND/Sidebar) -- lo ve cualquier usuario con rol, sin
+  // importar sus secciones ni sus aprobaciones.
+  const puedeVerCentroNotificaciones = !!permisos;
   const puedeVer = (id: string) =>
     id === TAB_CENTRO_NOTIFICACIONES
       ? puedeVerCentroNotificaciones
@@ -186,7 +186,7 @@ const AppContent: React.FC = () => {
   // de aprobacion pendiente (?abrir=centro, ver
   // notificarAprobacionGerencialPendiente en mtw-api) -- tambien soporta
   // ?abrir=cotizacion:<obra> / ?abrir=oc:<proyectoId> para ir directo a un
-  // item puntual (usado por la campanita del Header). Se consume una sola
+  // item puntual (usado por el menú de usuario del Header). Se consume una sola
   // vez al cargar la app y se limpia de la URL para que un refresh no
   // vuelva a navegar solo.
   useEffect(() => {
@@ -252,7 +252,6 @@ const AppContent: React.FC = () => {
           onNavigateConfig={() => handleNavigate('configuracion')}
           moduleTitle={MODULE_TITLES[activeTab] || 'Inicio'}
           onNavigate={handleNavigate}
-          onAbrirCotizacion={abrirCotizacion}
         />
 
         <main className="flex-1 overflow-y-auto flex flex-col min-h-0">

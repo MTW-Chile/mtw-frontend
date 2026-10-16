@@ -155,15 +155,6 @@ const ObservacionEditable: React.FC<{ ventana: Ventana; onGuardado: (v: Partial<
   );
 };
 
-// Celda de una fila de ventana: en móvil muestra su etiqueta; en escritorio
-// es solo el valor, alineado a la cabecera de columnas.
-const CeldaFila: React.FC<{ etiqueta: string; className?: string; children: React.ReactNode }> = ({ etiqueta, className = '', children }) => (
-  <div className={`flex items-center justify-between gap-2 md:block min-w-0 ${className}`}>
-    <span className="md:hidden text-[10px] uppercase tracking-wider text-slate-400 font-semibold shrink-0">{etiqueta}</span>
-    <div className="min-w-0">{children}</div>
-  </div>
-);
-
 export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, activeVersion, dolar, uf, euro }) => {
   const queryClient = useQueryClient();
   const monedas = useMonedas();
@@ -369,106 +360,109 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         )}
       </div>
 
-      <section className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-        {/* Cabecera de columnas: solo en escritorio; en móvil cada fila lleva su etiqueta. */}
-        <div className="hidden md:grid md:grid-cols-[minmax(0,1.7fr)_180px_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_48px_minmax(0,0.9fr)] gap-3 px-4 py-2 bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wider font-bold text-slate-500">
-          <span>Ventana</span>
-          <span>Dibujo</span>
-          <span>Medidas</span>
-          <span>Apertura</span>
-          <span>Acabado</span>
-          <span>Vidrio</span>
-          <span className="text-right">P. unitario</span>
-          <span className="text-right">Cant.</span>
-          <span className="text-right">Total neto</span>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {ventanas.map((v) => {
+          const precio = preciosVenta.get(v.id);
+          const line = toWindowLine(v);
+          const isFrameless = Boolean(line?.dibujoSinMarco);
+          // Una puerta Protex no pasa por el motor de aperturas de HETMO
+          // (ver mismo caso en VentanaCard.tsx) -- "Ventana fija" seria
+          // enganoso, es una puerta abatible con herrajes.
+          const apertura = v.tipoLineaManual === 'PROTEX' ? 'Puerta Protex' : line ? core.apertureLabel(line) : '—';
+          const finish = createFinish(line?.acabadoCodigo, line?.acabadoDescripcion, line?.acabadoPatron);
+          const finishLabel = getAcabadoLabel(v.acabadoCodigo, v.acabadoDescripcion);
+          const vidrio = Array.from(
+            new Set((v.materiales || []).filter((m) => !m.excluido && (m.material?.familia || '').toUpperCase().trim() === 'VIDRIOS').map((m) => m.material?.descripcion || ''))
+          ).filter(Boolean).join(' + ');
 
-        <div className="divide-y divide-slate-100">
-          {ventanas.map((v) => {
-            const precio = preciosVenta.get(v.id);
-            const line = toWindowLine(v);
-            const isFrameless = Boolean(line?.dibujoSinMarco);
-            // Una puerta Protex no pasa por el motor de aperturas de HETMO
-            // (ver mismo caso en VentanaCard.tsx) -- "Ventana fija" seria
-            // enganoso, es una puerta abatible con herrajes.
-            const apertura = v.tipoLineaManual === 'PROTEX' ? 'Puerta Protex' : line ? core.apertureLabel(line) : '—';
-            const finish = createFinish(line?.acabadoCodigo, line?.acabadoDescripcion, line?.acabadoPatron);
-            const finishLabel = getAcabadoLabel(v.acabadoCodigo, v.acabadoDescripcion);
-            const vidrio = Array.from(
-              new Set((v.materiales || []).filter((m) => !m.excluido && (m.material?.familia || '').toUpperCase().trim() === 'VIDRIOS').map((m) => m.material?.descripcion || ''))
-            ).filter(Boolean).join(' + ');
-
-            return (
-              <article
-                key={v.id}
-                className="px-4 py-2.5 grid grid-cols-2 md:grid-cols-[minmax(0,1.7fr)_180px_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_48px_minmax(0,0.9fr)] gap-x-3 gap-y-2 md:items-center text-xs hover:bg-slate-50/60 transition-colors"
-              >
-                {/* Nombre, unidades y observación */}
-                <div className="col-span-2 md:col-span-1 min-w-0 space-y-0.5">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <NombreEditable
-                      ventana={v}
-                      congelado={congelado}
-                      onGuardado={(patch) => setVentanasLocal((prev) => ({ ...prev, [v.id]: { ...prev[v.id], ...patch } }))}
-                    />
-                    <span className="px-1.5 py-px rounded-full bg-brand-600/10 text-brand-600 border border-brand-600/20 font-bold text-[10px] shrink-0">
-                      {v.unidades} {v.unidades === 1 ? 'ud' : 'uds'}
-                    </span>
-                  </div>
-                  <ObservacionEditable
+          return (
+            <article key={v.id} className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+              {/* Encabezado: nombre editable, unidades y total neto */}
+              <header className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <NombreEditable
                     ventana={v}
                     congelado={congelado}
                     onGuardado={(patch) => setVentanasLocal((prev) => ({ ...prev, [v.id]: { ...prev[v.id], ...patch } }))}
                   />
+                  <span className="px-2 py-0.5 rounded-full bg-brand-600/10 text-brand-600 border border-brand-600/20 font-bold text-[11px] shrink-0">
+                    {v.unidades} {v.unidades === 1 ? 'ud' : 'uds'}
+                  </span>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Total neto</span>
+                  <span className="font-mono font-bold text-sm text-brand-600">{ufLabel(precio?.precioVentaCLP || 0, tasaUf)}</span>
+                </div>
+              </header>
+
+              <div className="p-4 grid grid-cols-1 sm:grid-cols-[180px_1fr] gap-4 flex-1">
+                {/* Dibujo con sus medidas */}
+                <div className="space-y-2">
+                  <div className="w-full h-40 rounded-xl bg-[#f8fafc] border border-slate-100 flex items-center justify-center overflow-hidden p-2">
+                    {v.tipoLineaManual === 'PROTEX' ? (
+                      <div
+                        className="w-full h-full"
+                        dangerouslySetInnerHTML={{
+                          __html: buildProtexDoorSvg(v.numeroCuadrosHojas === 2 ? 2 : 1, v.anchoMm, v.altoMm),
+                        }}
+                      />
+                    ) : (
+                      <WindowRendererSvg ventana={v} className="w-full h-full" />
+                    )}
+                  </div>
+                  <p className="text-center text-xs font-bold text-slate-900 tabular-nums">
+                    {formatNumber(v.anchoMm, 0)} × {formatNumber(v.altoMm, 0)} mm
+                  </p>
                 </div>
 
-                {/* Dibujo miniatura */}
-                <div className="col-span-2 md:col-span-1 w-full md:w-[180px] h-40 md:h-[140px] rounded-lg bg-[#f8fafc] border border-slate-100 flex items-center justify-center overflow-hidden p-2">
-                  {v.tipoLineaManual === 'PROTEX' ? (
-                    <div
-                      className="w-full h-full"
-                      dangerouslySetInnerHTML={{
-                        __html: buildProtexDoorSvg(v.numeroCuadrosHojas === 2 ? 2 : 1, v.anchoMm, v.altoMm),
-                      }}
+                {/* Datos técnicos */}
+                <dl className="text-xs space-y-2 min-w-0">
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Apertura</dt>
+                    <dd className="text-slate-900 font-medium">{apertura}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Acabado</dt>
+                    <dd className="flex items-center gap-1.5 text-slate-900 font-medium">
+                      {isFrameless ? (
+                        '—'
+                      ) : (
+                        <>
+                          <span className="w-2.5 h-2.5 rounded-full border border-slate-300 shrink-0" style={{ backgroundColor: finish.frame }} />
+                          {finishLabel}
+                        </>
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Vidrio</dt>
+                    <dd className="text-slate-900 font-medium break-words">{vidrio || '—'}</dd>
+                  </div>
+                  <div className="pt-1">
+                    <ObservacionEditable
+                      ventana={v}
+                      congelado={congelado}
+                      onGuardado={(patch) => setVentanasLocal((prev) => ({ ...prev, [v.id]: { ...prev[v.id], ...patch } }))}
                     />
-                  ) : (
-                    <WindowRendererSvg ventana={v} className="w-full h-full" />
-                  )}
-                </div>
+                  </div>
+                </dl>
+              </div>
 
-                <CeldaFila etiqueta="Medidas">
-                  <span className="font-bold text-slate-900 tabular-nums">{formatNumber(v.anchoMm, 0)} × {formatNumber(v.altoMm, 0)} mm</span>
-                </CeldaFila>
-                <CeldaFila etiqueta="Apertura">
-                  <span className="text-slate-900 truncate">{apertura}</span>
-                </CeldaFila>
-                <CeldaFila etiqueta="Acabado">
-                  {isFrameless ? (
-                    <span className="text-slate-400">—</span>
-                  ) : (
-                    <span className="flex items-center gap-1.5 min-w-0">
-                      <span className="w-2.5 h-2.5 rounded-full border border-slate-300 shrink-0" style={{ backgroundColor: finish.frame }} />
-                      <span className="text-slate-900 truncate">{finishLabel}</span>
-                    </span>
-                  )}
-                </CeldaFila>
-                <CeldaFila etiqueta="Vidrio">
-                  <span className="text-slate-900 truncate" title={vidrio || undefined}>{vidrio || '—'}</span>
-                </CeldaFila>
-                <CeldaFila etiqueta="P. unitario" className="md:justify-end">
-                  <span className="font-mono text-slate-900">{ufLabel(precio?.precioUnitarioCLP || 0, tasaUf)}</span>
-                </CeldaFila>
-                <CeldaFila etiqueta="Cant." className="md:justify-end">
-                  <span className="font-mono text-slate-900">{v.unidades}</span>
-                </CeldaFila>
-                <CeldaFila etiqueta="Total neto" className="md:justify-end">
-                  <span className="font-mono font-bold text-brand-600">{ufLabel(precio?.precioVentaCLP || 0, tasaUf)}</span>
-                </CeldaFila>
-              </article>
-            );
-          })}
-        </div>
-      </section>
+              {/* Valores comerciales de la línea */}
+              <footer className="px-4 py-2.5 border-t border-slate-100 bg-slate-50/60 grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Precio unitario</span>
+                  <span className="font-mono font-bold text-slate-900">{ufLabel(precio?.precioUnitarioCLP || 0, tasaUf)}</span>
+                </div>
+                <div className="text-right">
+                  <span className="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Cantidad</span>
+                  <span className="font-mono font-bold text-slate-900">{v.unidades} ud{v.unidades === 1 ? '' : 'es'}</span>
+                </div>
+              </footer>
+            </article>
+          );
+        })}
+      </div>
 
       <div className="p-5 rounded-2xl bg-slate-900 text-white shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4">
         <div><span className="block text-[11px] text-slate-400">Subtotal de venta · NETO</span><strong className="text-lg font-mono">{ufLabel(venta, tasaUf)}</strong></div>
