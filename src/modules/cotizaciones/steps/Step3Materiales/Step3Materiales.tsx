@@ -15,7 +15,7 @@ import {
   updateEstadoAprobacion,
 } from '../../../../api/client';
 import type { Proyecto, ProyectoVersion } from '../../../../types';
-import { DivisasForm } from '../Step1DatosCliente/DivisasForm';
+import { DivisasForm, DivisasResumen } from '../Step1DatosCliente/DivisasForm';
 import { ReemplazarMaterialModal } from './ReemplazarMaterialModal';
 import {
   computeMaterialesConsolidados,
@@ -35,7 +35,8 @@ interface Step3MaterialesProps {
   euro: string;
   setEuro: (val: string) => void;
   saveSuccess: boolean;
-  onSaveDivisas: () => void;
+  // Recibe el callback que cierra la edición: solo se llama si el guardado tuvo éxito.
+  onSaveDivisas: (onGuardado: () => void) => void;
   isSavingDivisas: boolean;
 }
 
@@ -180,6 +181,9 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   // editando con normalidad hasta que efectivamente se congela el
   // presupuesto para aprobacion comercial.
   const congelado = estadoActual !== 'EN_COTIZACION';
+  // Las divisas arrancan colapsadas si ya tienen valores; si falta alguna, abiertas.
+  const [editandoDivisas, setEditandoDivisas] = useState(() => !(dolar && uf && euro));
+  const divisasEditables = !congelado && editandoDivisas;
   // El "deshacer" global solo es valido desde ESPERANDO_APROBACION_COMERCIAL
   // (ver TRANSICIONES_PERMITIDAS en el relay-api) -- en APROBADO_GERENCIA o
   // ACEPTADO_CLIENTE el retroceso se maneja desde el Paso 5, no desde aca.
@@ -541,6 +545,9 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   return (
     <div className="space-y-5 sm:space-y-6 animate-fade-in">
       {/* 1. PARÁMETROS ECONÓMICOS */}
+      {!divisasEditables ? (
+        <DivisasResumen dolar={dolar} uf={uf} euro={euro} congelado={congelado} onEditar={() => setEditandoDivisas(true)} />
+      ) : (
       <DivisasForm
         dolar={dolar}
         setDolar={setDolar}
@@ -562,7 +569,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
             <Button
               variant="primary"
               size="sm"
-              onClick={onSaveDivisas}
+              onClick={() => onSaveDivisas(() => setEditandoDivisas(false))}
               disabled={isSavingDivisas}
               isLoading={isSavingDivisas}
               leftIcon={<Check className="w-3.5 h-3.5" />}
@@ -573,6 +580,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
           </div>
         }
       />
+      )}
 
       {/* 3. ANALÍTICA Y DESGLOSE DE MATERIALES */}
       <section className="rounded-2xl bg-white border border-slate-200 shadow-xs p-4 sm:p-5 space-y-4">

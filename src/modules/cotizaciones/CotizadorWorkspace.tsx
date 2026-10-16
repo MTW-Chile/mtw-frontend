@@ -146,7 +146,7 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
             euro={euro}
             setEuro={setEuro}
             saveSuccess={saveSuccess}
-            onSaveDivisas={() => updateConfigMutation.mutate()}
+            onSaveDivisas={(onGuardado) => updateConfigMutation.mutate(undefined, { onSuccess: onGuardado })}
             isSavingDivisas={updateConfigMutation.isPending}
           />
         )}
