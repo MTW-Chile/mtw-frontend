@@ -9,21 +9,53 @@ import {
 } from '../../../api/client';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
+import { SubTabs } from '../../../components/ui/PageHeader';
 import { mostrarToast } from '../../../lib/toast';
-import type { FabricacionHetmo, Proyecto } from '../../../types';
+import type { FabricacionHetmo, Proyecto, ProyectoVersion } from '../../../types';
+import { FasesTab } from '../FasesTab';
 import { BuscarFabricacionModal } from './BuscarFabricacionModal';
 import { FabricacionDetalle } from './FabricacionDetalle';
 import { formatoFechaHora, textoEstadoFabricacion, textoVinculacionCubicacion, varianteEstadoFabricacion } from './utils';
 
 interface Props {
   proyecto: Proyecto;
+  activeVersion?: ProyectoVersion;
 }
 
-// Seccion "Fabricacion" de una obra: los documentos de fabricacion de HETMO
-// vinculados a ella. En una obra con presupuesto de HETMO se detectan solos
-// (a partir de sus versiones); en una obra manual se buscan y vinculan a
-// mano. HETMO es solo lectura: aca se guarda una copia con sus ids.
-export const FabricacionTab: React.FC<Props> = ({ proyecto }) => {
+type SubTab = 'fases' | 'documentos';
+
+// Seccion "Fabricacion" de una obra: fusiona Fases (planificar y conectar
+// con el documento real de fabricacion) y los documentos de fabricacion de
+// HETMO en si, con sub-pestañas -- Fases primero (es el flujo principal).
+// Una obra manual no tiene presupuesto ni Fase posibles: carga directo los
+// documentos, sin el switcher de sub-pestañas.
+export const FabricacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
+  const [subTab, setSubTab] = useState<SubTab>('fases');
+
+  if (proyecto.origen === 'MANUAL_OBRA' || !activeVersion) {
+    return <DocumentosFabricacionSubTab proyecto={proyecto} />;
+  }
+
+  return (
+    <div className="space-y-4">
+      <SubTabs
+        tabs={[
+          { id: 'fases', label: 'Fases' },
+          { id: 'documentos', label: 'Documentos de fabricación' },
+        ]}
+        active={subTab}
+        onChange={setSubTab}
+      />
+      {subTab === 'fases' ? (
+        <FasesTab proyecto={proyecto} activeVersion={activeVersion} />
+      ) : (
+        <DocumentosFabricacionSubTab proyecto={proyecto} />
+      )}
+    </div>
+  );
+};
+
+const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }) => {
   const queryClient = useQueryClient();
   const [buscando, setBuscando] = useState(false);
   const [abierto, setAbierto] = useState<string | null>(null);

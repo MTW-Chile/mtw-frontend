@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Download, FileSpreadsheet, Loader2, RefreshCw, Ruler, Settings2, Upload, X } from 'lucide-react';
-import { descargarInformeCubicacion, descargarPlantillaCubicacion, getCubicacion, importarPlanillaCubicacion, sincronizarCubicacion } from '../../../api/client';
+import { descargarPlantillaCubicacion, getCubicacion, importarPlanillaCubicacion, sincronizarCubicacion } from '../../../api/client';
 import { SubTabs } from '../../../components/ui/PageHeader';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
@@ -93,12 +93,6 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
     onSuccess: (blob) => descargarBlob(blob, `Planilla de cubicación ${proyecto.obra}.xlsx`),
     onError: aviso,
   });
-  const informe = useMutation({
-    mutationFn: (soloRectificadas: boolean) => descargarInformeCubicacion(proyecto.id, { torreId: filtro.torreId, pisoId: filtro.pisoId, soloRectificadas }),
-    onSuccess: (blob) => descargarBlob(blob, `Cubicación ${proyecto.obra}.xlsx`),
-    onError: aviso,
-  });
-
   const elegirArchivo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const archivo = e.target.files?.[0];
     e.target.value = '';
@@ -250,12 +244,6 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
             <Button variant="ghost" size="sm" leftIcon={<Settings2 className="w-3.5 h-3.5" />} onClick={() => setConfig(true)}>
               Configuración
             </Button>
-            <Button variant="ghost" size="sm" leftIcon={<FileSpreadsheet className="w-3.5 h-3.5" />} isLoading={informe.isPending} onClick={() => informe.mutate(false)} title="Excel con las ventanas ya posicionadas (filtro actual), para crear la fase en HETMO">
-              Informe para HETMO
-            </Button>
-            <button type="button" onClick={() => informe.mutate(true)} className="text-brand-700 hover:underline cursor-pointer">
-              solo las rectificadas
-            </button>
           </div>
         </>
       )}

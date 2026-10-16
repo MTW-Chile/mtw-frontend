@@ -14,18 +14,20 @@ import {
   ChevronRight,
   ShoppingCart,
   Package,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { StatCard } from '../../components/ui/StatCard';
-import { createFase, updateFase, deleteFase, getBodegaProyecto } from '../../api/client';
-import { mostrarToast } from '../../lib/toast';
+import { createFase, updateFase, deleteFase, descargarInformeHetmoFase, getBodegaProyecto } from '../../api/client';
+import { extraerErrorParaToast, mostrarToast } from '../../lib/toast';
 import { useMonedas } from '../../lib/monedas';
 import { computeMaterialesFasePorProveedor } from '../cotizaciones/lib/materialesConsolidados';
 import { CATEGORIA_GASTO_LABEL } from '../abastecimiento/categoriaGasto';
 import { NuevaOrdenCompraModal } from '../abastecimiento/NuevaOrdenCompraModal';
 import { SelectorFaseDesdeCubicacion } from './cubicacion/SelectorFaseDesdeCubicacion';
+import { descargarBlob } from './cubicacion/utils';
 import type { CategoriaGasto, Fase, Proyecto, ProyectoVersion, SeleccionFaseCubicacion } from '../../types';
 
 const formatoMoneda = (valor: number) => valor.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
@@ -279,6 +281,19 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
     onError: (err: any) => setError(err?.response?.data?.error || 'No se pudo eliminar la fase.'),
   });
 
+  // Solo tiene sentido para una fase creada seleccionando desde la
+  // cubicacion (tiene ventanas EXACTAS, ver FaseVentanaIndividualizada) --
+  // una fase vieja (linea+cantidad) no tiene que listar, el backend
+  // rechaza con 400 y mensaje claro, se muestra tal cual.
+  const informeMutation = useMutation({
+    mutationFn: (fase: Fase) => descargarInformeHetmoFase(fase.id),
+    onSuccess: (blob, fase) => descargarBlob(blob, `Informe HETMO ${fase.nombre}.xlsx`),
+    onError: (e) => {
+      const { mensaje, detalle } = extraerErrorParaToast(e);
+      mostrarToast(mensaje, { detalle });
+    },
+  });
+
   // Atajo para proyectos que no necesitan repartir por etapas: una sola
   // fase con TODO lo que todavia no este asignado a otra fase (no
   // necesariamente el 100% de cada linea -- si ya hay fases planificadas,
@@ -508,7 +523,7 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
       )}
 
       <div className="space-y-2.5">
-        {faseBase && (
+        {faseBase && fasesReales.length === 0 && (
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2">
               <Badge variant="outline" size="sm">
@@ -545,6 +560,21 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      leftIcon={<FileSpreadsheet className="w-3.5 h-3.5" />}
+                      disabled={!fase._count?.ventanasIndividualizadas}
+                      isLoading={informeMutation.isPending && informeMutation.variables?.id === fase.id}
+                      onClick={() => informeMutation.mutate(fase)}
+                      title={
+                        fase._count?.ventanasIndividualizadas
+                          ? 'Excel con nomenclatura y medidas de fabricación de las ventanas de esta fase, para crear la fase en HETMO'
+                          : 'Esta fase no tiene ventanas exactas asociadas -- créala seleccionando desde la cubicación para generar el informe'
+                      }
+                    >
+                      Informe HETMO
+                    </Button>
                     <Button size="sm" variant="ghost" leftIcon={<Pencil className="w-3.5 h-3.5" />} onClick={() => abrirEdicion(fase)}>
                       Editar
                     </Button>

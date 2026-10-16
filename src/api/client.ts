@@ -1463,13 +1463,10 @@ export async function eliminarUnidadCubicacion(id: string): Promise<void> {
   await apiClient.post(`/cubicacion-unidades/${id}/eliminar`);
 }
 
-// Informe Excel para crear la fase en HETMO (nomenclatura + medidas de fabricacion).
-export async function descargarInformeCubicacion(proyectoId: string, filtro: { torreId?: string; pisoId?: string; soloRectificadas?: boolean } = {}): Promise<Blob> {
-  const params: Record<string, string | number> = {};
-  if (filtro.torreId) params.torreId = filtro.torreId;
-  if (filtro.pisoId) params.pisoId = filtro.pisoId;
-  if (filtro.soloRectificadas) params.soloRectificadas = 1;
-  const response = await apiClient.get<Blob>(`/proyectos/${proyectoId}/cubicacion/informe`, { params, responseType: 'blob', timeout: 120000 });
+// Informe Excel para crear la fase en HETMO: nomenclatura + medidas de
+// fabricacion de las ventanas EXACTAS de una fase (ver FaseVentanaIndividualizada).
+export async function descargarInformeHetmoFase(faseId: string): Promise<Blob> {
+  const response = await apiClient.get<Blob>(`/fases/${faseId}/informe-hetmo`, { responseType: 'blob', timeout: 120000 });
   return response.data;
 }
 
