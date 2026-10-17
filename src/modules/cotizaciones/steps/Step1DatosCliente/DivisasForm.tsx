@@ -1,5 +1,15 @@
 import React from 'react';
-import { Coins } from 'lucide-react';
+import { Coins, Lock, Pencil } from 'lucide-react';
+import { formatNumber } from '../../../../lib/utils';
+import { Button } from '../../../../components/ui/Button';
+
+type CampoDivisa = 'dolar' | 'uf' | 'euro';
+
+const CAMPOS: { key: CampoDivisa; label: string; sigla: string; placeholder: string }[] = [
+  { key: 'dolar', label: 'Dólar observado (USD)', sigla: 'USD', placeholder: '950' },
+  { key: 'uf', label: 'Unidad de fomento (UF)', sigla: 'UF', placeholder: '38500' },
+  { key: 'euro', label: 'Euro oficial (EUR)', sigla: 'EUR', placeholder: '1030' },
+];
 
 interface DivisasFormProps {
   dolar: string;
@@ -11,12 +21,6 @@ interface DivisasFormProps {
   /** Pie de la tarjeta (ej. mensaje y botón de guardar). */
   footer?: React.ReactNode;
 }
-
-const CAMPOS: { key: 'dolar' | 'uf' | 'euro'; label: string; placeholder: string }[] = [
-  { key: 'dolar', label: 'Dólar observado (USD)', placeholder: '950' },
-  { key: 'uf', label: 'Unidad de fomento (UF)', placeholder: '38500' },
-  { key: 'euro', label: 'Euro oficial (EUR)', placeholder: '1030' },
-];
 
 export const DivisasForm: React.FC<DivisasFormProps> = ({ dolar, setDolar, uf, setUf, euro, setEuro, footer }) => {
   const valores = { dolar, uf, euro };
@@ -56,6 +60,47 @@ export const DivisasForm: React.FC<DivisasFormProps> = ({ dolar, setDolar, uf, s
       </div>
 
       {footer && <div className="pt-3 border-t border-slate-100">{footer}</div>}
+    </section>
+  );
+};
+
+interface DivisasResumenProps {
+  dolar: string;
+  uf: string;
+  euro: string;
+  congelado: boolean;
+  onEditar: () => void;
+}
+
+// Versión colapsada de las divisas: una línea con los valores guardados.
+// Congelado: sin botón Editar, igual que cualquier otra edición del presupuesto.
+export const DivisasResumen: React.FC<DivisasResumenProps> = ({ dolar, uf, euro, congelado, onEditar }) => {
+  const valores = { dolar, uf, euro };
+
+  return (
+    <section className="rounded-2xl bg-white border border-slate-200 shadow-xs px-4 py-2.5 flex items-center justify-between gap-3 flex-wrap">
+      <div className="flex items-center gap-2.5 min-w-0 flex-wrap text-xs">
+        <Coins className="w-4 h-4 text-brand-600 shrink-0" />
+        <span className="font-bold text-slate-800">Divisas</span>
+        {CAMPOS.map((c) => (
+          <span key={c.key} className="text-slate-500">
+            {c.sigla}{' '}
+            <span className="font-semibold text-slate-900 tabular-nums">
+              {valores[c.key] ? formatNumber(Number(valores[c.key]), 0) : '—'}
+            </span>
+          </span>
+        ))}
+      </div>
+
+      {congelado ? (
+        <span className="text-[11px] text-slate-500 flex items-center gap-1.5">
+          <Lock className="w-3.5 h-3.5" /> Congeladas
+        </span>
+      ) : (
+        <Button variant="outline" size="sm" onClick={onEditar} leftIcon={<Pencil className="w-3.5 h-3.5" />}>
+          Editar
+        </Button>
+      )}
     </section>
   );
 };

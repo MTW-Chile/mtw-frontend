@@ -270,7 +270,7 @@ export function useCotizadorWorkspace(proyectoId: string, pasoInicial: 1 | 2 | 3
       queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyectoId] });
       // Esta transicion puede crear o resolver un pendiente de aprobacion
       // gerencial (ESPERANDO_APROBACION_COMERCIAL) -- se invalida para que
-      // la campanita/Centro de Notificaciones se actualicen al toque, sin
+      // el menú de usuario/Centro de Notificaciones se actualicen al toque, sin
       // esperar el proximo poll (ver Header.tsx).
       queryClient.invalidateQueries({ queryKey: ['misAprobacionesPendientes'] });
       // Y cambia en que listados aparece la obra: ACEPTADO_CLIENTE la pasa

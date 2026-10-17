@@ -360,7 +360,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         )}
       </div>
 
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {ventanas.map((v) => {
           const precio = preciosVenta.get(v.id);
           const line = toWindowLine(v);
@@ -376,41 +376,68 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
           ).filter(Boolean).join(' + ');
 
           return (
-            <article key={v.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <header className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between gap-2">
-                <NombreEditable
-                  ventana={v}
-                  congelado={congelado}
-                  onGuardado={(patch) => setVentanasLocal((prev) => ({ ...prev, [v.id]: { ...prev[v.id], ...patch } }))}
-                />
-                <span className="px-2 py-0.5 rounded-full bg-brand-600/10 text-brand-600 border border-brand-600/20 font-bold text-xs shrink-0">
-                  {v.unidades} {v.unidades === 1 ? 'ud' : 'uds'}
-                </span>
-              </header>
-              <div className="p-4 grid grid-cols-1 md:grid-cols-[180px_1fr_180px] gap-4">
-                <div className="bg-[#f8fafc] rounded-xl flex items-center justify-center min-h-[140px]">
-                  {v.tipoLineaManual === 'PROTEX' ? (
-                    <div
-                      className="w-full h-[140px]"
-                      dangerouslySetInnerHTML={{
-                        __html: buildProtexDoorSvg(v.numeroCuadrosHojas === 2 ? 2 : 1, v.anchoMm, v.altoMm),
-                      }}
-                    />
-                  ) : (
-                    <WindowRendererSvg ventana={v} />
-                  )}
+            <article key={v.id} className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+              {/* Encabezado: nombre editable, unidades y total neto */}
+              <header className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <NombreEditable
+                    ventana={v}
+                    congelado={congelado}
+                    onGuardado={(patch) => setVentanasLocal((prev) => ({ ...prev, [v.id]: { ...prev[v.id], ...patch } }))}
+                  />
+                  <span className="px-2 py-0.5 rounded-full bg-brand-600/10 text-brand-600 border border-brand-600/20 font-bold text-[11px] shrink-0">
+                    {v.unidades} {v.unidades === 1 ? 'ud' : 'uds'}
+                  </span>
                 </div>
-                <div className="space-y-1.5 text-xs">
-                  <div><span className="text-slate-400">Dimensiones: </span><span className="font-bold text-slate-900">{formatNumber(v.anchoMm, 0)} × {formatNumber(v.altoMm, 0)} mm</span></div>
-                  <div><span className="text-slate-400">Apertura: </span><span className="font-bold text-slate-900">{apertura}</span></div>
-                  {!isFrameless && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-slate-400">Acabado: </span>
-                      <span className="w-2.5 h-2.5 rounded-full border border-slate-300 shrink-0" style={{ backgroundColor: finish.frame }} />
-                      <span className="font-bold text-slate-900">{finishLabel}</span>
-                    </div>
-                  )}
-                  {vidrio && <div><span className="text-slate-400">Vidrios: </span><span className="font-bold text-slate-900">{vidrio}</span></div>}
+                <div className="text-right shrink-0">
+                  <span className="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Total neto</span>
+                  <span className="font-mono font-bold text-sm text-brand-600">{ufLabel(precio?.precioVentaCLP || 0, tasaUf)}</span>
+                </div>
+              </header>
+
+              <div className="p-4 grid grid-cols-1 sm:grid-cols-[180px_1fr] gap-4 flex-1">
+                {/* Dibujo con sus medidas */}
+                <div className="space-y-2">
+                  <div className="w-full h-40 rounded-xl bg-[#f8fafc] border border-slate-100 flex items-center justify-center overflow-hidden p-2">
+                    {v.tipoLineaManual === 'PROTEX' ? (
+                      <div
+                        className="w-full h-full"
+                        dangerouslySetInnerHTML={{
+                          __html: buildProtexDoorSvg(v.numeroCuadrosHojas === 2 ? 2 : 1, v.anchoMm, v.altoMm),
+                        }}
+                      />
+                    ) : (
+                      <WindowRendererSvg ventana={v} className="w-full h-full" />
+                    )}
+                  </div>
+                  <p className="text-center text-xs font-bold text-slate-900 tabular-nums">
+                    {formatNumber(v.anchoMm, 0)} × {formatNumber(v.altoMm, 0)} mm
+                  </p>
+                </div>
+
+                {/* Datos técnicos */}
+                <dl className="text-xs space-y-2 min-w-0">
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Apertura</dt>
+                    <dd className="text-slate-900 font-medium">{apertura}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Acabado</dt>
+                    <dd className="flex items-center gap-1.5 text-slate-900 font-medium">
+                      {isFrameless ? (
+                        '—'
+                      ) : (
+                        <>
+                          <span className="w-2.5 h-2.5 rounded-full border border-slate-300 shrink-0" style={{ backgroundColor: finish.frame }} />
+                          {finishLabel}
+                        </>
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Vidrio</dt>
+                    <dd className="text-slate-900 font-medium break-words">{vidrio || '—'}</dd>
+                  </div>
                   <div className="pt-1">
                     <ObservacionEditable
                       ventana={v}
@@ -418,14 +445,20 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
                       onGuardado={(patch) => setVentanasLocal((prev) => ({ ...prev, [v.id]: { ...prev[v.id], ...patch } }))}
                     />
                   </div>
-                </div>
-                <div className="rounded-xl border border-slate-200 p-3 space-y-1.5 text-xs h-fit">
-                  <h5 className="text-[10px] uppercase tracking-wider font-bold text-slate-500 pb-1 border-b border-slate-100">Valores comerciales</h5>
-                  <div className="flex justify-between"><span className="text-slate-500">Precio unitario</span><span className="font-mono font-bold text-slate-900">{ufLabel(precio?.precioUnitarioCLP || 0, tasaUf)}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-500">Cantidad</span><span className="font-mono font-bold text-slate-900">{v.unidades} ud(es)</span></div>
-                  <div className="flex justify-between pt-1 border-t border-slate-100"><span className="text-slate-500">Total neto</span><span className="font-mono font-bold text-brand-600">{ufLabel(precio?.precioVentaCLP || 0, tasaUf)}</span></div>
-                </div>
+                </dl>
               </div>
+
+              {/* Valores comerciales de la línea */}
+              <footer className="px-4 py-2.5 border-t border-slate-100 bg-slate-50/60 grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Precio unitario</span>
+                  <span className="font-mono font-bold text-slate-900">{ufLabel(precio?.precioUnitarioCLP || 0, tasaUf)}</span>
+                </div>
+                <div className="text-right">
+                  <span className="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Cantidad</span>
+                  <span className="font-mono font-bold text-slate-900">{v.unidades} ud{v.unidades === 1 ? '' : 'es'}</span>
+                </div>
+              </footer>
             </article>
           );
         })}

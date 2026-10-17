@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Menu, User, Settings, LogOut, ChevronDown, Bell, Landmark, ShoppingCart, ChevronRight, UserCog } from 'lucide-react';
+import { Menu, User, Settings, LogOut, ChevronDown, Bell, UserCog } from 'lucide-react';
 import { MiUsuarioModal } from './MiUsuarioModal';
 import { BotonAtras, BotonRecargar, MigasDePan } from './NavControls';
 import { seccionDesdePath, useLocationHref } from '../../lib/navigation';
@@ -13,11 +13,8 @@ interface HeaderProps {
   onNavigateHome: () => void;
   onNavigateConfig?: () => void;
   moduleTitle?: string;
-  // Para la campanita de notificaciones: navegacion generica (ej. al
-  // Centro de Notificaciones o al módulo Compras, para una OC pendiente)
-  // o abrir directo una cotizacion pendiente en el Paso 5 del Cotizador.
+  // Navegación genérica (ej. al Centro de Notificaciones desde el menú de usuario).
   onNavigate?: (tab: string, search?: string) => void;
-  onAbrirCotizacion?: (proyectoId: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -26,16 +23,13 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateConfig,
   moduleTitle = 'Inicio',
   onNavigate,
-  onAbrirCotizacion,
 }) => {
   const { usuario } = useSession();
   const seccionActual = seccionDesdePath() || 'inicio';
   useLocationHref();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isMiUsuarioOpen, setIsMiUsuarioOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const notifRef = useRef<HTMLDivElement>(null);
 
   // mismo queryKey que App.tsx -- sale del cache de react-query, no pega
   // de nuevo al backend.
@@ -44,15 +38,15 @@ export const Header: React.FC<HeaderProps> = ({
   // de Cloudflare queda solo de respaldo. Antes el Header decia "Usuario
   // MTW" mientras el Sidebar mostraba el nombre real.
   const nombreUsuario = permisos?.nombre || displayName(permisos ? { email: permisos.email } : usuario);
-  // La campanita hoy solo lista pendientes gerenciales (Cotizaciones + OC)
-  // -- "tecnico" no aporta nada a esta lista (ver GET /mis-aprobaciones-pendientes),
-  // asi que no tiene sentido mostrarla a un rol que solo tiene ese permiso.
-  const puedeAprobar = !!permisos && (permisos.esAdmin || permisos.aprobaciones.includes('gerencial'));
+  // El menú de notificaciones lo ve cualquier usuario con rol. Hoy la lista
+  // solo trae pendientes gerenciales (ver GET /mis-aprobaciones-pendientes):
+  // para el resto aparece "Todo al día" hasta que existan otros tipos.
+  const puedeVerNotificaciones = !!permisos;
 
   const { data: pendientes } = useQuery({
     queryKey: ['misAprobacionesPendientes'],
     queryFn: getMisAprobacionesPendientes,
-    enabled: puedeAprobar,
+    enabled: puedeVerNotificaciones,
     // Cada 20s + al volver el foco a la pestaña (override del default
     // global refetchOnWindowFocus:false, ver App.tsx) -- ademas se
     // invalida al toque desde las mutaciones que crean/resuelven un
@@ -69,18 +63,14 @@ export const Header: React.FC<HeaderProps> = ({
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setIsMenuOpen(false);
       }
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
-        setIsNotifOpen(false);
-      }
     };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsMenuOpen(false);
-        setIsNotifOpen(false);
       }
     };
 
-    if (isMenuOpen || isNotifOpen) {
+    if (isMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('keydown', handleKeyDown);
     }
@@ -88,7 +78,7 @@ export const Header: React.FC<HeaderProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isMenuOpen, isNotifOpen]);
+  }, [isMenuOpen]);
 
   const handleLogout = () => {
     setIsMenuOpen(false);
@@ -143,105 +133,8 @@ export const Header: React.FC<HeaderProps> = ({
           cotizador, ver HeaderContexto.tsx): cada pantalla lo llena por portal. */}
       <div id="header-contexto" className="grow min-w-0 flex items-center gap-2 empty:hidden" />
 
-      {/* Lado Derecho */}
-      {/* relative aqui (y no en el wrapper de la campanita) para que el
-          dropdown de notificaciones ancle su right-0 al borde derecho real
-          del header -- la campanita no es el ultimo elemento (el menu de
-          usuario va despues), asi que ancladdo a su propio wrapper el
-          dropdown (w-80) se salia de la pantalla en mobile. */}
+      {/* Lado derecho: el menú de usuario (con Notificaciones) es el último elemento. */}
       <div className="relative flex items-center gap-2 shrink-0">
-        {/* Campanita de aprobaciones pendientes -- solo si el rol (o admin) puede aprobar algo */}
-        {puedeAprobar && (
-          <div className="shrink-0" ref={notifRef}>
-            <button
-              onClick={() => setIsNotifOpen((prev) => !prev)}
-              className={`relative flex items-center justify-center w-9 h-9 rounded-xl border transition-all cursor-pointer focus:outline-none ${
-                isNotifOpen
-                  ? 'bg-slate-100 border-slate-300 shadow-xs ring-2 ring-brand-600/20'
-                  : 'bg-slate-50 hover:bg-slate-100/80 border-slate-200/80 shadow-2xs'
-              }`}
-              aria-expanded={isNotifOpen}
-              aria-haspopup="true"
-              title="Documentos pendientes de aprobación"
-            >
-              <Bell className="w-4 h-4 text-slate-600" />
-              {!!pendientes?.total && (
-                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-signal ring-2 ring-white text-white text-[9px] font-bold flex items-center justify-center">
-                  {pendientes.total > 9 ? '9+' : pendientes.total}
-                </span>
-              )}
-            </button>
-
-            {isNotifOpen && (
-              <div className="absolute right-0 top-full mt-2 w-[min(20rem,calc(100vw-1.75rem))] rounded-2xl bg-white border border-slate-200 shadow-xl p-1.5 z-50 animate-fade-in max-h-[70vh] overflow-y-auto">
-                <button
-                  onClick={() => {
-                    setIsNotifOpen(false);
-                    onNavigate?.('centro-notificaciones');
-                  }}
-                  className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-left hover:bg-slate-100 transition-colors cursor-pointer mb-1"
-                >
-                  <div className="text-xs font-bold text-slate-800">Centro de Notificaciones</div>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                </button>
-                <div className="border-t border-slate-100 pt-1.5 px-3 py-1">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Pendientes de aprobación
-                  </div>
-                </div>
-
-                {!pendientes || pendientes.total === 0 ? (
-                  <div className="px-3 py-6 text-center text-xs text-slate-400">Sin pendientes por ahora.</div>
-                ) : (
-                  <div className="space-y-2 pb-1.5">
-                    {pendientes.gerencial.map((item) =>
-                      item.tipo === 'aprobacion_gerencial_cotizacion' ? (
-                        <button
-                          key={`ger-cot-${item.versionId}`}
-                          onClick={() => {
-                            setIsNotifOpen(false);
-                            onAbrirCotizacion?.(item.proyectoId);
-                          }}
-                          className="w-full flex items-start gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-slate-100 transition-colors cursor-pointer"
-                        >
-                          <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600 shrink-0 mt-0.5">
-                            <Landmark className="w-3.5 h-3.5" />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-xs font-bold text-slate-800 truncate">{item.obra}</div>
-                            <div className="text-[10px] text-slate-500 truncate">Esperando aprobación gerencial</div>
-                          </div>
-                        </button>
-                      ) : (
-                        <button
-                          key={`ger-oc-${item.ordenCompraId}`}
-                          onClick={() => {
-                            setIsNotifOpen(false);
-                            // Aprobar/enviar una OC es trabajo del módulo
-                            // Compras, no de la ficha de un proyecto
-                            // puntual -- ver modoRestringido en
-                            // OrdenesCompraList.
-                            onNavigate?.('compras');
-                          }}
-                          className="w-full flex items-start gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-slate-100 transition-colors cursor-pointer"
-                        >
-                          <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600 shrink-0 mt-0.5">
-                            <ShoppingCart className="w-3.5 h-3.5" />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-xs font-bold text-slate-800 truncate">{item.numero} · {item.proveedorNombre}</div>
-                            <div className="text-[10px] text-slate-500 truncate">{item.obra}</div>
-                          </div>
-                        </button>
-                      )
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Menú de Usuario con Dropdown */}
         <div className="relative shrink-0" ref={menuRef}>
         <button
@@ -290,7 +183,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Opciones */}
             <div className="py-1 space-y-0.5">
-              {puedeAprobar && (
+              {puedeVerNotificaciones && (
                 <button
                   onClick={() => {
                     setIsMenuOpen(false);
@@ -298,12 +191,19 @@ export const Header: React.FC<HeaderProps> = ({
                   }}
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer text-left group"
                 >
-                  <div className="w-7 h-7 rounded-lg bg-slate-100 group-hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors shrink-0">
+                  <div className="relative w-7 h-7 rounded-lg bg-slate-100 group-hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors shrink-0">
                     <Bell className="w-3.5 h-3.5" />
+                    {!!pendientes?.total && (
+                      <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-signal ring-2 ring-white text-white text-[9px] font-bold flex items-center justify-center">
+                        {pendientes.total > 9 ? '9+' : pendientes.total}
+                      </span>
+                    )}
                   </div>
                   <div>
-                    <div className="font-semibold text-slate-800">Centro de Notificaciones</div>
-                    <div className="text-[10px] text-slate-400">Aprobaciones pendientes</div>
+                    <div className="font-semibold text-slate-800">Notificaciones</div>
+                    <div className={`text-[10px] ${pendientes?.total ? 'text-amber-600' : 'text-slate-400'}`}>
+                      {pendientes?.total ? 'Notificaciones Pendientes' : 'Todo al día'}
+                    </div>
                   </div>
                 </button>
               )}

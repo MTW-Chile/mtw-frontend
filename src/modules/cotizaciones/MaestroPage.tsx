@@ -1,36 +1,32 @@
 import React from 'react';
 import { Boxes, Building2, Tags } from 'lucide-react';
-import { PageHeader, SubTabs } from '../../components/ui/PageHeader';
+import { SubTabs } from '../../components/ui/PageHeader';
 import { useUrlParam } from '../../lib/navigation';
 import { MaestroProductos } from './components/MaestroProductos';
 import { ProveedoresPanel } from './components/ProveedoresPanel';
 import { PartidasPanel } from './components/PartidasPanel';
-import { PAGE_CONTAINER_CLASS } from '../../lib/designSystem';
 
 type SubTab = 'materiales' | 'proveedores' | 'partidas';
 
 /**
- * Contenedor del ítem de menú "Maestro de Materiales": tres sub-vistas,
- * materiales (MaestroProductos, ya existía), proveedores (ProveedoresPanel)
- * y partidas (PartidasPanel, nombre + código de integración Clay por
- * partida -- antes "Familia"/CategoriaGasto) -- mismo patrón de
- * sub-pestañas que ya usa CotizacionesPage.
+ * Maestro de Materiales: vive dentro de la sección Bodega. Tres sub-vistas
+ * (materiales, proveedores y partidas de gasto). Sin cabecera propia: la
+ * cabecera la pone la sección que lo contiene. Su pestaña activa va en
+ * ?sub=... para no pisar la de Bodega (?tab=...).
  */
-export const MaestroPage: React.FC = () => {
+export const MaestroSecciones: React.FC = () => {
   const tabs: { id: SubTab; label: string; icon: React.ElementType }[] = [
     { id: 'materiales', label: 'Materiales', icon: Boxes },
     { id: 'proveedores', label: 'Proveedores', icon: Building2 },
     { id: 'partidas', label: 'Partidas', icon: Tags },
   ];
 
-  // Pestaña activa en la URL (?tab=...) -- Atras del navegador y F5 la respetan.
-  const [tabUrl, setTabUrl] = useUrlParam('tab');
-  const activeSubTab: SubTab = tabs.some((t) => t.id === tabUrl) ? (tabUrl as SubTab) : 'materiales';
+  const [subUrl, setSubUrl] = useUrlParam('sub');
+  const activeSubTab: SubTab = tabs.some((t) => t.id === subUrl) ? (subUrl as SubTab) : 'materiales';
 
   return (
-    <div className={PAGE_CONTAINER_CLASS}>
-      <PageHeader title="Maestro de Materiales" description="Catálogo de materiales, proveedores y partidas de gasto." icon={Boxes} />
-      <SubTabs tabs={tabs} active={activeSubTab} onChange={(id) => setTabUrl(id)} />
+    <div className="space-y-5">
+      <SubTabs tabs={tabs} active={activeSubTab} onChange={(id) => setSubUrl(id)} />
 
       {activeSubTab === 'materiales' && <MaestroProductos />}
       {activeSubTab === 'proveedores' && <ProveedoresPanel />}

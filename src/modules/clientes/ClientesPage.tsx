@@ -11,7 +11,7 @@ import { useMediaQuery } from '../../lib/useMediaQuery';
 import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilters';
 import { ColumnFilterHeader } from '../../components/ui/ColumnFilterHeader';
 import { PAGE_CONTAINER_CLASS, BREAKPOINT_DESKTOP, TABLE_CLASS, TABLE_WRAPPER_CLASS, STICKY_ACTIONS_CLASS } from '../../lib/designSystem';
-import { PageHeader } from '../../components/ui/PageHeader';
+import { HeaderSeccion } from '../../components/layout/HeaderSeccion';
 
 /**
  * Maestro de Clientes: quién es cada cliente y sus datos de contacto/
@@ -82,11 +82,9 @@ export const ClientesPage: React.FC = () => {
 
   return (
     <div className={PAGE_CONTAINER_CLASS}>
-      <PageHeader
-        title="Clientes"
-        description="Maestro de clientes: datos de contacto y facturación."
-        icon={Users}
-        actions={
+      <HeaderSeccion
+        titulo="Clientes"
+        acciones={
           <Button leftIcon={<Plus className="w-4 h-4" />} onClick={() => setCreando(true)}>
             Nuevo Cliente
           </Button>

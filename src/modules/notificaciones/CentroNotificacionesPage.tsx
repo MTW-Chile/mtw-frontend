@@ -17,7 +17,7 @@ interface CentroNotificacionesPageProps {
 }
 
 /**
- * Destino estable de la campanita y de los correos de aprobacion
+ * Destino estable del menú de notificaciones y de los correos de aprobacion
  * pendiente ("Ver Centro de Notificaciones") -- a diferencia de un
  * deep-link a un item puntual, esto no queda "roto" si ese item ya se
  * resolvio para cuando alguien lo abre. Lista todo lo gerencial pendiente
@@ -39,7 +39,7 @@ export const CentroNotificacionesPage: React.FC<CentroNotificacionesPageProps> =
     <div className="w-full min-w-0 p-3 sm:p-5 md:p-6 xl:p-8 max-w-3xl mx-auto space-y-6 animate-fade-in">
       <PageHeader
         title="Centro de Notificaciones"
-        description="Presupuestos y Órdenes de Compra esperando tu aprobación gerencial."
+        description="Pendientes que requieren tu atención."
         icon={Bell}
       />
 

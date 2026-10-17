@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, FolderKanban, ChevronRight, AlertCircle, Plus } from 'lucide-react';
+import { Loader2, ChevronRight, AlertCircle, Plus } from 'lucide-react';
 import { getProyectos } from '../../api/client';
 import { ProyectoWorkspace } from './ProyectoWorkspace';
 import { CarpetaObraBoton } from './pendientes/adjuntos/CarpetaObraBoton';
@@ -12,7 +12,7 @@ import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilte
 import { ColumnFilterHeader } from '../../components/ui/ColumnFilterHeader';
 import { PAGE_CONTAINER_CLASS, BREAKPOINT_DESKTOP, TABLE_CLASS, TABLE_WRAPPER_CLASS } from '../../lib/designSystem';
 import type { Proyecto } from '../../types';
-import { PageHeader } from '../../components/ui/PageHeader';
+import { HeaderSeccion } from '../../components/layout/HeaderSeccion';
 
 
 // Barra de avance compacta para la columna Fases (antes un texto largo
@@ -90,12 +90,11 @@ export const ProyectosPage: React.FC = () => {
 
   return (
     <div className={PAGE_CONTAINER_CLASS}>
-      <PageHeader
-        title="Obras en curso"
-        description="Obras ya aceptadas por el cliente, o creadas a mano. Entra a una para ver presupuesto, fabricación, OC y bodega."
-        icon={FolderKanban}
+      {/* Título, contador y acciones viven en el Header del sitio (portal), igual que Presupuestos. */}
+      <HeaderSeccion
+        titulo="Obras en curso"
         count={isLoading ? undefined : proyectosEnCurso.length}
-        actions={
+        acciones={
           <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setCreandoObraManual(true)}>
             Nueva obra manual
           </Button>
