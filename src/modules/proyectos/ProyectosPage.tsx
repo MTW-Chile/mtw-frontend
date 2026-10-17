@@ -12,8 +12,7 @@ import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilte
 import { ColumnFilterHeader } from '../../components/ui/ColumnFilterHeader';
 import { PAGE_CONTAINER_CLASS, BREAKPOINT_DESKTOP, TABLE_CLASS, TABLE_WRAPPER_CLASS } from '../../lib/designSystem';
 import type { Proyecto } from '../../types';
-import { HeaderSlot } from '../../components/layout/HeaderSlot';
-import { Badge } from '../../components/ui/Badge';
+import { HeaderSeccion } from '../../components/layout/HeaderSeccion';
 
 
 // Barra de avance compacta para la columna Fases (antes un texto largo
@@ -92,21 +91,15 @@ export const ProyectosPage: React.FC = () => {
   return (
     <div className={PAGE_CONTAINER_CLASS}>
       {/* Título, contador y acciones viven en el Header del sitio (portal), igual que Presupuestos. */}
-      <HeaderSlot>
-        {/* Las migas del Header se ocultan bajo md: ahí el título va aquí. */}
-        <span className="hidden sm:inline md:hidden text-sm font-bold text-slate-900 truncate min-w-0">Obras en curso</span>
-        {!isLoading && (
-          <Badge size="sm" variant="default" className="hidden min-[420px]:inline-flex font-mono font-bold text-slate-600" title={`${proyectosEnCurso.length} obras en curso`}>
-            {proyectosEnCurso.length}
-          </Badge>
-        )}
-
-        <div className="ml-auto flex items-center gap-2 shrink-0">
+      <HeaderSeccion
+        titulo="Obras en curso"
+        count={isLoading ? undefined : proyectosEnCurso.length}
+        acciones={
           <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setCreandoObraManual(true)}>
             Nueva obra manual
           </Button>
-        </div>
-      </HeaderSlot>
+        }
+      />
 
       {isLoading ? (
         <div className="p-12 flex items-center justify-center text-slate-400">

@@ -61,6 +61,47 @@ export const Sidebar: React.FC<{
     count: s.id === 'cotizaciones' ? totalProyectos : s.id === 'proyectos' ? totalProyectosEnCurso : undefined,
   }));
 
+  // Botón de una sección del Sidebar (usado por el menú principal y por el pie).
+  const renderItem = (item: (typeof menuItems)[number]) => {
+        const Icon = item.icon;
+        const isActive = activeTab === item.id;
+
+        return (
+          <button
+            key={item.id}
+            onClick={() => {
+              setActiveTab(item.id);
+              onClose();
+            }}
+            aria-current={isActive ? 'page' : undefined}
+            aria-label={item.label}
+            title={item.label}
+            className={`relative w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors cursor-pointer ${
+              isActive
+                ? 'bg-white/10 text-white font-semibold before:absolute before:left-0 before:top-2 before:bottom-2 before:w-[3px] before:rounded-r before:bg-brand-400'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            } ${expandido ? '' : 'md:justify-center md:px-0'}`}
+          >
+            <div className={`flex items-center gap-3 min-w-0 ${expandido ? '' : 'md:gap-0'}`}>
+              <Icon
+                className={`w-4 h-4 shrink-0 ${isActive ? 'text-brand-300' : 'text-slate-500'}`}
+              />
+              <span className={`truncate ${ocultarEnRiel}`}>{item.label}</span>
+            </div>
+
+            {item.count !== undefined && item.count > 0 && (
+              <span
+                className={`px-1.5 py-0.5 rounded-md text-[11px] font-mono font-semibold ${ocultarEnRiel} ${
+                  isActive ? 'bg-brand-400/20 text-brand-100' : 'bg-white/8 text-slate-400'
+                }`}
+              >
+                {item.count}
+              </span>
+            )}
+          </button>
+        );
+  };
+
   return (
     <>
       {/* Backdrop para móviles */}
@@ -134,49 +175,16 @@ export const Sidebar: React.FC<{
               Menú Principal
             </div>
             <nav className="space-y-1">
-              {menuItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeTab === item.id;
-
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setActiveTab(item.id);
-                      onClose();
-                    }}
-                    aria-current={isActive ? 'page' : undefined}
-                    aria-label={item.label}
-                    title={item.label}
-                    className={`relative w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors cursor-pointer ${
-                      isActive
-                        ? 'bg-white/10 text-white font-semibold before:absolute before:left-0 before:top-2 before:bottom-2 before:w-[3px] before:rounded-r before:bg-brand-400'
-                        : 'text-slate-400 hover:text-white hover:bg-white/5'
-                    } ${expandido ? '' : 'md:justify-center md:px-0'}`}
-                  >
-                    <div className={`flex items-center gap-3 min-w-0 ${expandido ? '' : 'md:gap-0'}`}>
-                      <Icon
-                        className={`w-4 h-4 shrink-0 ${isActive ? 'text-brand-300' : 'text-slate-500'}`}
-                      />
-                      <span className={`truncate ${ocultarEnRiel}`}>{item.label}</span>
-                    </div>
-
-                    {item.count !== undefined && item.count > 0 && (
-                      <span
-                        className={`px-1.5 py-0.5 rounded-md text-[11px] font-mono font-semibold ${ocultarEnRiel} ${
-                          isActive ? 'bg-brand-400/20 text-brand-100' : 'bg-white/8 text-slate-400'
-                        }`}
-                      >
-                        {item.count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+              {menuItems.filter((item) => item.id !== 'configuracion').map(renderItem)}
             </nav>
           </div>
         </div>
 
+        {menuItems.some((item) => item.id === 'configuracion') && (
+          <div className="pt-2 border-t border-white/10">
+            {menuItems.filter((item) => item.id === 'configuracion').map(renderItem)}
+          </div>
+        )}
       </aside>
     </>
   );

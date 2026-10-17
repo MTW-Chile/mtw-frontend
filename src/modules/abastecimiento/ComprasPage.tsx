@@ -1,6 +1,7 @@
 import React from 'react';
 import { ShoppingCart, FileCheck2 } from 'lucide-react';
-import { PageHeader, SubTabs } from '../../components/ui/PageHeader';
+import { SubTabs } from '../../components/ui/PageHeader';
+import { HeaderSeccion } from '../../components/layout/HeaderSeccion';
 import { useUrlParam } from '../../lib/navigation';
 import { OrdenesCompraList } from './OrdenesCompraList';
 import { ControlDocumentosTab } from '../proyectos/ControlDocumentosTab';
@@ -29,7 +30,7 @@ export const ComprasPage: React.FC = () => {
 
   return (
     <div className={PAGE_CONTAINER_CLASS}>
-      <PageHeader title="Compras" description="Órdenes de Compra y conciliación con Clay de todas las obras, en un solo lugar." icon={ShoppingCart} />
+      <HeaderSeccion titulo="Compras" />
       <SubTabs tabs={tabs} active={activeSubTab} onChange={(id) => setTabUrl(id)} />
 
       {activeSubTab === 'ordenes' && <OrdenesCompraList />}

@@ -1,12 +1,12 @@
 import React from 'react';
-import { Settings } from 'lucide-react';
 import { PresupuestoConfigPanel } from './PresupuestoConfigPanel';
 import { PlantillasPuertasPanel } from './PlantillasPuertasPanel';
 import { RolesUsuarioPanel } from './RolesUsuarioPanel';
 import { EtapasPendientesPanel } from './EtapasPendientesPanel';
 import { OneDrivePanel } from './OneDrivePanel';
 import { CONFIG_TABS } from '../../lib/accessControl';
-import { PageHeader, SubTabs } from '../../components/ui/PageHeader';
+import { SubTabs } from '../../components/ui/PageHeader';
+import { HeaderSeccion } from '../../components/layout/HeaderSeccion';
 import { useUrlParam } from '../../lib/navigation';
 
 const PANELES: Record<string, React.ComponentType> = {
@@ -39,7 +39,7 @@ export const ConfiguracionPage: React.FC<ConfiguracionPageProps> = ({ tabsPermit
 
   return (
     <div className="w-full min-w-0 p-3 sm:p-5 md:p-6 xl:p-8 max-w-5xl mx-auto space-y-6 animate-fade-in">
-      <PageHeader title="Configuración" description="Ajustes globales de MTW ERP: afectan a todos los proyectos." icon={Settings} />
+      <HeaderSeccion titulo="Configuración" />
 
       {categorias.length > 0 && (
         <SubTabs tabs={categorias} active={categoriaActiva} onChange={(id) => setCategoria(id)} />

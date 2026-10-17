@@ -4,7 +4,6 @@ import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { InicioPage } from './modules/inicio/InicioPage';
 import { CotizacionesPage } from './modules/cotizaciones/CotizacionesPage';
-import { MaestroPage } from './modules/cotizaciones/MaestroPage';
 import { ClientesPage } from './modules/clientes/ClientesPage';
 import { ConfiguracionPage } from './modules/configuracion/ConfiguracionPage';
 import { ProyectosPage } from './modules/proyectos/ProyectosPage';
@@ -259,7 +258,6 @@ const AppContent: React.FC = () => {
             <InicioPage onNavigate={handleNavigate} />
           )}
 
-          {activeTab === 'maestro' && <MaestroPage />}
 
           {activeTab === 'clientes' && <ClientesPage />}
 
