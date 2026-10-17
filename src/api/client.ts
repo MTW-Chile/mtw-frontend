@@ -37,6 +37,7 @@ import type {
   Usuario,
   MisPermisos,
   ModuloPermisos,
+  FusionReparacion,
   AprobacionesPendientes,
   FabricacionHetmo,
   FabricacionHetmoBusqueda,
@@ -641,16 +642,28 @@ export async function updateProveedor(id: string, payload: ProveedorFacturacionP
   return response.data;
 }
 
-// Solo administrador -- ver requireAdmin en mtw-api. Falla con 409 si el
-// proveedor todavia tiene materiales u OC enlazados (hay que fusionarlo,
-// no eliminarlo).
+// catalogo.proveedores.fusionar. Falla con 409 si el proveedor tiene
+// materiales, OC o vinculo con HETMO (hay que fusionarlo, no eliminarlo).
 export async function eliminarProveedor(id: string): Promise<{ success: boolean }> {
   const response = await apiClient.post<{ success: boolean }>(`/proveedores/${id}/eliminar`);
   return response.data;
 }
 
-// Solo administrador -- reasigna todos los materiales/OC del proveedor
-// origen (duplicado) al destino (el real) y elimina el origen.
+// Plan de reparacion de los duplicados que creaba el sync anterior (lee
+// HETMO, no cambia nada) y su aplicacion: se confirman los ids del plan
+// revisado; si cambio entre medio, la API responde 409.
+export async function getPlanReparacionProveedores(): Promise<{ data: FusionReparacion[] }> {
+  const response = await apiClient.get<{ data: FusionReparacion[] }>('/proveedores/reparar-duplicados');
+  return response.data;
+}
+
+export async function aplicarReparacionProveedores(origenes: string[]): Promise<{ success: boolean; fusionados: number }> {
+  const response = await apiClient.post<{ success: boolean; fusionados: number }>('/proveedores/reparar-duplicados', { origenes });
+  return response.data;
+}
+
+// Reasigna materiales, OC y vinculos con HETMO del proveedor origen
+// (duplicado) al destino (el real) y elimina el origen.
 export async function fusionarProveedor(id: string, proveedorDestinoId: string): Promise<{ success: boolean; data: Proveedor }> {
   const response = await apiClient.post<{ success: boolean; data: Proveedor }>(`/proveedores/${id}/fusionar`, { proveedorDestinoId });
   return response.data;

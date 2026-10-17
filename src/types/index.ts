@@ -100,10 +100,25 @@ export interface Cliente {
   _count?: { proyectos: number };
 }
 
+// Vinculo con un proveedor de HETMO por su codigo estable (mtw-api:
+// ProveedorOrigenHetmo). Un proveedor del ERP puede tener varios.
+export interface ProveedorOrigenHetmo {
+  codigoHetmo: number;
+  nombreHetmo: string;
+  vistoEn: string;
+  eliminadoEnOrigenEn: string | null;
+}
+
+export interface FusionReparacion {
+  origen: { id: string; nombre: string; materiales: number; ordenesCompra: number };
+  destino: { id: string; nombre: string };
+  motivo: string;
+}
+
 export interface Proveedor {
   id: string;
   nombre: string; // Razon Social
-  codigoHetmo: number | null;
+  origenesHetmo?: ProveedorOrigenHetmo[];
   rut: string | null;
   nombreFantasia: string | null;
   giroComercial: string | null;

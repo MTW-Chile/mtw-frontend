@@ -7,6 +7,8 @@ import { Badge } from '../../../components/ui/Badge';
 import type { Proveedor } from '../../../types';
 import { ProveedorEditModal } from './ProveedorEditModal';
 import { FusionarProveedorModal } from './FusionarProveedorModal';
+import { RepararDuplicadosModal } from './RepararDuplicadosModal';
+import { Button } from '../../../components/ui/Button';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
 import { useColumnFilters, type ColumnFilterDef } from '../../../lib/useColumnFilters';
 import { ColumnFilterHeader } from '../../../components/ui/ColumnFilterHeader';
@@ -16,15 +18,15 @@ import { usePermisos } from '../../../lib/permisos';
 /**
  * Maestro de Proveedores: quién es cada proveedor y sus datos de
  * facturación (RUT, dirección, email, forma de pago, cuenta bancaria). Los
- * importados de HETMO se completan solos en cada sincronización (ver
- * syncProveedores en sync-service.ts); los creados a mano desde "Nuevo
- * Artículo en Maestro" se completan acá, no tienen otra fuente.
+ * vinculados a HETMO (por código) reciben de HETMO solo los campos vacíos;
+ * lo que se edita acá manda.
  */
 export const ProveedoresPanel: React.FC = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [editando, setEditando] = useState<Proveedor | null>(null);
   const [fusionando, setFusionando] = useState<Proveedor | null>(null);
+  const [reparando, setReparando] = useState(false);
   // Monta sólo la vista de escritorio o la de mobile, nunca las dos -- ver
   // useMediaQuery.ts (mismo patrón que MaestroProductos y CotizacionesPage).
   const isDesktop = useMediaQuery(BREAKPOINT_DESKTOP);
@@ -39,9 +41,8 @@ export const ProveedoresPanel: React.FC = () => {
   const { tiene } = usePermisos();
   const puedeFusionar = tiene('catalogo.proveedores.fusionar');
 
-  // Solo admin (ver requireAdmin en mtw-api) -- borra un proveedor sin
-  // ningun material/OC enlazado. El backend responde 409 si todavia tiene
-  // algo enlazado (hay que fusionarlo, ver FusionarProveedorModal).
+  // Borra un proveedor sin materiales, OC ni vinculo con HETMO. El backend
+  // responde 409 si tiene algo enlazado (hay que fusionarlo).
   const eliminarMutation = useMutation({
     mutationFn: (id: string) => eliminarProveedor(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['proveedores'] }),
@@ -73,8 +74,8 @@ export const ProveedoresPanel: React.FC = () => {
 
   return (
     <div className="space-y-4 sm:space-y-5 animate-fade-in">
-      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-xs">
-        <div className="relative">
+      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="relative flex-1">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
@@ -93,7 +94,13 @@ export const ProveedoresPanel: React.FC = () => {
             </button>
           )}
         </div>
+        {puedeFusionar && (
+          <Button variant="outline" size="sm" leftIcon={<GitMerge className="w-3.5 h-3.5" />} onClick={() => setReparando(true)}>
+            Reparar duplicados
+          </Button>
+        )}
       </div>
+      {reparando && <RepararDuplicadosModal onClose={() => setReparando(false)} />}
 
       {isLoading ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
@@ -155,8 +162,8 @@ export const ProveedoresPanel: React.FC = () => {
                     <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-5 py-3.5 font-semibold text-slate-900">{p.nombre}</td>
                       <td className="px-5 py-3.5">
-                        {p.codigoHetmo != null ? (
-                          <Badge variant="info" size="sm">HETMO</Badge>
+                        {(p.origenesHetmo?.length ?? 0) > 0 ? (
+                          <Badge variant="info" size="sm" title={`Código HETMO: ${p.origenesHetmo!.map((o) => o.codigoHetmo).join(', ')}`}>HETMO</Badge>
                         ) : (
                           <Badge variant="default" size="sm">Manual</Badge>
                         )}
@@ -240,7 +247,7 @@ export const ProveedoresPanel: React.FC = () => {
                   <h4 className="text-xs font-bold text-slate-900 leading-snug">{p.nombre}</h4>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {sinUso && <Badge variant="warning" size="sm">Sin uso</Badge>}
-                    {p.codigoHetmo != null ? (
+                    {(p.origenesHetmo?.length ?? 0) > 0 ? (
                       <Badge variant="info" size="sm">HETMO</Badge>
                     ) : (
                       <Badge variant="default" size="sm">Manual</Badge>

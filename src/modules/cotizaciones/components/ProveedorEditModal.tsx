@@ -18,12 +18,12 @@ interface ProveedorEditModalProps {
  * trae esto lleno -- solo nombre y moneda llegan consistentes -- así que
  * este formulario es la fuente real para casi todo, tanto para un
  * proveedor importado de HETMO como para uno creado a mano. El sync nunca
- * borra lo que se complete acá: solo pisa un campo si HETMO trae un valor
- * real para ese campo puntual (ver syncProveedores en sync-service.ts).
+ * pisa lo que se complete acá: HETMO solo completa campos vacíos (ver
+ * dominio/catalogo/proveedores.ts en mtw-api).
  */
 export const ProveedorEditModal: React.FC<ProveedorEditModalProps> = ({ proveedor, onClose }) => {
   const queryClient = useQueryClient();
-  const esDeHetmo = proveedor?.codigoHetmo != null;
+  const esDeHetmo = (proveedor?.origenesHetmo?.length ?? 0) > 0;
 
   const [formData, setFormData] = useState<ProveedorFacturacionPayload>({
     nombre: proveedor?.nombre || '',
@@ -89,7 +89,7 @@ export const ProveedorEditModal: React.FC<ProveedorEditModalProps> = ({ proveedo
               <h2 className="text-sm font-black tracking-tight text-slate-900">{proveedor.nombre}</h2>
               <p className="text-[11px] text-slate-500">
                 {esDeHetmo
-                  ? 'Datos de facturación -- HETMO casi nunca trae esto lleno, se completa a mano igual'
+                  ? `Vinculado a HETMO (código ${proveedor.origenesHetmo!.map((o) => o.codigoHetmo).join(', ')}). Lo que edites acá no lo pisa el sync`
                   : 'Datos de facturación -- proveedor creado a mano, sin fuente automática'}
               </p>
             </div>
