@@ -640,6 +640,7 @@ export interface TipoProductoPayload {
   unidadCompraId: string;
   factorCompra: number;
   compraDesdeResumenHetmo: boolean;
+  compraPorPieza?: boolean;
   moneda: string;
   monedaFija: boolean;
   individualizado: boolean;
@@ -871,6 +872,11 @@ export interface ItemOrdenCompraPayload {
   // Obligatoria solo cuando el item no tiene materialId (item externo):
   // con materialId, mtw-api usa la partida del tipo de producto del material.
   partidaId?: string;
+  // Pieza a medida (tipo que se compra por pieza): medidas y ventana de destino.
+  anchoMm?: number | null;
+  altoMm?: number | null;
+  ventanaId?: string | null;
+  referenciaVentana?: string | null;
 }
 
 export async function createOrdenCompra(payload: {

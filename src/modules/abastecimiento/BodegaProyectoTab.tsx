@@ -58,7 +58,10 @@ const UnidadesMaterialDetalle: React.FC<{ bodegaId: string; materialId: string }
       {data.unidades.map((u) => {
         const estado = ESTADO_UNIDAD[u.estado];
         const origen = u.ordenCompraNumero ? `Ingreso: OC ${u.ordenCompraNumero}` : 'Ingreso: ajuste manual';
-        const titulo = [estado.label, origen, new Date(u.creadoEn).toLocaleDateString('es-CL')].join(' · ');
+        const medidas = u.anchoMm && u.altoMm ? `${u.anchoMm} × ${u.altoMm} mm` : null;
+        const titulo = [estado.label, medidas, u.referenciaVentana, origen, new Date(u.creadoEn).toLocaleDateString('es-CL')]
+          .filter(Boolean)
+          .join(' · ');
         return (
           <span
             key={u.id}
@@ -66,6 +69,7 @@ const UnidadesMaterialDetalle: React.FC<{ bodegaId: string; materialId: string }
             className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] font-mono font-semibold ${estado.className}`}
           >
             {u.codigo}
+            {medidas && <span className="font-sans font-normal opacity-80">· {medidas}{u.referenciaVentana ? ` · ${u.referenciaVentana}` : ''}</span>}
           </span>
         );
       })}

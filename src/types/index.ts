@@ -576,6 +576,8 @@ export interface TipoProducto {
   unidadCompra: UnidadMedida;
   factorCompra: number | string;
   compraDesdeResumenHetmo: boolean;
+  // Se compra y se recibe por pieza a medida (ej. vidrios).
+  compraPorPieza: boolean;
   moneda: string;
   monedaFija: boolean;
   individualizado: boolean;
@@ -757,6 +759,13 @@ export interface ItemRequerimiento {
   cantidadDesdeObrasMayores: number;
   cantidadCalculada: number | null;
   precioUnitario: number;
+  // Pieza a medida (vidrios): medidas y ventana de destino.
+  anchoMm: number | null;
+  altoMm: number | null;
+  ventanaId: string | null;
+  referenciaVentana: string | null;
+  // Tipo que se compra por pieza, pero la fila aun no trae medidas: va por m².
+  sinMedidas: boolean;
 }
 
 export interface GrupoRequerimiento {
@@ -785,6 +794,11 @@ export interface OrdenCompraItem {
   material?: Material | null;
   descripcion: string;
   unidadMedida: string;
+  // Pieza a medida: medidas y ventana de destino (la referencia queda aunque la linea cambie).
+  anchoMm?: number | null;
+  altoMm?: number | null;
+  ventanaId?: string | null;
+  referenciaVentana?: string | null;
   // Partida del item: la del tipo de producto del material, o la elegida a
   // mano si es un item externo (sin material).
   partidaId: string;
@@ -1008,6 +1022,11 @@ export interface UnidadMaterial {
   ordenCompraId: string | null;
   ordenCompraNumero: string | null;
   solicitudId: string | null;
+  // Pieza a medida: medidas y ventana de destino.
+  anchoMm: number | null;
+  altoMm: number | null;
+  ventanaId: string | null;
+  referenciaVentana: string | null;
 }
 
 export interface UnidadesMaterialResponse {

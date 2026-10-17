@@ -129,7 +129,16 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
   // Ojo: cada fase ve el mismo stock disponible sin "reservarlo" entre si
   // (el traslado real solo ocurre cuando se genera una OC puntual). Se pide
   // para todas las fases reales de una porque el resumen se muestra siempre.
-  type ItemFase = { descripcion: string; proveedorNombre: string; unidad: string; cantidad: number; stockDisponible: number; precioUnitario: number };
+  type ItemFase = {
+    descripcion: string;
+    proveedorNombre: string;
+    unidad: string;
+    cantidad: number;
+    stockDisponible: number;
+    precioUnitario: number;
+    referenciaVentana: string | null;
+    sinMedidas: boolean;
+  };
   const requerimientos = useRequerimientosFases(
     proyecto.id,
     fasesReales.map((f) => f.id)
@@ -623,6 +632,8 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                                               <Package className="w-3 h-3 text-sky-500 shrink-0" />
                                               {it.descripcion}
                                             </span>
+                                            {it.referenciaVentana && <span className="block pl-[18px] text-[10px] text-slate-400">{it.referenciaVentana}</span>}
+                                            {it.sinMedidas && <span className="block pl-[18px] text-[10px] text-amber-700">Sin medidas de HETMO todavía: va por m²</span>}
                                           </td>
                                           <td className="px-3 py-1.5 text-slate-500">{it.proveedorNombre}</td>
                                           <td className="px-3 py-1.5 text-right font-mono text-slate-700">

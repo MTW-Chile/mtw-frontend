@@ -64,6 +64,7 @@ export const TiposProductoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
                       <span className="font-semibold text-slate-900">{t.nombre}</span>
                       {t.porDefecto && <Badge size="sm" variant="brand">Por defecto</Badge>}
                       {t.individualizado && <Badge size="sm" variant="info">Individualizado</Badge>}
+                      {t.compraPorPieza && <Badge size="sm" variant="violet">Por pieza</Badge>}
                       {!t.activo && <Badge size="sm" variant="default">Inactivo</Badge>}
                     </div>
                     {t.descripcion && <div className="text-[11px] text-slate-500 truncate max-w-xs" title={t.descripcion}>{t.descripcion}</div>}

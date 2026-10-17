@@ -29,6 +29,7 @@ const formDesde = (t: TipoProducto | null): Form => ({
   unidadCompraId: t?.unidadCompraId ?? '',
   factorCompra: t ? String(Number(t.factorCompra)) : '1',
   compraDesdeResumenHetmo: t?.compraDesdeResumenHetmo ?? false,
+  compraPorPieza: t?.compraPorPieza ?? false,
   moneda: t?.moneda ?? 'CLP',
   monedaFija: t?.monedaFija ?? false,
   individualizado: t?.individualizado ?? false,
@@ -164,6 +165,7 @@ export const TipoProductoModal: React.FC<{ tipo: TipoProducto | null; onClose: (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
               {(
                 [
+                  ['compraPorPieza', 'Compra por pieza a medida', 'Se cotiza por su unidad de precio, pero se compra y recibe por pieza con sus medidas y su ventana (ej. vidrios).'],
                   ['monedaFija', 'Moneda fija', 'Ignora la moneda de cada precio y usa siempre esta.'],
                   ['individualizado', 'Individualizado', 'Bodega registra cada unidad física (número de serie).'],
                   ['porDefecto', 'Tipo por defecto', 'Se asigna a familias de HETMO sin mapeo.'],

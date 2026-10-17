@@ -167,7 +167,17 @@ interface ItemForm {
   precioUnitario: string;
   // Solo items externos (sin material del catalogo): id de la partida.
   partidaId: string;
+  // Pieza a medida (vidrios): medidas y ventana de destino. No se contrasta
+  // contra stock: una pieza a medida es de su ventana.
+  anchoMm?: number | null;
+  altoMm?: number | null;
+  ventanaId?: string | null;
+  referenciaVentana?: string | null;
+  // Pieza a medida cuya version aun no trae medidas: va por m².
+  sinMedidas?: boolean;
 }
+
+const esPieza = (i: Pick<ItemForm, 'anchoMm' | 'altoMm'>) => !!(i.anchoMm && i.altoMm);
 
 const itemVacio = (): ItemForm => ({ descripcion: '', unidadMedida: 'UN', cantidad: '', precioUnitario: '', partidaId: '' });
 
@@ -180,6 +190,11 @@ const itemFormDesdeCalculo = (item: ItemRequerimiento): ItemForm => ({
   stockDisponible: item.stockDisponible,
   precioUnitario: item.precioUnitario ? String(item.precioUnitario) : '',
   partidaId: '',
+  anchoMm: item.anchoMm,
+  altoMm: item.altoMm,
+  ventanaId: item.ventanaId,
+  referenciaVentana: item.referenciaVentana,
+  sinMedidas: item.sinMedidas,
 });
 
 const fmtCantidad = (n: number | undefined) => (n ?? 0).toLocaleString('es-CL', { maximumFractionDigits: 2 });
@@ -383,8 +398,9 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
       solicitud.items.length
         ? solicitud.items.map((it): ItemForm => {
             const cantidadSolicitada = Number(it.cantidad);
-            const disponibleObra = it.materialId ? stockProyectoPorMaterial.get(it.materialId) || 0 : 0;
-            const disponibleObrasMayores = it.materialId ? stockObrasMayoresPorMaterial.get(it.materialId) || 0 : 0;
+            const pieza = esPieza(it);
+            const disponibleObra = it.materialId && !pieza ? stockProyectoPorMaterial.get(it.materialId) || 0 : 0;
+            const disponibleObrasMayores = it.materialId && !pieza ? stockObrasMayoresPorMaterial.get(it.materialId) || 0 : 0;
             const neta = Math.max(0, cantidadSolicitada - disponibleObra - disponibleObrasMayores);
             return {
               materialId: it.materialId || undefined,
@@ -397,6 +413,10 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
               disponibleObrasMayores,
               precioUnitario: it.precioUnitario != null ? String(it.precioUnitario) : '',
               partidaId: it.materialId ? '' : it.partidaId,
+              anchoMm: it.anchoMm,
+              altoMm: it.altoMm,
+              ventanaId: it.ventanaId,
+              referenciaVentana: it.referenciaVentana,
             };
           })
         : [itemVacio()]
@@ -446,6 +466,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
         cantidadCalculada: i.cantidadCalculada ?? undefined,
         precioUnitario: i.precioUnitario ? parseFloat(i.precioUnitario) : undefined,
         partidaId: i.materialId ? undefined : i.partidaId,
+        ...(esPieza(i) ? { anchoMm: i.anchoMm, altoMm: i.altoMm, ventanaId: i.ventanaId, referenciaVentana: i.referenciaVentana } : {}),
       }));
 
       if (modo === 'completar') {
@@ -808,7 +829,17 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
                             onSeleccionar={(material) => seleccionarMaterialEnItem(index, material)}
                             onQuitarSeleccion={() => quitarMaterialDeItem(index)}
                           />
-                          {modo === 'completar' && item.materialId && (
+                          {esPieza(item) && (
+                            <p className="text-[10px] font-semibold text-sky-700 mt-1">
+                              Pieza {item.anchoMm} × {item.altoMm} mm{item.referenciaVentana ? ` · ${item.referenciaVentana}` : ''}
+                            </p>
+                          )}
+                          {item.sinMedidas && (
+                            <p className="text-[10px] text-amber-700 mt-1">
+                              Sin medidas de HETMO todavía: va por m². Pide que se completen las medidas de los vidrios.
+                            </p>
+                          )}
+                          {modo === 'completar' && item.materialId && !esPieza(item) && (
                             <p className="text-[10px] text-slate-500 mt-1">
                               Solicitado {fmtCantidad(item.cantidadSolicitada)} · Obra: {fmtCantidad(item.disponibleObra)} · Obras Mayores:{' '}
                               {fmtCantidad(item.disponibleObrasMayores)}
