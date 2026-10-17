@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { getOrdenesCompra, updateOrdenCompraEstado, eliminarOrdenCompra, renderPdf } from '../../api/client';
 import { loadImageDataUrl } from '../cotizaciones/lib/pdfTheme';
 import type { EstadoOC, OrdenCompra } from '../../types';
-import { pendienteConciliarItem, pendienteRecepcionarItem } from '../../types';
+import { ETIQUETA_NATURALEZA, pendienteConciliarItem, pendienteRecepcionarItem } from '../../types';
 import { NuevaOrdenCompraModal } from './NuevaOrdenCompraModal';
 import { buildOrdenCompraHtml } from './ordenCompraPdf';
 import { useMediaQuery } from '../../lib/useMediaQuery';
@@ -491,6 +491,11 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                             <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                           )}
                           {oc.numero}
+                          {oc.naturaleza && oc.naturaleza !== 'PRESUPUESTO' && (
+                            <Badge size="sm" variant={oc.naturaleza === 'REPOSICION' ? 'warning' : 'violet'}>
+                              {ETIQUETA_NATURALEZA[oc.naturaleza]}
+                            </Badge>
+                          )}
                         </button>
                       </td>
                       {!proyectoId && (

@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, Loader2, RotateCcw, Trash2, X } from 'lucide-react';
+import { CheckCircle2, Loader2, RotateCcw, ShoppingCart, Trash2, X } from 'lucide-react';
 import { cambiarEstadoPendiente, eliminarPendiente, getEtapasPendiente, getPendiente } from '../../../api/client';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { formatoFechaHora } from '../fabricacion/utils';
 import { AdjuntosDetalle } from './adjuntos/AdjuntosDetalle';
+import { NuevaOrdenCompraModal } from '../../abastecimiento/NuevaOrdenCompraModal';
+import { usePermisos } from '../../../lib/permisos';
+import { ETIQUETA_NATURALEZA } from '../../../types';
 import {
   ETIQUETA_DESTINO,
   ETIQUETA_ESTADO,
@@ -42,6 +45,8 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
   const queryClient = useQueryClient();
   const [etapaElegida, setEtapaElegida] = useState('');
   const [comentario, setComentario] = useState('');
+  const [comprando, setComprando] = useState(false);
+  const { tiene } = usePermisos();
 
   const { data: p, isLoading } = useQuery({
     queryKey: ['pendiente', pendienteId],
@@ -126,6 +131,32 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
                 {p.destino === 'FABRICA' && p.tipo === 'VENTANA' ? ' — pedido a Fábrica' : ''}
               </p>
             )}
+            {/* Compras del pendiente: reposicion (falla o daño) u otra, enlazadas a el. */}
+            <div className="rounded-xl border border-slate-200 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Compras · sugerida: {ETIQUETA_NATURALEZA[p.naturalezaSugerida]}
+                </h4>
+                {tiene('compras.oc.solicitar') && p.estado !== 'RESUELTO' && (
+                  <Button size="sm" variant="outline" leftIcon={<ShoppingCart className="w-3.5 h-3.5" />} onClick={() => setComprando(true)}>
+                    Solicitar materiales
+                  </Button>
+                )}
+              </div>
+              {(p.ordenesCompra ?? []).length === 0 ? (
+                <p className="text-[11px] text-slate-400">Sin compras todavía.</p>
+              ) : (
+                <ul className="flex flex-wrap gap-1.5">
+                  {p.ordenesCompra.map((oc) => (
+                    <li key={oc.id}>
+                      <Badge size="sm" variant={oc.naturaleza === 'REPOSICION' ? 'warning' : oc.naturaleza === 'ADICIONAL' ? 'violet' : 'default'}>
+                        {oc.numero} · {ETIQUETA_NATURALEZA[oc.naturaleza]} · {oc.estado}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
             {p.notas && (
               <div>
                 <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Notas</h4>
@@ -247,6 +278,17 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
           </>
         )}
       </div>
+      {p && comprando && (
+        <NuevaOrdenCompraModal
+          isOpen
+          onClose={() => {
+            setComprando(false);
+            refrescar();
+          }}
+          proyectoIdFijo={proyectoId}
+          obraPendiente={p}
+        />
+      )}
     </div>
   );
 };

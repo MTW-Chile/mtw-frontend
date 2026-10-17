@@ -31,6 +31,7 @@ import type {
   FijacionBorrador,
   RequerimientoFase,
   ControlPresupuestoPartida,
+  NaturalezaCompra,
   SolicitudMaterial,
   BodegaProyectoResponse,
   BodegaGlobalResponse,
@@ -900,6 +901,9 @@ export async function createOrdenCompra(payload: {
   // -- ver ejecutarTraslado en mtw-api. Ignorado si no hay proyectoId o si
   // la OC nace sin proveedor (una solicitud todavia no reserva nada).
   trasladosDesdeObrasMayores?: { materialId: string; cantidad: number }[];
+  // Que cubre la compra; sin indicarla, la sugiere el motivo del pendiente o es PRESUPUESTO.
+  naturaleza?: NaturalezaCompra;
+  obraPendienteId?: string | null;
 }): Promise<{ success: boolean; ordenCompra: OrdenCompra }> {
   const response = await apiClient.post<{ success: boolean; ordenCompra: OrdenCompra }>('/ordenes-compra', payload);
   return response.data;

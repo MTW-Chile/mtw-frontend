@@ -745,6 +745,8 @@ export interface ControlPresupuestoPartida {
   facturado: number;
   pagado: number;
   recibido: number;
+  // Usado (en OC sin facturar + facturado) por presupuesto, reposicion y adicional.
+  usadoPorNaturaleza: Record<NaturalezaCompra, number>;
 }
 
 // ---- Requerimiento de materiales de una fase (para generar OC) ----
@@ -875,9 +877,22 @@ export interface CentroCosto {
   tipo: 'OBRA' | 'GENERAL';
 }
 
+// Que cubre una compra: lo cotizado, una reposicion (quiebre, falla, dano:
+// consume la holgura de su partida) o un adicional (fuera del presupuesto).
+export type NaturalezaCompra = 'PRESUPUESTO' | 'REPOSICION' | 'ADICIONAL';
+
+export const ETIQUETA_NATURALEZA: Record<NaturalezaCompra, string> = {
+  PRESUPUESTO: 'Presupuesto',
+  REPOSICION: 'Reposición',
+  ADICIONAL: 'Adicional',
+};
+
 export interface OrdenCompra {
   id: string;
   numero: string;
+  naturaleza: NaturalezaCompra;
+  // Pendiente de obra que origino la compra, si viene de uno.
+  obraPendienteId: string | null;
   // proyectoId puede venir null (compra de "Obras Mayores", sin obra
   // asociada) -- centroCosto es la relacion real de ahora en mas, ver
   // CentroCosto arriba.
@@ -1484,9 +1499,14 @@ export interface OneDriveObra {
   nombreSugeridoNueva?: string;
 }
 
-export interface ObraPendienteDetalle extends ObraPendiente {
+export interface ObraPendienteDetalle extends Omit<ObraPendiente, 'material'> {
   eventos: ObraPendienteEvento[];
   adjuntos: AdjuntoPendiente[];
+  material?: { id: string; skuInterno: string; descripcion: string; tipoProducto?: { compraPorPieza: boolean } } | null;
+  // Que cubriria una compra por este pendiente (la API la deduce del motivo).
+  naturalezaSugerida: NaturalezaCompra;
+  // Compras generadas por este pendiente.
+  ordenesCompra: { id: string; numero: string; estado: EstadoOC; naturaleza: NaturalezaCompra }[];
   // Quien creo el pendiente (o un administrador): el unico que puede
   // resolverlo, reabrirlo, editarlo o eliminarlo.
   puedeResolver: boolean;

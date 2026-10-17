@@ -17,6 +17,12 @@ interface FilaPartida {
   enOC: number;
   facturado: number;
   recibido: number;
+  // Holgura de la partida (parte del presupuesto) y lo usado en reposiciones
+  // (quiebre, falla, daño), que la consume.
+  holgura: number;
+  reposicion: number;
+  // Fuera del presupuesto: se cobra al cliente, no cuenta en el % usado.
+  adicional: number;
 }
 
 // "Revisión de presupuesto por partida de gastos". Presupuestado = total por
@@ -38,18 +44,23 @@ export const ControlPresupuestoTab: React.FC<{ proyecto: Proyecto; activeVersion
   const filas = useMemo(() => {
     const map = new Map<string, FilaPartida>();
     const get = (codigo: string, nombre: string) => {
-      if (!map.has(codigo)) map.set(codigo, { codigo, nombre, presupuestado: 0, enOC: 0, facturado: 0, recibido: 0 });
+      if (!map.has(codigo))
+        map.set(codigo, { codigo, nombre, presupuestado: 0, enOC: 0, facturado: 0, recibido: 0, holgura: 0, reposicion: 0, adicional: 0 });
       return map.get(codigo)!;
     };
     // Orden: el de la Analítica (orden configurado de las partidas), luego el resto.
     (analitica?.partidas || []).forEach((p) => {
-      get(p.codigo, p.nombre).presupuestado += p.total;
+      const fila = get(p.codigo, p.nombre);
+      fila.presupuestado += p.total;
+      fila.holgura += p.holgura;
     });
     (control || []).forEach((c) => {
       const fila = get(c.partida.codigo, c.partida.nombre);
       fila.enOC += c.comprometidoOC;
       fila.facturado += c.facturado;
       fila.recibido += c.recibido;
+      fila.reposicion += c.usadoPorNaturaleza?.REPOSICION ?? 0;
+      fila.adicional += c.usadoPorNaturaleza?.ADICIONAL ?? 0;
     });
     return Array.from(map.values()).filter((f) => f.presupuestado || f.enOC || f.facturado || f.recibido);
   }, [analitica, control]);
@@ -63,8 +74,11 @@ export const ControlPresupuestoTab: React.FC<{ proyecto: Proyecto; activeVersion
     }),
     { presupuestado: 0, enOC: 0, facturado: 0, recibido: 0 }
   );
-  // Lo usado del presupuesto = lo que sigue en OC + lo ya facturado.
-  const usado = totales.enOC + totales.facturado;
+  // Lo usado del presupuesto = lo que sigue en OC + lo ya facturado, sin los
+  // adicionales (fuera del presupuesto, se cobran aparte).
+  const totalAdicional = filas.reduce((acc, f) => acc + f.adicional, 0);
+  const usado = totales.enOC + totales.facturado - totalAdicional;
+  const usadoDe = (f: FilaPartida) => f.enOC + f.facturado - f.adicional;
 
   if ((cargandoAnalitica || cargandoControl) && filas.length === 0) {
     return (
@@ -128,12 +142,18 @@ export const ControlPresupuestoTab: React.FC<{ proyecto: Proyecto; activeVersion
               <th className="px-4 py-3 font-bold text-right">En OC</th>
               <th className="px-4 py-3 font-bold text-right">Facturado</th>
               <th className="px-4 py-3 font-bold text-right">% usado</th>
+              <th className="px-4 py-3 font-bold text-right" title="Reposiciones (quiebre, falla, daño) contra la holgura de la partida">
+                Reposición / holgura
+              </th>
+              <th className="px-4 py-3 font-bold text-right" title="Compras fuera del presupuesto: se cobran al cliente">
+                Adicionales
+              </th>
               <th className="px-4 py-3 font-bold text-right">Recibido</th>
             </tr>
           </thead>
           <tbody>
             {filas.map((f) => {
-              const usadoFila = f.enOC + f.facturado;
+              const usadoFila = usadoDe(f);
               const pct = f.presupuestado > 0 ? (usadoFila / f.presupuestado) * 100 : usadoFila > 0 ? Infinity : 0;
               return (
                 <tr key={f.codigo} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
@@ -144,13 +164,20 @@ export const ControlPresupuestoTab: React.FC<{ proyecto: Proyecto; activeVersion
                   <td className={`px-4 py-3 text-right font-mono font-bold ${pct > 100 ? 'text-rose-600' : 'text-slate-700'}`}>
                     {Number.isFinite(pct) ? `${pct.toFixed(0)}%` : '—'}
                   </td>
+                  <td
+                    className={`px-4 py-3 text-right font-mono ${f.reposicion > f.holgura + 0.5 ? 'text-rose-600 font-bold' : 'text-slate-700'}`}
+                    title={f.reposicion > f.holgura + 0.5 ? 'Las reposiciones superan la holgura de la partida' : undefined}
+                  >
+                    {f.reposicion || f.holgura ? `${formatCLP(f.reposicion)} / ${formatCLP(f.holgura)}` : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono text-violet-700">{f.adicional ? formatCLP(f.adicional) : '—'}</td>
                   <td className="px-4 py-3 text-right font-mono text-emerald-700">{formatCLP(f.recibido)}</td>
                 </tr>
               );
             })}
             {filas.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
                   Sin materiales ni Órdenes de Compra todavía para esta versión.
                 </td>
               </tr>

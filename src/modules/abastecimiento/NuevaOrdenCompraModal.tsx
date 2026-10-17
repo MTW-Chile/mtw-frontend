@@ -18,7 +18,8 @@ import {
 } from '../../api/client';
 import { useAnalitica, useRequerimientoFase } from '../cotizaciones/lib/useAnalitica';
 import { precioCompraCLP, unidadCompra } from '../../lib/formatoMaterial';
-import type { Fase, GrupoRequerimiento, ItemRequerimiento, Material } from '../../types';
+import { ETIQUETA_NATURALEZA } from '../../types';
+import type { Fase, GrupoRequerimiento, ItemRequerimiento, Material, NaturalezaCompra, ObraPendienteDetalle } from '../../types';
 
 // Campo de descripcion de un item manual: con proveedor elegido, busca en
 // vivo en el catalogo filtrado a ESE proveedor (Material.proveedorId) para
@@ -140,7 +141,16 @@ interface NuevaOrdenCompraModalProps {
   // Cuando se abre para COMPLETAR una solicitud existente (Compras, ver
   // OrdenesCompraList) en vez de crear una OC nueva -- modo "completar".
   solicitudId?: string;
+  // Cuando se abre desde un pendiente de obra: la compra queda enlazada a el,
+  // su naturaleza parte de la que sugiere el motivo y se precarga su material.
+  obraPendiente?: ObraPendienteDetalle;
 }
+
+const AYUDA_NATURALEZA: Record<NaturalezaCompra, string> = {
+  PRESUPUESTO: 'Lo cotizado para esta obra.',
+  REPOSICION: 'Rehacer o recomprar algo ya cotizado (quiebre, falla, daño): consume la holgura de su partida.',
+  ADICIONAL: 'Fuera del presupuesto: se cobra al cliente. Se sugiere el precio del maestro, no el comprometido.',
+};
 
 interface ItemForm {
   // Presente cuando el item es un material del catalogo -- mtw-api toma la
@@ -208,6 +218,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   faseIdInicial,
   partidaFiltro,
   solicitudId,
+  obraPendiente,
 }) => {
   // "solicitar": desde un Proyecto, se pide sin elegir proveedor/precio --
   // Compras la completa despues. "completar": Compras abre una solicitud
@@ -224,13 +235,12 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   const [comentarios, setComentarios] = useState('');
   const [items, setItems] = useState<ItemForm[]>([itemVacio()]);
   const [generalError, setGeneralError] = useState<string | null>(null);
-  // Un Adicional es trabajo fuera de lo que el cliente ya aprobo en el
-  // presupuesto -- al elegir un producto a mano para un item nuevo, no
-  // corresponde sugerirle el precio comprometido de esa obra (ese precio es
-  // del alcance original), se sugiere el precio del maestro, igual que
-  // Obras Mayores. Se vuelve a preguntar cada vez que se elige una obra
-  // distinta (ver el useEffect que resetea proveedor/items mas abajo).
-  const [esAdicional, setEsAdicional] = useState(false);
+  // Que cubre la compra (se guarda en la OC). Un Adicional es trabajo fuera de
+  // lo que el cliente ya aprobo -- al elegir un producto a mano no corresponde
+  // sugerirle el precio comprometido de esa obra, se sugiere el del maestro,
+  // igual que Obras Mayores. Se vuelve a elegir al cambiar de obra.
+  const [naturaleza, setNaturaleza] = useState<NaturalezaCompra>(obraPendiente?.naturalezaSugerida ?? 'PRESUPUESTO');
+  const esAdicional = naturaleza === 'ADICIONAL';
 
   // Solo modo "completar": la solicitud que se esta completando.
   const { data: solicitud, isLoading: cargandoSolicitud } = useQuery({
@@ -355,7 +365,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   // selector mas abajo) en vez de arrastrarse de una obra a otra.
   useEffect(() => {
     setFaseId('');
-    setEsAdicional(false);
+    setNaturaleza(obraPendiente?.naturalezaSugerida ?? 'PRESUPUESTO');
   }, [proyectoId]);
 
   // Precarga de fase al abrir desde "Generar OC" (ver faseIdInicial) --
@@ -375,6 +385,28 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
     setProveedorId('');
     setItems([itemVacio()]);
   }, [faseId, modo]);
+
+  // Desde un pendiente de obra: se precarga su material (y, si es una pieza a
+  // medida, sus medidas -- las rectificadas si las hay -- y su ventana).
+  useEffect(() => {
+    if (!isOpen || !obraPendiente || modo === 'completar') return;
+    setNaturaleza(obraPendiente.naturalezaSugerida);
+    const m = obraPendiente.material;
+    if (!m) return;
+    const ancho = Number(obraPendiente.anchoRectificadoMm ?? obraPendiente.anchoOriginalMm) || 0;
+    const alto = Number(obraPendiente.altoRectificadoMm ?? obraPendiente.altoOriginalMm) || 0;
+    const pieza = m.tipoProducto?.compraPorPieza && ancho > 0 && alto > 0;
+    setItems([
+      {
+        ...itemVacio(),
+        materialId: m.id,
+        descripcion: pieza ? `${m.skuInterno} · ${m.descripcion} · ${Math.round(ancho)} × ${Math.round(alto)} mm` : `${m.skuInterno} · ${m.descripcion}`,
+        cantidad: '1',
+        ...(pieza ? { anchoMm: Math.round(ancho), altoMm: Math.round(alto), referenciaVentana: obraPendiente.ventanaRef } : {}),
+      },
+    ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, obraPendiente?.id, faseId]);
 
   // Modo "completar": fija el proyecto de la solicitud en cuanto carga
   // (dispara el fetch de su bodega) y precarga los comentarios.
@@ -493,6 +525,8 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
         // Mayores", ver resolverCentroCosto en mtw-api).
         proyectoId: proyectoId || null,
         faseId: faseId || null,
+        naturaleza: proyectoId ? naturaleza : 'PRESUPUESTO',
+        obraPendienteId: obraPendiente?.id ?? null,
         // En "solicitar" nunca se manda -- aunque haya un chip de
         // proveedor elegido arriba (solo sirve para agrupar los items),
         // mandarlo la convertiria en una OC completa, no una solicitud.
@@ -536,7 +570,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
     setProveedorId('');
     setComentarios('');
     setItems([itemVacio()]);
-    setEsAdicional(false);
+    setNaturaleza(obraPendiente?.naturalezaSugerida ?? 'PRESUPUESTO');
     setGeneralError(null);
     solicitudPobladaRef.current = null;
     onClose();
@@ -703,18 +737,29 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
           )}
 
           {modo !== 'completar' && proyectoId && (
-            <label className="flex items-start gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={esAdicional}
-                onChange={(e) => setEsAdicional(e.target.checked)}
-                className="mt-0.5 accent-brand-600"
-              />
-              <span className="text-xs text-slate-700">
-                <strong>Es un Adicional</strong> -- trabajo fuera del presupuesto aprobado para esta obra. Al elegir productos a mano se
-                sugiere el precio del maestro en vez del precio ya comprometido con el cliente.
+            <div className="space-y-1.5">
+              <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Qué cubre esta compra
+                {obraPendiente && <span className="ml-1.5 normal-case font-normal text-slate-500">(pendiente {obraPendiente.numero})</span>}
               </span>
-            </label>
+              <div role="radiogroup" className="grid grid-cols-3 gap-1.5">
+                {(['PRESUPUESTO', 'REPOSICION', 'ADICIONAL'] as NaturalezaCompra[]).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    role="radio"
+                    aria-checked={naturaleza === n}
+                    onClick={() => setNaturaleza(n)}
+                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
+                      naturaleza === n ? 'bg-brand-600/10 text-brand-700 border-brand-600/40' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {ETIQUETA_NATURALEZA[n]}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-slate-500">{AYUDA_NATURALEZA[naturaleza]}</p>
+            </div>
           )}
 
           {modo !== 'completar' && faseId && (
