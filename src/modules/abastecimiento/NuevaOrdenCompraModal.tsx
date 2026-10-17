@@ -290,7 +290,8 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   // Materiales necesarios para fabricar la fase elegida, agrupados por
   // proveedor (GET /fases/:id/requerimiento de mtw-api): cantidades de la
   // Analitica prorrateadas a la fase, en unidad de compra (ej. barras
-  // enteras), con el precio aprobado (descuento/recargo de su partida). En
+  // enteras), con el precio de compra (con el descuento de su partida; la
+  // holgura no va al precio). En
   // "crear" ya vienen netos del stock de la obra y de Obras Mayores; en
   // "solicitar" es la necesidad bruta (Compras contrasta al completarla).
   const tasaDolar = Number(activeVersion?.tipoCambioDolar) || 950;
@@ -328,7 +329,8 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   // o marcado Adicional, se usa el precio del maestro en su lugar.
   const { data: analitica } = useAnalitica(proyectoId, isOpen && proyectoId && modo !== 'completar' ? activeVersion?.id : undefined);
   const preciosComprometidosPorMaterial = useMemo(
-    () => new Map((analitica?.materiales ?? []).map((m) => [m.materialId, { precioCLP: m.precioCLP, unidadMedida: m.unidad.codigo }])),
+    // Precio de compra con el descuento de la partida; la holgura es presupuesto, no precio.
+    () => new Map((analitica?.materiales ?? []).map((m) => [m.materialId, { precioCLP: m.precioCompraNeto, unidadMedida: m.unidad.codigo }])),
     [analitica]
   );
 

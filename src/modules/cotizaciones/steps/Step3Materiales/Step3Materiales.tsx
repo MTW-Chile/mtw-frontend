@@ -11,13 +11,13 @@ import {
   saveMaterialAjuste,
   setPartidaAprobacion,
   setPartidaDescuento,
-  setPartidaRecargo,
+  setPartidaHolgura,
   updateEstadoAprobacion,
 } from '../../../../api/client';
 import type { MaterialAnalitica, PartidaAnalitica, Proyecto, ProyectoVersion } from '../../../../types';
 import { DivisasForm, DivisasResumen } from '../Step1DatosCliente/DivisasForm';
 import { ReemplazarMaterialModal } from './ReemplazarMaterialModal';
-import { useAnalitica, factorPartida, decimalesCantidad } from '../../lib/useAnalitica';
+import { useAnalitica, decimalesCantidad } from '../../lib/useAnalitica';
 import { MTW_NAVY, MTW_GRIS, MTW_BORDE, MTW_HEAD_BG, pdfTableStyle, drawPdfHeader } from '../../lib/pdfTheme';
 import { usePermisos } from '../../../../lib/permisos';
 
@@ -176,7 +176,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
 
   // Sólo invalida el detalle de este proyecto (y con él la Analítica, que
   // cuelga de la misma key): nada de lo que se edita acá
-  // (ajustes de material, aprobación/descuento/recargo por partida) se
+  // (ajustes de material, aprobación/descuento/holgura por partida) se
   // muestra en el listado de proyectos (['proyectos'], CotizacionesPage.tsx
   // -- ahí sólo aparecen codigoInterno, los datos crudos de cliente y el
   // estadoGlosa de HETMO), así que invalidarlo en cada ajuste sólo generaba
@@ -224,10 +224,10 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     onSuccess: invalidar,
   });
 
-  const partidaRecargoMutation = useMutation({
-    mutationFn: (payload: { partida: string; recargoPct: number }) => {
+  const partidaHolguraMutation = useMutation({
+    mutationFn: (payload: { partida: string; holguraPct: number }) => {
       if (!versionId) return Promise.resolve(null);
-      return setPartidaRecargo(versionId, payload.partida, payload.recargoPct);
+      return setPartidaHolgura(versionId, payload.partida, payload.holguraPct);
     },
     onSuccess: invalidar,
   });
@@ -254,7 +254,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   const aprobarTodoMutation = useMutation({
     mutationFn: async () => {
       if (!versionId) return null;
-      const pendientes = partidas.filter((p) => !p.aprobada);
+      const pendientes = partidasMateriales.filter((p) => !p.aprobada);
       await Promise.all(pendientes.map((p) => setPartidaAprobacion(versionId, p.codigo, true)));
       return null;
     },
@@ -309,7 +309,9 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   }, [materiales, searchTerm]);
 
   // Agrupado por partida, en el orden configurado en Configuración > Catálogo.
-  // Cada partida tiene aprobación, descuento y recargo propios.
+  // Cada partida tiene aprobación, descuento y holgura propios. Solo las
+  // partidas con materiales: las que reciben solo costos de la Hoja de
+  // Fijación se ven en el Paso 4.
   const gruposPorPartida = useMemo(() => {
     const porCodigo = new Map<string, MaterialAnalitica[]>();
     filteredMateriales.forEach((m) => {
@@ -322,10 +324,11 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
       .map((p) => [p, porCodigo.get(p.codigo)!] as [PartidaAnalitica, MaterialAnalitica[]]);
   }, [filteredMateriales, partidas]);
 
-  const todasLasPartidasAprobadas = partidas.length > 0 && partidas.every((p) => p.aprobada);
+  const partidasMateriales = partidas.filter((p) => p.tieneMateriales);
+  const todasLasPartidasAprobadas = partidasMateriales.length > 0 && partidasMateriales.every((p) => p.aprobada);
 
-  // Total con el descuento y recargo de cada partida (aplicados al total de
-  // la partida, nunca al precio de cada material) -- lo calcula mtw-api.
+  // Presupuesto de materiales: precios con descuento, mas la holgura de cada
+  // partida (que no toca ningun precio) -- lo calcula mtw-api.
   const costoTotalCLP = analitica?.totales.materialesTotal ?? 0;
   const costoTotalUF = tasaUf > 0 ? costoTotalCLP / tasaUf : 0;
   const cantidadExcluidos = materiales.filter((m) => m.excluido).length;
@@ -364,9 +367,8 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     gruposPorPartida.forEach(([partida, materiales]) => {
       const familia = partida.nombre;
       const descuento = partida.descuentoPct ?? 0;
-      const recargo = partida.recargoPct ?? 0;
-      const factorFamilia = factorPartida(partida);
-      const totalFamilia = partida.total;
+      const holgura = partida.holguraPct ?? 0;
+      const totalFamilia = partida.materiales + partida.holgura;
 
       if (y > pageBottom - 40) {
         doc.addPage();
@@ -376,7 +378,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
       // Banda de encabezado de familia -- nombre + cantidad de referencias a
       // la izquierda, subtotal a la derecha, mismo estilo que las cabeceras
       // de sección de la hoja de fijación anterior.
-      const ajustes = [descuento > 0 ? `descuento ${descuento}%` : null, recargo > 0 ? `recargo ${recargo}%` : null]
+      const ajustes = [descuento > 0 ? `descuento ${descuento}%` : null, holgura > 0 ? `holgura ${holgura}% ($ ${formatNumber(partida.holgura, 0)})` : null]
         .filter(Boolean)
         .join(', ');
       doc.setFillColor(...MTW_HEAD_BG);
@@ -407,7 +409,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
           `$ ${formatNumber(m.precioCLP, 2)}`,
           formatNumber(m.cantidadTotal, decimalesCantidad(m.cantidadTotal)),
           m.unidad.simbolo,
-          `$ ${formatNumber(m.precioCLP * m.cantidadTotal * factorFamilia, 0)}`,
+          `$ ${formatNumber(m.precioCompraNeto * m.cantidadTotal, 0)}`,
           m.excluido ? 'Excluido' : 'Incluido',
         ]),
         didParseCell: (data: any) => {
@@ -452,12 +454,12 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     };
     const encabezados = [
       'Partida', 'SKU', 'Descripción', 'Proveedor', 'Precio Unit. Origen', 'Moneda Origen',
-      'Precio Unit. CLP', 'Cantidad', 'Unidad', 'Descuento %', 'Recargo %', 'Total CLP', 'Estado',
+      'Precio Unit. CLP', 'Cantidad', 'Unidad', 'Descuento %', 'Holgura %', 'Total CLP (neto)', 'Estado',
     ];
     const filas: (string | number)[][] = [encabezados];
     gruposPorPartida.forEach(([partida, materiales]) => {
       const descuento = partida.descuentoPct ?? 0;
-      const recargo = partida.recargoPct ?? 0;
+      const holgura = partida.holguraPct ?? 0;
       materiales.forEach((m) => {
         filas.push([
           partida.nombre,
@@ -470,11 +472,14 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
           m.cantidadTotal,
           m.unidad.simbolo,
           descuento,
-          recargo,
-          m.excluido ? 0 : m.precioCLP * m.cantidadTotal * factorPartida(partida),
+          holgura,
+          m.excluido ? 0 : m.precioCompraNeto * m.cantidadTotal,
           m.excluido ? 'Excluido' : 'Incluido',
         ]);
       });
+    });
+    gruposPorPartida.forEach(([partida]) => {
+      if (partida.holgura > 0) filas.push([partida.nombre, '', `Holgura ${partida.holguraPct}%`, '', '', '', '', '', '', '', partida.holguraPct ?? 0, partida.holgura, '']);
     });
     filas.push(['TOTAL', '', '', '', '', '', '', '', '', '', '', costoTotalCLP, '']);
 
@@ -550,7 +555,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                 variant="primary"
                 size="sm"
                 onClick={() => aprobarTodoMutation.mutate()}
-                disabled={partidas.length === 0 || aprobarTodoMutation.isPending}
+                disabled={partidasMateriales.length === 0 || aprobarTodoMutation.isPending}
                 isLoading={aprobarTodoMutation.isPending}
                 leftIcon={<ShieldCheck className="w-3.5 h-3.5" />}
                 title="Aprueba todas las partidas que falten"
@@ -627,9 +632,8 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
             // Las categorías parten colapsadas: el usuario las despliega si necesita el detalle.
             const colapsada = partidaColapsada[codigo] ?? true;
             const descuentoActual = partida.descuentoPct ?? 0;
-            const recargoActual = partida.recargoPct ?? 0;
-            const factorFamilia = factorPartida(partida);
-            const totalFamiliaCLP = partida.total;
+            const holguraActual = partida.holguraPct ?? 0;
+            const totalFamiliaCLP = partida.materiales + partida.holgura;
 
             return (
               <div key={codigo} className="rounded-2xl border border-slate-200 overflow-hidden">
@@ -643,13 +647,13 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                     <Badge size="sm" variant="default">{materiales.length} {materiales.length === 1 ? 'ítem' : 'ítems'}</Badge>
                     <span className="text-xs text-slate-600 tabular-nums">
                       $ {formatNumber(totalFamiliaCLP, 0)}
-                      {descuentoActual > 0 && ` (-${descuentoActual}%)`}
-                      {recargoActual > 0 && ` (+${recargoActual}%)`}
+                      {descuentoActual > 0 && ` (desc. ${descuentoActual}%)`}
+                      {partida.holgura > 0 && ` · incluye holgura ${holguraActual}% ($ ${formatNumber(partida.holgura, 0)})`}
                     </span>
                   </button>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    <label className="flex items-center gap-1.5 text-[11px] text-slate-500" title="Descuento comercial de la partida (aplicado al total, no a los precios individuales)">
+                    <label className="flex items-center gap-1.5 text-[11px] text-slate-500" title="Descuento negociado con el proveedor: baja el precio de compra de los materiales de la partida (y el de la OC)">
                       Desc.
                       <PrecioEditable
                         valor={descuentoActual}
@@ -658,12 +662,12 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                       />
                       %
                     </label>
-                    <label className="flex items-center gap-1.5 text-[11px] text-slate-500" title="Recargo comercial de la partida (aplicado al total, no a los precios individuales)">
-                      Rec.
+                    <label className="flex items-center gap-1.5 text-[11px] text-slate-500" title="Holgura del presupuesto (ej. quiebre): se suma al presupuesto de la partida y se cobra, sin cambiar ningún precio ni la OC">
+                      Holgura
                       <PrecioEditable
-                        valor={recargoActual}
+                        valor={holguraActual}
                         disabled={edicionBloqueada}
-                        onGuardar={(nuevo) => partidaRecargoMutation.mutate({ partida: codigo, recargoPct: Math.min(100, Math.max(0, nuevo)) })}
+                        onGuardar={(nuevo) => partidaHolguraMutation.mutate({ partida: codigo, holguraPct: Math.min(100, Math.max(0, nuevo)) })}
                       />
                       %
                     </label>
@@ -741,7 +745,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                 {formatNumber(m.cantidadTotal, decimalesCantidad(m.cantidadTotal))} <span className="text-slate-400">{m.unidad.simbolo}</span>
                               </td>
                               <td className="px-4 py-2.5 align-top text-right tabular-nums font-bold text-slate-900 whitespace-nowrap">
-                                $ {formatNumber(m.precioCLP * m.cantidadTotal * factorFamilia, 0)}
+                                $ {formatNumber(m.precioCompraNeto * m.cantidadTotal, 0)}
                               </td>
                               <td className="px-4 py-2.5 align-top text-center">
                                 <div className="flex items-center justify-center gap-2">
@@ -838,7 +842,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                               <span className="text-slate-400">{m.unidad.simbolo}</span>
                             </Campo>
                             <Campo label="Total CLP">
-                              <span className="tabular-nums font-bold">$ {formatNumber(m.precioCLP * m.cantidadTotal * factorFamilia, 0)}</span>
+                              <span className="tabular-nums font-bold">$ {formatNumber(m.precioCompraNeto * m.cantidadTotal, 0)}</span>
                             </Campo>
                           </div>
                         </li>

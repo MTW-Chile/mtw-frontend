@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query';
 import { getAnalitica, getRequerimientoFase, simularAnalitica } from '../../../api/client';
-import type { Analitica, FijacionBorrador, PartidaAnalitica } from '../../../types';
+import type { Analitica, FijacionBorrador } from '../../../types';
 
 /**
  * Analitica de materiales de una version, calculada por mtw-api (motor unico:
@@ -59,10 +59,6 @@ export function useAnaliticaSimulada(
     placeholderData: keepPreviousData,
   });
 }
-
-/** Factor comercial de una partida (descuento y luego recargo, sobre su total). */
-export const factorPartida = (p: Pick<PartidaAnalitica, 'descuentoPct' | 'recargoPct'> | undefined) =>
-  (1 - (p?.descuentoPct ?? 0) / 100) * (1 + (p?.recargoPct ?? 0) / 100);
 
 /** Decimales para mostrar una cantidad: enteras sin decimales, el resto con 2. */
 export const decimalesCantidad = (cantidad: number) => (Number.isInteger(Math.round(cantidad * 1000) / 1000) ? 0 : 2);

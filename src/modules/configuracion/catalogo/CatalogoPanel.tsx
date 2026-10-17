@@ -1,5 +1,5 @@
 import React from 'react';
-import { Boxes, Ruler, Tags, Workflow } from 'lucide-react';
+import { Boxes, Calculator, Ruler, Tags, Workflow } from 'lucide-react';
 import { SubTabs } from '../../../components/ui/PageHeader';
 import { useUrlParam } from '../../../lib/navigation';
 import { usePermisos } from '../../../lib/permisos';
@@ -7,12 +7,14 @@ import { PartidasSection } from './PartidasSection';
 import { TiposProductoSection } from './TiposProductoSection';
 import { UnidadesSection } from './UnidadesSection';
 import { FamiliasHetmoSection } from './FamiliasHetmoSection';
+import { ConceptosFijacionSection } from './ConceptosFijacionSection';
 
-type Sub = 'tipos' | 'partidas' | 'unidades' | 'familias';
+type Sub = 'tipos' | 'partidas' | 'fijacion' | 'unidades' | 'familias';
 
 const SECCIONES: { id: Sub; label: string; icon: React.ElementType; Componente: React.FC<{ puedeEditar: boolean }> }[] = [
   { id: 'tipos', label: 'Tipos de producto', icon: Boxes, Componente: TiposProductoSection },
   { id: 'partidas', label: 'Partidas', icon: Tags, Componente: PartidasSection },
+  { id: 'fijacion', label: 'Hoja de Fijación', icon: Calculator, Componente: ConceptosFijacionSection },
   { id: 'unidades', label: 'Unidades', icon: Ruler, Componente: UnidadesSection },
   { id: 'familias', label: 'Familias HETMO', icon: Workflow, Componente: FamiliasHetmoSection },
 ];

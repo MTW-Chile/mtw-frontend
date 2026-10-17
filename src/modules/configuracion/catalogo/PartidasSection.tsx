@@ -63,7 +63,7 @@ export const PartidasSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdita
   return (
     <Seccion
       titulo="Partidas"
-      descripcion="Agrupan la Analítica, la aprobación técnica, las OC y el Control de Presupuesto. El orden es el de la Analítica."
+      descripcion="Agrupan la Analítica, la Hoja de Fijación, las OC y el Control de Presupuesto. El orden es el de la Analítica; el código Clay es la cuenta contable de la integración."
       accion={
         puedeEditar && !nueva ? (
           <Button size="sm" variant="outline" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setNueva({ codigo: '', nombre: '', integracionClay: '', orden: String(partidas.length * 10) })}>
@@ -117,7 +117,14 @@ export const PartidasSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdita
               const guardando = guardar.isPending && guardar.variables?.id === p.id;
               return (
                 <tr key={p.id} className={`hover:bg-slate-50/80 ${p.activa ? '' : 'opacity-60'}`}>
-                  <td className="py-2 font-mono text-[10px] text-slate-500">{p.codigo}</td>
+                  <td className="py-2 font-mono text-[10px] text-slate-500">
+                    {p.codigo}
+                    {p.porDefecto && (
+                      <Badge size="sm" variant="warning" className="ml-1.5" title="Recibe lo que todavía no tiene partida">
+                        Por defecto
+                      </Badge>
+                    )}
+                  </td>
                   <td className="py-2">
                     {puedeEditar ? <input value={v.nombre} onChange={(e) => cambiar(p, 'nombre', e.target.value)} className={CAMPO_CLASS} /> : <span className="font-semibold text-slate-900">{p.nombre}</span>}
                   </td>
@@ -136,7 +143,12 @@ export const PartidasSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdita
                   </td>
                   <td className="py-2 text-center">
                     {puedeEditar ? (
-                      <Interruptor valor={p.activa} etiqueta={p.activa ? 'Desactivar' : 'Activar'} onChange={(activa) => guardar.mutate({ id: p.id, payload: { activa } })} />
+                      <Interruptor
+                        valor={p.activa}
+                        disabled={p.porDefecto}
+                        etiqueta={p.porDefecto ? 'La partida por defecto no se puede desactivar' : p.activa ? 'Desactivar' : 'Activar'}
+                        onChange={(activa) => guardar.mutate({ id: p.id, payload: { activa } })}
+                      />
                     ) : (
                       <Badge size="sm" variant={p.activa ? 'success' : 'default'}>{p.activa ? 'Activa' : 'Inactiva'}</Badge>
                     )}

@@ -271,8 +271,9 @@ export interface ProyectoMaterialAjuste {
   material?: Material;
 }
 
-// Aprobacion, descuento y recargo de una partida de la Analitica en una version.
-export interface FamiliaMaterialAprobacion {
+// Una partida de la Analitica en una version: aprobacion tecnica, descuento
+// negociado (baja el precio de compra) y holgura (suma al presupuesto, no al precio).
+export interface PartidaVersion {
   id: string;
   versionId: string;
   partidaId: string;
@@ -281,12 +282,14 @@ export interface FamiliaMaterialAprobacion {
   aprobadoPor: string | null;
   fechaAprobacion: string | null;
   descuentoPct: number | null;
-  recargoPct: number | null;
+  holguraPct: number | null;
 }
 
 export interface FijacionExtra {
   glosa: string;
   monto: number;
+  // Partida a la que se carga (sin partida: "Sin asignar").
+  partidaCodigo?: string | null;
 }
 
 export interface PresupuestoConfig {
@@ -317,7 +320,6 @@ export interface FijacionConfig {
   valorInstalacionM2: number;
   valorInstalacionProtexM2: number;
   margenVentaPct: number;
-  extras: FijacionExtra[];
 }
 
 export type SentidoMovimientoHoja = 'fija' | 'izquierda' | 'derecha' | 'ambos' | 'oculta';
@@ -452,7 +454,7 @@ export interface ProyectoVersion {
   ventanas?: Ventana[];
   fases?: Fase[];
   materialAjustes?: ProyectoMaterialAjuste[];
-  familiaAprobaciones?: FamiliaMaterialAprobacion[];
+  partidasVersion?: PartidaVersion[];
   materialesResumen?: MaterialVersionResumen[];
   fijacionConfig?: FijacionConfig | null;
   presupuestoConfig?: PresupuestoConfig | null;
@@ -544,6 +546,8 @@ export interface Partida {
   integracionClay: string | null;
   orden: number;
   activa: boolean;
+  // La partida "Sin asignar": recibe lo que todavia no tiene partida.
+  porDefecto: boolean;
   _count?: { tiposProducto: number; ordenCompraItems: number };
 }
 
@@ -627,6 +631,8 @@ export interface MaterialAnalitica {
   monedaOrigen: string;
   factorPrecio: number;
   precioCLP: number;
+  // Precio por unidad con el descuento de la partida: el de compra (y de la OC).
+  precioCompraNeto: number;
   excluido: boolean;
   precioModificado: boolean;
   reemplazado: boolean;
@@ -636,10 +642,42 @@ export interface PartidaAnalitica {
   codigo: string;
   nombre: string;
   orden: number;
+  // Materiales con su descuento (sin holgura).
+  materiales: number;
+  holguraPct: number | null;
+  holgura: number;
+  // Costos de la Hoja de Fijacion cargados a esta partida.
+  fijacion: number;
+  // Presupuesto de la partida: materiales + holgura + fijacion.
   total: number;
+  // Tiene materiales (se aprueba en la Analitica); si no, solo costos de la Hoja.
+  tieneMateriales: boolean;
   aprobada: boolean;
   descuentoPct: number | null;
-  recargoPct: number | null;
+}
+
+export type ConceptoFijacionCodigo =
+  | 'MANO_OBRA_FABRICACION'
+  | 'FILM_PROTECTOR'
+  | 'MATERIAL_INSTALACION'
+  | 'FLETE'
+  | 'INSTALACION'
+  | 'INSTALACION_PROTEX';
+
+export interface ConceptoFijacion {
+  codigo: ConceptoFijacionCodigo;
+  nombre: string;
+  orden: number;
+  partidaPorDefectoId: string | null;
+  partidaPorDefecto: Pick<Partida, 'id' | 'codigo' | 'nombre'> | null;
+}
+
+export interface LineaFijacion {
+  tipo: 'CONCEPTO' | 'EXTRA';
+  concepto: ConceptoFijacionCodigo | null;
+  nombre: string;
+  monto: number;
+  partida: Pick<Partida, 'codigo' | 'nombre'>;
 }
 
 export interface TotalesAnalitica {
@@ -654,6 +692,7 @@ export interface TotalesAnalitica {
   costosComplementarios: number;
   costoFlete: number;
   costoInstalacion: number;
+  costoInstalacionProtex: number;
   costoTotal: number;
   margen: number;
   venta: number;
@@ -669,6 +708,8 @@ export interface Analitica {
   materiales: MaterialAnalitica[];
   partidas: PartidaAnalitica[];
   totales: TotalesAnalitica;
+  // Costos de la Hoja de Fijacion con su partida.
+  lineasFijacion: LineaFijacion[];
   // ventanas: unidades fisicas (suma de unidades de cada linea).
   indicadores: { m2Vidrios: number; panos: number; ventanas: number };
   // Precio de venta prorrateado por linea (el mismo que se congela al aceptar).
@@ -689,6 +730,8 @@ export interface FijacionBorrador {
   valorInstalacionProtexM2: number;
   margenVentaPct: number;
   extras: FijacionExtra[];
+  // Partida de cada concepto cambiada en esta Hoja (sin entrada: la por defecto del concepto).
+  asignaciones?: Partial<Record<ConceptoFijacionCodigo, string>>;
 }
 
 // ---- Control de presupuesto por partida (GET /proyectos/:id/control-presupuesto) ----

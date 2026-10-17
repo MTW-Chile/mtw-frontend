@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Calculator, Check, Plus, Trash2, FileDown, Lock, ShieldCheck, ArrowLeft, Loader2 } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
-import { updateFijacionConfig, updateEstadoAprobacion } from '../../../../api/client';
-import type { Proyecto, ProyectoVersion, FijacionExtra, FijacionBorrador } from '../../../../types';
+import { getConceptosFijacion, getPartidas, updateFijacionConfig, updateEstadoAprobacion } from '../../../../api/client';
+import type { ConceptoFijacionCodigo, Partida, Proyecto, ProyectoVersion, FijacionExtra, FijacionBorrador } from '../../../../types';
 import { Button } from '../../../../components/ui/Button';
 import { useAnalitica, useAnaliticaSimulada } from '../../lib/useAnalitica';
 import { computeCantidadCuadros } from '../../lib/cuadros';
@@ -24,7 +24,9 @@ interface Step4FijacionesProps {
 
 type DraftFijacion = Omit<FijacionBorrador, 'extras'>;
 
-const DRAFT_VACIO: DraftFijacion = {
+type CampoNumerico = Exclude<keyof DraftFijacion, 'asignaciones'>;
+
+const DRAFT_VACIO: Record<CampoNumerico, number> = {
   manoObraFabricacion: 0,
   filmProtectorCristales: 0,
   materialInstalacion: 0,
@@ -36,14 +38,60 @@ const DRAFT_VACIO: DraftFijacion = {
 };
 
 const separar = ({ extras, ...resto }: FijacionBorrador): { draft: DraftFijacion; extras: FijacionExtra[] } => ({
-  draft: resto,
-  extras: extras.map((e) => ({ glosa: e.glosa ?? '', monto: Number(e.monto) || 0 })),
+  draft: { ...resto, asignaciones: { ...(resto.asignaciones ?? {}) } },
+  extras: extras.map((e) => ({ glosa: e.glosa ?? '', monto: Number(e.monto) || 0, partidaCodigo: e.partidaCodigo ?? null })),
 });
 
+const mismasAsignaciones = (a: FijacionBorrador['asignaciones'] = {}, b: FijacionBorrador['asignaciones'] = {}) => {
+  const claves = new Set([...Object.keys(a), ...Object.keys(b)]) as Set<ConceptoFijacionCodigo>;
+  return [...claves].every((k) => (a[k] ?? null) === (b[k] ?? null));
+};
+
 const mismaFijacion = (a: FijacionBorrador, b: FijacionBorrador) =>
-  (Object.keys(DRAFT_VACIO) as (keyof DraftFijacion)[]).every((k) => Number(a[k]) === Number(b[k])) &&
+  (Object.keys(DRAFT_VACIO) as CampoNumerico[]).every((k) => Number(a[k]) === Number(b[k])) &&
+  mismasAsignaciones(a.asignaciones, b.asignaciones) &&
   a.extras.length === b.extras.length &&
-  a.extras.every((e, i) => (e.glosa ?? '') === (b.extras[i].glosa ?? '') && Number(e.monto) === Number(b.extras[i].monto));
+  a.extras.every(
+    (e, i) =>
+      (e.glosa ?? '') === (b.extras[i].glosa ?? '') &&
+      Number(e.monto) === Number(b.extras[i].monto) &&
+      (e.partidaCodigo ?? null) === (b.extras[i].partidaCodigo ?? null)
+  );
+
+/**
+ * Partida a la que se carga un concepto o un extra. "Sin asignar" se marca en
+ * ámbar: el costo cuenta igual, pero no queda en una partida real del Control
+ * de Presupuesto.
+ */
+const SelectorPartida: React.FC<{
+  partidas: Partida[];
+  valor: string;
+  disabled: boolean;
+  onChange: (codigo: string) => void;
+  etiqueta: string;
+}> = ({ partidas, valor, disabled, onChange, etiqueta }) => {
+  const sinAsignar = partidas.find((p) => p.codigo === valor)?.porDefecto ?? false;
+  return (
+    <select
+      aria-label={etiqueta}
+      title={sinAsignar ? 'Sin partida asignada: elige a cuál se carga' : etiqueta}
+      value={valor}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+      className={`mt-1 max-w-[180px] rounded-md border px-1.5 py-0.5 text-[10px] font-semibold focus:outline-none focus:border-brand-600 disabled:opacity-70 ${
+        sinAsignar ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-slate-200 bg-white text-slate-600'
+      }`}
+    >
+      {partidas
+        .filter((p) => p.activa || p.codigo === valor)
+        .map((p) => (
+          <option key={p.codigo} value={p.codigo}>
+            {p.porDefecto ? `⚠ ${p.nombre}` : p.nombre}
+          </option>
+        ))}
+    </select>
+  );
+};
 
 const clpLabel = (valor: number) => `$ ${formatNumber(valor, 0)}`;
 const ufLabel = (valor: number, tasaUf: number) =>
@@ -90,7 +138,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
   // Draft local de los campos editables -- arranca de la Hoja con que calculo
   // mtw-api y se resetea cuando cambia la version (o llega la config recien
   // guardada) para no pisar un guardado ajeno con un draft viejo de otra pestaña.
-  const [draft, setDraft] = useState<DraftFijacion>(DRAFT_VACIO);
+  const [draft, setDraft] = useState<DraftFijacion>({ ...DRAFT_VACIO, asignaciones: {} });
   const [extras, setExtras] = useState<FijacionExtra[]>([]);
   const [draftDe, setDraftDe] = useState<string | null>(null);
   const [mostrarAnalisis, setMostrarAnalisis] = useState(false);
@@ -113,6 +161,31 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
   // Mientras se edita, costo y venta los calcula mtw-api con el borrador (sin guardarlo).
   const simulada = useAnaliticaSimulada(proyecto.id, versionId, tasas, hayCambios ? borrador : null);
   const vista = (hayCambios ? simulada.data : undefined) ?? base;
+
+  // Partida de cada concepto y extra (configurable aquí; la por defecto de cada
+  // concepto se define en Configuración > Catálogo > Hoja de Fijación).
+  const { data: catalogoPartidas = [] } = useQuery({ queryKey: ['partidas'], queryFn: getPartidas });
+  const { data: conceptos = [] } = useQuery({ queryKey: ['conceptosFijacion'], queryFn: getConceptosFijacion });
+  const codigoSinAsignar = catalogoPartidas.find((p) => p.porDefecto)?.codigo ?? 'SIN_ASIGNAR';
+  const partidaPorDefectoDe = (c: ConceptoFijacionCodigo) => conceptos.find((x) => x.codigo === c)?.partidaPorDefecto?.codigo ?? codigoSinAsignar;
+  const partidaDeConcepto = (c: ConceptoFijacionCodigo) => draft.asignaciones?.[c] ?? partidaPorDefectoDe(c);
+  const asignarConcepto = (c: ConceptoFijacionCodigo, codigo: string) =>
+    setDraft((prev) => {
+      const asignaciones = { ...(prev.asignaciones ?? {}) };
+      if (codigo === partidaPorDefectoDe(c)) delete asignaciones[c];
+      else asignaciones[c] = codigo;
+      return { ...prev, asignaciones };
+    });
+  const selectorConcepto = (c: ConceptoFijacionCodigo) => (
+    <SelectorPartida
+      partidas={catalogoPartidas}
+      valor={partidaDeConcepto(c)}
+      disabled={congelado}
+      onChange={(codigo) => asignarConcepto(c, codigo)}
+      etiqueta="Partida a la que se carga"
+    />
+  );
+  const extrasSinPartida = extras.filter((e) => !e.partidaCodigo || e.partidaCodigo === codigoSinAsignar).length;
 
   const guardarMutation = useMutation({
     mutationFn: () => {
@@ -143,7 +216,12 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
   });
 
   // Totales por partida (con su descuento y recargo), en el orden configurado.
-  const totalesPorCategoria = (vista?.partidas ?? []).map((p) => ({ etiqueta: p.nombre, monto: p.total }));
+  // Materiales por partida (con descuento y holgura), en el orden configurado.
+  const totalesPorCategoria = (vista?.partidas ?? [])
+    .filter((p) => p.tieneMateriales)
+    .map((p) => ({ etiqueta: p.nombre, monto: p.materiales + p.holgura }));
+  // Presupuesto por partida: materiales, holgura y costos de esta Hoja.
+  const presupuestoPorPartida = (vista?.partidas ?? []).filter((p) => p.total !== 0);
   const t = vista?.totales;
   const materialesTotal = t?.materialesTotal ?? 0;
   const cantidadVentanas = vista?.indicadores.ventanas ?? 0;
@@ -168,7 +246,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
   const actualizarExtra = (index: number, patch: Partial<FijacionExtra>) => {
     setExtras((prev) => prev.map((e, i) => (i === index ? { ...e, ...patch } : e)));
   };
-  const agregarExtra = () => setExtras((prev) => [...prev, { glosa: '', monto: 0 }]);
+  const agregarExtra = () => setExtras((prev) => [...prev, { glosa: '', monto: 0, partidaCodigo: null }]);
   const eliminarExtra = (index: number) => setExtras((prev) => prev.filter((_, i) => i !== index));
 
   const exportarPDF = async () => {
@@ -501,11 +579,13 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
                 </button>
               )}
             </div>
-            {[
-              ['manoObraFabricacion', 'Mano de obra fabricación', 'CLP por m² de ventana', costoManoObra],
-              ['filmProtectorCristales', 'Film protector cristales', 'CLP por m² de vidrio', costoFilm],
-              ['materialInstalacion', 'Material de instalación', 'CLP por m² de ventana', costoMaterialInstalacion],
-            ].map(([key, label, hint, costo]) => (
+            {(
+              [
+                ['manoObraFabricacion', 'Mano de obra fabricación', 'CLP por m² de ventana', costoManoObra, 'MANO_OBRA_FABRICACION'],
+                ['filmProtectorCristales', 'Film protector cristales', 'CLP por m² de vidrio', costoFilm, 'FILM_PROTECTOR'],
+                ['materialInstalacion', 'Material de instalación', 'CLP por m² de ventana', costoMaterialInstalacion, 'MATERIAL_INSTALACION'],
+              ] as const
+            ).map(([key, label, hint, costo, concepto]) => (
               <div key={key as string} className="flex items-center justify-between gap-3 text-xs">
                 <span className="text-slate-600 flex-1">
                   <span className="block">{label}</span>
@@ -513,27 +593,37 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
                     {hint}
                     {mostrarAnalisis && <span className="ml-1.5">· {clpLabel(costo as number)} ({pctLabel(costo as number, venta)})</span>}
                   </span>
+                  {selectorConcepto(concepto)}
                 </span>
                 <input
                   type="number"
                   min={0}
                   disabled={congelado}
-                  value={(draft as any)[key as string] || ''}
-                  onChange={(e) => setDraft((prev) => ({ ...prev, [key as string]: numeroInput(e.target.value) }))}
+                  value={draft[key] || ''}
+                  onChange={(e) => setDraft((prev) => ({ ...prev, [key]: numeroInput(e.target.value) }))}
                   className={`${inputClass} max-w-[140px]`}
                 />
               </div>
             ))}
             {extras.map((extra, idx) => (
-              <div key={idx} className="flex items-center justify-between gap-2 text-xs">
-                <input
-                  type="text"
-                  disabled={congelado}
-                  placeholder="Glosa del extra"
-                  value={extra.glosa}
-                  onChange={(e) => actualizarExtra(idx, { glosa: e.target.value })}
-                  className="flex-1 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white disabled:bg-slate-100"
-                />
+              <div key={idx} className="flex items-start justify-between gap-2 text-xs">
+                <div className="flex-1 min-w-0">
+                  <input
+                    type="text"
+                    disabled={congelado}
+                    placeholder="Glosa del extra"
+                    value={extra.glosa}
+                    onChange={(e) => actualizarExtra(idx, { glosa: e.target.value })}
+                    className="w-full px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white disabled:bg-slate-100"
+                  />
+                  <SelectorPartida
+                    partidas={catalogoPartidas}
+                    valor={extra.partidaCodigo || codigoSinAsignar}
+                    disabled={congelado}
+                    onChange={(codigo) => actualizarExtra(idx, { partidaCodigo: codigo === codigoSinAsignar ? null : codigo })}
+                    etiqueta={`Partida de ${extra.glosa || 'este extra'}`}
+                  />
+                </div>
                 <input
                   type="number"
                   min={0}
@@ -556,7 +646,10 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
           </div>
 
           <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">Flete</h4>
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">Flete</h4>
+              {selectorConcepto('FLETE')}
+            </div>
             <div className="flex items-center justify-between gap-3 text-xs">
               <span className="text-slate-600 flex-1">Cantidad de viajes</span>
               <input
@@ -591,6 +684,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
               <span className="text-slate-600 flex-1">
                 <span className="block">Valor por m²</span>
                 <span className="block text-[10px] text-slate-400">CLP por m² de ventana</span>
+                {selectorConcepto('INSTALACION')}
               </span>
               <input
                 type="number"
@@ -605,6 +699,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
               <span className="text-slate-600 flex-1">
                 <span className="block">Valor por m² (Puerta Protex)</span>
                 <span className="block text-[10px] text-slate-400">CLP por m² de línea manual Protex</span>
+                {selectorConcepto('INSTALACION_PROTEX')}
               </span>
               <input
                 type="number"
@@ -620,6 +715,48 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
               <span className="font-mono">{clpLabel(costoInstalacion)}</span>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Presupuesto por partida: lo que controla Obras contra las OC */}
+      <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
+        <div>
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">Presupuesto por partida</h4>
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            Materiales (con descuento y holgura) más los costos de esta hoja según su partida. Es lo que el Control de Presupuesto
+            compara contra las OC.
+          </p>
+        </div>
+        {(extrasSinPartida > 0 || presupuestoPorPartida.some((p) => p.codigo === codigoSinAsignar)) && (
+          <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            Hay costos en “Sin asignar”
+            {extrasSinPartida > 0 && ` (${extrasSinPartida} ${extrasSinPartida === 1 ? 'extra' : 'extras'})`}: cuentan para el costo y la
+            venta, pero no quedan en una partida real del Control de Presupuesto. Elige su partida en cada concepto o extra.
+          </p>
+        )}
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-left text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                <th className="py-1.5 font-semibold">Partida</th>
+                <th className="py-1.5 font-semibold text-right">Materiales</th>
+                <th className="py-1.5 font-semibold text-right">Holgura</th>
+                <th className="py-1.5 font-semibold text-right">Hoja de fijación</th>
+                <th className="py-1.5 font-semibold text-right">Presupuesto</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {presupuestoPorPartida.map((p) => (
+                <tr key={p.codigo} className={p.codigo === codigoSinAsignar ? 'bg-amber-50/60' : ''}>
+                  <td className="py-1.5 text-slate-700">{p.nombre}</td>
+                  <td className="py-1.5 text-right font-mono text-slate-600">{p.materiales ? clpLabel(p.materiales) : '—'}</td>
+                  <td className="py-1.5 text-right font-mono text-slate-600">{p.holgura ? clpLabel(p.holgura) : '—'}</td>
+                  <td className="py-1.5 text-right font-mono text-slate-600">{p.fijacion ? clpLabel(p.fijacion) : '—'}</td>
+                  <td className="py-1.5 text-right font-mono font-bold text-slate-900">{clpLabel(p.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 

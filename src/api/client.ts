@@ -7,7 +7,8 @@ import type {
   CorreccionGeometria,
   Fase,
   ProyectoMaterialAjuste,
-  FamiliaMaterialAprobacion,
+  PartidaVersion,
+  ConceptoFijacion,
   FijacionConfig,
   PresupuestoConfig,
   ConfiguracionEmpresa,
@@ -422,8 +423,8 @@ export async function saveMaterialAjuste(
   return response.data;
 }
 
-// Aprobacion tecnica, descuento y recargo por partida de la Analitica.
-type RespuestaAprobacionPartida = { success: boolean; aprobacion: FamiliaMaterialAprobacion };
+// Aprobacion tecnica, descuento (precio de compra) y holgura (presupuesto) por partida.
+type RespuestaAprobacionPartida = { success: boolean; aprobacion: PartidaVersion };
 
 async function patchPartidaVersion(versionId: string, partidaCodigo: string, accion: string, body: object) {
   const response = await apiClient.patch<RespuestaAprobacionPartida>(
@@ -439,8 +440,8 @@ export const setPartidaAprobacion = (versionId: string, partidaCodigo: string, a
 export const setPartidaDescuento = (versionId: string, partidaCodigo: string, descuentoPct: number) =>
   patchPartidaVersion(versionId, partidaCodigo, 'descuento', { descuentoPct });
 
-export const setPartidaRecargo = (versionId: string, partidaCodigo: string, recargoPct: number) =>
-  patchPartidaVersion(versionId, partidaCodigo, 'recargo', { recargoPct });
+export const setPartidaHolgura = (versionId: string, partidaCodigo: string, holguraPct: number) =>
+  patchPartidaVersion(versionId, partidaCodigo, 'holgura', { holguraPct });
 
 // Analitica calculada en mtw-api (motor unico). Las tasas del query solo
 // previsualizan: sin ellas se usan las guardadas en la version.
@@ -478,7 +479,8 @@ export async function getRequerimientoFase(faseId: string, descontarStock = true
 
 export async function updateFijacionConfig(
   versionId: string,
-  payload: Partial<Omit<FijacionConfig, 'id' | 'versionId'>>
+  // extras y asignaciones, si vienen, reemplazan la lista completa.
+  payload: Partial<FijacionBorrador>
 ): Promise<{ success: boolean; fijacionConfig: FijacionConfig }> {
   const response = await apiClient.patch<{ success: boolean; fijacionConfig: FijacionConfig }>(
     `/versiones/${versionId}/fijacion-config`,
@@ -591,6 +593,17 @@ export async function createPartida(payload: PartidaPayload & { codigo: string }
 // El codigo no se edita: lo usan integraciones y reportes.
 export async function updatePartida(id: string, payload: Partial<PartidaPayload>): Promise<Partida> {
   const response = await apiClient.patch<{ data: Partida }>(`/partidas/${id}`, payload);
+  return response.data.data;
+}
+
+// Conceptos de la Hoja de Fijacion y la partida a la que se cargan por defecto.
+export async function getConceptosFijacion(): Promise<ConceptoFijacion[]> {
+  const response = await apiClient.get<{ data: ConceptoFijacion[] }>('/conceptos-fijacion');
+  return response.data.data;
+}
+
+export async function updateConceptoFijacion(codigo: string, payload: { partidaPorDefectoId: string | null }): Promise<ConceptoFijacion> {
+  const response = await apiClient.patch<{ data: ConceptoFijacion }>(`/conceptos-fijacion/${codigo}`, payload);
   return response.data.data;
 }
 
