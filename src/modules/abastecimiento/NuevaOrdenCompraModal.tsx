@@ -20,6 +20,7 @@ import { useAnalitica, useRequerimientoFase } from '../cotizaciones/lib/useAnali
 import { precioCompraCLP, unidadCompra } from '../../lib/formatoMaterial';
 import { ETIQUETA_NATURALEZA } from '../../types';
 import type { Fase, GrupoRequerimiento, ItemRequerimiento, Material, NaturalezaCompra, ObraPendienteDetalle } from '../../types';
+import { useParametrosGenerales } from '../../lib/parametrosGenerales';
 
 // Campo de descripcion de un item manual: con proveedor elegido, busca en
 // vivo en el catalogo filtrado a ESE proveedor (Material.proveedorId) para
@@ -319,9 +320,10 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   // holgura no va al precio). En
   // "crear" ya vienen netos del stock de la obra y de Obras Mayores; en
   // "solicitar" es la necesidad bruta (Compras contrasta al completarla).
-  const tasaDolar = Number(activeVersion?.tipoCambioDolar) || 950;
-  const tasaUf = Number(activeVersion?.tipoCambioUF) || 38500;
-  const tasaEuro = Number(activeVersion?.tipoCambioEuro) || 1030;
+  const parametros = useParametrosGenerales();
+  const tasaDolar = Number(activeVersion?.tipoCambioDolar) || parametros?.tasasRespaldo.dolar || 0;
+  const tasaUf = Number(activeVersion?.tipoCambioUF) || parametros?.tasasRespaldo.uf || 0;
+  const tasaEuro = Number(activeVersion?.tipoCambioEuro) || parametros?.tasasRespaldo.euro || 0;
   const { data: requerimiento } = useRequerimientoFase(
     proyectoId,
     isOpen && modo !== 'completar' && faseId ? faseId : undefined,

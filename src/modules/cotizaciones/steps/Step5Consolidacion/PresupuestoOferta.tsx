@@ -3,7 +3,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileDown, Loader2, Pencil, Check } from 'lucide-react';
 import type { Proyecto, ProyectoVersion, Ventana } from '../../../../types';
 import { formatNumber } from '../../../../lib/utils';
-import { updatePresupuestoConfig, updateVentanaPresupuesto, renderPdf, getConfiguracionEmpresa } from '../../../../api/client';
+import {
+  updatePresupuestoConfig,
+  updateVentanaPresupuesto,
+  renderPdf,
+  getPlantillaDeProyecto,
+  getPlantillasOferta,
+  getConfiguracionEmpresa,
+} from '../../../../api/client';
+import { useParametrosGenerales } from '../../../../lib/parametrosGenerales';
 import { WindowRendererSvg } from '../../components/drawing/WindowRendererSvg';
 import { buildProtexDoorSvg } from '../../components/drawing/protexDoorSvg';
 import { toWindowLine } from '../../components/drawing/ventanaAdapter';
@@ -20,21 +28,6 @@ interface PresupuestoOfertaProps {
   uf: string;
   euro: string;
 }
-
-// Piso final si NI el proyecto tiene texto propio NI Configuración tiene un
-// default cargado (p.ej. la primera vez que corre esto, antes de que un
-// administrador entre a Configuración a llenarlo). El default real y
-// editable vive en ConfiguracionEmpresa (ver getConfiguracionEmpresa más
-// abajo) -- esto ya NO es "el texto por defecto", es el fallback del
-// fallback.
-const FALLBACK_CONDICIONES = `Se considera provisión e instalación de ventanas de PVC y termopaneles según especificación del proyecto.
-Validez de la oferta 30 días.
-Valores expresados en Unidades de Fomento (UF) más IVA.
-Se considera anticipo del 10% del valor del contrato.
-No se considera ningún elemento de terminación como junquillos, tubulares, remates de estuco y otros que no estén debidamente indicados en el Presupuesto.
-Este presupuesto contiene las ventanas detalladas en el plano enviado por el cliente y que es parte integrante del proyecto; cualquier modificación de este deberá cotizarse nuevamente incorporando los cambios o adicionales al proyecto.`;
-
-const FALLBACK_TEXTO = 'De acuerdo a sus requerimientos y solicitud de cotización, presentamos propuesta de Ventanas MTW con las líneas adecuadas para su proyecto.';
 
 // BORRADOR es el valor historico de la columna antes del flujo de estado
 // comercial; se trata igual que EN_COTIZACION (ver relay-api).
@@ -150,9 +143,10 @@ const ObservacionEditable: React.FC<{ ventana: Ventana; onGuardado: (v: Partial<
 
 export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, activeVersion, dolar, uf, euro }) => {
   const queryClient = useQueryClient();
-  const tasaDolar = Number(dolar) || 950;
-  const tasaUf = Number(uf) || 38500;
-  const tasaEuro = Number(euro) || 1030;
+  const parametros = useParametrosGenerales();
+  const tasaDolar = Number(dolar) || parametros?.tasasRespaldo.dolar || 0;
+  const tasaUf = Number(uf) || parametros?.tasasRespaldo.uf || 0;
+  const tasaEuro = Number(euro) || parametros?.tasasRespaldo.euro || 0;
   // Igual que en Step3Materiales/Step4Fijaciones: el read-only sigue el
   // estado comercial, no esCongelado -- ese flag ahora se activa al asignar
   // cliente (Paso 1) y solo bloquea el resync con HETMO.
@@ -179,36 +173,46 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
     () => new Set((analitica?.materiales ?? []).filter((m) => m.medicion === 'AREA').map((m) => m.materialId)),
     [analitica]
   );
-  // TEMPORAL: el IVA pasa a la configuracion general en la etapa 5.
-  const ivaPct = 19;
+  // IVA de Configuración > Comercial.
+  const ivaPct = parametros?.ivaPct ?? 0;
   const iva = venta * (ivaPct / 100);
   const totalConIva = venta + iva;
 
+  // Textos: los guardados en la version o, si no hay, los de la plantilla
+  // por defecto de su tipo de proyecto (Configuración > Comercial).
   const config = activeVersion?.presupuestoConfig;
-  const [texto, setTexto] = useState(config?.textoPresentacion ?? FALLBACK_TEXTO);
-  const [condiciones, setCondiciones] = useState(config?.condicionesComerciales ?? FALLBACK_CONDICIONES);
+  const [texto, setTexto] = useState(config?.textoPresentacion ?? '');
+  const [condiciones, setCondiciones] = useState(config?.condicionesComerciales ?? '');
   const [editandoTexto, setEditandoTexto] = useState(false);
   const [editandoCondiciones, setEditandoCondiciones] = useState(false);
 
-  // Default global editable desde Configuración -- reemplaza el fallback
-  // hardcodeado en cuanto carga, pero SOLO si este proyecto no tiene su
-  // propio texto guardado (config?.textoPresentacion) y el campo sigue
-  // exactamente en el valor de fallback (todavía nadie lo tocó a mano acá).
-  const { data: configuracionEmpresaData } = useQuery({
-    queryKey: ['configuracionEmpresa'],
-    queryFn: () => getConfiguracionEmpresa(),
+  const { data: plantillaPorDefecto } = useQuery({
+    queryKey: ['plantillaProyecto', proyecto.id, 'COTIZACION', proyecto.tipoProyectoId],
+    queryFn: () => getPlantillaDeProyecto(proyecto.id, 'COTIZACION'),
   });
-  const configuracionEmpresa = configuracionEmpresaData?.configuracionEmpresa;
+  const { data: plantillas = [] } = useQuery({ queryKey: ['plantillasOferta', 'COTIZACION'], queryFn: () => getPlantillasOferta('COTIZACION') });
+  const plantillasDisponibles = plantillas.filter((p) => p.activa && (!p.tipoProyectoId || p.tipoProyectoId === proyecto.tipoProyectoId));
   useEffect(() => {
-    if (!configuracionEmpresa) return;
-    if (!config?.textoPresentacion && configuracionEmpresa.textoPresentacionDefault && texto === FALLBACK_TEXTO) {
-      setTexto(configuracionEmpresa.textoPresentacionDefault);
-    }
-    if (!config?.condicionesComerciales && configuracionEmpresa.condicionesComercialesDefault && condiciones === FALLBACK_CONDICIONES) {
-      setCondiciones(configuracionEmpresa.condicionesComercialesDefault);
-    }
+    if (!plantillaPorDefecto) return;
+    if (!config?.textoPresentacion) setTexto((t) => t || plantillaPorDefecto.textoPresentacion);
+    if (!config?.condicionesComerciales) setCondiciones((c) => c || plantillaPorDefecto.condicionesComerciales);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [configuracionEmpresa]);
+  }, [plantillaPorDefecto?.id]);
+
+  // Elegir otra plantilla copia sus textos a esta version (se pueden seguir editando).
+  const plantillaMutation = useMutation({
+    mutationFn: (plantillaOfertaId: string) => updatePresupuestoConfig(versionId!, { plantillaOfertaId }),
+    onSuccess: (res) => {
+      setTexto(res.presupuestoConfig.textoPresentacion ?? '');
+      setCondiciones(res.presupuestoConfig.condicionesComerciales ?? '');
+      queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyecto.id] });
+    },
+  });
+  const plantillaActual = config?.plantillaOfertaId ?? plantillaPorDefecto?.id ?? '';
+
+  // Redes sociales del pie del PDF (Configuración > Presupuesto).
+  const { data: configuracionEmpresaData } = useQuery({ queryKey: ['configuracionEmpresa'], queryFn: () => getConfiguracionEmpresa() });
+  const configuracionEmpresa = configuracionEmpresaData?.configuracionEmpresa;
 
   const guardarTextoMutation = useMutation({
     mutationFn: () => updatePresupuestoConfig(versionId!, { textoPresentacion: texto }),
@@ -304,6 +308,30 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
           Exportar PDF
         </button>
       </div>
+
+      {plantillasDisponibles.length > 1 && (
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+          <label htmlFor="plantilla-oferta" className="text-xs font-bold uppercase tracking-wider text-slate-800 shrink-0">
+            Plantilla de textos
+          </label>
+          <select
+            id="plantilla-oferta"
+            value={plantillaActual}
+            disabled={congelado || plantillaMutation.isPending}
+            onChange={(e) => {
+              if (window.confirm('¿Reemplazar el texto de presentación y las condiciones por los de esta plantilla?')) plantillaMutation.mutate(e.target.value);
+            }}
+            className="flex-1 text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:border-brand-600"
+          >
+            {plantillasDisponibles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nombre}
+                {p.tipoProyecto ? ` (${p.tipoProyecto.nombre})` : ' (general)'}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
         <div className="flex items-center justify-between">

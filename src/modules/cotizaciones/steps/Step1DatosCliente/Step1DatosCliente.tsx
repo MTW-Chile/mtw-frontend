@@ -3,6 +3,7 @@ import type { Cliente, Proyecto, ProyectoVersion } from '../../../../types';
 import type { NuevoClienteForm } from '../../hooks/useCotizadorWorkspace';
 import { IndicadoresMetricos } from './IndicadoresMetricos';
 import { ClienteManager } from './ClienteManager';
+import { TipoProyectoCard } from './TipoProyectoCard';
 import { VersionActivaCard } from './VersionActivaCard';
 
 interface Step1DatosClienteProps {
@@ -69,6 +70,9 @@ export const Step1DatosCliente: React.FC<Step1DatosClienteProps> = ({
         isSavingObra={isSavingObra}
         onOpenReimport={onOpenReimport}
       />
+
+      {/* Tipo de proyecto: define las plantillas de textos por defecto */}
+      <TipoProyectoCard proyecto={proyecto} congelado={(activeVersion?.estadoAprobacion ?? 'EN_COTIZACION') === 'ACEPTADO_CLIENTE'} />
 
       {/* 2. Cliente: vinculado, a vincular o a crear */}
       <ClienteManager

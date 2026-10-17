@@ -1,6 +1,7 @@
 import React from 'react';
 import { PresupuestoConfigPanel } from './PresupuestoConfigPanel';
 import { CatalogoPanel } from './catalogo/CatalogoPanel';
+import { ComercialPanel } from './comercial/ComercialPanel';
 import { PlantillasPuertasPanel } from './PlantillasPuertasPanel';
 import { RolesUsuarioPanel } from './RolesUsuarioPanel';
 import { EtapasPendientesPanel } from './EtapasPendientesPanel';
@@ -14,6 +15,7 @@ import { useUrlParam } from '../../lib/navigation';
 const PANELES: Record<string, React.ComponentType> = {
   presupuesto: PresupuestoConfigPanel,
   catalogo: CatalogoPanel,
+  comercial: ComercialPanel,
   'plantillas-puertas': PlantillasPuertasPanel,
   'etapas-pendientes': EtapasPendientesPanel,
   onedrive: OneDrivePanel,

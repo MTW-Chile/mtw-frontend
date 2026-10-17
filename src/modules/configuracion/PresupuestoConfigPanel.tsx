@@ -4,17 +4,6 @@ import { Loader2, Save } from 'lucide-react';
 import { getConfiguracionEmpresa, updateConfiguracionEmpresa } from '../../api/client';
 import type { ConfiguracionEmpresa } from '../../types';
 
-// Únicos textos "por defecto" que siguen viviendo en el código, no en la
-// base -- el piso final si la fila de configuración está vacía (recién
-// creada) Y el usuario todavía no cargó nada acá. Antes ESTOS eran los
-// únicos valores posibles (hardcodeados en PresupuestoOferta.tsx); ahora
-// son solo el fallback del fallback.
-const FALLBACK_TEXTO = 'De acuerdo a sus requerimientos y solicitud de cotización, presentamos propuesta de Ventanas MTW con las líneas adecuadas para su proyecto.';
-const FALLBACK_CONDICIONES = `Se considera provisión e instalación de ventanas de PVC y termopaneles según especificación del proyecto.
-Validez de la oferta 30 días.
-Valores expresados en Unidades de Fomento (UF) más IVA.
-Se considera anticipo del 10% del valor del contrato.`;
-
 const Campo: React.FC<{ label: string; hint?: string; children: React.ReactNode }> = ({ label, hint, children }) => (
   <div className="space-y-1.5">
     <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">{label}</label>
@@ -99,27 +88,10 @@ export const PresupuestoConfigPanel: React.FC = () => {
         </div>
       </div>
 
-      <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">Textos por defecto del Presupuesto</h2>
-        <Campo label="Texto de presentación" hint="Se precarga en cada Presupuesto nuevo -- el vendedor lo puede editar por proyecto sin afectar este default.">
-          <textarea
-            rows={3}
-            className={inputClass}
-            placeholder={FALLBACK_TEXTO}
-            value={form.textoPresentacionDefault ?? ''}
-            onChange={(e) => setCampo('textoPresentacionDefault', e.target.value)}
-          />
-        </Campo>
-        <Campo label="Condiciones comerciales" hint="Una condición por línea.">
-          <textarea
-            rows={6}
-            className={inputClass}
-            placeholder={FALLBACK_CONDICIONES}
-            value={form.condicionesComercialesDefault ?? ''}
-            onChange={(e) => setCampo('condicionesComercialesDefault', e.target.value)}
-          />
-        </Campo>
-      </div>
+      <p className="text-[11px] text-slate-500">
+        Los textos de presentación y condiciones comerciales de cotizaciones y adicionales se configuran por tipo de proyecto en
+        Configuración › Comercial › Plantillas.
+      </p>
 
       <div className="flex items-center gap-3">
         <button

@@ -14,6 +14,7 @@ import {
   updateEstadoAprobacion,
 } from '../../../api/client';
 import type { ProyectoVersion, Cliente } from '../../../types';
+import { useParametrosGenerales } from '../../../lib/parametrosGenerales';
 
 export interface NuevoClienteForm {
   nombre: string;
@@ -57,9 +58,12 @@ export function useCotizadorWorkspace(proyectoId: string, pasoInicial: 1 | 2 | 3
   const [showReimportModal, setShowReimportModal] = useState(false);
 
   // Form State para Divisas (Paso 1)
-  const [dolar, setDolar] = useState<string>('950');
-  const [uf, setUf] = useState<string>('38500');
-  const [euro, setEuro] = useState<string>('1030');
+  // Tasas en pantalla: las de la version o, si no tiene, las de respaldo de
+  // Configuración > Comercial.
+  const parametros = useParametrosGenerales();
+  const [dolar, setDolar] = useState<string>('');
+  const [uf, setUf] = useState<string>('');
+  const [euro, setEuro] = useState<string>('');
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   // UI State para Gestión de Clientes (Paso 1)
@@ -174,11 +178,12 @@ export function useCotizadorWorkspace(proyectoId: string, pasoInicial: 1 | 2 | 3
 
   useEffect(() => {
     if (activeVersion) {
-      setDolar(activeVersion.tipoCambioDolar ? String(activeVersion.tipoCambioDolar) : '950');
-      setUf(activeVersion.tipoCambioUF ? String(activeVersion.tipoCambioUF) : '38500');
-      setEuro(activeVersion.tipoCambioEuro ? String(activeVersion.tipoCambioEuro) : '1030');
+      const respaldo = parametros?.tasasRespaldo;
+      setDolar(activeVersion.tipoCambioDolar ? String(activeVersion.tipoCambioDolar) : respaldo ? String(respaldo.dolar) : '');
+      setUf(activeVersion.tipoCambioUF ? String(activeVersion.tipoCambioUF) : respaldo ? String(respaldo.uf) : '');
+      setEuro(activeVersion.tipoCambioEuro ? String(activeVersion.tipoCambioEuro) : respaldo ? String(respaldo.euro) : '');
     }
-  }, [activeVersion]);
+  }, [activeVersion, parametros]);
 
   useEffect(() => {
     if (proyecto) {

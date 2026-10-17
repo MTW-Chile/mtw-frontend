@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Loader2, Check, Send, X as XIcon, Ban, ChevronDown, ChevronRight, Package, Undo2, FileDown, Trash2, ClipboardList } from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { getOrdenesCompra, updateOrdenCompraEstado, eliminarOrdenCompra, renderPdf } from '../../api/client';
+import { getOrdenesCompra, updateOrdenCompraEstado, eliminarOrdenCompra, renderPdf, getConfiguracionGeneral } from '../../api/client';
 import { loadImageDataUrl } from '../cotizaciones/lib/pdfTheme';
 import type { EstadoOC, OrdenCompra } from '../../types';
 import { ETIQUETA_NATURALEZA, pendienteConciliarItem, pendienteRecepcionarItem } from '../../types';
@@ -170,7 +170,8 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
       } catch {
         // Decorativo -- si falla la carga, el PDF sigue sin el logo.
       }
-      const html = buildOrdenCompraHtml(oc, logoDataUrl);
+      const { ivaPct } = await queryClient.fetchQuery({ queryKey: ['configuracionGeneral'], queryFn: getConfiguracionGeneral });
+      const html = buildOrdenCompraHtml(oc, logoDataUrl, ivaPct);
       const filename = `${oc.numero}.pdf`;
       const blob = await renderPdf(html, filename);
       const url = URL.createObjectURL(blob);

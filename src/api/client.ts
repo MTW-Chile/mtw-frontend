@@ -12,6 +12,10 @@ import type {
   FijacionConfig,
   PresupuestoConfig,
   ConfiguracionEmpresa,
+  ParametrosGenerales,
+  TipoProyecto,
+  PlantillaOferta,
+  TipoDocumentoComercial,
   SyncLog,
   Cliente,
   Material,
@@ -492,7 +496,8 @@ export async function updateFijacionConfig(
 
 export async function updatePresupuestoConfig(
   versionId: string,
-  payload: Partial<Pick<PresupuestoConfig, 'textoPresentacion' | 'condicionesComerciales'>>
+  // Con plantillaOfertaId y sin textos, la API copia los textos de la plantilla.
+  payload: Partial<Pick<PresupuestoConfig, 'textoPresentacion' | 'condicionesComerciales'>> & { plantillaOfertaId?: string | null }
 ): Promise<{ success: boolean; presupuestoConfig: PresupuestoConfig }> {
   const response = await apiClient.patch<{ success: boolean; presupuestoConfig: PresupuestoConfig }>(
     `/versiones/${versionId}/presupuesto-config`,
@@ -1674,4 +1679,69 @@ export async function copiarPisoCubicacion(proyectoId: string, payload: { torreI
 
 export async function quitarPosicionVentanaCubicacion(id: string): Promise<void> {
   await apiClient.post(`/cubicacion-unidades/${id}/quitar-posicion`);
+}
+
+// ---- Configuracion comercial ----
+
+export async function getConfiguracionGeneral(): Promise<ParametrosGenerales> {
+  const response = await apiClient.get<{ data: ParametrosGenerales }>('/configuracion-general');
+  return response.data.data;
+}
+
+type ParcialProfundo<T> = { [K in keyof T]?: T[K] extends object ? ParcialProfundo<T[K]> : T[K] };
+
+export async function updateConfiguracionGeneral(payload: ParcialProfundo<ParametrosGenerales>): Promise<ParametrosGenerales> {
+  const response = await apiClient.patch<{ data: ParametrosGenerales }>('/configuracion-general', payload);
+  return response.data.data;
+}
+
+export async function getTiposProyecto(): Promise<TipoProyecto[]> {
+  const response = await apiClient.get<{ data: TipoProyecto[] }>('/tipos-proyecto');
+  return response.data.data;
+}
+
+export async function createTipoProyecto(payload: { codigo: string; nombre: string; orden?: number }): Promise<TipoProyecto> {
+  const response = await apiClient.post<{ data: TipoProyecto }>('/tipos-proyecto', payload);
+  return response.data.data;
+}
+
+export async function updateTipoProyecto(
+  id: string,
+  payload: Partial<Pick<TipoProyecto, 'nombre' | 'orden' | 'activo' | 'porDefecto'>>
+): Promise<TipoProyecto> {
+  const response = await apiClient.patch<{ data: TipoProyecto }>(`/tipos-proyecto/${id}`, payload);
+  return response.data.data;
+}
+
+export async function getPlantillasOferta(tipoDocumento?: TipoDocumentoComercial): Promise<PlantillaOferta[]> {
+  const response = await apiClient.get<{ data: PlantillaOferta[] }>('/plantillas-oferta', { params: { tipoDocumento } });
+  return response.data.data;
+}
+
+export type PlantillaOfertaPayload = Pick<
+  PlantillaOferta,
+  'nombre' | 'tipoDocumento' | 'tipoProyectoId' | 'textoPresentacion' | 'condicionesComerciales'
+> & { porDefecto?: boolean; activa?: boolean };
+
+export async function createPlantillaOferta(payload: PlantillaOfertaPayload): Promise<PlantillaOferta> {
+  const response = await apiClient.post<{ data: PlantillaOferta }>('/plantillas-oferta', payload);
+  return response.data.data;
+}
+
+export async function updatePlantillaOferta(id: string, payload: Partial<PlantillaOfertaPayload>): Promise<PlantillaOferta> {
+  const response = await apiClient.patch<{ data: PlantillaOferta }>(`/plantillas-oferta/${id}`, payload);
+  return response.data.data;
+}
+
+// Plantilla por defecto de un documento para un proyecto (la de su tipo o la general).
+export async function getPlantillaDeProyecto(proyectoId: string, tipoDocumento: TipoDocumentoComercial): Promise<PlantillaOferta | null> {
+  const response = await apiClient.get<{ data: PlantillaOferta | null }>(`/proyectos/${proyectoId}/plantilla-oferta`, {
+    params: { tipoDocumento },
+  });
+  return response.data.data;
+}
+
+export async function setTipoProyecto(proyectoId: string, tipoProyectoId: string): Promise<{ id: string; tipoProyecto: TipoProyecto }> {
+  const response = await apiClient.patch<{ data: { id: string; tipoProyecto: TipoProyecto } }>(`/proyectos/${proyectoId}/tipo`, { tipoProyectoId });
+  return response.data.data;
 }

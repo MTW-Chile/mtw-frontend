@@ -3,8 +3,8 @@
 // 7": título + datos de la empresa arriba, N.º de OC / Fecha, franjas
 // VENDEDOR/CLIENTE, tabla PRODUCTO O SERVICIO con resumen Subtotal/
 // Impuesto/Total, y Comentarios al final) -- reemplazando "CLIENTE" por
-// "OBRA" (no hay un cliente en una OC, hay un proyecto) y el IVA 19% fijo
-// que ya usa el Presupuesto (ver PresupuestoOferta.tsx) en vez de
+// "OBRA" (no hay un cliente en una OC, hay un proyecto) y el IVA de
+// Configuración > Comercial (el mismo del Presupuesto) en vez de
 // inventar un campo de envío que no se rastrea en ningún lado. Colores y
 // tipografia reusan la paleta de presupuestoPdf.ts (HEX.navy calza casi
 // exacto con el gris-azulado de la plantilla de referencia) para que se
@@ -13,7 +13,6 @@
 import { HEX, escapeHtml } from '../cotizaciones/steps/Step5Consolidacion/presupuestoPdf';
 import type { OrdenCompra } from '../../types';
 
-const IVA_PCT = 19;
 
 const formatoMonto = (valor: number, moneda: string) =>
   valor.toLocaleString('es-CL', {
@@ -32,10 +31,10 @@ const filaDato = (label: string, valor: string | null | undefined) =>
     ? `<tr><td style="padding:2px 8px 2px 0;width:56px;color:${HEX.gris};font-size:8.5px;vertical-align:top;">${escapeHtml(label)}</td><td style="padding:2px 0;font-size:9.5px;color:${HEX.navy};">${escapeHtml(valor)}</td></tr>`
     : '';
 
-export function buildOrdenCompraHtml(oc: OrdenCompra, logoDataUrl: string | null): string {
+export function buildOrdenCompraHtml(oc: OrdenCompra, logoDataUrl: string | null, ivaPct: number): string {
   const proveedor = oc.proveedor;
   const subtotal = oc.items.reduce((sum, i) => sum + Number(i.cantidad) * Number(i.precioUnitario), 0);
-  const iva = subtotal * (IVA_PCT / 100);
+  const iva = subtotal * (ivaPct / 100);
   const total = subtotal + iva;
   const fechaEmision = new Date(oc.fechaEnvio || oc.creadoEn).toLocaleDateString('es-CL');
   const logoImg = logoDataUrl ? `<img src="${logoDataUrl}" style="width:101px;height:46px;display:block;" />` : '';
@@ -148,7 +147,7 @@ export function buildOrdenCompraHtml(oc: OrdenCompra, logoDataUrl: string | null
           </tr>
           <tr>
             <td colspan="3"></td>
-            <td style="padding:6px 10px;font-size:9.5px;font-weight:bold;color:${HEX.navy};text-align:right;">IVA (${IVA_PCT}%)</td>
+            <td style="padding:6px 10px;font-size:9.5px;font-weight:bold;color:${HEX.navy};text-align:right;">IVA (${ivaPct}%)</td>
             <td style="padding:6px 10px;font-size:9.5px;color:${HEX.navy};text-align:right;">${escapeHtml(formatoMonto(iva, oc.moneda))}</td>
           </tr>
           <tr>

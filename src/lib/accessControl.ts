@@ -1,5 +1,5 @@
 import type { ElementType } from 'react';
-import { LayoutDashboard, Building2, FolderKanban, Settings, FileText, DoorClosed, ShieldCheck, Warehouse, ShoppingCart, Users, ListChecks, Cloud, Boxes } from 'lucide-react';
+import { LayoutDashboard, Building2, FolderKanban, Settings, FileText, DoorClosed, ShieldCheck, Warehouse, ShoppingCart, Users, ListChecks, Cloud, Boxes, Briefcase } from 'lucide-react';
 import type { Permiso } from '../types';
 
 export interface EntradaAcceso {
@@ -17,7 +17,8 @@ export interface EntradaAcceso {
 
 // Pestañas de Configuración (también definen si se ve la sección Configuración).
 export const CONFIG_TABS: EntradaAcceso[] = [
-  { id: 'presupuesto', label: 'Presupuesto', icon: FileText, permisos: ['config.empresa'] },
+  { id: 'comercial', label: 'Comercial', icon: Briefcase, permisos: ['config.comercial'] },
+  { id: 'presupuesto', label: 'Empresa', icon: FileText, permisos: ['config.empresa'] },
   { id: 'catalogo', label: 'Catálogo', icon: Boxes, permisos: ['config.catalogo'] },
   { id: 'plantillas-puertas', label: 'Plantillas de Puertas', icon: DoorClosed, permisos: ['config.catalogo'] },
   { id: 'etapas-pendientes', label: 'Etapas de pendientes', icon: ListChecks, permisos: ['config.obras'] },

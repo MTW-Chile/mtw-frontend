@@ -295,6 +295,8 @@ export interface FijacionExtra {
 export interface PresupuestoConfig {
   id: string;
   versionId: string;
+  // Plantilla de la que partieron los textos (los textos editados quedan aca).
+  plantillaOfertaId?: string | null;
   textoPresentacion: string | null;
   condicionesComerciales: string | null;
 }
@@ -305,8 +307,53 @@ export interface ConfiguracionEmpresa {
   footerWebLabel: string | null;
   footerInstagramUrl: string | null;
   footerInstagramHandle: string | null;
-  textoPresentacionDefault: string | null;
-  condicionesComercialesDefault: string | null;
+}
+
+// ---- Configuracion comercial (Configuracion > Comercial) ----
+
+export interface ParametrosGenerales {
+  ivaPct: number;
+  // Tasas que se usan cuando una version todavia no tiene las suyas.
+  tasasRespaldo: { dolar: number; euro: number; uf: number };
+  // Hoja de Fijacion por defecto.
+  fijacion: {
+    manoObraM2: number;
+    filmM2: number;
+    materialInstalacionM2: number;
+    valorViaje: number;
+    ventanasPorViaje: number;
+    instalacionM2: number;
+    instalacionProtexM2: number;
+    margenPct: number;
+  };
+  // Aprobacion gerencial de adicionales: si se exige y desde que monto (UF; null = siempre).
+  adicional: { requiereAprobacion: boolean; umbralAprobacionUf: number | null };
+  // Conciliacion de facturas (fracciones: 0.005 = 0,5%).
+  conciliacion: { toleranciaCuadre: number; toleranciaSugerencia: number; toleranciaFiltro: number };
+}
+
+export interface TipoProyecto {
+  id: string;
+  codigo: string;
+  nombre: string;
+  orden: number;
+  activo: boolean;
+  porDefecto: boolean;
+  _count?: { proyectos: number };
+}
+
+export type TipoDocumentoComercial = 'COTIZACION' | 'ADICIONAL';
+
+export interface PlantillaOferta {
+  id: string;
+  nombre: string;
+  tipoDocumento: TipoDocumentoComercial;
+  tipoProyectoId: string | null;
+  tipoProyecto: Pick<TipoProyecto, 'id' | 'codigo' | 'nombre'> | null;
+  textoPresentacion: string;
+  condicionesComerciales: string;
+  porDefecto: boolean;
+  activa: boolean;
 }
 
 export interface FijacionConfig {
@@ -462,6 +509,9 @@ export interface ProyectoVersion {
 
 export interface Proyecto {
   id: string;
+  // Retail, Obra... (Configuracion > Comercial).
+  tipoProyectoId?: string;
+  tipoProyecto?: Pick<TipoProyecto, 'id' | 'codigo' | 'nombre'>;
   hetmoSinVersion: number;
   numeroPresupuesto: number;
   codigoInterno: string | null;

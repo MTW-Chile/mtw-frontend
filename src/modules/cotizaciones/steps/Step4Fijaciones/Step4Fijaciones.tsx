@@ -9,6 +9,7 @@ import { useAnalitica, useAnaliticaSimulada } from '../../lib/useAnalitica';
 import { computeCantidadCuadros } from '../../lib/cuadros';
 import { MTW_NAVY, MTW_GRIS, MTW_BORDE, pdfTableStyle, drawPdfHeader } from '../../lib/pdfTheme';
 import { usePermisos } from '../../../../lib/permisos';
+import { useParametrosGenerales } from '../../../../lib/parametrosGenerales';
 
 interface Step4FijacionesProps {
   proyecto: Proyecto;
@@ -117,9 +118,11 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
   const queryClient = useQueryClient();
   const { tiene } = usePermisos();
   const puedeAprobarGerencia = tiene('presupuestos.aprobar_gerencial');
-  const tasaDolar = Number(dolar) || 950;
-  const tasaUf = Number(uf) || 38500;
-  const tasaEuro = Number(euro) || 1030;
+  // Sin tasa en pantalla: las de respaldo de Configuración > Comercial.
+  const parametros = useParametrosGenerales();
+  const tasaDolar = Number(dolar) || parametros?.tasasRespaldo.dolar || 0;
+  const tasaUf = Number(uf) || parametros?.tasasRespaldo.uf || 0;
+  const tasaEuro = Number(euro) || parametros?.tasasRespaldo.euro || 0;
   const tasas = useMemo(() => ({ dolar: tasaDolar, euro: tasaEuro, uf: tasaUf }), [tasaDolar, tasaEuro, tasaUf]);
 
   const versionId = activeVersion?.id;
