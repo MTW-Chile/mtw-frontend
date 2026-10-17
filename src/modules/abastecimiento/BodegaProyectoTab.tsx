@@ -126,7 +126,7 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
       { key: 'sku', tipo: 'texto', label: 'SKU', accessor: (s) => s.material.skuInterno },
       { key: 'material', tipo: 'texto', label: 'Material', accessor: (s) => s.material.descripcion },
       ...(!proyectoId ? ([{ key: 'obra', tipo: 'texto', label: 'Obra', accessor: (s) => labelBodega(s.bodega) }] as ColumnFilterDef<(typeof stock)[number]>[]) : []),
-      { key: 'partida', tipo: 'texto', label: 'Partida', accessor: (s) => s.material.familia },
+      { key: 'partida', tipo: 'texto', label: 'Partida', accessor: (s) => s.material.tipoProducto?.partida?.nombre ?? s.material.familia },
     ],
     [proyectoId]
   );
@@ -251,7 +251,7 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
                             </div>
                           </td>
                           {!proyectoId && <td className="px-4 py-3 text-slate-600 truncate max-w-0">{labelBodega(s.bodega)}</td>}
-                          <td className="px-4 py-3 text-slate-500">{s.material.familia}</td>
+                          <td className="px-4 py-3 text-slate-500">{s.material.tipoProducto?.partida?.nombre ?? s.material.familia}</td>
                           <td className="px-4 py-3 text-right font-bold text-slate-900 whitespace-nowrap">
                             {Number(s.cantidad).toLocaleString('es-CL')} {s.material.unidadMedida}
                           </td>
@@ -305,7 +305,7 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
                         )}
                       </div>
                       {!proyectoId && <p className="text-[11px] text-slate-500">{labelBodega(s.bodega)}</p>}
-                      <p className="text-[11px] text-slate-400">{s.material.familia}</p>
+                      <p className="text-[11px] text-slate-400">{s.material.tipoProducto?.partida?.nombre ?? s.material.familia}</p>
                     </div>
                     <div className="text-right shrink-0 text-xs font-bold text-slate-900 whitespace-nowrap">
                       {Number(s.cantidad).toLocaleString('es-CL')} {s.material.unidadMedida}

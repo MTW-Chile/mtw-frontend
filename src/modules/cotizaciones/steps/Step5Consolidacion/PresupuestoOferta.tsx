@@ -3,20 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileDown, Loader2, Pencil, Check } from 'lucide-react';
 import type { Proyecto, ProyectoVersion, Ventana } from '../../../../types';
 import { formatNumber } from '../../../../lib/utils';
-import { useMonedas } from '../../../../lib/monedas';
 import { updatePresupuestoConfig, updateVentanaPresupuesto, renderPdf, getConfiguracionEmpresa } from '../../../../api/client';
 import { WindowRendererSvg } from '../../components/drawing/WindowRendererSvg';
 import { buildProtexDoorSvg } from '../../components/drawing/protexDoorSvg';
 import { toWindowLine } from '../../components/drawing/ventanaAdapter';
 import { createFinish, getAcabadoLabel } from '../../components/drawing/colorSystem';
 import * as core from '../../components/drawing/geometryCore';
-import {
-  computeMaterialesConsolidados,
-  computeCostoTotalYVenta,
-  computeCostoVentanaCLP,
-  computeCostoMaterialesPersonalizadosCLP,
-} from '../../lib/materialesConsolidados';
-import { computePreciosVenta } from '../../lib/presupuesto';
+import { useAnalitica } from '../../lib/useAnalitica';
 import { loadImageDataUrl } from '../../lib/pdfTheme';
 import { ufLabel, rasterizarDibujos, buildDocumentoHtml, buildHeaderFooterTemplates } from './presupuestoPdf';
 
@@ -157,7 +150,6 @@ const ObservacionEditable: React.FC<{ ventana: Ventana; onGuardado: (v: Partial<
 
 export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, activeVersion, dolar, uf, euro }) => {
   const queryClient = useQueryClient();
-  const monedas = useMonedas();
   const tasaDolar = Number(dolar) || 950;
   const tasaUf = Number(uf) || 38500;
   const tasaEuro = Number(euro) || 1030;
@@ -174,35 +166,20 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
     [activeVersion?.ventanas, ventanasLocal]
   );
 
-  const materialesConsolidados = useMemo(
-    () => computeMaterialesConsolidados(activeVersion, tasaDolar, tasaEuro, tasaUf, monedas),
-    [activeVersion, tasaDolar, tasaEuro, tasaUf, monedas]
-  );
-  const aprobacionesPorFamilia = useMemo(
-    () => new Map((activeVersion?.familiaAprobaciones || []).map((f) => [f.familia, f])),
-    [activeVersion?.familiaAprobaciones]
-  );
-  const { venta, costoTotal } = useMemo(
-    () => computeCostoTotalYVenta(activeVersion, materialesConsolidados, aprobacionesPorFamilia),
-    [activeVersion, materialesConsolidados, aprobacionesPorFamilia]
-  );
-  const ajustesPorMaterial = useMemo(
-    () => new Map((activeVersion?.materialAjustes || []).map((a) => [a.materialId, a])),
-    [activeVersion?.materialAjustes]
-  );
+  // Venta y precio por línea los calcula mtw-api (el mismo prorrateo con que
+  // se congelan al aceptar la cotización).
+  const { data: analitica } = useAnalitica(proyecto.id, versionId, { dolar: tasaDolar, euro: tasaEuro, uf: tasaUf });
+  const venta = analitica?.totales.venta ?? 0;
   const preciosVenta = useMemo(
-    () =>
-      computePreciosVenta(
-        ventanas,
-        activeVersion?.sumaTotalLineas,
-        venta,
-        (v) => computeCostoVentanaCLP(v, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas),
-        costoTotal,
-        tasaUf,
-        (v) => computeCostoMaterialesPersonalizadosCLP(v, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas)
-      ),
-    [ventanas, activeVersion?.sumaTotalLineas, venta, costoTotal, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas]
+    () => new Map((analitica?.preciosVenta ?? []).map(({ ventanaId, ...p }) => [ventanaId, p])),
+    [analitica]
   );
+  // Vidrios de cada linea: los materiales que se miden por area (segun su tipo de producto).
+  const materialesPorArea = useMemo(
+    () => new Set((analitica?.materiales ?? []).filter((m) => m.medicion === 'AREA').map((m) => m.materialId)),
+    [analitica]
+  );
+  // TEMPORAL: el IVA pasa a la configuracion general en la etapa 5.
   const ivaPct = 19;
   const iva = venta * (ivaPct / 100);
   const totalConIva = venta + iva;
@@ -372,7 +349,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
           const finish = createFinish(line?.acabadoCodigo, line?.acabadoDescripcion, line?.acabadoPatron);
           const finishLabel = getAcabadoLabel(v.acabadoCodigo, v.acabadoDescripcion);
           const vidrio = Array.from(
-            new Set((v.materiales || []).filter((m) => !m.excluido && (m.material?.familia || '').toUpperCase().trim() === 'VIDRIOS').map((m) => m.material?.descripcion || ''))
+            new Set((v.materiales || []).filter((m) => !m.excluido && materialesPorArea.has(m.materialId)).map((m) => m.material?.descripcion || ''))
           ).filter(Boolean).join(' + ');
 
           return (

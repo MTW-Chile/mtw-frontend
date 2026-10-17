@@ -12,7 +12,7 @@ import { buildWindow } from '../../components/drawing/windowGeometryBuilder';
 import { buildProtexDoorSvg } from '../../components/drawing/protexDoorSvg';
 import { getAcabadoNombre } from '../../components/drawing/colorSystem';
 import * as core from '../../components/drawing/geometryCore';
-import type { PrecioVentaLinea } from '../../lib/presupuesto';
+import type { PrecioVentaLinea } from '../../../../types';
 
 // Paleta medida a pixel del documento de referencia real (Presupuesto Casa La
 // Aurora, PDF del sistema anterior): borde/franja de cabecera #bacce5, filas
@@ -290,11 +290,10 @@ function analizarVentana(v: Ventana): VentanaAnalisis {
   // social.
   const nombreProveedor = (m: MaterialVentana) =>
     (m.material?.proveedor?.nombreFantasia || m.material?.proveedor?.nombre || '').trim();
-  // HETMO escribe la familia como 'Perfileria'/'Herrajes'/'Vidrios' (ver
-  // HetmoRepository.cs en mtw-hetmo), no en mayúsculas -- comparar directo
-  // contra 'PERFILERIA' nunca calzaba y estas filas salían siempre vacías.
-  const materialesDe = (familia: string) =>
-    (v.materiales || []).filter((m) => !m.excluido && (m.material?.familia || '').toUpperCase().trim() === familia);
+  // Por el código de partida del tipo de producto (los códigos no se editan:
+  // los usan integraciones y reportes); los vidrios, por medirse por área.
+  const incluidos = (v.materiales || []).filter((m) => !m.excluido);
+  const materialesDe = (partida: string) => incluidos.filter((m) => m.material?.tipoProducto?.partida?.codigo === partida);
   const serieBase = core.profileSeries({ modelo: v.descripcionCorta || v.modelo });
   const finishNombre = getAcabadoNombre(v.acabadoCodigo, v.acabadoDescripcion);
   // Proveedor de perfil = el que aporta MÁS filas de Perfileria -- HETMO
@@ -313,7 +312,9 @@ function analizarVentana(v: Ventana): VentanaAnalisis {
     finishNombre ? `Color ${finishNombre}` : null,
     proveedorHerraje ? `Herrajes ${proveedorHerraje}` : null,
   ].filter(Boolean).join(' - ');
-  const vidrio = Array.from(new Set(materialesDe('VIDRIOS').map((m) => m.material?.descripcion || ''))).filter(Boolean).join(' + ');
+  const vidrio = Array.from(
+    new Set(incluidos.filter((m) => m.material?.tipoProducto?.medicion === 'AREA').map((m) => m.material?.descripcion || ''))
+  ).filter(Boolean).join(' + ');
   // Una línea "sin marco" (dibujoSinMarco/isFrameless -- exige material
   // coincidente Y vidrio explícito, no es un simple "vacío -> sin marco",
   // ver el comentario largo en ventanaAdapter.ts) es en los hechos solo

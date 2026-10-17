@@ -9,19 +9,15 @@ import { useMonedas, resolverMoneda, formatMonto } from '../../../../lib/monedas
 import {
   reemplazarMaterialEnVersion,
   saveMaterialAjuste,
-  setFamiliaAprobacion,
-  setFamiliaDescuento,
-  setFamiliaRecargo,
+  setPartidaAprobacion,
+  setPartidaDescuento,
+  setPartidaRecargo,
   updateEstadoAprobacion,
 } from '../../../../api/client';
-import type { Proyecto, ProyectoVersion } from '../../../../types';
+import type { MaterialAnalitica, PartidaAnalitica, Proyecto, ProyectoVersion } from '../../../../types';
 import { DivisasForm, DivisasResumen } from '../Step1DatosCliente/DivisasForm';
 import { ReemplazarMaterialModal } from './ReemplazarMaterialModal';
-import {
-  computeMaterialesConsolidados,
-  montoConAjuste,
-  type MaterialConsolidado,
-} from '../../lib/materialesConsolidados';
+import { useAnalitica, factorPartida, decimalesCantidad } from '../../lib/useAnalitica';
 import { MTW_NAVY, MTW_GRIS, MTW_BORDE, MTW_HEAD_BG, pdfTableStyle, drawPdfHeader } from '../../lib/pdfTheme';
 import { usePermisos } from '../../../../lib/permisos';
 
@@ -54,14 +50,6 @@ const formatUF = (valor: number) =>
 const mensajeDeError = (err: unknown, fallback: string) => {
   const del = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
   return del || (err instanceof Error ? err.message : fallback);
-};
-
-// Orden de categorias pedido explicitamente, no alfabetico. Cualquier
-// familia que no este en la lista (ej. "Otros") va al final, alfabetica.
-const ORDEN_FAMILIAS = ['PERFILERIA', 'ACCESORIOS', 'REFUERZOS', 'HERRAJES', 'VIDRIOS'];
-const ordenFamilia = (familia: string) => {
-  const idx = ORDEN_FAMILIAS.indexOf(familia);
-  return idx === -1 ? ORDEN_FAMILIAS.length : idx;
 };
 
 // Input numerico inline: mantiene texto local mientras se edita y solo
@@ -103,10 +91,6 @@ const PrecioEditable: React.FC<{
   );
 };
 
-// Unidad que se muestra para un material: vidrios van en m², juntas en metros.
-const unidadDe = (m: MaterialConsolidado, familia: string) =>
-  familia === 'VIDRIOS' ? 'M²' : m.familiaCruda === 'JUNTAS' ? 'M' : m.unidadMedida;
-
 // Botón de estado Incluido / Excluido (cada material se puede excluir del total).
 const EstadoMaterial: React.FC<{ excluido: boolean; disabled: boolean; onClick: () => void; title: string }> = ({
   excluido,
@@ -132,7 +116,7 @@ const BotonReemplazar: React.FC<{ disabled: boolean; onClick: () => void }> = ({
   <button
     onClick={onClick}
     disabled={disabled}
-    title={disabled ? 'Categoría aprobada o presupuesto congelado -- no se puede modificar' : 'Reemplazar este material en todas las líneas'}
+    title={disabled ? 'Partida aprobada o presupuesto congelado -- no se puede modificar' : 'Reemplazar este material en todas las líneas'}
     aria-label="Reemplazar material"
     className={`shrink-0 w-7 h-7 rounded-lg border flex items-center justify-center transition-colors disabled:cursor-not-allowed ${
       disabled
@@ -167,7 +151,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
 }) => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
-  const [familiaColapsada, setFamiliaColapsada] = useState<Record<string, boolean>>({});
+  const [partidaColapsada, setPartidaColapsada] = useState<Record<string, boolean>>({});
 
   const monedas = useMonedas();
   const tasaDolar = Number(dolar) || 950;
@@ -190,8 +174,9 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   // ACEPTADO_CLIENTE el retroceso se maneja desde el Paso 5, no desde aca.
   const puedeDeshacerAca = estadoActual === 'ESPERANDO_APROBACION_COMERCIAL';
 
-  // Sólo invalida el detalle de este proyecto: nada de lo que se edita acá
-  // (ajustes de material, aprobación/descuento/recargo por familia) se
+  // Sólo invalida el detalle de este proyecto (y con él la Analítica, que
+  // cuelga de la misma key): nada de lo que se edita acá
+  // (ajustes de material, aprobación/descuento/recargo por partida) se
   // muestra en el listado de proyectos (['proyectos'], CotizacionesPage.tsx
   // -- ahí sólo aparecen codigoInterno, los datos crudos de cliente y el
   // estadoGlosa de HETMO), así que invalidarlo en cada ajuste sólo generaba
@@ -200,68 +185,49 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyecto.id] });
   };
 
-  // Ajustes por material: exclusion, precio y familia personalizados. Se
-  // guardan directo contra la API al tocarlos -- nada de estado "flotante"
-  // que se pierda al recargar.
+  // Ajustes por material: exclusion y precio personalizado. Se guardan
+  // directo contra la API al tocarlos -- nada de estado "flotante" que se
+  // pierda al recargar. La API actualiza solo los campos que recibe.
   const ajusteMutation = useMutation({
-    mutationFn: (payload: {
-      materialId: string;
-      excluido: boolean;
-      familia: string;
-      precioPersonalizado?: number;
-      monedaPersonalizada?: string;
-    }) => {
+    mutationFn: (payload: { materialId: string; excluido?: boolean; precioPersonalizado?: number; monedaPersonalizada?: string }) => {
       if (!versionId) return Promise.resolve(null);
-      return saveMaterialAjuste(versionId, {
-        materialId: payload.materialId,
-        excluido: payload.excluido,
-        familiaPersonalizada: payload.familia,
-        precioPersonalizado: payload.precioPersonalizado,
-        monedaPersonalizada: payload.monedaPersonalizada,
-      });
+      return saveMaterialAjuste(versionId, payload);
     },
     onSuccess: invalidar,
   });
 
-  // Reenvia siempre excluido/familia actuales junto con el cambio puntual --
-  // el endpoint sobreescribe esos campos con lo que reciba, asi que mandar
-  // solo el campo que cambio resetearia los demas (ej. excluido volveria a
-  // false). precioPersonalizado/monedaPersonalizada se omiten cuando no se
-  // esta editando precio, para no "congelar" el precio de HETMO como
-  // override cada vez que solo se toca la exclusion.
   const guardarAjuste = (
-    m: MaterialConsolidado,
+    m: MaterialAnalitica,
     cambios: { excluido?: boolean; precioOrigen?: number; monedaOrigen?: string }
   ) => {
     ajusteMutation.mutate({
       materialId: m.materialId,
-      excluido: cambios.excluido ?? m.excluido,
-      familia: m.familia,
+      excluido: cambios.excluido,
       precioPersonalizado: cambios.precioOrigen,
       monedaPersonalizada: cambios.precioOrigen !== undefined ? cambios.monedaOrigen ?? m.monedaOrigen : undefined,
     });
   };
 
-  const familiaAprobacionMutation = useMutation({
-    mutationFn: (payload: { familia: string; aprobada: boolean }) => {
+  const partidaAprobacionMutation = useMutation({
+    mutationFn: (payload: { partida: string; aprobada: boolean }) => {
       if (!versionId) return Promise.resolve(null);
-      return setFamiliaAprobacion(versionId, payload.familia, payload.aprobada);
+      return setPartidaAprobacion(versionId, payload.partida, payload.aprobada);
     },
     onSuccess: invalidar,
   });
 
-  const familiaDescuentoMutation = useMutation({
-    mutationFn: (payload: { familia: string; descuentoPct: number }) => {
+  const partidaDescuentoMutation = useMutation({
+    mutationFn: (payload: { partida: string; descuentoPct: number }) => {
       if (!versionId) return Promise.resolve(null);
-      return setFamiliaDescuento(versionId, payload.familia, payload.descuentoPct);
+      return setPartidaDescuento(versionId, payload.partida, payload.descuentoPct);
     },
     onSuccess: invalidar,
   });
 
-  const familiaRecargoMutation = useMutation({
-    mutationFn: (payload: { familia: string; recargoPct: number }) => {
+  const partidaRecargoMutation = useMutation({
+    mutationFn: (payload: { partida: string; recargoPct: number }) => {
       if (!versionId) return Promise.resolve(null);
-      return setFamiliaRecargo(versionId, payload.familia, payload.recargoPct);
+      return setPartidaRecargo(versionId, payload.partida, payload.recargoPct);
     },
     onSuccess: invalidar,
   });
@@ -288,8 +254,8 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   const aprobarTodoMutation = useMutation({
     mutationFn: async () => {
       if (!versionId) return null;
-      const pendientes = gruposPorFamilia.filter(([familia]) => !aprobacionesPorFamilia.get(familia)?.aprobada);
-      await Promise.all(pendientes.map(([familia]) => setFamiliaAprobacion(versionId, familia, true)));
+      const pendientes = partidas.filter((p) => !p.aprobada);
+      await Promise.all(pendientes.map((p) => setPartidaAprobacion(versionId, p.codigo, true)));
       return null;
     },
     onSuccess: invalidar,
@@ -298,7 +264,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   // Reemplazo de un material en todas las líneas de la versión (ver
   // ReemplazarMaterialModal). Al terminar, refresca el detalle como cualquier
   // otro ajuste de esta pantalla.
-  const [reemplazoOrigen, setReemplazoOrigen] = useState<MaterialConsolidado | null>(null);
+  const [reemplazoOrigen, setReemplazoOrigen] = useState<MaterialAnalitica | null>(null);
   const reemplazoMutation = useMutation({
     mutationFn: (payload: { materialIdOriginal: string; materialIdNuevo: string }) => {
       if (!versionId) return Promise.reject(new Error('No hay una versión activa.'));
@@ -310,13 +276,15 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     },
   });
 
-  // Consolidar todos los materiales de las ventanas de esta versión, con los
-  // ajustes ya guardados (exclusion / familia personalizada) aplicados.
-  // Logica compartida con Step4Fijaciones -- ver materialesConsolidados.ts.
-  const materialesConsolidados: MaterialConsolidado[] = useMemo(
-    () => computeMaterialesConsolidados(activeVersion, tasaDolar, tasaEuro, tasaUf, monedas),
-    [activeVersion, tasaDolar, tasaEuro, tasaUf, monedas]
-  );
+  // Analítica calculada en mtw-api (motor único) con las tasas que se ven en
+  // pantalla: al editar una divisa se recalcula sin guardarla.
+  const { data: analitica, isLoading: cargandoAnalitica } = useAnalitica(proyecto.id, versionId, {
+    dolar: tasaDolar,
+    euro: tasaEuro,
+    uf: tasaUf,
+  });
+  const materiales = useMemo(() => analitica?.materiales ?? [], [analitica]);
+  const partidas = useMemo(() => analitica?.partidas ?? [], [analitica]);
 
   // Líneas de la versión que contienen cada material (HETMO o agregado a mano).
   // Solo cuenta lo visible: un HETMO ya reemplazado no aparece en la línea.
@@ -328,63 +296,39 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     return map;
   }, [activeVersion]);
 
-  // Unidad de medida tal como viene del maestro (no la de la Analítica, que
-  // puede ser BARRA en Perfilería): es la que decide con qué materiales se puede reemplazar.
-  const unidadMaestroPorMaterial = useMemo(() => {
-    const map = new Map<string, string>();
-    (activeVersion?.ventanas || []).forEach((v) =>
-      (v.materiales || []).forEach((mv) => {
-        if (!map.has(mv.materialId) && mv.material?.unidadMedida) map.set(mv.materialId, mv.material.unidadMedida);
-      })
-    );
-    return map;
-  }, [activeVersion]);
-
-  // Filtrado por buscador
+  // Filtrado por buscador (solo filas: los totales son siempre los de toda la versión).
   const filteredMateriales = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
-    if (!term) return materialesConsolidados;
-    return materialesConsolidados.filter((m) => {
+    if (!term) return materiales;
+    return materiales.filter((m) => {
       const matchSku = m.skuInterno.toLowerCase().includes(term);
       const matchDesc = m.descripcion.toLowerCase().includes(term);
       const matchProv = m.proveedorNombre.toLowerCase().includes(term);
       return matchSku || matchDesc || matchProv;
     });
-  }, [materialesConsolidados, searchTerm]);
+  }, [materiales, searchTerm]);
 
-  // Agrupado por familia -- cada una es su propia seccion con aprobacion
-  // independiente, como en la Analitica de Materiales del sistema anterior.
-  const gruposPorFamilia = useMemo(() => {
-    const map = new Map<string, MaterialConsolidado[]>();
+  // Agrupado por partida, en el orden configurado en Configuración > Catálogo.
+  // Cada partida tiene aprobación, descuento y recargo propios.
+  const gruposPorPartida = useMemo(() => {
+    const porCodigo = new Map<string, MaterialAnalitica[]>();
     filteredMateriales.forEach((m) => {
-      const list = map.get(m.familia) || [];
+      const list = porCodigo.get(m.partida.codigo) || [];
       list.push(m);
-      map.set(m.familia, list);
+      porCodigo.set(m.partida.codigo, list);
     });
-    return Array.from(map.entries()).sort((a, b) => {
-      const diff = ordenFamilia(a[0]) - ordenFamilia(b[0]);
-      return diff !== 0 ? diff : a[0].localeCompare(b[0]);
-    });
-  }, [filteredMateriales]);
+    return partidas
+      .filter((p) => porCodigo.has(p.codigo))
+      .map((p) => [p, porCodigo.get(p.codigo)!] as [PartidaAnalitica, MaterialAnalitica[]]);
+  }, [filteredMateriales, partidas]);
 
-  const aprobacionesPorFamilia = useMemo(
-    () => new Map((activeVersion?.familiaAprobaciones || []).map((f) => [f.familia, f])),
-    [activeVersion?.familiaAprobaciones]
-  );
+  const todasLasPartidasAprobadas = partidas.length > 0 && partidas.every((p) => p.aprobada);
 
-  const todasLasFamiliasAprobadas =
-    gruposPorFamilia.length > 0 && gruposPorFamilia.every(([familia]) => aprobacionesPorFamilia.get(familia)?.aprobada);
-
-  // Totales -- el descuento y el recargo de cada familia se aplican sobre
-  // el total CLP de sus materiales incluidos (nunca sobre el precio de
-  // cada material individual). Se combinan como dos ajustes porcentuales
-  // independientes: primero se descuenta, despues se recarga.
-  const costoTotalCLP = filteredMateriales
-    .filter((m) => !m.excluido)
-    .reduce((acc, m) => acc + montoConAjuste(m, aprobacionesPorFamilia), 0);
-
+  // Total con el descuento y recargo de cada partida (aplicados al total de
+  // la partida, nunca al precio de cada material) -- lo calcula mtw-api.
+  const costoTotalCLP = analitica?.totales.materialesTotal ?? 0;
   const costoTotalUF = tasaUf > 0 ? costoTotalCLP / tasaUf : 0;
-  const cantidadExcluidos = materialesConsolidados.filter((m) => m.excluido).length;
+  const cantidadExcluidos = materiales.filter((m) => m.excluido).length;
 
   const exportarPDF = async () => {
     // jsPDF + autotable pesan ~430KB: se cargan recién al exportar, no con
@@ -417,14 +361,12 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     doc.text(proyecto.obra, margen, y);
     y += 22;
 
-    gruposPorFamilia.forEach(([familia, materiales]) => {
-      const aprobacion = aprobacionesPorFamilia.get(familia);
-      const descuento = Number(aprobacion?.descuentoPct) || 0;
-      const recargo = Number(aprobacion?.recargoPct) || 0;
-      const factorFamilia = (1 - descuento / 100) * (1 + recargo / 100);
-      const totalFamilia = materiales
-        .filter((m) => !m.excluido)
-        .reduce((acc, m) => acc + m.precioCLP * m.cantidadTotal, 0) * factorFamilia;
+    gruposPorPartida.forEach(([partida, materiales]) => {
+      const familia = partida.nombre;
+      const descuento = partida.descuentoPct ?? 0;
+      const recargo = partida.recargoPct ?? 0;
+      const factorFamilia = factorPartida(partida);
+      const totalFamilia = partida.total;
 
       if (y > pageBottom - 40) {
         doc.addPage();
@@ -463,8 +405,8 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
           m.proveedorNombre,
           formatMonto(m.precioOrigen, resolverMoneda(m.monedaOrigen, monedas)),
           `$ ${formatNumber(m.precioCLP, 2)}`,
-          formatNumber(m.cantidadTotal, familia === 'VIDRIOS' ? 2 : 0),
-          familia === 'VIDRIOS' ? 'M²' : m.familiaCruda === 'JUNTAS' ? 'M' : m.unidadMedida,
+          formatNumber(m.cantidadTotal, decimalesCantidad(m.cantidadTotal)),
+          m.unidad.simbolo,
           `$ ${formatNumber(m.precioCLP * m.cantidadTotal * factorFamilia, 0)}`,
           m.excluido ? 'Excluido' : 'Incluido',
         ]),
@@ -509,17 +451,16 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
       return /[",\n]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
     };
     const encabezados = [
-      'Familia', 'SKU', 'Descripción', 'Proveedor', 'Precio Unit. Origen', 'Moneda Origen',
+      'Partida', 'SKU', 'Descripción', 'Proveedor', 'Precio Unit. Origen', 'Moneda Origen',
       'Precio Unit. CLP', 'Cantidad', 'Unidad', 'Descuento %', 'Recargo %', 'Total CLP', 'Estado',
     ];
     const filas: (string | number)[][] = [encabezados];
-    gruposPorFamilia.forEach(([familia, materiales]) => {
-      const aprobacion = aprobacionesPorFamilia.get(familia);
-      const descuento = Number(aprobacion?.descuentoPct) || 0;
-      const recargo = Number(aprobacion?.recargoPct) || 0;
+    gruposPorPartida.forEach(([partida, materiales]) => {
+      const descuento = partida.descuentoPct ?? 0;
+      const recargo = partida.recargoPct ?? 0;
       materiales.forEach((m) => {
         filas.push([
-          familia,
+          partida.nombre,
           m.skuInterno,
           m.descripcion,
           m.proveedorNombre,
@@ -527,10 +468,10 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
           resolverMoneda(m.monedaOrigen, monedas).nombre,
           m.precioCLP,
           m.cantidadTotal,
-          familia === 'VIDRIOS' ? 'M²' : m.familiaCruda === 'JUNTAS' ? 'M' : m.unidadMedida,
+          m.unidad.simbolo,
           descuento,
           recargo,
-          montoConAjuste(m, aprobacionesPorFamilia),
+          m.excluido ? 0 : m.precioCLP * m.cantidadTotal * factorPartida(partida),
           m.excluido ? 'Excluido' : 'Incluido',
         ]);
       });
@@ -597,22 +538,22 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
             <div className="min-w-0">
               <h2 className="text-base font-extrabold text-slate-900">Analítica de materiales</h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                {materialesConsolidados.length} materiales consolidados en fábrica
+                {cargandoAnalitica ? 'Calculando…' : `${materiales.length} materiales consolidados en fábrica`}
                 {cantidadExcluidos > 0 && ` · ${cantidadExcluidos} excluidos`}
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 lg:justify-end shrink-0">
-            {versionId && puedeAprobarTecnico && estadoActual === 'EN_COTIZACION' && !todasLasFamiliasAprobadas && (
+            {versionId && puedeAprobarTecnico && estadoActual === 'EN_COTIZACION' && !todasLasPartidasAprobadas && (
               <Button
                 variant="primary"
                 size="sm"
                 onClick={() => aprobarTodoMutation.mutate()}
-                disabled={gruposPorFamilia.length === 0 || aprobarTodoMutation.isPending}
+                disabled={partidas.length === 0 || aprobarTodoMutation.isPending}
                 isLoading={aprobarTodoMutation.isPending}
                 leftIcon={<ShieldCheck className="w-3.5 h-3.5" />}
-                title="Aprueba todas las categorías que falten"
+                title="Aprueba todas las partidas que falten"
               >
                 Aprobar analítica completa
               </Button>
@@ -674,33 +615,31 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
           />
         </div>
 
-        {/* Familias */}
+        {/* Partidas */}
         <div className="space-y-3">
-          {gruposPorFamilia.map(([familia, materiales]) => {
-            const aprobacion = aprobacionesPorFamilia.get(familia);
-            const aprobada = Boolean(aprobacion?.aprobada);
-            // Edicion bloqueada si la familia ya esta aprobada, o si toda la
+          {gruposPorPartida.map(([partida, materiales]) => {
+            const codigo = partida.codigo;
+            const aprobada = partida.aprobada;
+            // Edicion bloqueada si la partida ya esta aprobada, o si toda la
             // version esta congelada (aprobacion global mas adelante en el
             // flujo, o presupuesto ya emitido).
             const edicionBloqueada = aprobada || congelado;
             // Las categorías parten colapsadas: el usuario las despliega si necesita el detalle.
-            const colapsada = familiaColapsada[familia] ?? true;
-            const descuentoActual = Number(aprobacion?.descuentoPct) || 0;
-            const recargoActual = Number(aprobacion?.recargoPct) || 0;
-            const factorFamilia = (1 - descuentoActual / 100) * (1 + recargoActual / 100);
-            const totalFamiliaBruto = materiales.filter((m) => !m.excluido).reduce((acc, m) => acc + m.precioCLP * m.cantidadTotal, 0);
-            const totalFamiliaCLP = totalFamiliaBruto * factorFamilia;
-            const decimalesCantidad = familia === 'VIDRIOS' ? 2 : 0;
+            const colapsada = partidaColapsada[codigo] ?? true;
+            const descuentoActual = partida.descuentoPct ?? 0;
+            const recargoActual = partida.recargoPct ?? 0;
+            const factorFamilia = factorPartida(partida);
+            const totalFamiliaCLP = partida.total;
 
             return (
-              <div key={familia} className="rounded-2xl border border-slate-200 overflow-hidden">
+              <div key={codigo} className="rounded-2xl border border-slate-200 overflow-hidden">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 px-4 py-3 bg-slate-50/70 border-b border-slate-100">
                   <button
-                    onClick={() => setFamiliaColapsada((prev) => ({ ...prev, [familia]: !colapsada }))}
+                    onClick={() => setPartidaColapsada((prev) => ({ ...prev, [codigo]: !colapsada }))}
                     className="flex flex-wrap items-center gap-x-2.5 gap-y-1 min-w-0 text-left cursor-pointer"
                   >
                     <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${colapsada ? '-rotate-90' : ''}`} />
-                    <span className="font-bold text-sm text-slate-900">{familia}</span>
+                    <span className="font-bold text-sm text-slate-900">{partida.nombre}</span>
                     <Badge size="sm" variant="default">{materiales.length} {materiales.length === 1 ? 'ítem' : 'ítems'}</Badge>
                     <span className="text-xs text-slate-600 tabular-nums">
                       $ {formatNumber(totalFamiliaCLP, 0)}
@@ -710,21 +649,21 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                   </button>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    <label className="flex items-center gap-1.5 text-[11px] text-slate-500" title="Descuento comercial de la categoría (aplicado al total, no a los precios individuales)">
+                    <label className="flex items-center gap-1.5 text-[11px] text-slate-500" title="Descuento comercial de la partida (aplicado al total, no a los precios individuales)">
                       Desc.
                       <PrecioEditable
                         valor={descuentoActual}
                         disabled={edicionBloqueada}
-                        onGuardar={(nuevo) => familiaDescuentoMutation.mutate({ familia, descuentoPct: Math.min(100, Math.max(0, nuevo)) })}
+                        onGuardar={(nuevo) => partidaDescuentoMutation.mutate({ partida: codigo, descuentoPct: Math.min(100, Math.max(0, nuevo)) })}
                       />
                       %
                     </label>
-                    <label className="flex items-center gap-1.5 text-[11px] text-slate-500" title="Recargo comercial de la categoría (aplicado al total, no a los precios individuales)">
+                    <label className="flex items-center gap-1.5 text-[11px] text-slate-500" title="Recargo comercial de la partida (aplicado al total, no a los precios individuales)">
                       Rec.
                       <PrecioEditable
                         valor={recargoActual}
                         disabled={edicionBloqueada}
-                        onGuardar={(nuevo) => familiaRecargoMutation.mutate({ familia, recargoPct: Math.min(100, Math.max(0, nuevo)) })}
+                        onGuardar={(nuevo) => partidaRecargoMutation.mutate({ partida: codigo, recargoPct: Math.min(100, Math.max(0, nuevo)) })}
                       />
                       %
                     </label>
@@ -737,10 +676,10 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                       <Button
                         variant={aprobada ? 'outline' : 'primary'}
                         size="sm"
-                        onClick={() => familiaAprobacionMutation.mutate({ familia, aprobada: !aprobada })}
-                        disabled={familiaAprobacionMutation.isPending}
+                        onClick={() => partidaAprobacionMutation.mutate({ partida: codigo, aprobada: !aprobada })}
+                        disabled={partidaAprobacionMutation.isPending}
                       >
-                        {aprobada ? 'Deshacer' : 'Aprobar categoría'}
+                        {aprobada ? 'Deshacer' : 'Aprobar partida'}
                       </Button>
                     )}
                   </div>
@@ -794,12 +733,12 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                   <PrecioEditable
                                     valor={Math.round(m.precioCLP * 100) / 100}
                                     disabled={edicionBloqueada}
-                                    onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo / m.factorBarra, monedaOrigen: 'CLP' })}
+                                    onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo / m.factorPrecio, monedaOrigen: 'CLP' })}
                                   />
                                 </div>
                               </td>
                               <td className="px-4 py-2.5 align-top text-right tabular-nums text-slate-800 whitespace-nowrap">
-                                {formatNumber(m.cantidadTotal, decimalesCantidad)} <span className="text-slate-400">{unidadDe(m, familia)}</span>
+                                {formatNumber(m.cantidadTotal, decimalesCantidad(m.cantidadTotal))} <span className="text-slate-400">{m.unidad.simbolo}</span>
                               </td>
                               <td className="px-4 py-2.5 align-top text-right tabular-nums font-bold text-slate-900 whitespace-nowrap">
                                 $ {formatNumber(m.precioCLP * m.cantidadTotal * factorFamilia, 0)}
@@ -821,7 +760,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                     onClick={() => guardarAjuste(m, { excluido: !m.excluido })}
                                     title={
                                       edicionBloqueada
-                                        ? 'Categoría aprobada o presupuesto congelado -- no se puede modificar'
+                                        ? 'Partida aprobada o presupuesto congelado -- no se puede modificar'
                                         : m.excluido
                                         ? 'Click para incluir'
                                         : 'Click para excluir'
@@ -866,7 +805,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                 excluido={m.excluido}
                                 disabled={edicionBloqueada || ajusteMutation.isPending}
                                 onClick={() => guardarAjuste(m, { excluido: !m.excluido })}
-                                title={edicionBloqueada ? 'Categoría aprobada o presupuesto congelado' : m.excluido ? 'Click para incluir' : 'Click para excluir'}
+                                title={edicionBloqueada ? 'Partida aprobada o presupuesto congelado' : m.excluido ? 'Click para incluir' : 'Click para excluir'}
                               />
                             </div>
                           </div>
@@ -888,15 +827,15 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                 <PrecioEditable
                                   valor={Math.round(m.precioCLP * 100) / 100}
                                   disabled={edicionBloqueada}
-                                  onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo / m.factorBarra, monedaOrigen: 'CLP' })}
+                                  onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo / m.factorPrecio, monedaOrigen: 'CLP' })}
                                 />
                               </div>
                             </Campo>
                             <Campo label="Cantidad">
                               <span className="tabular-nums font-semibold">
-                                {formatNumber(m.cantidadTotal, decimalesCantidad)}
+                                {formatNumber(m.cantidadTotal, decimalesCantidad(m.cantidadTotal))}
                               </span>{' '}
-                              <span className="text-slate-400">{unidadDe(m, familia)}</span>
+                              <span className="text-slate-400">{m.unidad.simbolo}</span>
                             </Campo>
                             <Campo label="Total CLP">
                               <span className="tabular-nums font-bold">$ {formatNumber(m.precioCLP * m.cantidadTotal * factorFamilia, 0)}</span>
@@ -910,7 +849,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
               </div>
             );
           })}
-          {gruposPorFamilia.length === 0 && (
+          {gruposPorPartida.length === 0 && !cargandoAnalitica && (
             <p className="text-center text-sm text-slate-500 py-8">No hay materiales que coincidan con la búsqueda.</p>
           )}
         </div>
@@ -920,10 +859,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
         <ReemplazarMaterialModal
           original={reemplazoOrigen}
           lineasAfectadas={lineasPorMaterial.get(reemplazoOrigen.materialId) ?? 0}
-          unidadOriginal={unidadMaestroPorMaterial.get(reemplazoOrigen.materialId) ?? ''}
-          familiasAprobadas={Array.from(aprobacionesPorFamilia.entries())
-            .filter(([, a]) => a?.aprobada)
-            .map(([familia]) => familia)}
+          partidasAprobadas={partidas.filter((p) => p.aprobada).map((p) => p.codigo)}
           isPending={reemplazoMutation.isPending}
           error={reemplazoMutation.error ? mensajeDeError(reemplazoMutation.error, 'No se pudo reemplazar el material.') : null}
           onConfirm={(nuevo) => reemplazoMutation.mutate({ materialIdOriginal: reemplazoOrigen.materialId, materialIdNuevo: nuevo.id })}

@@ -21,7 +21,15 @@ import type {
   EstadoOC,
   RecepcionOC,
   TipoDocumento,
-  PartidaConfig,
+  Partida,
+  UnidadMedida,
+  TipoProducto,
+  FamiliaHetmo,
+  MedicionReceta,
+  Analitica,
+  FijacionBorrador,
+  RequerimientoFase,
+  ControlPresupuestoPartida,
   SolicitudMaterial,
   BodegaProyectoResponse,
   BodegaGlobalResponse,
@@ -32,7 +40,6 @@ import type {
   FacturasSugeridasResponse,
   CheckoutFactura,
   ImportarXmlResponse,
-  CategoriaGasto,
   Rol,
   Usuario,
   MisPermisos,
@@ -404,7 +411,7 @@ export async function saveMaterialAjuste(
     materialId: string;
     precioPersonalizado?: number | null;
     monedaPersonalizada?: string | null;
-    familiaPersonalizada?: string | null;
+    tipoProductoPersonalizadoId?: string | null;
     excluido?: boolean;
   }
 ): Promise<{ success: boolean; ajuste: ProyectoMaterialAjuste }> {
@@ -415,40 +422,58 @@ export async function saveMaterialAjuste(
   return response.data;
 }
 
-export async function setFamiliaAprobacion(
-  versionId: string,
-  familia: string,
-  aprobada: boolean
-): Promise<{ success: boolean; familiaAprobacion: FamiliaMaterialAprobacion }> {
-  const response = await apiClient.patch<{ success: boolean; familiaAprobacion: FamiliaMaterialAprobacion }>(
-    `/versiones/${versionId}/materiales/familias/${encodeURIComponent(familia)}/aprobacion`,
-    { aprobada }
+// Aprobacion tecnica, descuento y recargo por partida de la Analitica.
+type RespuestaAprobacionPartida = { success: boolean; aprobacion: FamiliaMaterialAprobacion };
+
+async function patchPartidaVersion(versionId: string, partidaCodigo: string, accion: string, body: object) {
+  const response = await apiClient.patch<RespuestaAprobacionPartida>(
+    `/versiones/${versionId}/partidas/${encodeURIComponent(partidaCodigo)}/${accion}`,
+    body
   );
   return response.data;
 }
 
-export async function setFamiliaDescuento(
+export const setPartidaAprobacion = (versionId: string, partidaCodigo: string, aprobada: boolean) =>
+  patchPartidaVersion(versionId, partidaCodigo, 'aprobacion', { aprobada });
+
+export const setPartidaDescuento = (versionId: string, partidaCodigo: string, descuentoPct: number) =>
+  patchPartidaVersion(versionId, partidaCodigo, 'descuento', { descuentoPct });
+
+export const setPartidaRecargo = (versionId: string, partidaCodigo: string, recargoPct: number) =>
+  patchPartidaVersion(versionId, partidaCodigo, 'recargo', { recargoPct });
+
+// Analitica calculada en mtw-api (motor unico). Las tasas del query solo
+// previsualizan: sin ellas se usan las guardadas en la version.
+export async function getAnalitica(
   versionId: string,
-  familia: string,
-  descuentoPct: number
-): Promise<{ success: boolean; familiaAprobacion: FamiliaMaterialAprobacion }> {
-  const response = await apiClient.patch<{ success: boolean; familiaAprobacion: FamiliaMaterialAprobacion }>(
-    `/versiones/${versionId}/materiales/familias/${encodeURIComponent(familia)}/descuento`,
-    { descuentoPct }
-  );
-  return response.data;
+  tasas?: { dolar?: number; euro?: number; uf?: number }
+): Promise<Analitica> {
+  const response = await apiClient.get<{ data: Analitica }>(`/versiones/${versionId}/analitica`, { params: tasas });
+  return response.data.data;
 }
 
-export async function setFamiliaRecargo(
+// Misma Analitica con una Hoja de Fijacion en borrador: no guarda nada.
+export async function simularAnalitica(
   versionId: string,
-  familia: string,
-  recargoPct: number
-): Promise<{ success: boolean; familiaAprobacion: FamiliaMaterialAprobacion }> {
-  const response = await apiClient.patch<{ success: boolean; familiaAprobacion: FamiliaMaterialAprobacion }>(
-    `/versiones/${versionId}/materiales/familias/${encodeURIComponent(familia)}/recargo`,
-    { recargoPct }
-  );
-  return response.data;
+  payload: { tasas: { dolar: number; euro: number; uf: number }; fijacion: FijacionBorrador }
+): Promise<Analitica> {
+  const response = await apiClient.post<{ data: Analitica }>(`/versiones/${versionId}/analitica/simular`, payload);
+  return response.data.data;
+}
+
+// Comprometido en OC, facturado, pagado y recibido por partida (NETO).
+export async function getControlPresupuesto(proyectoId: string): Promise<ControlPresupuestoPartida[]> {
+  const response = await apiClient.get<{ partidas: ControlPresupuestoPartida[] }>(`/proyectos/${proyectoId}/control-presupuesto`);
+  return response.data.partidas;
+}
+
+// Materiales que faltan para fabricar una fase, agrupados por proveedor.
+// descontarStock=false: la necesidad bruta (una solicitud desde la obra).
+export async function getRequerimientoFase(faseId: string, descontarStock = true): Promise<RequerimientoFase> {
+  const response = await apiClient.get<{ data: RequerimientoFase }>(`/fases/${faseId}/requerimiento`, {
+    params: descontarStock ? undefined : { descontarStock: 'false' },
+  });
+  return response.data.data;
 }
 
 export async function updateFijacionConfig(
@@ -543,25 +568,120 @@ export async function eliminarCliente(id: string): Promise<{ success: boolean }>
   return response.data;
 }
 
-// Config editable por partida (nombre + codigo de integracion Clay) --
-// ver PartidaConfig en mtw-api.
-export async function getPartidas(): Promise<{ data: PartidaConfig[] }> {
-  const response = await apiClient.get<{ data: PartidaConfig[] }>('/partidas');
-  return response.data;
+// ---- Catalogo configurable (Configuracion > Catalogo) ----
+// Sin borrado: lo que ya esta referenciado se desactiva (activa/activo).
+
+export async function getPartidas(): Promise<Partida[]> {
+  const response = await apiClient.get<{ data: Partida[] }>('/partidas');
+  return response.data.data;
 }
 
-// Solo administrador (ver requireAdmin en mtw-api).
-export async function updatePartida(
-  categoria: CategoriaGasto,
-  payload: { nombre?: string; integracionClay?: string | null }
-): Promise<{ success: boolean; partida: PartidaConfig }> {
-  const response = await apiClient.patch<{ success: boolean; partida: PartidaConfig }>(`/partidas/${categoria}`, payload);
-  return response.data;
+export interface PartidaPayload {
+  nombre: string;
+  integracionClay?: string | null;
+  orden?: number;
+  activa?: boolean;
+}
+
+export async function createPartida(payload: PartidaPayload & { codigo: string }): Promise<Partida> {
+  const response = await apiClient.post<{ data: Partida }>('/partidas', payload);
+  return response.data.data;
+}
+
+// El codigo no se edita: lo usan integraciones y reportes.
+export async function updatePartida(id: string, payload: Partial<PartidaPayload>): Promise<Partida> {
+  const response = await apiClient.patch<{ data: Partida }>(`/partidas/${id}`, payload);
+  return response.data.data;
+}
+
+export async function getUnidadesMedida(): Promise<UnidadMedida[]> {
+  const response = await apiClient.get<{ data: UnidadMedida[] }>('/unidades-medida');
+  return response.data.data;
+}
+
+export async function createUnidadMedida(payload: { codigo: string; nombre: string; simbolo: string }): Promise<UnidadMedida> {
+  const response = await apiClient.post<{ data: UnidadMedida }>('/unidades-medida', payload);
+  return response.data.data;
+}
+
+export async function updateUnidadMedida(
+  id: string,
+  payload: Partial<{ nombre: string; simbolo: string; activa: boolean }>
+): Promise<UnidadMedida> {
+  const response = await apiClient.patch<{ data: UnidadMedida }>(`/unidades-medida/${id}`, payload);
+  return response.data.data;
+}
+
+export async function getTiposProducto(): Promise<TipoProducto[]> {
+  const response = await apiClient.get<{ data: TipoProducto[] }>('/tipos-producto');
+  return response.data.data;
+}
+
+export interface TipoProductoPayload {
+  nombre: string;
+  descripcion?: string | null;
+  partidaId: string;
+  medicion: MedicionReceta;
+  unidadConsumoId: string;
+  unidadPrecioId: string;
+  unidadCompraId: string;
+  factorCompra: number;
+  compraDesdeResumenHetmo: boolean;
+  moneda: string;
+  monedaFija: boolean;
+  individualizado: boolean;
+  porDefecto?: boolean;
+  orden?: number;
+  activo?: boolean;
+}
+
+export async function createTipoProducto(payload: TipoProductoPayload): Promise<TipoProducto> {
+  const response = await apiClient.post<{ data: TipoProducto }>('/tipos-producto', payload);
+  return response.data.data;
+}
+
+export async function updateTipoProducto(id: string, payload: Partial<TipoProductoPayload>): Promise<TipoProducto> {
+  const response = await apiClient.patch<{ data: TipoProducto }>(`/tipos-producto/${id}`, payload);
+  return response.data.data;
+}
+
+export async function getFamiliasHetmo(): Promise<FamiliaHetmo[]> {
+  const response = await apiClient.get<{ data: FamiliaHetmo[] }>('/familias-hetmo');
+  return response.data.data;
+}
+
+// Cambia el tipo de los materiales que HETMO cree despues; con
+// aplicarAExistentes, tambien los que siguen en el tipo anterior.
+export async function updateFamiliaHetmo(
+  codigo: string,
+  payload: { tipoProductoId: string; aplicarAExistentes?: boolean }
+): Promise<{ materialesActualizados: number }> {
+  const response = await apiClient.patch<{ data: { materialesActualizados: number } }>(
+    `/familias-hetmo/${encodeURIComponent(codigo)}`,
+    payload
+  );
+  return response.data.data;
+}
+
+// Tipo, formato propio (unidad de compra y factor) y proveedor de un material.
+export async function updateMaterial(
+  id: string,
+  payload: Partial<{
+    tipoProductoId: string;
+    unidadCompraId: string | null;
+    factorCompra: number | null;
+    individualizado: boolean;
+    proveedorId: string | null;
+  }>
+): Promise<Material> {
+  const response = await apiClient.patch<{ data: Material }>(`/materiales/${id}`, payload);
+  return response.data.data;
 }
 
 export async function getMateriales(params?: {
   q?: string;
   familia?: string;
+  tipoProductoId?: string;
   proveedorId?: string;
   limit?: number;
 }): Promise<Material[]> {
@@ -592,7 +712,7 @@ export async function getMonedas(): Promise<
 export async function createMaterial(payload: {
   skuInterno: string;
   descripcion: string;
-  familia: string;
+  tipoProductoId: string;
   unidadMedida: string;
   precioOrigen?: number | null;
   monedaOrigen?: string | null;
@@ -735,9 +855,9 @@ export interface ItemOrdenCompraPayload {
   // Obligatorio solo si la OC ya tiene proveedor (ver proveedorId abajo) --
   // una solicitud sin proveedor todavia puede no tener precio.
   precioUnitario?: number | null;
-  // Obligatoria solo cuando el item no tiene materialId (partida externa)
-  // -- con materialId, mtw-api la deriva sola de la familia.
-  categoria?: CategoriaGasto;
+  // Obligatoria solo cuando el item no tiene materialId (item externo):
+  // con materialId, mtw-api usa la partida del tipo de producto del material.
+  partidaId?: string;
 }
 
 export async function createOrdenCompra(payload: {

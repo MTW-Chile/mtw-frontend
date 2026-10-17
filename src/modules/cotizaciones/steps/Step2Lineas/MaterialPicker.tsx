@@ -81,7 +81,7 @@ export const MaterialPicker: React.FC<MaterialPickerProps> = ({ onSelect, placeh
               >
                 <div className="font-mono font-semibold text-[11px] text-slate-900">{m.skuInterno}</div>
                 <div className="text-[11px] text-slate-600 leading-tight">{m.descripcion}</div>
-                <div className="text-[10px] text-slate-400">{m.familia}</div>
+                <div className="text-[10px] text-slate-400">{m.tipoProducto?.nombre ?? m.familia}</div>
               </button>
             ))
           )}

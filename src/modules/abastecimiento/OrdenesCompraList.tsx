@@ -8,7 +8,6 @@ import { loadImageDataUrl } from '../cotizaciones/lib/pdfTheme';
 import type { EstadoOC, OrdenCompra } from '../../types';
 import { pendienteConciliarItem, pendienteRecepcionarItem } from '../../types';
 import { NuevaOrdenCompraModal } from './NuevaOrdenCompraModal';
-import { CATEGORIA_GASTO_LABEL } from './categoriaGasto';
 import { buildOrdenCompraHtml } from './ordenCompraPdf';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilters';
@@ -88,7 +87,7 @@ export const DetalleItemsOC: React.FC<{ oc: OrdenCompra; mostrarConciliacion?: b
                     {item.descripcion}
                   </span>
                 </td>
-                <td className="py-1.5 pr-2 text-slate-500">{CATEGORIA_GASTO_LABEL[item.categoria] || item.categoria}</td>
+                <td className="py-1.5 pr-2 text-slate-500">{item.partida?.nombre ?? '—'}</td>
                 <td className="py-1.5 text-right font-mono text-slate-700">
                   {Number(item.cantidad).toLocaleString('es-CL', { maximumFractionDigits: 2 })} {item.unidadMedida}
                 </td>

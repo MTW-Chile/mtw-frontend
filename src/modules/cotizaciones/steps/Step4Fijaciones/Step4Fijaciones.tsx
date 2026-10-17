@@ -1,17 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Calculator, Check, Plus, Trash2, FileDown, Lock, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { Calculator, Check, Plus, Trash2, FileDown, Lock, ShieldCheck, ArrowLeft, Loader2 } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
-import { useMonedas } from '../../../../lib/monedas';
 import { updateFijacionConfig, updateEstadoAprobacion } from '../../../../api/client';
-import type { Proyecto, ProyectoVersion, FijacionExtra } from '../../../../types';
+import type { Proyecto, ProyectoVersion, FijacionExtra, FijacionBorrador } from '../../../../types';
 import { Button } from '../../../../components/ui/Button';
-import {
-  computeMaterialesConsolidados,
-  montoConAjuste,
-  computeCantidadVidrios,
-  computeCantidadCuadros,
-} from '../../lib/materialesConsolidados';
+import { useAnalitica, useAnaliticaSimulada } from '../../lib/useAnalitica';
+import { computeCantidadCuadros } from '../../lib/cuadros';
 import { MTW_NAVY, MTW_GRIS, MTW_BORDE, pdfTableStyle, drawPdfHeader } from '../../lib/pdfTheme';
 import { usePermisos } from '../../../../lib/permisos';
 
@@ -27,19 +22,28 @@ interface Step4FijacionesProps {
   isCambiandoEstadoAprobacion: boolean;
 }
 
-// Mismo agrupado que la Analitica de Materiales (Step3Materiales): Juntas
-// se funde dentro de Accesorios (normalizarFamilia en
-// materialesConsolidados.ts), asi que "PVC y juntas" es solo un nombre --
-// no lleva materiales de Juntas, esos van en Accesorios como en todo el
-// resto de la app. Se agrupa por la familia YA NORMALIZADA (m.familia), la
-// misma que usa aprobacionesPorFamilia para el descuento/recargo.
-const CATEGORIAS_FIJACION: { etiqueta: string; familia: string }[] = [
-  { etiqueta: 'PVC', familia: 'PERFILERIA' },
-  { etiqueta: 'Refuerzos', familia: 'REFUERZOS' },
-  { etiqueta: 'Herrajes', familia: 'HERRAJES' },
-  { etiqueta: 'Accesorios', familia: 'ACCESORIOS' },
-  { etiqueta: 'Vidrios y Superficies', familia: 'VIDRIOS' },
-];
+type DraftFijacion = Omit<FijacionBorrador, 'extras'>;
+
+const DRAFT_VACIO: DraftFijacion = {
+  manoObraFabricacion: 0,
+  filmProtectorCristales: 0,
+  materialInstalacion: 0,
+  cantidadViajes: 0,
+  valorViaje: 0,
+  valorInstalacionM2: 0,
+  valorInstalacionProtexM2: 0,
+  margenVentaPct: 0,
+};
+
+const separar = ({ extras, ...resto }: FijacionBorrador): { draft: DraftFijacion; extras: FijacionExtra[] } => ({
+  draft: resto,
+  extras: extras.map((e) => ({ glosa: e.glosa ?? '', monto: Number(e.monto) || 0 })),
+});
+
+const mismaFijacion = (a: FijacionBorrador, b: FijacionBorrador) =>
+  (Object.keys(DRAFT_VACIO) as (keyof DraftFijacion)[]).every((k) => Number(a[k]) === Number(b[k])) &&
+  a.extras.length === b.extras.length &&
+  a.extras.every((e, i) => (e.glosa ?? '') === (b.extras[i].glosa ?? '') && Number(e.monto) === Number(b.extras[i].monto));
 
 const clpLabel = (valor: number) => `$ ${formatNumber(valor, 0)}`;
 const ufLabel = (valor: number, tasaUf: number) =>
@@ -65,10 +69,10 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
   const queryClient = useQueryClient();
   const { tiene } = usePermisos();
   const puedeAprobarGerencia = tiene('presupuestos.aprobar_gerencial');
-  const monedas = useMonedas();
   const tasaDolar = Number(dolar) || 950;
   const tasaUf = Number(uf) || 38500;
   const tasaEuro = Number(euro) || 1030;
+  const tasas = useMemo(() => ({ dolar: tasaDolar, euro: tasaEuro, uf: tasaUf }), [tasaDolar, tasaEuro, tasaUf]);
 
   const versionId = activeVersion?.id;
   const estadoActual = activeVersion ? normalizarEstado(activeVersion.estadoAprobacion) : 'EN_COTIZACION';
@@ -78,57 +82,51 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
   const congelado = estadoActual !== 'EN_COTIZACION';
   const config = activeVersion?.fijacionConfig;
 
-  // activeVersion.totalVentanas es la cantidad de LINEAS (lineas.length en
-  // el sync), no de ventanas fisicas -- una linea con unidades=3 cuenta 1
-  // ahi. La Hoja de Fijacion necesita el conteo real, sumando unidades.
-  const cantidadVentanas = (activeVersion?.ventanas || []).reduce((acc, v) => acc + (v.unidades || 1), 0);
+  // Analitica de mtw-api con la Hoja guardada (o la por defecto si nunca se
+  // guardo: la propone el backend, no esta pantalla).
+  const analiticaQuery = useAnalitica(proyecto.id, versionId, tasas);
+  const base = analiticaQuery.data;
 
-  // Defaults SOLO para cuando todavia no hay config guardada -- calzan con
-  // la hoja de fijacion anterior (tasas de servicio) y con la cantidad de
-  // viajes por defecto (ceil(ventanas / 14), lo que entra en un flete).
-  const defaultDraft = () => ({
-    manoObraFabricacion: config?.manoObraFabricacion ?? 8000,
-    filmProtectorCristales: config?.filmProtectorCristales ?? 1000,
-    materialInstalacion: config?.materialInstalacion ?? 3100,
-    cantidadViajes: config?.cantidadViajes ?? Math.ceil(cantidadVentanas / 14),
-    valorViaje: config?.valorViaje ?? 80000,
-    valorInstalacionM2: config?.valorInstalacionM2 ?? 15000,
-    valorInstalacionProtexM2: config?.valorInstalacionProtexM2 ?? 25000,
-    margenVentaPct: config?.margenVentaPct ?? 0,
-  });
-
-  // Draft local de los campos editables -- se resetea cuando cambia de
-  // version (o llega la config recien guardada) para no pisar un guardado
-  // ajeno con un draft viejo de otra pestaña.
-  const [draft, setDraft] = useState(defaultDraft);
-  const [extras, setExtras] = useState<FijacionExtra[]>(config?.extras ?? []);
+  // Draft local de los campos editables -- arranca de la Hoja con que calculo
+  // mtw-api y se resetea cuando cambia la version (o llega la config recien
+  // guardada) para no pisar un guardado ajeno con un draft viejo de otra pestaña.
+  const [draft, setDraft] = useState<DraftFijacion>(DRAFT_VACIO);
+  const [extras, setExtras] = useState<FijacionExtra[]>([]);
+  const [draftDe, setDraftDe] = useState<string | null>(null);
   const [mostrarAnalisis, setMostrarAnalisis] = useState(false);
+  const claveDraft = `${versionId}|${config?.id ?? ''}`;
 
   useEffect(() => {
-    setDraft(defaultDraft());
-    setExtras(config?.extras ?? []);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [versionId, config?.id]);
+    if (!base || analiticaQuery.isPlaceholderData || draftDe === claveDraft) return;
+    const inicial = separar(base.fijacion);
+    setDraft(inicial.draft);
+    setExtras(inicial.extras);
+    setDraftDe(claveDraft);
+  }, [base, analiticaQuery.isPlaceholderData, claveDraft, draftDe]);
+
+  const borrador: FijacionBorrador = useMemo(() => ({ ...draft, extras }), [draft, extras]);
+
+  // Hay cambios sin guardar si el draft (o los extras) difieren de la Hoja
+  // con que calculo mtw-api. "Guardar" es el único botón que persiste la hoja.
+  const hayCambios = !!base && draftDe === claveDraft && !mismaFijacion(borrador, base.fijacion);
+
+  // Mientras se edita, costo y venta los calcula mtw-api con el borrador (sin guardarlo).
+  const simulada = useAnaliticaSimulada(proyecto.id, versionId, tasas, hayCambios ? borrador : null);
+  const vista = (hayCambios ? simulada.data : undefined) ?? base;
 
   const guardarMutation = useMutation({
     mutationFn: () => {
       if (!versionId) return Promise.resolve(null);
-      return updateFijacionConfig(versionId, { ...draft, extras });
+      return updateFijacionConfig(versionId, borrador);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyecto.id] });
     },
   });
 
-  const familiasAprobadas = (activeVersion?.familiaAprobaciones || []).filter((f) => f.aprobada).length;
-  const familiasTotales = new Set((activeVersion?.familiaAprobaciones || []).map((f) => f.familia)).size;
-  const todasLasFamiliasAprobadas = familiasTotales > 0 && familiasAprobadas === familiasTotales;
-  const puedeCongelar = !congelado && todasLasFamiliasAprobadas;
-
-  // Hay cambios sin guardar si el draft (o los extras) difieren de lo último
-  // guardado en la config. "Guardar" es el único botón que persiste la hoja.
-  const hayCambios =
-    JSON.stringify({ ...draft, extras }) !== JSON.stringify({ ...defaultDraft(), extras: config?.extras ?? [] });
+  const partidas = base?.partidas ?? [];
+  const todasLasPartidasAprobadas = partidas.length > 0 && partidas.every((p) => p.aprobada);
+  const puedeCongelar = !congelado && todasLasPartidasAprobadas;
 
   // Congelar el presupuesto: guarda la Hoja de Fijacion (si hay cambios sin
   // guardar) y recien ahi pide el cambio de estado -- el backend rechaza el
@@ -136,7 +134,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
   const congelarMutation = useMutation({
     mutationFn: async () => {
       if (!versionId) return null;
-      await updateFijacionConfig(versionId, { ...draft, extras });
+      await updateFijacionConfig(versionId, borrador);
       return updateEstadoAprobacion(versionId, 'ESPERANDO_APROBACION_COMERCIAL');
     },
     onSuccess: () => {
@@ -144,62 +142,27 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
     },
   });
 
-  // Materiales consolidados de la Analitica -- misma fuente de verdad que
-  // Step3Materiales, con descuento/recargo por familia ya aplicado.
-  const materialesConsolidados = useMemo(
-    () => computeMaterialesConsolidados(activeVersion, tasaDolar, tasaEuro, tasaUf, monedas),
-    [activeVersion, tasaDolar, tasaEuro, tasaUf, monedas]
-  );
-  const aprobacionesPorFamilia = useMemo(
-    () => new Map((activeVersion?.familiaAprobaciones || []).map((f) => [f.familia, f])),
-    [activeVersion?.familiaAprobaciones]
-  );
-
-  const totalesPorCategoria = useMemo(
-    () =>
-      CATEGORIAS_FIJACION.map(({ etiqueta, familia }) => {
-        const monto = materialesConsolidados
-          .filter((m) => !m.excluido && m.familia === familia)
-          .reduce((acc, m) => acc + montoConAjuste(m, aprobacionesPorFamilia), 0);
-        return { etiqueta, monto };
-      }),
-    [materialesConsolidados, aprobacionesPorFamilia]
-  );
-  const materialesTotal = totalesPorCategoria.reduce((acc, c) => acc + c.monto, 0);
-
-  const m2Ventanas = activeVersion?.totalM2Ventanas || 0;
+  // Totales por partida (con su descuento y recargo), en el orden configurado.
+  const totalesPorCategoria = (vista?.partidas ?? []).map((p) => ({ etiqueta: p.nombre, monto: p.total }));
+  const t = vista?.totales;
+  const materialesTotal = t?.materialesTotal ?? 0;
+  const cantidadVentanas = vista?.indicadores.ventanas ?? 0;
+  const m2Ventanas = t?.m2Ventanas ?? 0;
   const cantidadCuadros = useMemo(() => computeCantidadCuadros(activeVersion), [activeVersion]);
-  const cantidadVidrios = useMemo(() => computeCantidadVidrios(activeVersion), [activeVersion]);
-  const m2Vidrios = materialesConsolidados
-    .filter((m) => !m.excluido && m.familia === 'VIDRIOS')
-    .reduce((acc, m) => acc + m.cantidadTotal, 0);
-  // totalM2Ventanas solo lo actualiza el sync de HETMO -- una Puerta Protex
-  // (linea manual) nunca suma ahi, asi que su instalacion se calcula aparte
-  // con su propio m2 real y su propia tarifa (ver valorInstalacionProtexM2).
-  const m2Protex = (activeVersion?.ventanas || [])
-    .filter((v) => v.tipoLineaManual === 'PROTEX')
-    .reduce((acc, v) => acc + (Number(v.m2Ventana) || 0), 0);
-
-  // Costos complementarios: tasas CLP/m2 (no montos planos) -- mano de obra
-  // y material de instalacion por m2 de VENTANAS, film protector por m2 de
-  // VIDRIOS. Confirmado contra la hoja de fijacion anterior (defaults
-  // 8000/1000/3100 respectivamente).
-  const costoManoObra = numeroInput(draft.manoObraFabricacion) * m2Ventanas;
-  const costoFilm = numeroInput(draft.filmProtectorCristales) * m2Vidrios;
-  const costoMaterialInstalacion = numeroInput(draft.materialInstalacion) * m2Ventanas;
-  const extrasTotal = extras.reduce((acc, e) => acc + numeroInput(e.monto), 0);
-  const costosComplementarios = costoManoObra + costoFilm + costoMaterialInstalacion + extrasTotal;
-  const costoFlete = numeroInput(draft.cantidadViajes) * numeroInput(draft.valorViaje);
-  const costoInstalacion =
-    numeroInput(draft.valorInstalacionM2) * m2Ventanas + numeroInput(draft.valorInstalacionProtexM2) * m2Protex;
-  const costoTotal = materialesTotal + costosComplementarios + costoFlete + costoInstalacion;
-  const margen = Math.min(99, Math.max(0, numeroInput(draft.margenVentaPct)));
-  const venta = margen < 100 ? costoTotal / (1 - margen / 100) : costoTotal;
+  const cantidadVidrios = vista?.indicadores.panos ?? 0;
+  const m2Vidrios = t?.m2Vidrios ?? 0;
+  const costoManoObra = t?.costoManoObra ?? 0;
+  const costoFilm = t?.costoFilm ?? 0;
+  const costoMaterialInstalacion = t?.costoMaterialInstalacion ?? 0;
+  const costosComplementarios = t?.costosComplementarios ?? 0;
+  const costoFlete = t?.costoFlete ?? 0;
+  const costoInstalacion = t?.costoInstalacion ?? 0;
+  const costoTotal = t?.costoTotal ?? 0;
+  const margen = t?.margen ?? 0;
+  const venta = t?.venta ?? 0;
   // Valor por m2 es el Valor de Venta (con margen), no el costo, dividido
   // por m2 de VENTANA (marco+vidrio) -- confirmado a mano con datos reales
-  // (12.611,93 UF / 3.817,39 m2 = 3,30 UF/m2). Un intento anterior de
-  // cambiar esto a m2 de vidrio fue en base a un calculo que resultó estar
-  // mal hecho -- volvió a m2Ventanas, que es lo correcto.
+  // (12.611,93 UF / 3.817,39 m2 = 3,30 UF/m2).
   const valorM2 = m2Ventanas > 0 ? venta / m2Ventanas : 0;
 
   const actualizarExtra = (index: number, patch: Partial<FijacionExtra>) => {
@@ -397,6 +360,14 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
     );
   }
 
+  if (!base) {
+    return (
+      <div className="p-12 flex items-center justify-center gap-2 text-xs text-slate-500 rounded-2xl bg-white border border-slate-200 shadow-sm">
+        <Loader2 className="w-4 h-4 animate-spin" /> Calculando la hoja de fijación…
+      </div>
+    );
+  }
+
   const inputClass =
     'w-full px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 text-right focus:outline-none focus:border-brand-600 focus:bg-white disabled:bg-slate-100 disabled:text-slate-400';
 
@@ -450,9 +421,9 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
               disabled={!puedeCongelar}
               isLoading={congelarMutation.isPending}
               title={
-                todasLasFamiliasAprobadas
+                todasLasPartidasAprobadas
                   ? 'Guarda la Hoja de Fijación y la envía a aprobación gerencial'
-                  : 'Faltan familias por aprobar en la Analítica de Materiales (Paso 3)'
+                  : 'Faltan partidas por aprobar en la Analítica de Materiales (Paso 3)'
               }
               leftIcon={<ShieldCheck className="w-3.5 h-3.5" />}
             >
@@ -696,7 +667,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
               max={99}
               disabled={congelado}
               value={draft.margenVentaPct || ''}
-              onChange={(e) => setDraft((prev) => ({ ...prev, margenVentaPct: numeroInput(e.target.value) }))}
+              onChange={(e) => setDraft((prev) => ({ ...prev, margenVentaPct: Math.min(99, numeroInput(e.target.value)) }))}
               className="w-16 px-2 py-1 rounded-lg bg-white/10 border border-white/20 text-center text-sm font-mono font-bold text-white focus:outline-none focus:border-brand-600 disabled:opacity-60"
             />
             <span className="text-sm font-bold">%</span>

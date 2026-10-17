@@ -2,21 +2,15 @@ import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Wallet, ShoppingCart, PackageCheck, Receipt } from 'lucide-react';
 import { StatCard } from '../../components/ui/StatCard';
-import { getOrdenesCompra } from '../../api/client';
-import { useMonedas } from '../../lib/monedas';
-import { computeMaterialesConsolidados, montoConAjuste, normalizarFamilia } from '../cotizaciones/lib/materialesConsolidados';
-import { netoConciliacion, type Proyecto, type ProyectoVersion } from '../../types';
-
-const ORDEN_FAMILIAS = ['PERFILERIA', 'ACCESORIOS', 'REFUERZOS', 'HERRAJES', 'VIDRIOS'];
-const ordenFamilia = (familia: string) => {
-  const idx = ORDEN_FAMILIAS.indexOf(familia);
-  return idx === -1 ? ORDEN_FAMILIAS.length : idx;
-};
+import { getControlPresupuesto } from '../../api/client';
+import { useAnalitica } from '../cotizaciones/lib/useAnalitica';
+import type { Proyecto, ProyectoVersion } from '../../types';
 
 const formatCLP = (v: number) => v.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
 interface FilaPartida {
-  familia: string;
+  codigo: string;
+  nombre: string;
   presupuestado: number;
   // Comprometido en OC que TODAVIA no tiene factura. Al conciliar, el monto
   // pasa de aca a facturado (nunca se cuenta dos veces).
@@ -25,76 +19,40 @@ interface FilaPartida {
   recibido: number;
 }
 
-// "Revisión de presupuesto por partida de gastos": reusa EXACTAMENTE la
-// misma formula de Presupuestado que la Analítica de Materiales de
-// Cotizaciones (computeMaterialesConsolidados/montoConAjuste) -- no se
-// reinventa un segundo calculo que podria desviarse del oficial. Lo nuevo
-// acá es cruzarlo contra lo realmente comprometido/facturado/recibido vía OC.
-//
-// Todo en NETO (como los precios de la OC). Lo facturado de una OC (sus
-// facturas conciliadas) se prorratea entre sus items segun el peso de cada
-// uno en el total de la OC -- mismo criterio que el asiento en Clay y que
-// GET /control-presupuesto de mtw-api.
+// "Revisión de presupuesto por partida de gastos". Presupuestado = total por
+// partida de la Analítica de Materiales (calculada en mtw-api, la misma de
+// Cotizaciones). En OC / Facturado / Recibido = GET /control-presupuesto de
+// mtw-api (todo en NETO; lo facturado de una OC se prorratea entre sus items
+// segun su peso en el total, mismo criterio que el asiento en Clay). Esta
+// pantalla solo cruza las dos fuentes, no calcula.
 export const ControlPresupuestoTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVersion }> = ({
   proyecto,
   activeVersion,
 }) => {
-  const monedas = useMonedas();
-  const tasaDolar = Number(activeVersion?.tipoCambioDolar) || 950;
-  const tasaUf = Number(activeVersion?.tipoCambioUF) || 38500;
-  const tasaEuro = Number(activeVersion?.tipoCambioEuro) || 1030;
-
-  const { data: ocData, isLoading: isLoadingOC } = useQuery({
-    queryKey: ['ordenesCompra', { proyectoId: proyecto.id, estado: '' }],
-    queryFn: () => getOrdenesCompra({ proyectoId: proyecto.id, limit: 200 }),
+  const { data: analitica, isLoading: cargandoAnalitica } = useAnalitica(proyecto.id, activeVersion?.id);
+  const { data: control, isLoading: cargandoControl } = useQuery({
+    queryKey: ['controlPresupuesto', proyecto.id],
+    queryFn: () => getControlPresupuesto(proyecto.id),
   });
-
-  const materialesConsolidados = useMemo(
-    () => computeMaterialesConsolidados(activeVersion, tasaDolar, tasaEuro, tasaUf, monedas),
-    [activeVersion, tasaDolar, tasaEuro, tasaUf, monedas]
-  );
-
-  const aprobacionesPorFamilia = useMemo(
-    () => new Map((activeVersion?.familiaAprobaciones || []).map((f) => [f.familia, f])),
-    [activeVersion?.familiaAprobaciones]
-  );
 
   const filas = useMemo(() => {
     const map = new Map<string, FilaPartida>();
-    const get = (familia: string) => {
-      if (!map.has(familia)) map.set(familia, { familia, presupuestado: 0, enOC: 0, facturado: 0, recibido: 0 });
-      return map.get(familia)!;
+    const get = (codigo: string, nombre: string) => {
+      if (!map.has(codigo)) map.set(codigo, { codigo, nombre, presupuestado: 0, enOC: 0, facturado: 0, recibido: 0 });
+      return map.get(codigo)!;
     };
-
-    materialesConsolidados
-      .filter((m) => !m.excluido)
-      .forEach((m) => {
-        get(m.familia).presupuestado += montoConAjuste(m, aprobacionesPorFamilia);
-      });
-
-    (ocData?.data || [])
-      .filter((oc) => oc.estado !== 'CANCELADA' && oc.estado !== 'RECHAZADA')
-      .forEach((oc) => {
-        const totalOC = oc.items.reduce((sum, i) => sum + Number(i.cantidad) * Number(i.precioUnitario), 0);
-        const facturadoOC = (oc.conciliaciones || []).reduce((sum, c) => sum + netoConciliacion(c), 0);
-        oc.items.forEach((item) => {
-          const familia = item.material ? normalizarFamilia((item.material.familia || 'OTROS').toUpperCase().trim()) : 'SIN CATEGORÍA';
-          const montoItem = Number(item.cantidad) * Number(item.precioUnitario);
-          const facturadoItem = totalOC > 0 ? facturadoOC * (montoItem / totalOC) : 0;
-          const fila = get(familia);
-          fila.facturado += facturadoItem;
-          fila.enOC += Math.max(0, montoItem - facturadoItem);
-
-          const cantidadRecibida = (item.recepciones || []).reduce((sum, r) => sum + Number(r.cantidadRecibida), 0);
-          fila.recibido += cantidadRecibida * Number(item.precioUnitario);
-        });
-      });
-
-    return Array.from(map.values()).sort((a, b) => {
-      const diff = ordenFamilia(a.familia) - ordenFamilia(b.familia);
-      return diff !== 0 ? diff : a.familia.localeCompare(b.familia);
+    // Orden: el de la Analítica (orden configurado de las partidas), luego el resto.
+    (analitica?.partidas || []).forEach((p) => {
+      get(p.codigo, p.nombre).presupuestado += p.total;
     });
-  }, [materialesConsolidados, aprobacionesPorFamilia, ocData]);
+    (control || []).forEach((c) => {
+      const fila = get(c.partida.codigo, c.partida.nombre);
+      fila.enOC += c.comprometidoOC;
+      fila.facturado += c.facturado;
+      fila.recibido += c.recibido;
+    });
+    return Array.from(map.values()).filter((f) => f.presupuestado || f.enOC || f.facturado || f.recibido);
+  }, [analitica, control]);
 
   const totales = filas.reduce(
     (acc, f) => ({
@@ -108,7 +66,7 @@ export const ControlPresupuestoTab: React.FC<{ proyecto: Proyecto; activeVersion
   // Lo usado del presupuesto = lo que sigue en OC + lo ya facturado.
   const usado = totales.enOC + totales.facturado;
 
-  if (isLoadingOC && filas.length === 0) {
+  if ((cargandoAnalitica || cargandoControl) && filas.length === 0) {
     return (
       <div className="p-12 flex items-center justify-center text-slate-400">
         <Loader2 className="w-5 h-5 animate-spin" />
@@ -178,8 +136,8 @@ export const ControlPresupuestoTab: React.FC<{ proyecto: Proyecto; activeVersion
               const usadoFila = f.enOC + f.facturado;
               const pct = f.presupuestado > 0 ? (usadoFila / f.presupuestado) * 100 : usadoFila > 0 ? Infinity : 0;
               return (
-                <tr key={f.familia} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                  <td className="px-4 py-3 font-semibold text-slate-800">{f.familia}</td>
+                <tr key={f.codigo} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                  <td className="px-4 py-3 font-semibold text-slate-800">{f.nombre}</td>
                   <td className="px-4 py-3 text-right font-mono text-slate-700">{formatCLP(f.presupuestado)}</td>
                   <td className="px-4 py-3 text-right font-mono text-slate-700">{formatCLP(f.enOC)}</td>
                   <td className="px-4 py-3 text-right font-mono text-violet-700">{formatCLP(f.facturado)}</td>

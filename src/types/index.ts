@@ -159,8 +159,17 @@ export interface Material {
   id: string;
   skuInterno: string;
   descripcion: string;
+  // Familia tal como la entrega HETMO (espejo). Las reglas de calculo y
+  // compra salen del tipo de producto, no de este texto.
   familia: string;
   unidadMedida: string;
+  tipoProductoId: string;
+  tipoProducto?: Pick<TipoProducto, 'id' | 'nombre'> & { medicion?: MedicionReceta; partida?: Pick<Partida, 'codigo' | 'nombre'> & { orden?: number } };
+  // Formato de compra resuelto (el propio del material o el de su tipo).
+  formato?: FormatoMaterial;
+  unidadCompraId?: string | null;
+  factorCompra?: number | null;
+  proveedorOrigen?: 'HETMO' | 'MANUAL';
   individualizado: boolean;
   precioOrigen?: number | null;
   monedaOrigen?: string | null;
@@ -255,16 +264,19 @@ export interface ProyectoMaterialAjuste {
   materialId: string;
   precioPersonalizado: number | null;
   monedaPersonalizada: string | null;
-  familiaPersonalizada: string | null;
+  // Reclasificacion por obra: el material se calcula como si fuera de este tipo.
+  tipoProductoPersonalizadoId: string | null;
   excluido: boolean;
   origen: string;
   material?: Material;
 }
 
+// Aprobacion, descuento y recargo de una partida de la Analitica en una version.
 export interface FamiliaMaterialAprobacion {
   id: string;
   versionId: string;
-  familia: string;
+  partidaId: string;
+  partida: Pick<Partida, 'codigo' | 'nombre'>;
   aprobada: boolean;
   aprobadoPor: string | null;
   fechaAprobacion: string | null;
@@ -523,27 +535,204 @@ export type EstadoOC =
   | 'CONCILIADA'
   | 'CANCELADA';
 
-export type CategoriaGasto =
-  | 'PERFILERIA'
-  | 'HERRAJES'
-  | 'VIDRIOS'
-  | 'ACCESORIOS'
-  | 'REFUERZOS'
-  | 'MANO_DE_OBRA'
-  | 'FLETE'
-  | 'INSTALACION'
-  | 'OTROS'
-  | 'INSUMOS_GENERALES';
+// ---- Catalogo configurable (mtw-api: Configuracion > Catalogo) ----
 
-// Config editable por partida (nombre "estandarizado" + codigo de
-// integracion con Clay) -- una fila fija por valor de CategoriaGasto, ver
-// PartidaConfig en mtw-api/schema.prisma.
-export interface PartidaConfig {
+export interface Partida {
   id: string;
-  categoria: CategoriaGasto;
+  codigo: string;
   nombre: string;
   integracionClay: string | null;
-  actualizadoEn: string;
+  orden: number;
+  activa: boolean;
+  _count?: { tiposProducto: number; ordenCompraItems: number };
+}
+
+export interface UnidadMedida {
+  id: string;
+  codigo: string;
+  nombre: string;
+  simbolo: string;
+  activa: boolean;
+}
+
+export type MedicionReceta = 'UNIDAD' | 'LONGITUD' | 'AREA';
+
+export interface TipoProducto {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  partidaId: string;
+  partida: Pick<Partida, 'id' | 'codigo' | 'nombre'>;
+  medicion: MedicionReceta;
+  unidadConsumoId: string;
+  unidadConsumo: UnidadMedida;
+  unidadPrecioId: string;
+  unidadPrecio: UnidadMedida;
+  unidadCompraId: string;
+  unidadCompra: UnidadMedida;
+  factorCompra: number | string;
+  compraDesdeResumenHetmo: boolean;
+  moneda: string;
+  monedaFija: boolean;
+  individualizado: boolean;
+  porDefecto: boolean;
+  orden: number;
+  activo: boolean;
+  familiasHetmo?: { codigo: string }[];
+  _count?: { materiales: number };
+}
+
+export interface FamiliaHetmo {
+  codigo: string;
+  tipoProductoId: string;
+  tipoProducto: Pick<TipoProducto, 'id' | 'nombre'>;
+  materiales: number;
+}
+
+export interface UnidadLigera {
+  codigo: string;
+  simbolo: string;
+  nombre?: string;
+}
+
+export interface FormatoMaterial {
+  medicion: MedicionReceta;
+  unidadConsumo: UnidadLigera;
+  unidadPrecio: UnidadLigera;
+  unidadCompra: UnidadLigera;
+  factorCompra: number;
+  compraDesdeResumenHetmo: boolean;
+  moneda: string;
+  monedaFija: boolean;
+  propio: boolean;
+}
+
+// ---- Analitica de materiales (calculada en mtw-api, motor unico) ----
+
+export interface MaterialAnalitica {
+  id: string;
+  materialId: string;
+  skuInterno: string;
+  descripcion: string;
+  proveedorNombre: string;
+  tipoProducto: { id: string; nombre: string };
+  partida: { codigo: string; nombre: string };
+  // Unidad de cantidadTotal y del precio CLP (la de compra si se compra en barras).
+  unidad: UnidadLigera;
+  // Como se mide en la receta (para reemplazar solo por un material que se mide igual).
+  medicion: MedicionReceta;
+  unidadConsumo: UnidadLigera;
+  cantidadTotal: number;
+  precioOrigen: number;
+  monedaOrigen: string;
+  factorPrecio: number;
+  precioCLP: number;
+  excluido: boolean;
+  precioModificado: boolean;
+  reemplazado: boolean;
+}
+
+export interface PartidaAnalitica {
+  codigo: string;
+  nombre: string;
+  orden: number;
+  total: number;
+  aprobada: boolean;
+  descuentoPct: number | null;
+  recargoPct: number | null;
+}
+
+export interface TotalesAnalitica {
+  materialesTotal: number;
+  m2Ventanas: number;
+  m2Vidrios: number;
+  m2Protex: number;
+  costoManoObra: number;
+  costoFilm: number;
+  costoMaterialInstalacion: number;
+  costoExtras: number;
+  costosComplementarios: number;
+  costoFlete: number;
+  costoInstalacion: number;
+  costoTotal: number;
+  margen: number;
+  venta: number;
+}
+
+export interface PrecioVentaLinea {
+  precioUnitarioCLP: number;
+  precioVentaCLP: number;
+}
+
+export interface Analitica {
+  tasas: { dolar: number; euro: number; uf: number };
+  materiales: MaterialAnalitica[];
+  partidas: PartidaAnalitica[];
+  totales: TotalesAnalitica;
+  // ventanas: unidades fisicas (suma de unidades de cada linea).
+  indicadores: { m2Vidrios: number; panos: number; ventanas: number };
+  // Precio de venta prorrateado por linea (el mismo que se congela al aceptar).
+  preciosVenta: ({ ventanaId: string } & PrecioVentaLinea)[];
+  // Hoja de Fijacion con la que se calculo (guardada, borrador o por defecto).
+  fijacion: FijacionBorrador;
+  fijacionGuardada: boolean;
+  simulada: boolean;
+}
+
+export interface FijacionBorrador {
+  manoObraFabricacion: number;
+  filmProtectorCristales: number;
+  materialInstalacion: number;
+  cantidadViajes: number;
+  valorViaje: number;
+  valorInstalacionM2: number;
+  valorInstalacionProtexM2: number;
+  margenVentaPct: number;
+  extras: FijacionExtra[];
+}
+
+// ---- Control de presupuesto por partida (GET /proyectos/:id/control-presupuesto) ----
+
+export interface ControlPresupuestoPartida {
+  partida: Pick<Partida, 'codigo' | 'nombre'>;
+  // Comprometido en OC que todavia no tiene factura (al conciliar pasa a facturado).
+  comprometidoOC: number;
+  facturado: number;
+  pagado: number;
+  recibido: number;
+}
+
+// ---- Requerimiento de materiales de una fase (para generar OC) ----
+
+export interface ItemRequerimiento {
+  materialId: string;
+  descripcion: string;
+  partida: { codigo: string; nombre: string };
+  unidad: string;
+  cantidad: number;
+  stockDisponible: number;
+  cantidadDesdeObrasMayores: number;
+  cantidadCalculada: number | null;
+  precioUnitario: number;
+}
+
+export interface GrupoRequerimiento {
+  proveedorId: string | null;
+  proveedorNombre: string;
+  items: ItemRequerimiento[];
+}
+
+export interface TrasladoRequerimiento {
+  materialId: string;
+  descripcion: string;
+  cantidad: number;
+  unidad: string;
+  partida: { codigo: string; nombre: string };
+}
+
+export interface RequerimientoFase {
+  grupos: GrupoRequerimiento[];
+  trasladosDesdeObrasMayores: TrasladoRequerimiento[];
 }
 
 export interface OrdenCompraItem {
@@ -553,10 +742,10 @@ export interface OrdenCompraItem {
   material?: Material | null;
   descripcion: string;
   unidadMedida: string;
-  // Snapshot al crear el item -- automatica desde material.familia si hay
-  // materialId, obligatoria a mano si es partida externa (ver
-  // categoriaDesdeFamiliaMaterial en mtw-api).
-  categoria: CategoriaGasto;
+  // Partida del item: la del tipo de producto del material, o la elegida a
+  // mano si es un item externo (sin material).
+  partidaId: string;
+  partida?: Pick<Partida, 'codigo' | 'nombre'>;
   cantidad: number;
   // Valor teorico antes de redondear a la unidad de compra (ej. barras
   // enteras de Perfileria/Refuerzos) -- solo referencia para poder
@@ -917,7 +1106,7 @@ export interface ItemOCCheckout {
   descripcion: string;
   // skuInterno del Material del catalogo -- null para partidas externas.
   codigo: string | null;
-  categoria: CategoriaGasto;
+  partida: Pick<Partida, 'codigo' | 'nombre'>;
   unidadMedida: string;
   cantidad: number;
   precioUnitario: number | null;

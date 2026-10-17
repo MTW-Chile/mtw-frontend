@@ -158,7 +158,7 @@ export const BodegasDisponiblesSection: React.FC = () => {
               <tr key={s.id} className="bg-white border-b border-slate-100 last:border-b-0">
                 <td className="px-4 py-2.5 font-mono text-xs text-slate-500">{s.material.skuInterno}</td>
                 <td className="px-4 py-2.5 text-slate-900">{s.material.descripcion}</td>
-                <td className="px-4 py-2.5 text-slate-600">{s.material.familia}</td>
+                <td className="px-4 py-2.5 text-slate-600">{s.material.tipoProducto?.partida?.nombre ?? s.material.familia}</td>
                 <td className="px-4 py-2.5 text-right font-mono font-semibold text-slate-900">
                   {formatNumber(s.cantidad, 2)} {s.material.unidadMedida}
                 </td>

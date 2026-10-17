@@ -1,5 +1,6 @@
 import React from 'react';
 import { PresupuestoConfigPanel } from './PresupuestoConfigPanel';
+import { CatalogoPanel } from './catalogo/CatalogoPanel';
 import { PlantillasPuertasPanel } from './PlantillasPuertasPanel';
 import { RolesUsuarioPanel } from './RolesUsuarioPanel';
 import { EtapasPendientesPanel } from './EtapasPendientesPanel';
@@ -12,6 +13,7 @@ import { useUrlParam } from '../../lib/navigation';
 
 const PANELES: Record<string, React.ComponentType> = {
   presupuesto: PresupuestoConfigPanel,
+  catalogo: CatalogoPanel,
   'plantillas-puertas': PlantillasPuertasPanel,
   'etapas-pendientes': EtapasPendientesPanel,
   onedrive: OneDrivePanel,
@@ -20,7 +22,8 @@ const PANELES: Record<string, React.ComponentType> = {
 
 /**
  * Configuración global de MTW ERP, organizada en categorías -- arranca con
- * Presupuesto (branding/textos, ya existía), Plantillas de Puertas (recetas
+ * Presupuesto (branding/textos, ya existía), Catálogo (partidas, tipos de
+ * producto, unidades y familias de HETMO), Plantillas de Puertas (recetas
  * de herrajes Protex) y Roles de Usuario (control de acceso). Las
  * categorías salen de CONFIG_TABS (lib/accessControl.ts), cada una con el
  * permiso que la habilita: agregar una nueva es tocar esa lista + agregar su

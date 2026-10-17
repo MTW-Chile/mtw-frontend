@@ -1,18 +1,15 @@
 import React, { useState } from 'react';
 import { AlertCircle, ArrowRightLeft, Loader2, X } from 'lucide-react';
 import { Button } from '../../../../components/ui/Button';
-import type { Material } from '../../../../types';
+import type { Material, MaterialAnalitica } from '../../../../types';
 import { MaterialPicker } from '../Step2Lineas/MaterialPicker';
-import type { MaterialConsolidado } from '../../lib/materialesConsolidados';
 
 interface ReemplazarMaterialModalProps {
-  original: MaterialConsolidado;
+  original: MaterialAnalitica;
   // Líneas de la versión que contienen este material (HETMO o agregado a mano).
   lineasAfectadas: number;
-  // Unidad de medida del material original en el maestro: solo se puede reemplazar por otra igual.
-  unidadOriginal: string;
-  // Categorías ya aprobadas de la versión: ni el material que sale ni el que entra pueden pertenecer a ellas.
-  familiasAprobadas: string[];
+  // Códigos de las partidas ya aprobadas: ni el material que sale ni el que entra pueden pertenecer a ellas.
+  partidasAprobadas: string[];
   isPending: boolean;
   error: string | null;
   onConfirm: (nuevo: Material) => void;
@@ -27,8 +24,7 @@ interface ReemplazarMaterialModalProps {
 export const ReemplazarMaterialModal: React.FC<ReemplazarMaterialModalProps> = ({
   original,
   lineasAfectadas,
-  unidadOriginal,
-  familiasAprobadas,
+  partidasAprobadas,
   isPending,
   error,
   onConfirm,
@@ -36,17 +32,17 @@ export const ReemplazarMaterialModal: React.FC<ReemplazarMaterialModalProps> = (
 }) => {
   const [selected, setSelected] = useState<Material | null>(null);
 
-  const normalizarUnidad = (unidad: string) => (unidad || '').trim().toUpperCase();
-  const normalizarFamilia = (familia: string) => {
-    const f = (familia || '').toUpperCase().trim();
-    return f === 'JUNTAS' ? 'ACCESORIOS' : f;
-  };
-  const aprobadas = new Set(familiasAprobadas.map(normalizarFamilia));
-  // Solo se ofrecen materiales con la misma unidad y de categorías no aprobadas.
+  // Misma regla que aplica mtw-api: solo un material que se mide igual (misma
+  // medición y unidad de consumo, la cantidad se traspasa sin conversión) y de
+  // una partida no aprobada.
+  const aprobadas = new Set(partidasAprobadas);
+  const unidadOriginal = original.unidadConsumo.simbolo;
   const filtrar = (m: Material) =>
-    normalizarUnidad(m.unidadMedida) === normalizarUnidad(unidadOriginal) && !aprobadas.has(normalizarFamilia(m.familia));
+    m.formato?.medicion === original.medicion &&
+    m.formato?.unidadConsumo.codigo === original.unidadConsumo.codigo &&
+    !aprobadas.has(m.tipoProducto?.partida?.codigo ?? '');
 
-  const cambiaFamilia = selected !== null && normalizarFamilia(selected.familia) !== normalizarFamilia(original.familia);
+  const cambiaPartida = selected !== null && selected.tipoProducto?.partida?.codigo !== original.partida.codigo;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
@@ -86,7 +82,7 @@ export const ReemplazarMaterialModal: React.FC<ReemplazarMaterialModalProps> = (
             <div className="text-[11px] font-semibold text-slate-900">{original.skuInterno}</div>
             <div className="text-xs text-slate-700 leading-snug">{original.descripcion}</div>
             <div className="text-[11px] text-slate-500">
-              {original.familia} · {lineasAfectadas} {lineasAfectadas === 1 ? 'línea' : 'líneas'} de la versión
+              {original.partida.nombre} · {original.tipoProducto.nombre} · {lineasAfectadas} {lineasAfectadas === 1 ? 'línea' : 'líneas'} de la versión
             </div>
           </div>
 
@@ -103,7 +99,7 @@ export const ReemplazarMaterialModal: React.FC<ReemplazarMaterialModalProps> = (
                   <div className="font-mono font-semibold text-[11px] text-slate-900">{selected.skuInterno}</div>
                   <div className="text-xs text-slate-700 leading-snug">{selected.descripcion}</div>
                   <div className="text-[11px] text-slate-500">
-                    {selected.familia} · {selected.unidadMedida}
+                    {selected.tipoProducto?.partida?.nombre ?? '—'} · {selected.tipoProducto?.nombre ?? '—'}
                   </div>
                 </div>
                 <button
@@ -117,18 +113,18 @@ export const ReemplazarMaterialModal: React.FC<ReemplazarMaterialModalProps> = (
             </div>
           )}
 
-          {cambiaFamilia && (
+          {cambiaPartida && (
             <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-start gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>
-                El material nuevo es de otra familia ({selected?.familia}). La cantidad se traspasa tal cual: revisa que tenga sentido
-                para la unidad del material original ({original.unidadMedida}).
+                El material nuevo es de otra partida ({selected?.tipoProducto?.partida?.nombre}): su costo pasa a sumarse en esa partida
+                de la Analítica.
               </span>
             </div>
           )}
 
           <p className="text-[11px] text-slate-500">
-            Solo se ofrecen materiales con unidad <strong className="text-slate-700">{unidadOriginal || '—'}</strong> de categorías
+            Solo se ofrecen materiales que se miden en <strong className="text-slate-700">{unidadOriginal}</strong>, de partidas
             no aprobadas. La cantidad pendiente de cada línea se traspasa al material nuevo, y su precio toma el último precio del maestro.
             Lo que ya se reemplazó en una línea por otro material no cambia.
           </p>

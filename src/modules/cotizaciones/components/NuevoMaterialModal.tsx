@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, PackagePlus, AlertCircle } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
-import { createMaterial, createProveedor, getProveedores } from '../../../api/client';
+import { createMaterial, createProveedor, getProveedores, getTiposProducto } from '../../../api/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Material, Proveedor } from '../../../types';
 
@@ -14,37 +14,6 @@ interface NuevoMaterialModalProps {
   onClose: () => void;
   onSuccess?: (material: Material) => void;
 }
-
-// Mismas familias que usa el resto de la app (ver familyOrder en
-// MaterialesLineaModal.tsx): son las que trae HETMO tal cual, sin
-// normalizar (sync-service.ts). Antes este formulario usaba una taxonomia
-// propia (CRISTALES, SELLOS_GOMAS, FIJACIONES, QUIMICOS...) que no calzaba
-// con ninguna familia real -- un material creado a mano quedaba en su
-// propia isla, aparte del resto del catalogo de la misma familia real
-// (ej. "Vidrios" vs "CRISTALES"), duplicando el filtro por familia y
-// rompiendo el agrupamiento en el despiece de lineas.
-export const FAMILIAS_CATALOGO = [
-  { value: 'Perfileria', label: 'Perfilería' },
-  { value: 'Herrajes', label: 'Herrajes' },
-  { value: 'Juntas', label: 'Juntas' },
-  { value: 'Vidrios', label: 'Vidrios' },
-  { value: 'Refuerzos', label: 'Refuerzos' },
-  { value: 'Superficies', label: 'Superficies' },
-  { value: 'Accesorios', label: 'Accesorios' },
-  { value: 'Otros', label: 'Otros' },
-];
-
-export const UNIDADES_CATALOGO = [
-  { value: 'ml', label: 'Metros Lineales (ml)' },
-  { value: 'm2', label: 'Metros Cuadrados (m²)' },
-  { value: 'un', label: 'Unidades (un)' },
-  { value: 'kg', label: 'Kilogramos (kg)' },
-  { value: 'barra', label: 'Barra (6.0m / 6.5m)' },
-  { value: 'tira', label: 'Tira' },
-  { value: 'rollo', label: 'Rollo' },
-  { value: 'juego', label: 'Juego / Kit' },
-  { value: 'pliego', label: 'Pliego' },
-];
 
 export const MONEDAS_CATALOGO = [
   { value: 'CLP', label: 'CLP ($ - Peso Chileno)' },
@@ -63,13 +32,23 @@ export const NuevoMaterialModal: React.FC<NuevoMaterialModalProps> = ({
   const [formData, setFormData] = useState({
     skuInterno: '',
     descripcion: '',
-    familia: 'Perfileria',
-    unidadMedida: 'ml',
+    tipoProductoId: '',
     monedaOrigen: 'CLP',
     precioOrigen: '',
     proveedorId: '',
     proveedorNuevoNombre: '',
   });
+
+  // El tipo de producto define partida, unidad, formato de compra y moneda
+  // (Configuración > Catálogo): el material se calcula igual que su tipo.
+  const tiposQuery = useQuery({ queryKey: ['tiposProducto'], queryFn: getTiposProducto, enabled: isOpen });
+  const tiposActivos = (tiposQuery.data || []).filter((t) => t.activo);
+  const tipo = tiposActivos.find((t) => t.id === formData.tipoProductoId);
+  useEffect(() => {
+    if (formData.tipoProductoId || tiposActivos.length === 0) return;
+    const porDefecto = tiposActivos.find((t) => t.porDefecto) ?? tiposActivos[0];
+    setFormData((prev) => ({ ...prev, tipoProductoId: porDefecto.id, monedaOrigen: porDefecto.moneda }));
+  }, [tiposActivos, formData.tipoProductoId]);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
@@ -109,8 +88,8 @@ export const NuevoMaterialModal: React.FC<NuevoMaterialModalProps> = ({
       const res = await createMaterial({
         skuInterno: data.skuInterno.trim().toUpperCase(),
         descripcion: data.descripcion.trim(),
-        familia: data.familia,
-        unidadMedida: data.unidadMedida,
+        tipoProductoId: data.tipoProductoId,
+        unidadMedida: tipo?.unidadConsumo.codigo ?? 'UN',
         monedaOrigen: data.monedaOrigen,
         precioOrigen: isNaN(precioNum as number) ? null : precioNum,
         proveedorId,
@@ -138,6 +117,9 @@ export const NuevoMaterialModal: React.FC<NuevoMaterialModalProps> = ({
     if (!formData.skuInterno.trim()) {
       newErrors.skuInterno = 'El SKU o código interno es obligatorio';
     }
+    if (!formData.tipoProductoId) {
+      newErrors.tipoProductoId = 'Elige el tipo de producto';
+    }
     if (!formData.descripcion.trim()) {
       newErrors.descripcion = 'La descripción es obligatoria';
     }
@@ -162,8 +144,7 @@ export const NuevoMaterialModal: React.FC<NuevoMaterialModalProps> = ({
     setFormData({
       skuInterno: '',
       descripcion: '',
-      familia: 'Perfileria',
-      unidadMedida: 'ml',
+      tipoProductoId: '',
       monedaOrigen: 'CLP',
       precioOrigen: '',
       proveedorId: '',
@@ -191,7 +172,7 @@ export const NuevoMaterialModal: React.FC<NuevoMaterialModalProps> = ({
                 Nuevo Artículo en Maestro
               </h2>
               <p className="text-[11px] text-slate-500">
-                Registrar material con SKU, familia, unidad, divisa y precio de origen
+                Registrar material con SKU, tipo de producto y precio de origen
               </p>
             </div>
           </div>
@@ -225,12 +206,17 @@ export const NuevoMaterialModal: React.FC<NuevoMaterialModalProps> = ({
             />
 
             <Select
-              label="Partida"
-              options={FAMILIAS_CATALOGO}
-              value={formData.familia}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, familia: e.target.value }))
-              }
+              label="Tipo de producto"
+              options={[
+                ...(formData.tipoProductoId ? [] : [{ value: '', label: tiposQuery.isLoading ? 'Cargando…' : 'Elige un tipo…' }]),
+                ...tiposActivos.map((t) => ({ value: t.id, label: `${t.nombre} · ${t.partida.nombre}` })),
+              ]}
+              value={formData.tipoProductoId}
+              onChange={(e) => {
+                const nuevo = tiposActivos.find((t) => t.id === e.target.value);
+                setFormData((prev) => ({ ...prev, tipoProductoId: e.target.value, monedaOrigen: nuevo?.moneda ?? prev.monedaOrigen }));
+              }}
+              error={errors.tipoProductoId}
             />
           </div>
 
@@ -245,16 +231,16 @@ export const NuevoMaterialModal: React.FC<NuevoMaterialModalProps> = ({
             required
           />
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-            <Select
-              label="Unidad de Medida"
-              options={UNIDADES_CATALOGO}
-              value={formData.unidadMedida}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, unidadMedida: e.target.value }))
-              }
-            />
+          {tipo && (
+            <p className="text-[11px] text-slate-500">
+              Se mide en <strong className="text-slate-700">{tipo.unidadConsumo.nombre}</strong>, el precio es por{' '}
+              <strong className="text-slate-700">{tipo.unidadPrecio.simbolo}</strong> y se compra por{' '}
+              <strong className="text-slate-700">{tipo.unidadCompra.nombre}</strong>
+              {Number(tipo.factorCompra) !== 1 && ` (${Number(tipo.factorCompra).toLocaleString('es-CL')} ${tipo.unidadPrecio.simbolo} c/u)`}.
+            </p>
+          )}
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <Select
               label="Divisa de Origen"
               options={MONEDAS_CATALOGO}
@@ -262,10 +248,12 @@ export const NuevoMaterialModal: React.FC<NuevoMaterialModalProps> = ({
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, monedaOrigen: e.target.value }))
               }
+              disabled={tipo?.monedaFija}
+              helperText={tipo?.monedaFija ? `Los ${tipo.nombre.toLowerCase()} siempre van en ${tipo.moneda}` : undefined}
             />
 
             <Input
-              label="Precio de Origen"
+              label={`Precio de Origen${tipo ? ` por ${tipo.unidadPrecio.simbolo}` : ''}`}
               placeholder="Ej: 14500 o 0.42"
               value={formData.precioOrigen}
               onChange={(e) =>

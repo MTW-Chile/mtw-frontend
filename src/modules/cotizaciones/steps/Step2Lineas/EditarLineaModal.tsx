@@ -44,7 +44,6 @@ interface EditarLineaModalProps {
 
 type EditMode = { type: 'add' } | { type: 'replace'; row: MaterialVentana } | null;
 
-const familyOrder = ['Perfileria', 'Herrajes', 'Juntas', 'Vidrios', 'Refuerzos', 'Superficies', 'Accesorios', 'Otros'];
 const familyBadgeColors: Record<string, string> = {
   Perfileria: 'bg-indigo-50 text-indigo-700 border-indigo-200',
   Herrajes: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -144,21 +143,16 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
   };
 
   const mats = v.materiales || [];
+  // Agrupado por partida (la del tipo de producto de cada material), en el
+  // orden configurado en Configuración > Catálogo.
   const groupedFamilies = mats.reduce<Record<string, typeof mats>>((acc, item) => {
-    const fam = item.material?.familia || 'Otros';
+    const fam = item.material?.tipoProducto?.partida?.nombre || item.material?.familia || 'Otros';
     if (!acc[fam]) acc[fam] = [];
     acc[fam].push(item);
     return acc;
   }, {});
-
-  const sortedFamilyKeys = Object.keys(groupedFamilies).sort((a, b) => {
-    const idxA = familyOrder.indexOf(a);
-    const idxB = familyOrder.indexOf(b);
-    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-    if (idxA !== -1) return -1;
-    if (idxB !== -1) return 1;
-    return a.localeCompare(b);
-  });
+  const ordenPartida = (fam: string) => groupedFamilies[fam][0]?.material?.tipoProducto?.partida?.orden ?? Number.MAX_SAFE_INTEGER;
+  const sortedFamilyKeys = Object.keys(groupedFamilies).sort((a, b) => ordenPartida(a) - ordenPartida(b) || a.localeCompare(b));
 
   const handleAdd = async (payload: MaterialLineaFormPayload) => {
     const result = await addVentanaMaterial(v.id, payload);
@@ -538,7 +532,7 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
         {/* Footer del Modal */}
         <div className="flex justify-between items-center px-6 py-3.5 border-t border-slate-100 bg-slate-50/70 shrink-0">
           <span className="text-xs text-slate-500 font-medium">
-            Total {mats.length} materiales en {sortedFamilyKeys.length} familias
+            Total {mats.length} materiales en {sortedFamilyKeys.length} partidas
           </span>
           <button
             onClick={handleClose}

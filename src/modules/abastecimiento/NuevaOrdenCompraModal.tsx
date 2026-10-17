@@ -13,36 +13,12 @@ import {
   getBodegaProyecto,
   getOrdenCompraById,
   getMateriales,
+  getPartidas,
   type ItemOrdenCompraPayload,
 } from '../../api/client';
-import { useMonedas } from '../../lib/monedas';
-import {
-  computeMaterialesFasePorProveedor,
-  computeMaterialesConsolidados,
-  MONEDA_POR_FAMILIA,
-  normalizarFamilia,
-  type GrupoFaseProveedor,
-  type TrasladoDesdeObrasMayores,
-} from '../cotizaciones/lib/materialesConsolidados';
-import { CATEGORIA_GASTO_OPTIONS, CATEGORIA_GASTO_LABEL } from './categoriaGasto';
-import type { CategoriaGasto, Fase, Material } from '../../types';
-
-// Convierte el precio de catalogo de un Material (Material.precioOrigen) a
-// CLP para sugerirlo al elegirlo a mano -- "precio del maestro", usado para
-// Obras Mayores y para items marcados como Adicional (ver esAdicional).
-// OJO: la moneda NO sale de Material.monedaOrigen -- ese campo es el
-// moneda_origen_codigo crudo de HETMO, que viene hardcodeado en "2" para
-// todo material (nunca fue un dato real, confirmado en
-// materialesConsolidados.ts). La divisa real depende de la familia
-// (MONEDA_POR_FAMILIA), igual que en la Analitica de Materiales -- comparar
-// contra el codigo de HETMO directamente siempre daba CLP sin convertir.
-function precioMaestroCLP(material: Material, tasaDolar: number, tasaEuro: number): number | null {
-  if (material.precioOrigen == null) return null;
-  const familia = normalizarFamilia((material.familia || '').toUpperCase().trim());
-  const moneda = MONEDA_POR_FAMILIA[familia] || 'CLP';
-  const factor = moneda === 'USD' ? tasaDolar : moneda === 'EUR' ? tasaEuro : 1;
-  return material.precioOrigen * factor;
-}
+import { useAnalitica, useRequerimientoFase } from '../cotizaciones/lib/useAnalitica';
+import { precioCompraCLP, unidadCompra } from '../../lib/formatoMaterial';
+import type { Fase, GrupoRequerimiento, ItemRequerimiento, Material } from '../../types';
 
 // Campo de descripcion de un item manual: con proveedor elegido, busca en
 // vivo en el catalogo filtrado a ESE proveedor (Material.proveedorId) para
@@ -129,9 +105,9 @@ const BuscadorProductoProveedor: React.FC<{
               >
                 <div className="text-[11px] font-semibold text-slate-800 leading-tight">{m.descripcion}</div>
                 <div className="text-[10px] text-slate-400">
-                  {m.skuInterno} · {m.unidadMedida}
+                  {m.skuInterno} · {unidadCompra(m)}
                   {m.precioOrigen != null &&
-                    ` · ${m.precioOrigen.toLocaleString('es-CL')} ${MONEDA_POR_FAMILIA[normalizarFamilia((m.familia || '').toUpperCase().trim())] || 'CLP'}`}
+                    ` · ${m.precioOrigen.toLocaleString('es-CL')} ${m.formato?.moneda ?? ''}/${m.formato?.unidadPrecio.simbolo ?? m.unidadMedida}`}
                 </div>
               </button>
             ))
@@ -156,21 +132,19 @@ interface NuevaOrdenCompraModalProps {
   // proveedor) al abrir, en vez de que el usuario tenga que volver a
   // elegirla del selector.
   faseIdInicial?: string;
-  // Cuando se abre desde el boton "Generar OC" de UNA categoria puntual
-  // dentro de una fase (ver FasesTab) -- filtra los materiales calculados
-  // a solo esa familia (Perfileria/Herrajes/Vidrios/...) y, si todos caen
-  // en un unico proveedor, lo deja ya elegido con sus items cargados,
-  // lista para enviar sin tocar nada mas.
-  categoriaFiltro?: string;
+  // Cuando se abre desde el boton de UNA partida puntual dentro de una fase
+  // (ver FasesTab) -- codigo de la partida: filtra los materiales calculados
+  // a solo esa partida y, si todos caen en un unico proveedor, lo deja ya
+  // elegido con sus items cargados, lista para enviar sin tocar nada mas.
+  partidaFiltro?: string;
   // Cuando se abre para COMPLETAR una solicitud existente (Compras, ver
   // OrdenesCompraList) en vez de crear una OC nueva -- modo "completar".
   solicitudId?: string;
 }
 
 interface ItemForm {
-  // Presente cuando el item vino de los materiales calculados de una fase
-  // (ver gruposPorProveedor) -- mtw-api deriva la categoria sola de la
-  // familia del material, asi que estos items no piden categoria.
+  // Presente cuando el item es un material del catalogo -- mtw-api toma la
+  // partida del tipo de producto del material, asi que no se pide.
   materialId?: string;
   descripcion: string;
   unidadMedida: string;
@@ -181,7 +155,7 @@ interface ItemForm {
   cantidadCalculada?: number | null;
   // Modo "crear": cuanto de la necesidad bruta ya se cubrio con stock
   // disponible -- `cantidad` ya viene neta de esto, es solo para mostrar
-  // el porque (ver computeMaterialesFasePorProveedor).
+  // el porque (ver GET /fases/:id/requerimiento).
   stockDisponible?: number;
   // Modo "completar": la cantidad tal como se pidio en la solicitud
   // original, y lo que hay disponible en cada bodega AHORA (puede haber
@@ -191,20 +165,21 @@ interface ItemForm {
   disponibleObra?: number;
   disponibleObrasMayores?: number;
   precioUnitario: string;
-  categoria: CategoriaGasto | '';
+  // Solo items externos (sin material del catalogo): id de la partida.
+  partidaId: string;
 }
 
-const itemVacio = (): ItemForm => ({ descripcion: '', unidadMedida: 'UN', cantidad: '', precioUnitario: '', categoria: '' });
+const itemVacio = (): ItemForm => ({ descripcion: '', unidadMedida: 'UN', cantidad: '', precioUnitario: '', partidaId: '' });
 
-const itemFormDesdeCalculo = (item: GrupoFaseProveedor['items'][number]): ItemForm => ({
+const itemFormDesdeCalculo = (item: ItemRequerimiento): ItemForm => ({
   materialId: item.materialId,
   descripcion: item.descripcion,
-  unidadMedida: item.unidadMedida,
+  unidadMedida: item.unidad,
   cantidad: String(item.cantidad),
   cantidadCalculada: item.cantidadCalculada,
   stockDisponible: item.stockDisponible,
   precioUnitario: item.precioUnitario ? String(item.precioUnitario) : '',
-  categoria: '',
+  partidaId: '',
 });
 
 const fmtCantidad = (n: number | undefined) => (n ?? 0).toLocaleString('es-CL', { maximumFractionDigits: 2 });
@@ -216,7 +191,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   proyectoIdFijo,
   proyectoLabelFijo,
   faseIdInicial,
-  categoriaFiltro,
+  partidaFiltro,
   solicitudId,
 }) => {
   // "solicitar": desde un Proyecto, se pide sin elegir proveedor/precio --
@@ -227,7 +202,6 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   // /api/ordenes-compra en mtw-api.
   const modo: 'solicitar' | 'completar' | 'crear' = solicitudId ? 'completar' : proyectoIdFijo ? 'solicitar' : 'crear';
   const queryClient = useQueryClient();
-  const monedas = useMonedas();
 
   const [proyectoId, setProyectoId] = useState(proyectoIdFijo || '');
   const [faseId, setFaseId] = useState('');
@@ -314,48 +288,49 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   const stockObrasMayoresPorMaterial = useMemo(() => mapaStock(bodegaData?.stockObrasMayores), [bodegaData]);
 
   // Materiales necesarios para fabricar la fase elegida, agrupados por
-  // proveedor -- reusa EXACTAMENTE la misma logica de precio/cantidad que
-  // la Analitica de Materiales (conversion de moneda, ajustes manuales,
-  // descuento/recargo por familia, barras para Perfileria/Refuerzos) para
-  // no mostrar un precio distinto al ya aprobado en el proyecto. Ya neta
-  // de lo que hay en stock -- ver comentario de
-  // computeMaterialesFasePorProveedor.
+  // proveedor (GET /fases/:id/requerimiento de mtw-api): cantidades de la
+  // Analitica prorrateadas a la fase, en unidad de compra (ej. barras
+  // enteras), con el precio aprobado (descuento/recargo de su partida). En
+  // "crear" ya vienen netos del stock de la obra y de Obras Mayores; en
+  // "solicitar" es la necesidad bruta (Compras contrasta al completarla).
   const tasaDolar = Number(activeVersion?.tipoCambioDolar) || 950;
   const tasaUf = Number(activeVersion?.tipoCambioUF) || 38500;
   const tasaEuro = Number(activeVersion?.tipoCambioEuro) || 1030;
-  const { gruposPorProveedor, trasladosDesdeObrasMayores }: { gruposPorProveedor: GrupoFaseProveedor[]; trasladosDesdeObrasMayores: TrasladoDesdeObrasMayores[] } = useMemo(() => {
-    const fase = (activeVersion?.fases || []).find((f) => f.id === faseId);
-    const { grupos, trasladosDesdeObrasMayores } = computeMaterialesFasePorProveedor(
-      activeVersion,
-      fase,
-      tasaDolar,
-      tasaEuro,
-      tasaUf,
-      monedas,
-      stockProyectoPorMaterial,
-      stockObrasMayoresPorMaterial
-    );
-    if (!categoriaFiltro) return { gruposPorProveedor: grupos, trasladosDesdeObrasMayores };
+  const { data: requerimiento } = useRequerimientoFase(
+    proyectoId,
+    isOpen && modo !== 'completar' && faseId ? faseId : undefined,
+    modo !== 'solicitar'
+  );
+  const { gruposPorProveedor, trasladosDesdeObrasMayores } = useMemo(() => {
+    const grupos: GrupoRequerimiento[] = requerimiento?.grupos ?? [];
+    const traslados = requerimiento?.trasladosDesdeObrasMayores ?? [];
+    if (!partidaFiltro) return { gruposPorProveedor: grupos, trasladosDesdeObrasMayores: traslados };
     return {
       gruposPorProveedor: grupos
-        .map((g) => ({ ...g, items: g.items.filter((it) => it.familia === categoriaFiltro) }))
+        .map((g) => ({ ...g, items: g.items.filter((it) => it.partida.codigo === partidaFiltro) }))
         .filter((g) => g.items.length > 0),
-      trasladosDesdeObrasMayores: trasladosDesdeObrasMayores.filter((t) => t.familia === categoriaFiltro),
+      trasladosDesdeObrasMayores: traslados.filter((t) => t.partida.codigo === partidaFiltro),
     };
-  }, [activeVersion, faseId, tasaDolar, tasaEuro, tasaUf, monedas, categoriaFiltro, stockProyectoPorMaterial, stockObrasMayoresPorMaterial]);
+  }, [requerimiento, partidaFiltro]);
 
-  // Precio comprometido por material: el mismo que ya usa gruposPorProveedor
-  // arriba, pero para TODA la version del proyecto (no solo lo que necesita
-  // la fase elegida) -- un material del presupuesto aprobado que no sea
-  // parte de esta fase igual tiene un precio ya comprometido con el
-  // cliente. Se usa al elegir un producto a mano (ver seleccionarMaterialEnItem)
-  // cuando la obra no es Adicional; sin proyecto, o marcado Adicional, se
-  // usa el precio del maestro en su lugar.
-  const preciosComprometidosPorMaterial = useMemo(() => {
-    if (!activeVersion) return new Map<string, { precioCLP: number; unidadMedida: string }>();
-    const consolidado = computeMaterialesConsolidados(activeVersion, tasaDolar, tasaEuro, tasaUf, monedas);
-    return new Map(consolidado.map((m) => [m.materialId, { precioCLP: m.precioCLP, unidadMedida: m.unidadMedida }]));
-  }, [activeVersion, tasaDolar, tasaEuro, tasaUf, monedas]);
+  // Partidas para clasificar los items externos (sin material del catalogo).
+  const { data: partidas } = useQuery({ queryKey: ['partidas'], queryFn: getPartidas, enabled: isOpen });
+  const opcionesPartida = [
+    { value: '', label: 'Partida...' },
+    ...(partidas || []).filter((p) => p.activa).map((p) => ({ value: p.id, label: p.nombre })),
+  ];
+
+  // Precio comprometido por material: el de la Analitica de TODA la version
+  // del proyecto (no solo lo que necesita la fase elegida) -- un material del
+  // presupuesto aprobado que no sea parte de esta fase igual tiene un precio
+  // ya comprometido con el cliente. Se usa al elegir un producto a mano (ver
+  // seleccionarMaterialEnItem) cuando la obra no es Adicional; sin proyecto,
+  // o marcado Adicional, se usa el precio del maestro en su lugar.
+  const { data: analitica } = useAnalitica(proyectoId, isOpen && proyectoId && modo !== 'completar' ? activeVersion?.id : undefined);
+  const preciosComprometidosPorMaterial = useMemo(
+    () => new Map((analitica?.materiales ?? []).map((m) => [m.materialId, { precioCLP: m.precioCLP, unidadMedida: m.unidad.codigo }])),
+    [analitica]
+  );
 
   // Cambiar de proyecto o de fase invalida cualquier proveedor/items que ya
   // se hubieran elegido -- evita mezclar items de una fase con el proveedor
@@ -419,32 +394,31 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
               disponibleObra,
               disponibleObrasMayores,
               precioUnitario: it.precioUnitario != null ? String(it.precioUnitario) : '',
-              categoria: (it.materialId ? '' : it.categoria) as CategoriaGasto | '',
+              partidaId: it.materialId ? '' : it.partidaId,
             };
           })
         : [itemVacio()]
     );
   }, [modo, solicitud, isOpen, bodegaData, stockProyectoPorMaterial, stockObrasMayoresPorMaterial]);
 
-  const elegirGrupoProveedor = (grupo: GrupoFaseProveedor) => {
+  const elegirGrupoProveedor = (grupo: GrupoRequerimiento) => {
     if (!grupo.proveedorId) return; // sin proveedor asignado: no se puede generar OC para este grupo
     setProveedorId(grupo.proveedorId);
     setItems(grupo.items.length ? grupo.items.map(itemFormDesdeCalculo) : [itemVacio()]);
   };
 
-  // Con categoriaFiltro (boton "Generar OC" de una categoria puntual en
-  // FasesTab): si esa categoria cae entera en un unico proveedor, se elige
-  // solo -- el caso comun (Vidrios de un solo vidriero, Perfileria de un
-  // solo distribuidor). Si hay mas de un proveedor para la misma
-  // categoria, no se puede armar una sola OC igual (una OC es de un
-  // proveedor) -- queda el selector de chips de abajo, ya filtrado a solo
-  // esos proveedores, para elegir a mano.
+  // Con partidaFiltro (boton de una partida puntual en FasesTab): si esa
+  // partida cae entera en un unico proveedor, se elige solo -- el caso comun
+  // (Vidrios de un solo vidriero, Perfileria de un solo distribuidor). Si
+  // hay mas de un proveedor para la misma partida, no se puede armar una
+  // sola OC igual (una OC es de un proveedor) -- queda el selector de chips
+  // de abajo, ya filtrado a solo esos proveedores, para elegir a mano.
   useEffect(() => {
-    if (isOpen && categoriaFiltro && gruposPorProveedor.length === 1) {
+    if (isOpen && partidaFiltro && gruposPorProveedor.length === 1) {
       elegirGrupoProveedor(gruposPorProveedor[0]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, categoriaFiltro, gruposPorProveedor]);
+  }, [isOpen, partidaFiltro, gruposPorProveedor]);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -458,8 +432,8 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
       if (itemsValidos.length === 0) {
         throw new Error(modo === 'solicitar' ? 'Agrega al menos un item con descripción y cantidad.' : 'Agrega al menos un item con descripción, cantidad y precio.');
       }
-      if (itemsValidos.some((i) => !i.materialId && !i.categoria)) {
-        throw new Error('Elige una categoría para cada item sin material del catálogo -- sirve para el Control de Presupuesto.');
+      if (itemsValidos.some((i) => !i.materialId && !i.partidaId)) {
+        throw new Error('Elige una partida para cada item sin material del catálogo -- sirve para el Control de Presupuesto.');
       }
 
       const itemsPayload: ItemOrdenCompraPayload[] = itemsValidos.map((i) => ({
@@ -469,7 +443,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
         cantidad: parseFloat(i.cantidad),
         cantidadCalculada: i.cantidadCalculada ?? undefined,
         precioUnitario: i.precioUnitario ? parseFloat(i.precioUnitario) : undefined,
-        categoria: i.materialId ? undefined : (i.categoria as CategoriaGasto),
+        partidaId: i.materialId ? undefined : i.partidaId,
       }));
 
       if (modo === 'completar') {
@@ -562,7 +536,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   const seleccionarMaterialEnItem = (index: number, material: Material) => {
     const comprometido = proyectoId && !esAdicional ? preciosComprometidosPorMaterial.get(material.id) : undefined;
     const precioReferencial = comprometido ? Math.round(comprometido.precioCLP) : (() => {
-      const maestro = precioMaestroCLP(material, tasaDolar, tasaEuro);
+      const maestro = precioCompraCLP(material, { dolar: tasaDolar, euro: tasaEuro, uf: tasaUf });
       return maestro != null ? Math.round(maestro) : null;
     })();
     setItems((prev) =>
@@ -572,20 +546,18 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
               ...it,
               materialId: material.id,
               descripcion: material.descripcion,
-              // El precio comprometido viene por la unidad de compra real
-              // (ej. BARRA para Perfileria, no el metro de catalogo) -- usar
-              // esa unidad junto con ese precio, nunca mezclar con la del
-              // maestro.
-              unidadMedida: comprometido?.unidadMedida || material.unidadMedida,
-              categoria: '',
+              // Ambos precios vienen por unidad de compra (ej. BARRA para
+              // Perfileria, no el metro de catalogo): la unidad va con el precio.
+              unidadMedida: comprometido?.unidadMedida || unidadCompra(material),
+              partidaId: '',
               precioUnitario: precioReferencial != null ? String(precioReferencial) : it.precioUnitario,
             }
           : it
       )
     );
   };
-  // Vuelve el item a texto libre (partida externa) -- la descripcion queda
-  // como estaba, solo se desliga del material para poder elegir categoria.
+  // Vuelve el item a texto libre (item externo) -- la descripcion queda
+  // como estaba, solo se desliga del material para poder elegir partida.
   const quitarMaterialDeItem = (index: number) => {
     setItems((prev) => prev.map((it, i) => (i === index ? { ...it, materialId: undefined } : it)));
   };
@@ -725,14 +697,14 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
           {modo !== 'completar' && faseId && (
             <div className="space-y-1.5">
               <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                {categoriaFiltro
-                  ? `Proveedores de ${(CATEGORIA_GASTO_LABEL as Record<string, string>)[categoriaFiltro] || categoriaFiltro} en esta fase`
+                {partidaFiltro
+                  ? `Proveedores de ${partidas?.find((p) => p.codigo === partidaFiltro)?.nombre ?? partidaFiltro} en esta fase`
                   : 'Proveedores con materiales en esta fase'}
               </span>
               {gruposPorProveedor.length === 0 ? (
                 <p className="text-[11px] text-slate-500">
-                  {categoriaFiltro
-                    ? `Esta fase no tiene materiales calculados de esta categoría. ${modo === 'solicitar' ? 'Agrega un item manual abajo para una compra externa.' : 'Elige un proveedor manualmente abajo para una compra externa.'}`
+                  {partidaFiltro
+                    ? `Esta fase no tiene materiales calculados de esta partida. ${modo === 'solicitar' ? 'Agrega un item manual abajo para una compra externa.' : 'Elige un proveedor manualmente abajo para una compra externa.'}`
                     : `Esta fase no tiene materiales calculados (¿tiene líneas de ventana asignadas en la pestaña Fases?). ${modo === 'solicitar' ? 'Agrega un item manual abajo para una compra externa (flete, mano de obra, etc.).' : 'Elige un proveedor manualmente abajo para una compra externa (flete, mano de obra, etc.).'}`}
                 </p>
               ) : (
@@ -812,7 +784,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
                     <th className="px-3 py-2 font-bold">Descripción</th>
-                    <th className="px-3 py-2 font-bold w-36">Categoría</th>
+                    <th className="px-3 py-2 font-bold w-36">Partida</th>
                     <th className="px-3 py-2 font-bold w-20">Unidad</th>
                     <th className="px-3 py-2 font-bold text-right w-24">Cantidad</th>
                     {modo !== 'solicitar' && <th className="px-3 py-2 font-bold text-right w-28">Precio unit.</th>}
@@ -854,9 +826,9 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
                             </span>
                           ) : (
                             <Select
-                              options={[{ value: '', label: 'Categoría...' }, ...CATEGORIA_GASTO_OPTIONS]}
-                              value={item.categoria}
-                              onChange={(e) => setItemField(index, 'categoria', e.target.value as CategoriaGasto)}
+                              options={opcionesPartida}
+                              value={item.partidaId}
+                              onChange={(e) => setItemField(index, 'partidaId', e.target.value)}
                             />
                           )}
                         </td>
