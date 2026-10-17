@@ -1,7 +1,7 @@
 import React from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Boxes, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, Wrench, ChevronDown, ChevronRight, Tags, Send, Trash2 } from 'lucide-react';
-import { getBodegaProyecto, getBodegaGlobal, getUnidadesMaterial, eliminarStockMaterial, getMisPermisos } from '../../api/client';
+import { getBodegaProyecto, getBodegaGlobal, getUnidadesMaterial, eliminarStockMaterial } from '../../api/client';
 import { Button } from '../../components/ui/Button';
 import { TrasladoBodegaModal } from './TrasladoBodegaModal';
 import type { TipoMovimientoBodega, EstadoUnidadMaterial, Bodega, StockMaterial, BodegaProyectoResponse, BodegaGlobalResponse } from '../../types';
@@ -9,6 +9,7 @@ import { useMediaQuery } from '../../lib/useMediaQuery';
 import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilters';
 import { ColumnFilterHeader } from '../../components/ui/ColumnFilterHeader';
 import { BREAKPOINT_DESKTOP, TABLE_CLASS } from '../../lib/designSystem';
+import { usePermisos } from '../../lib/permisos';
 
 const TIPO_MOVIMIENTO: Record<TipoMovimientoBodega, { label: string; icon: React.ReactNode; color: string }> = {
   INGRESO_OC: { label: 'Ingreso (OC)', icon: <ArrowDownToLine className="w-3.5 h-3.5" />, color: 'text-emerald-600' },
@@ -87,7 +88,7 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
   });
   // Mismo queryKey que el resto de la app -- sale del cache, no pega de
   // nuevo al backend.
-  const { data: permisos } = useQuery({ queryKey: ['misPermisos'], queryFn: getMisPermisos });
+  const { tiene } = usePermisos();
   const [expandido, setExpandido] = React.useState<Set<string>>(new Set());
   const [trasladando, setTrasladando] = React.useState<{ stock: StockMaterial; bodegasDestino: Bodega[] } | null>(null);
 
@@ -127,8 +128,11 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
     : [];
   const bodegasDisponibles: Bodega[] = global ? data.bodegas : [];
   // "Enviar a obra" solo tiene sentido en la vista global (hay a donde
-  // trasladar); "Eliminar" es admin-only pero aplica en ambas vistas.
-  const mostrarAcciones = !proyectoId || !!permisos?.esAdmin;
+  // trasladar) y exige bodega.trasladar; "Eliminar" es una purga de
+  // superadministrador (fuera de produccion).
+  const puedeTrasladar = !proyectoId && tiene('bodega.trasladar');
+  const puedePurgar = tiene('sistema.purgas');
+  const mostrarAcciones = puedeTrasladar || puedePurgar;
   const colSpanDetalle = 4 + (!proyectoId ? 1 : 0) + (mostrarAcciones ? 1 : 0);
 
   const isDesktop = useMediaQuery(BREAKPOINT_DESKTOP);
@@ -163,7 +167,7 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
   // Reusado en la fila de escritorio y en la tarjeta de mobile.
   const AccionesStock: React.FC<{ s: (typeof stock)[number] }> = ({ s }) => (
     <div className="flex items-center justify-end gap-1 flex-wrap">
-      {!proyectoId && (
+      {puedeTrasladar && (
         <Button
           size="sm"
           variant="ghost"
@@ -173,7 +177,7 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
           Enviar a obra
         </Button>
       )}
-      {permisos?.esAdmin && (
+      {puedePurgar && (
         <Button
           size="sm"
           variant="danger"

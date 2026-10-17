@@ -14,31 +14,30 @@ interface UsuarioEditModalProps {
 export const UsuarioEditModal: React.FC<UsuarioEditModalProps> = ({ usuario, onClose }) => {
   const queryClient = useQueryClient();
   const esNuevo = !usuario;
-  // El admin del sistema (ADMIN_EMAILS en el backend) tiene acceso total sin
-  // pasar por Rol -- su correo y rol acá no tienen ningun efecto real, asi
-  // que solo se le deja editar el nombre.
-  const esAdmin = !!usuario?.esAdmin;
+  // Superadministrador tecnico (SUPERADMIN_EMAILS en mtw-api): tiene acceso
+  // total por variable de entorno; su rol aca solo aplica si deja de serlo.
+  const esSuperadmin = !!usuario?.esSuperadmin;
 
-  const { data: roles } = useQuery<Rol[]>({
-    queryKey: ['roles'],
-    queryFn: async () => (await getRoles()).data,
-    enabled: !esAdmin,
-  });
+  const { data: rolesData } = useQuery({ queryKey: ['roles'], queryFn: getRoles });
+  const roles: Rol[] = rolesData?.data ?? [];
 
   const [nombre, setNombre] = useState(usuario?.nombre || '');
   const [email, setEmail] = useState(usuario?.email || '');
   const [rolId, setRolId] = useState<string>(usuario?.rolId || '');
+  const [recibeCorreos, setRecibeCorreos] = useState(usuario?.recibeNotificacionesCorreo ?? true);
   const [generalError, setGeneralError] = useState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: async () => {
-      if (esAdmin) {
-        return updateUsuario(usuario!.id, { nombre: nombre.trim() });
-      }
       if (esNuevo) {
         return createUsuario({ nombre: nombre.trim(), email: email.trim(), rolId: rolId || null });
       }
-      return updateUsuario(usuario!.id, { nombre: nombre.trim(), email: email.trim(), rolId: rolId || null });
+      return updateUsuario(usuario!.id, {
+        nombre: nombre.trim(),
+        email: email.trim(),
+        rolId: rolId || null,
+        recibeNotificacionesCorreo: recibeCorreos,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['usuarios'] });
@@ -53,7 +52,7 @@ export const UsuarioEditModal: React.FC<UsuarioEditModalProps> = ({ usuario, onC
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setGeneralError(null);
-    if (!nombre.trim() || (!esAdmin && !email.trim())) {
+    if (!nombre.trim() || !email.trim()) {
       setGeneralError('Nombre y correo son obligatorios.');
       return;
     }
@@ -76,8 +75,8 @@ export const UsuarioEditModal: React.FC<UsuarioEditModalProps> = ({ usuario, onC
                 {esNuevo ? 'Nuevo Usuario' : usuario!.nombre}
               </h2>
               <p className="text-[11px] text-slate-500">
-                {esAdmin
-                  ? 'Administrador del sistema -- solo el nombre es editable'
+                {esSuperadmin
+                  ? 'Superadministrador técnico: acceso total por configuración del servidor'
                   : 'El correo debe coincidir con el de su cuenta de Entra ID/Microsoft'}
               </p>
             </div>
@@ -100,9 +99,7 @@ export const UsuarioEditModal: React.FC<UsuarioEditModalProps> = ({ usuario, onC
 
           <Input label="Nombre" placeholder="Ej: Juan Pérez" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
 
-          {esAdmin ? (
-            <Input label="Correo" value={email} disabled helperText="Fijo -- definido en ADMIN_EMAILS del backend" />
-          ) : (
+          {(
             <>
               <Input
                 label="Correo"
@@ -121,13 +118,25 @@ export const UsuarioEditModal: React.FC<UsuarioEditModalProps> = ({ usuario, onC
                   className="w-full py-2.5 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600 focus:ring-2 focus:ring-brand-600/10 transition-all"
                 >
                   <option value="">Sin rol asignado (sin acceso)</option>
-                  {(roles || []).map((r) => (
+                  {roles.map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.nombre}
                     </option>
                   ))}
                 </select>
               </div>
+
+              {!esNuevo && (
+                <label className="flex items-center gap-2.5 text-xs text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="accent-brand-600"
+                    checked={recibeCorreos}
+                    onChange={(e) => setRecibeCorreos(e.target.checked)}
+                  />
+                  Recibe avisos por correo de las aprobaciones que puede resolver
+                </label>
+              )}
             </>
           )}
 

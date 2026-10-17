@@ -23,6 +23,7 @@ import {
   type MaterialConsolidado,
 } from '../../lib/materialesConsolidados';
 import { MTW_NAVY, MTW_GRIS, MTW_BORDE, MTW_HEAD_BG, pdfTableStyle, drawPdfHeader } from '../../lib/pdfTheme';
+import { usePermisos } from '../../../../lib/permisos';
 
 interface Step3MaterialesProps {
   proyecto: Proyecto;
@@ -280,6 +281,10 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   // vez que esa tambien esta guardada (el backend rechaza el congelamiento
   // si falta). Antes se congelaba aca mismo, dejando el Paso 4 en solo
   // lectura antes de poder completarlo.
+  // La aprobacion tecnica la exige la API; aca solo se ocultan los botones.
+  const { tiene } = usePermisos();
+  const puedeAprobarTecnico = tiene('presupuestos.aprobar_tecnico');
+
   const aprobarTodoMutation = useMutation({
     mutationFn: async () => {
       if (!versionId) return null;
@@ -599,7 +604,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 lg:justify-end shrink-0">
-            {versionId && estadoActual === 'EN_COTIZACION' && !todasLasFamiliasAprobadas && (
+            {versionId && puedeAprobarTecnico && estadoActual === 'EN_COTIZACION' && !todasLasFamiliasAprobadas && (
               <Button
                 variant="primary"
                 size="sm"
@@ -612,7 +617,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                 Aprobar analítica completa
               </Button>
             )}
-            {versionId && puedeDeshacerAca && (
+            {versionId && puedeAprobarTecnico && puedeDeshacerAca && (
               <Button
                 variant="outline"
                 size="sm"
@@ -728,7 +733,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                         <ShieldCheck className="w-3 h-3" /> Aprobada
                       </Badge>
                     )}
-                    {estadoActual === 'EN_COTIZACION' && (
+                    {puedeAprobarTecnico && estadoActual === 'EN_COTIZACION' && (
                       <Button
                         variant={aprobada ? 'outline' : 'primary'}
                         size="sm"

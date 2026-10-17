@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Calculator, Check, Plus, Trash2, FileDown, Lock, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
 import { useMonedas } from '../../../../lib/monedas';
-import { updateFijacionConfig, updateEstadoAprobacion, getMisPermisos } from '../../../../api/client';
+import { updateFijacionConfig, updateEstadoAprobacion } from '../../../../api/client';
 import type { Proyecto, ProyectoVersion, FijacionExtra } from '../../../../types';
 import { Button } from '../../../../components/ui/Button';
 import {
@@ -13,6 +13,7 @@ import {
   computeCantidadCuadros,
 } from '../../lib/materialesConsolidados';
 import { MTW_NAVY, MTW_GRIS, MTW_BORDE, pdfTableStyle, drawPdfHeader } from '../../lib/pdfTheme';
+import { usePermisos } from '../../../../lib/permisos';
 
 interface Step4FijacionesProps {
   proyecto: Proyecto;
@@ -62,8 +63,8 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
   isCambiandoEstadoAprobacion,
 }) => {
   const queryClient = useQueryClient();
-  const { data: permisos } = useQuery({ queryKey: ['misPermisos'], queryFn: getMisPermisos });
-  const puedeAprobarGerencia = !!permisos && (permisos.esAdmin || permisos.aprobaciones.includes('gerencial'));
+  const { tiene } = usePermisos();
+  const puedeAprobarGerencia = tiene('presupuestos.aprobar_gerencial');
   const monedas = useMonedas();
   const tasaDolar = Number(dolar) || 950;
   const tasaUf = Number(uf) || 38500;

@@ -36,6 +36,7 @@ import type {
   Rol,
   Usuario,
   MisPermisos,
+  ModuloPermisos,
   AprobacionesPendientes,
   FabricacionHetmo,
   FabricacionHetmoBusqueda,
@@ -1122,9 +1123,12 @@ export async function getMisPermisos(): Promise<MisPermisos> {
   return response.data;
 }
 
-// "Editar mi usuario": solo el nombre propio (rol/correo/estado son del admin).
-export async function updateMiUsuario(nombre: string): Promise<{ success: boolean; nombre: string }> {
-  const response = await apiClient.patch('/mi-usuario', { nombre });
+// "Editar mi usuario": nombre propio y preferencia de correos (rol, correo y
+// estado son de quien gestiona usuarios).
+export async function updateMiUsuario(
+  payload: Partial<{ nombre: string; recibeNotificacionesCorreo: boolean }>
+): Promise<{ success: boolean; nombre: string; recibeNotificacionesCorreo: boolean }> {
+  const response = await apiClient.patch('/mi-usuario', payload);
   return response.data;
 }
 
@@ -1140,24 +1144,26 @@ export async function deleteMiClayToken(): Promise<{ success: boolean; tieneToke
   return response.data;
 }
 
-export async function getRoles(): Promise<{ data: Rol[] }> {
-  const response = await apiClient.get<{ data: Rol[] }>('/roles');
+export async function getRoles(): Promise<{ data: Rol[]; permisosSinAsignar: string[] }> {
+  const response = await apiClient.get<{ data: Rol[]; permisosSinAsignar: string[] }>('/roles');
   return response.data;
 }
 
-export async function createRol(payload: {
-  nombre: string;
-  secciones: string[];
-  configTabs: string[];
-  aprobaciones: string[];
-}): Promise<{ data: Rol }> {
+export async function getCatalogoPermisos(): Promise<{ data: ModuloPermisos[] }> {
+  const response = await apiClient.get<{ data: ModuloPermisos[] }>('/permisos/catalogo');
+  return response.data;
+}
+
+type DatosRol = { nombre: string; descripcion: string | null; esAdministradorNegocio: boolean; permisos: string[] };
+
+export async function createRol(payload: DatosRol): Promise<{ data: Rol }> {
   const response = await apiClient.post<{ data: Rol }>('/roles', payload);
   return response.data;
 }
 
 export async function updateRol(
   id: string,
-  payload: Partial<{ nombre: string; secciones: string[]; configTabs: string[]; aprobaciones: string[] }>
+  payload: Partial<DatosRol>
 ): Promise<{ data: Rol }> {
   const response = await apiClient.patch<{ data: Rol }>(`/roles/${id}`, payload);
   return response.data;
@@ -1190,7 +1196,7 @@ export async function createUsuario(payload: {
 
 export async function updateUsuario(
   id: string,
-  payload: Partial<{ nombre: string; email: string; rolId: string | null; activo: boolean }>
+  payload: Partial<{ nombre: string; email: string; rolId: string | null; activo: boolean; recibeNotificacionesCorreo: boolean }>
 ): Promise<{ data: Usuario }> {
   const response = await apiClient.patch<{ data: Usuario }>(`/usuarios/${id}`, payload);
   return response.data;

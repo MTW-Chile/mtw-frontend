@@ -4,7 +4,8 @@ import { PlantillasPuertasPanel } from './PlantillasPuertasPanel';
 import { RolesUsuarioPanel } from './RolesUsuarioPanel';
 import { EtapasPendientesPanel } from './EtapasPendientesPanel';
 import { OneDrivePanel } from './OneDrivePanel';
-import { CONFIG_TABS } from '../../lib/accessControl';
+import { CONFIG_TABS, entradaVisible } from '../../lib/accessControl';
+import { usePermisos } from '../../lib/permisos';
 import { SubTabs } from '../../components/ui/PageHeader';
 import { HeaderSeccion } from '../../components/layout/HeaderSeccion';
 import { useUrlParam } from '../../lib/navigation';
@@ -17,20 +18,17 @@ const PANELES: Record<string, React.ComponentType> = {
   'roles-usuario': RolesUsuarioPanel,
 };
 
-interface ConfiguracionPageProps {
-  // null = administrador, ve todas las pestañas sin filtrar.
-  tabsPermitidas: string[] | null;
-}
-
 /**
  * Configuración global de MTW ERP, organizada en categorías -- arranca con
  * Presupuesto (branding/textos, ya existía), Plantillas de Puertas (recetas
  * de herrajes Protex) y Roles de Usuario (control de acceso). Las
- * categorías salen de CONFIG_TABS (lib/accessControl.ts), asi que agregar
- * una nueva es tocar esa lista + agregar su panel a PANELES arriba.
+ * categorías salen de CONFIG_TABS (lib/accessControl.ts), cada una con el
+ * permiso que la habilita: agregar una nueva es tocar esa lista + agregar su
+ * panel a PANELES arriba.
  */
-export const ConfiguracionPage: React.FC<ConfiguracionPageProps> = ({ tabsPermitidas }) => {
-  const categorias = CONFIG_TABS.filter((c) => tabsPermitidas === null || tabsPermitidas.includes(c.id));
+export const ConfiguracionPage: React.FC = () => {
+  const { tieneAlguno } = usePermisos();
+  const categorias = CONFIG_TABS.filter((c) => entradaVisible(c, tieneAlguno));
   // Categoría activa en la URL (?tab=...) -- Atras del navegador y F5 la respetan.
   const [categoria, setCategoria] = useUrlParam('tab');
 

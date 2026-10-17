@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search, Pencil, Users, X, Trash2, Plus, Loader2, Receipt } from 'lucide-react';
-import { getClientes, getMisPermisos, eliminarCliente } from '../../api/client';
+import { getClientes, eliminarCliente } from '../../api/client';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -12,6 +12,7 @@ import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilte
 import { ColumnFilterHeader } from '../../components/ui/ColumnFilterHeader';
 import { PAGE_CONTAINER_CLASS, BREAKPOINT_DESKTOP, TABLE_CLASS, TABLE_WRAPPER_CLASS, STICKY_ACTIONS_CLASS } from '../../lib/designSystem';
 import { HeaderSeccion } from '../../components/layout/HeaderSeccion';
+import { usePermisos } from '../../lib/permisos';
 
 /**
  * Maestro de Clientes: quién es cada cliente y sus datos de contacto/
@@ -36,7 +37,8 @@ export const ClientesPage: React.FC = () => {
   });
 
   // mismo queryKey que el resto de la app -- sale del cache, no pega de nuevo al backend.
-  const { data: permisos } = useQuery({ queryKey: ['misPermisos'], queryFn: getMisPermisos });
+  const { tiene } = usePermisos();
+  const puedeEliminar = tiene('clientes.archivar');
 
   // Solo admin (ver requireAdmin en mtw-api) -- el backend responde 409 si
   // todavía tiene proyectos enlazados (hay que desvincularlos primero).
@@ -203,7 +205,7 @@ export const ClientesPage: React.FC = () => {
                                 <Pencil className="w-3 h-3" />
                                 <span>Editar</span>
                               </button>
-                              {permisos?.esAdmin && (
+                              {puedeEliminar && (
                                 <button
                                   onClick={() => {
                                     if (window.confirm(`¿Eliminar el cliente "${c.nombre}"? Esta acción no se puede deshacer.`)) {
@@ -277,7 +279,7 @@ export const ClientesPage: React.FC = () => {
                         <Pencil className="w-3 h-3" />
                         <span>Editar</span>
                       </button>
-                      {permisos?.esAdmin && (
+                      {puedeEliminar && (
                         <button
                           onClick={() => {
                             if (window.confirm(`¿Eliminar el cliente "${c.nombre}"? Esta acción no se puede deshacer.`)) {

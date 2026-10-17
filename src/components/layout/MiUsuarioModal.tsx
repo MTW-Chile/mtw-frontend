@@ -7,9 +7,9 @@ import { updateMiUsuario, setMiClayToken, deleteMiClayToken } from '../../api/cl
 import type { MisPermisos } from '../../types';
 
 // "Editar mi usuario" (menu de usuario del Header) -- lo que cualquiera
-// puede cambiar de si mismo: su nombre y su token personal de Clay. Rol,
-// correo y estado siguen siendo solo del admin (Configuracion > Roles de
-// Usuario).
+// puede cambiar de si mismo: su nombre, si recibe avisos por correo y su
+// token personal de Clay. Rol, correo y estado son de quien gestiona
+// usuarios (Configuracion > Roles de Usuario).
 //
 // Token de Clay: todo lo que la plataforma hace en Clay (buscar facturas,
 // contabilizarlas) va con este token, asi Clay registra a la persona real
@@ -18,6 +18,7 @@ import type { MisPermisos } from '../../types';
 export const MiUsuarioModal: React.FC<{ permisos: MisPermisos; onClose: () => void }> = ({ permisos, onClose }) => {
   const queryClient = useQueryClient();
   const [nombre, setNombre] = useState(permisos.nombre || '');
+  const [recibeCorreos, setRecibeCorreos] = useState(permisos.recibeNotificacionesCorreo);
   const [tokenClay, setTokenClay] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -26,7 +27,11 @@ export const MiUsuarioModal: React.FC<{ permisos: MisPermisos; onClose: () => vo
       if (!nombre.trim()) throw new Error('El nombre no puede quedar vacío.');
       // Primero el token: si Clay lo rechaza, no se guarda nada a medias.
       if (tokenClay.trim()) await setMiClayToken(tokenClay.trim());
-      if (nombre.trim() !== (permisos.nombre || '')) await updateMiUsuario(nombre.trim());
+      const cambios = {
+        ...(nombre.trim() !== (permisos.nombre || '') ? { nombre: nombre.trim() } : {}),
+        ...(recibeCorreos !== permisos.recibeNotificacionesCorreo ? { recibeNotificacionesCorreo: recibeCorreos } : {}),
+      };
+      if (Object.keys(cambios).length > 0) await updateMiUsuario(cambios);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['misPermisos'] });
@@ -89,6 +94,21 @@ export const MiUsuarioModal: React.FC<{ permisos: MisPermisos; onClose: () => vo
 
           <Input label="Nombre" placeholder="Ej: Juan Pérez" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
           <Input label="Rol" value={permisos.rol || 'Sin rol asignado'} disabled helperText="Lo asigna un administrador" />
+
+          <label className="flex items-start gap-2.5 text-xs text-slate-700 cursor-pointer">
+            <input
+              type="checkbox"
+              className="mt-0.5 accent-brand-600"
+              checked={recibeCorreos}
+              onChange={(e) => setRecibeCorreos(e.target.checked)}
+            />
+            <span>
+              <span className="font-bold">Recibir avisos por correo</span>
+              <span className="block text-slate-500">
+                Aprobaciones pendientes que puedes resolver. Siempre las verás en Notificaciones.
+              </span>
+            </span>
+          </label>
 
           <div className="space-y-1.5 pt-3 border-t border-slate-100">
             <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">

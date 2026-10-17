@@ -1,11 +1,16 @@
+// Clave del catalogo de permisos (lo define mtw-api en src/seguridad/permisos.ts
+// y lo entrega GET /api/permisos/catalogo). El frontend no mantiene su propia lista.
+export type Permiso = string;
+
 export interface Rol {
   id: string;
   nombre: string;
-  secciones: string[];
-  configTabs: string[];
-  // 'tecnico' y/o 'gerencial' -- ver ROLES_APROBACION en accessControl.ts.
-  aprobaciones: string[];
-  // Presente solo en GET /api/roles (include: { _count: { select: { usuarios: true } } }).
+  descripcion: string | null;
+  // Administrador de negocio: tiene siempre todos los permisos de negocio.
+  esAdministradorNegocio: boolean;
+  // Permisos otorgados directamente (las implicaciones las resuelve el backend).
+  permisos: Permiso[];
+  // Presente solo en GET /api/roles.
   _count?: { usuarios: number };
 }
 
@@ -14,26 +19,42 @@ export interface Usuario {
   nombre: string;
   email: string;
   rolId: string | null;
-  rol: Rol | null;
+  rol: Omit<Rol, 'permisos'> | null;
   activo: boolean;
+  recibeNotificacionesCorreo: boolean;
   creadoEn: string;
-  // Acceso real (ver ADMIN_EMAILS en mtw-api) -- no depende de rolId/activo,
-  // asi que esta fila no es editable desde el panel de Roles de Usuario.
-  esAdmin: boolean;
+  // Superadministrador tecnico (SUPERADMIN_EMAILS en mtw-api): su acceso no
+  // depende del rol ni del estado.
+  esSuperadmin: boolean;
 }
 
 export interface MisPermisos {
   email: string;
   nombre: string | null;
-  esAdmin: boolean;
   rol: string | null;
-  secciones: string[];
-  configTabs: string[];
-  aprobaciones: string[];
+  activo: boolean;
+  esSuperadmin: boolean;
+  esAdministradorNegocio: boolean;
+  // Permisos efectivos (con implicaciones ya resueltas por el backend).
+  permisos: Permiso[];
+  recibeNotificacionesCorreo: boolean;
   // Si el usuario ya cargo su token personal de Clay (el token en si nunca
   // vuelve del backend). Sin token no se puede buscar ni contabilizar
   // facturas en Clay.
   tieneTokenClay: boolean;
+}
+
+export interface PermisoCatalogo {
+  clave: Permiso;
+  nombre: string;
+  descripcion: string;
+  implica: Permiso[];
+}
+
+export interface ModuloPermisos {
+  id: string;
+  nombre: string;
+  permisos: PermisoCatalogo[];
 }
 
 export interface AprobacionPendienteCotizacion {

@@ -33,8 +33,8 @@ export const Sidebar: React.FC<{
   onClose: () => void;
   totalProyectos?: number;
   totalProyectosEnCurso?: number;
-  // null = administrador, ve todas las secciones sin filtrar.
-  seccionesPermitidas: string[] | null;
+  // Ids de SECCIONES_FRONTEND que el usuario puede ver (ver App.tsx).
+  seccionesPermitidas: string[];
 }> = ({
   activeTab,
   setActiveTab,
@@ -54,9 +54,7 @@ export const Sidebar: React.FC<{
     guardarFijado(siguiente);
   };
 
-  const menuItems = SECCIONES_FRONTEND.filter(
-    (s) => seccionesPermitidas === null || seccionesPermitidas.includes(s.id)
-  ).map((s) => ({
+  const menuItems = SECCIONES_FRONTEND.filter((s) => seccionesPermitidas.includes(s.id)).map((s) => ({
     ...s,
     count: s.id === 'cotizaciones' ? totalProyectos : s.id === 'proyectos' ? totalProyectosEnCurso : undefined,
   }));

@@ -1,29 +1,22 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ShieldCheck, UserCog, Plus, Pencil, Trash2, Loader2, Ban, CheckCircle2 } from 'lucide-react';
-import { getRoles, eliminarRol, getUsuarios, updateUsuario, getMisPermisos } from '../../api/client';
+import { getRoles, eliminarRol, getUsuarios, updateUsuario } from '../../api/client';
+import { usePermisos } from '../../lib/permisos';
 import { RolEditModal } from './RolEditModal';
 import { UsuarioEditModal } from './UsuarioEditModal';
-import type { Rol, Usuario, MisPermisos } from '../../types';
+import type { Rol, Usuario } from '../../types';
 
 /**
- * Gestión de Roles (que secciones/pestañas puede ver cada uno) y Usuarios
- * (nombre + correo + rol). El correo de cada Usuario debe coincidir con el
- * de su cuenta de Entra ID -- Cloudflare Access ya la autentica, esto solo
- * decide qué ve una vez adentro.
- *
- * ADMIN_EMAILS (mtw-api/src/index.ts) tiene acceso total sin pasar por
- * Rol, y es la única cuenta que puede gestionar esto -- se re-chequea acá
- * ademas del 403 del backend, para no mostrar formularios que van a
- * fallar igual si un rol llegara a tener marcada esta pestaña por error.
+ * Gestión de Roles (conjuntos de permisos del catálogo de mtw-api) y Usuarios
+ * (nombre + correo + rol). El correo de cada Usuario debe coincidir con el de
+ * su cuenta de Entra ID: Cloudflare Access autentica, esto decide qué puede
+ * hacer una vez adentro. Ver usuarios.ver / usuarios.gestionar.
  */
 export const RolesUsuarioPanel: React.FC = () => {
-  const { data: permisos, isLoading: cargandoPermisos } = useQuery<MisPermisos>({
-    queryKey: ['misPermisos'],
-    queryFn: getMisPermisos,
-  });
+  const { tiene, cargando } = usePermisos();
 
-  if (cargandoPermisos) {
+  if (cargando) {
     return (
       <div className="py-12 flex items-center justify-center text-slate-400">
         <Loader2 className="w-5 h-5 animate-spin" />
@@ -31,35 +24,34 @@ export const RolesUsuarioPanel: React.FC = () => {
     );
   }
 
-  if (!permisos?.esAdmin) {
+  if (!tiene('usuarios.ver')) {
     return (
       <div className="p-8 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs space-y-1">
         <ShieldCheck className="w-6 h-6 text-slate-300 mx-auto mb-1" />
         <p className="font-bold text-slate-700">Acceso restringido</p>
-        <p>Solo el administrador del sistema puede gestionar roles y usuarios.</p>
+        <p>No tienes permiso para ver usuarios y roles.</p>
       </div>
     );
   }
 
+  const puedeGestionar = tiene('usuarios.gestionar');
   return (
     <div className="space-y-6">
-      <RolesSection />
-      <UsuariosSection />
+      <RolesSection puedeGestionar={puedeGestionar} />
+      <UsuariosSection puedeGestionar={puedeGestionar} />
     </div>
   );
 };
 
-const RolesSection: React.FC = () => {
+const RolesSection: React.FC<{ puedeGestionar: boolean }> = ({ puedeGestionar }) => {
   const queryClient = useQueryClient();
   const [editando, setEditando] = useState<Rol | null>(null);
   const [creandoNuevo, setCreandoNuevo] = useState(false);
   const [eliminandoId, setEliminandoId] = useState<string | null>(null);
 
-  const { data, isLoading, isError, refetch } = useQuery<Rol[]>({
-    queryKey: ['roles'],
-    queryFn: async () => (await getRoles()).data,
-  });
-  const roles = data || [];
+  const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['roles'], queryFn: getRoles });
+  const roles: Rol[] = data?.data || [];
+  const sinAsignar = data?.permisosSinAsignar ?? [];
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => eliminarRol(id),
@@ -75,9 +67,10 @@ const RolesSection: React.FC = () => {
         <div>
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">Roles</h2>
           <p className="text-[11px] text-slate-500 mt-0.5">
-            Determinan qué secciones del frontend y qué pestañas de Configuración puede ver cada usuario.
+            Cada rol es un conjunto de permisos. Lo que un usuario puede hacer depende del rol que tenga asignado.
           </p>
         </div>
+        {puedeGestionar && (
         <button
           onClick={() => setCreandoNuevo(true)}
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold text-brand-600 bg-brand-50 hover:bg-brand-100 border border-brand-200 transition-colors cursor-pointer shrink-0"
@@ -85,7 +78,15 @@ const RolesSection: React.FC = () => {
           <Plus className="w-3.5 h-3.5" />
           <span>Nuevo Rol</span>
         </button>
+        )}
       </div>
+
+      {sinAsignar.length > 0 && (
+        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
+          <span className="font-bold">{sinAsignar.length} permiso(s) sin asignar</span> a ningún rol (solo los tiene el
+          administrador de negocio): <span className="font-mono">{sinAsignar.join(', ')}</span>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="py-8 flex items-center justify-center text-slate-400">
@@ -112,20 +113,20 @@ const RolesSection: React.FC = () => {
             >
               <div className="min-w-0">
                 <div className="text-xs font-bold text-slate-900">{r.nombre}</div>
+                {r.descripcion && <div className="text-[11px] text-slate-600">{r.descripcion}</div>}
                 <div className="text-[11px] text-slate-500">
-                  {r.secciones.length} {r.secciones.length === 1 ? 'sección' : 'secciones'} ·{' '}
-                  {r.configTabs.length} {r.configTabs.length === 1 ? 'pestaña de config.' : 'pestañas de config.'} ·{' '}
-                  {r._count?.usuarios ?? 0} {r._count?.usuarios === 1 ? 'usuario' : 'usuarios'}
-                  {r.aprobaciones.length > 0 && (
+                  {r.esAdministradorNegocio ? (
+                    <span className="font-semibold text-amber-700">Administrador de negocio · todos los permisos</span>
+                  ) : (
                     <>
-                      {' · '}
-                      <span className="font-semibold text-brand-600">
-                        aprueba {r.aprobaciones.join(' + ')}
-                      </span>
+                      {r.permisos.length} {r.permisos.length === 1 ? 'permiso' : 'permisos'}
                     </>
                   )}
+                  {' · '}
+                  {r._count?.usuarios ?? 0} {r._count?.usuarios === 1 ? 'usuario' : 'usuarios'}
                 </div>
               </div>
+              {puedeGestionar && (
               <div className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => setEditando(r)}
@@ -148,6 +149,7 @@ const RolesSection: React.FC = () => {
                   {eliminandoId === r.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                 </button>
               </div>
+              )}
             </div>
           ))}
         </div>
@@ -166,7 +168,7 @@ const RolesSection: React.FC = () => {
   );
 };
 
-const UsuariosSection: React.FC = () => {
+const UsuariosSection: React.FC<{ puedeGestionar: boolean }> = ({ puedeGestionar }) => {
   const queryClient = useQueryClient();
   const [editando, setEditando] = useState<Usuario | null>(null);
   const [creandoNuevo, setCreandoNuevo] = useState(false);
@@ -194,19 +196,15 @@ const UsuariosSection: React.FC = () => {
             El correo debe coincidir con la cuenta de Entra ID con la que inician sesión vía Cloudflare Access.
           </p>
         </div>
-        <button
-          onClick={() => setCreandoNuevo(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold text-brand-600 bg-brand-50 hover:bg-brand-100 border border-brand-200 transition-colors cursor-pointer shrink-0"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Nuevo Usuario</span>
-        </button>
-      </div>
-
-      <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-500">
-        <span className="font-bold text-slate-700">alfredo.mella.v@mtw.cl</span> es administrador del sistema:
-        tiene acceso total sin importar el rol o el estado que tenga acá. Queda marcado como "Admin del sistema" y
-        solo se le puede editar el nombre -- ni el rol ni el correo tienen efecto real sobre su acceso.
+        {puedeGestionar && (
+          <button
+            onClick={() => setCreandoNuevo(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold text-brand-600 bg-brand-50 hover:bg-brand-100 border border-brand-200 transition-colors cursor-pointer shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Nuevo Usuario</span>
+          </button>
+        )}
       </div>
 
       {isLoading ? (
@@ -237,39 +235,40 @@ const UsuariosSection: React.FC = () => {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <div className="text-xs font-bold text-slate-900 truncate">{u.nombre}</div>
-                  {u.esAdmin ? (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-brand-600/10 text-brand-600 font-bold shrink-0">
-                      Admin del sistema
+                  {u.esSuperadmin && (
+                    <span
+                      className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-800 text-white font-bold shrink-0"
+                      title="Superadministrador técnico (variable de entorno): tiene acceso total sin importar su rol"
+                    >
+                      Superadmin
                     </span>
-                  ) : (
-                    !u.activo && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-200 text-slate-600 font-bold shrink-0">
-                        Desactivado
-                      </span>
-                    )
+                  )}
+                  {!u.activo && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-200 text-slate-600 font-bold shrink-0">
+                      Desactivado
+                    </span>
                   )}
                 </div>
                 <div className="text-[11px] text-slate-500 truncate">{u.email}</div>
                 <div className="text-[11px] text-slate-500">
-                  {u.esAdmin ? (
-                    <span>Acceso total (fijado en el backend, no depende de un rol)</span>
-                  ) : u.rol ? (
+                  {u.rol ? (
                     <span className="font-semibold text-slate-700">{u.rol.nombre}</span>
                   ) : (
                     <span className="text-amber-600 font-semibold">Sin rol asignado -- sin acceso</span>
                   )}
                 </div>
               </div>
+              {puedeGestionar && (
               <div className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => setEditando(u)}
-                  title={u.esAdmin ? 'Solo se puede editar el nombre' : 'Editar'}
+                  title="Editar"
                   className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-brand-600 hover:bg-brand-50 transition-colors cursor-pointer"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                   <span>Editar</span>
                 </button>
-                {!u.esAdmin && (
+                {(
                   <button
                     onClick={() => toggleActivoMutation.mutate({ id: u.id, activo: !u.activo })}
                     disabled={cambiandoId === u.id}
@@ -288,6 +287,7 @@ const UsuariosSection: React.FC = () => {
                   </button>
                 )}
               </div>
+              )}
             </div>
           ))}
         </div>

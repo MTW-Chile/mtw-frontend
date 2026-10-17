@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Loader2, Check, Send, X as XIcon, Ban, ChevronDown, ChevronRight, Package, Undo2, FileDown, Trash2, ClipboardList } from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { getOrdenesCompra, updateOrdenCompraEstado, eliminarOrdenCompra, getMisPermisos, renderPdf } from '../../api/client';
+import { getOrdenesCompra, updateOrdenCompraEstado, eliminarOrdenCompra, renderPdf } from '../../api/client';
 import { loadImageDataUrl } from '../cotizaciones/lib/pdfTheme';
 import type { EstadoOC, OrdenCompra } from '../../types';
 import { pendienteConciliarItem, pendienteRecepcionarItem } from '../../types';
@@ -14,6 +14,7 @@ import { useMediaQuery } from '../../lib/useMediaQuery';
 import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilters';
 import { ColumnFilterHeader } from '../../components/ui/ColumnFilterHeader';
 import { BREAKPOINT_DESKTOP, TABLE_CLASS, TABLE_WRAPPER_CLASS, STICKY_ACTIONS_CLASS } from '../../lib/designSystem';
+import { usePermisos } from '../../lib/permisos';
 
 export const ESTADO_OC_LABEL: Record<EstadoOC, string> = {
   BORRADOR: 'Borrador',
@@ -195,7 +196,12 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
 
   // mismo queryKey que App.tsx/Header.tsx -- sale del cache, no pega de
   // nuevo al backend.
-  const { data: permisos } = useQuery({ queryKey: ['misPermisos'], queryFn: getMisPermisos });
+  const { tiene } = usePermisos();
+  // Cada boton exige el permiso de su transicion (la API exige lo mismo).
+  const puedeEmitir = tiene('compras.oc.emitir');
+  const puedeAprobar = tiene('compras.oc.aprobar');
+  const puedeAnular = tiene('compras.oc.anular');
+  const puedePurgar = tiene('sistema.purgas');
 
   const transicion = useMutation({
     mutationFn: ({ id, estado, motivo }: { id: string; estado: EstadoOC; motivo?: string }) =>
@@ -273,12 +279,12 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
       {/* Aprobar/enviar es trabajo del módulo Compras (revisión
           centralizada), no de la ficha de un proyecto puntual --
           ver modoRestringido. */}
-      {!modoRestringido && oc.estado === 'BORRADOR' && !oc.proveedorId && (
+      {!modoRestringido && puedeEmitir && oc.estado === 'BORRADOR' && !oc.proveedorId && (
         <Button size="sm" leftIcon={<ClipboardList className="w-3.5 h-3.5" />} onClick={() => setSolicitudIdParaCompletar(oc.id)}>
           Completar
         </Button>
       )}
-      {!modoRestringido && oc.estado === 'BORRADOR' && !!oc.proveedorId && oc.requiereAprobacion && (
+      {!modoRestringido && puedeEmitir && oc.estado === 'BORRADOR' && !!oc.proveedorId && oc.requiereAprobacion && (
         <Button
           size="sm"
           variant="outline"
@@ -289,7 +295,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
           {compacto ? 'Solicitar' : 'Solicitar aprobación'}
         </Button>
       )}
-      {!modoRestringido && oc.estado === 'BORRADOR' && !oc.requiereAprobacion && (
+      {!modoRestringido && puedeEmitir && oc.estado === 'BORRADOR' && !oc.requiereAprobacion && (
         <Button
           size="sm"
           leftIcon={<Send className="w-3.5 h-3.5" />}
@@ -299,7 +305,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
           Enviar
         </Button>
       )}
-      {!modoRestringido && oc.estado === 'PENDIENTE_APROBACION' && (
+      {!modoRestringido && puedeAprobar && oc.estado === 'PENDIENTE_APROBACION' && (
         <>
           <Button
             size="sm"
@@ -322,7 +328,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
           </Button>
         </>
       )}
-      {!modoRestringido && oc.estado === 'APROBADA' && (
+      {!modoRestringido && puedeEmitir && oc.estado === 'APROBADA' && (
         <Button
           size="sm"
           leftIcon={<Send className="w-3.5 h-3.5" />}
@@ -332,7 +338,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
           Enviar
         </Button>
       )}
-      {!modoRestringido && oc.estado === 'ENVIADA' && (
+      {!modoRestringido && puedeEmitir && oc.estado === 'ENVIADA' && (
         <Button
           size={compacto ? 'icon' : 'sm'}
           variant="outline"
@@ -349,7 +355,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
           {!compacto && 'Revertir envío'}
         </Button>
       )}
-      {['BORRADOR', 'PENDIENTE_APROBACION', 'APROBADA'].includes(oc.estado) && (
+      {puedeAnular && ['BORRADOR', 'PENDIENTE_APROBACION', 'APROBADA'].includes(oc.estado) && (
         <Button
           size={compacto ? 'icon' : 'sm'}
           variant="ghost"
@@ -362,7 +368,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
           {!compacto && 'Cancelar'}
         </Button>
       )}
-      {permisos?.esAdmin && (
+      {puedePurgar && (
         <Button
           size={compacto ? 'icon' : 'sm'}
           variant={compacto ? 'ghost' : 'danger'}

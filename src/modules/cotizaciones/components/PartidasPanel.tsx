@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Save, Loader2 } from 'lucide-react';
-import { getPartidas, updatePartida, getMisPermisos } from '../../../api/client';
+import { getPartidas, updatePartida } from '../../../api/client';
 import { TABLE_CLASS } from '../../../lib/designSystem';
 import type { PartidaConfig, CategoriaGasto } from '../../../types';
+import { usePermisos } from '../../../lib/permisos';
 
 /**
  * Las 9 partidas (antes "Familia"/CategoriaGasto -- Perfilería, Herrajes,
@@ -16,7 +17,8 @@ export const PartidasPanel: React.FC = () => {
   const queryClient = useQueryClient();
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['partidas'], queryFn: getPartidas });
   // mismo queryKey que el resto de la app -- sale del cache, no pega de nuevo al backend.
-  const { data: permisos } = useQuery({ queryKey: ['misPermisos'], queryFn: getMisPermisos });
+  const { tiene } = usePermisos();
+  const puedeEditar = tiene('config.catalogo');
 
   const [ediciones, setEdiciones] = useState<Record<string, { nombre: string; integracionClay: string }>>({});
 
@@ -82,7 +84,7 @@ export const PartidasPanel: React.FC = () => {
                 <th className="px-5 py-3.5">Partida</th>
                 <th className="px-5 py-3.5">Nombre</th>
                 <th className="px-5 py-3.5">Código Clay</th>
-                {permisos?.esAdmin && <th className="px-5 py-3.5 text-right">Acciones</th>}
+                {puedeEditar && <th className="px-5 py-3.5 text-right">Acciones</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -94,7 +96,7 @@ export const PartidasPanel: React.FC = () => {
                   <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="px-5 py-3 font-mono text-[10px] text-slate-400">{p.categoria as CategoriaGasto}</td>
                     <td className="px-5 py-3">
-                      {permisos?.esAdmin ? (
+                      {puedeEditar ? (
                         <input
                           value={valores.nombre}
                           onChange={(e) => setValor(p, 'nombre', e.target.value)}
@@ -105,7 +107,7 @@ export const PartidasPanel: React.FC = () => {
                       )}
                     </td>
                     <td className="px-5 py-3">
-                      {permisos?.esAdmin ? (
+                      {puedeEditar ? (
                         <input
                           value={valores.integracionClay}
                           placeholder="Sin código"
@@ -116,7 +118,7 @@ export const PartidasPanel: React.FC = () => {
                         <span className="font-mono text-slate-600">{p.integracionClay || <span className="text-slate-300">—</span>}</span>
                       )}
                     </td>
-                    {permisos?.esAdmin && (
+                    {puedeEditar && (
                       <td className="px-5 py-3 text-right">
                         <button
                           onClick={() => mutation.mutate(p)}

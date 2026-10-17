@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search, Pencil, Building2, X, Trash2, GitMerge, Loader2 } from 'lucide-react';
-import { getProveedores, getMisPermisos, eliminarProveedor } from '../../../api/client';
+import { getProveedores, eliminarProveedor } from '../../../api/client';
 import { TableSkeleton } from '../../../components/ui/Skeleton';
 import { Badge } from '../../../components/ui/Badge';
 import type { Proveedor } from '../../../types';
@@ -11,6 +11,7 @@ import { useMediaQuery } from '../../../lib/useMediaQuery';
 import { useColumnFilters, type ColumnFilterDef } from '../../../lib/useColumnFilters';
 import { ColumnFilterHeader } from '../../../components/ui/ColumnFilterHeader';
 import { BREAKPOINT_DESKTOP, TABLE_CLASS } from '../../../lib/designSystem';
+import { usePermisos } from '../../../lib/permisos';
 
 /**
  * Maestro de Proveedores: quién es cada proveedor y sus datos de
@@ -35,7 +36,8 @@ export const ProveedoresPanel: React.FC = () => {
 
   // mismo queryKey que App.tsx/Header.tsx -- sale del cache, no pega de
   // nuevo al backend.
-  const { data: permisos } = useQuery({ queryKey: ['misPermisos'], queryFn: getMisPermisos });
+  const { tiene } = usePermisos();
+  const puedeFusionar = tiene('catalogo.proveedores.fusionar');
 
   // Solo admin (ver requireAdmin en mtw-api) -- borra un proveedor sin
   // ningun material/OC enlazado. El backend responde 409 si todavia tiene
@@ -184,7 +186,7 @@ export const ProveedoresPanel: React.FC = () => {
                             <Pencil className="w-3 h-3" />
                             <span>Editar</span>
                           </button>
-                          {permisos?.esAdmin && (
+                          {puedeFusionar && (
                             <>
                               <button
                                 onClick={() => setFusionando(p)}
@@ -277,7 +279,7 @@ export const ProveedoresPanel: React.FC = () => {
                     <Pencil className="w-3 h-3" />
                     <span>Editar</span>
                   </button>
-                  {permisos?.esAdmin && (
+                  {puedeFusionar && (
                     <>
                       <button
                         onClick={() => setFusionando(p)}

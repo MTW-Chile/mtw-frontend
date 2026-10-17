@@ -10,11 +10,12 @@ import { ProyectosPage } from './modules/proyectos/ProyectosPage';
 import { ComprasPage } from './modules/abastecimiento/ComprasPage';
 import { BodegaPage } from './modules/abastecimiento/BodegaPage';
 import { CentroNotificacionesPage } from './modules/notificaciones/CentroNotificacionesPage';
-import { getProyectos, getMisPermisos } from './api/client';
+import { getProyectos } from './api/client';
 import { clavePresupuestos, consultarPresupuestos } from './modules/cotizaciones/presupuestosQuery';
 import { esPresupuestoPrincipal } from './lib/estadosHetmo';
 import { useCloudflareAccessSession, SessionContext } from './lib/useCloudflareAccessSession';
-import { SECCIONES_FRONTEND } from './lib/accessControl';
+import { SECCIONES_FRONTEND, entradaVisible } from './lib/accessControl';
+import { usePermisos } from './lib/permisos';
 import { mostrarToast, extraerErrorParaToast } from './lib/toast';
 import { navegar, seccionDesdePath, useLocationHref, inicializarHistorial } from './lib/navigation';
 
@@ -114,21 +115,15 @@ const AppContent: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const { data: permisos, isLoading: cargandoPermisos } = useQuery({
-    queryKey: ['misPermisos'],
-    queryFn: getMisPermisos,
-  });
+  const { datos: permisos, cargando: cargandoPermisos, tieneAlguno } = usePermisos();
 
-  // null = administrador, ve todo sin filtrar.
-  const seccionesPermitidas = permisos ? (permisos.esAdmin ? null : permisos.secciones) : [];
+  // Secciones que el usuario puede ver segun sus permisos (ver lib/accessControl.ts).
+  const seccionesPermitidas = SECCIONES_FRONTEND.filter((s) => entradaVisible(s, tieneAlguno)).map((s) => s.id);
   // El Centro de Notificaciones no es una seccion real (no vive en
-  // SECCIONES_FRONTEND/Sidebar) -- lo ve cualquier usuario con rol, sin
-  // importar sus secciones ni sus aprobaciones.
-  const puedeVerCentroNotificaciones = !!permisos;
+  // SECCIONES_FRONTEND/Sidebar) -- lo ve cualquier usuario con algun permiso.
+  const puedeVerCentroNotificaciones = (permisos?.permisos.length ?? 0) > 0;
   const puedeVer = (id: string) =>
-    id === TAB_CENTRO_NOTIFICACIONES
-      ? puedeVerCentroNotificaciones
-      : seccionesPermitidas === null || seccionesPermitidas.includes(id);
+    id === TAB_CENTRO_NOTIFICACIONES ? puedeVerCentroNotificaciones : seccionesPermitidas.includes(id);
 
   // Si el usuario no tiene acceso a la pestaña activa (recien resueltos
   // los permisos, o un rol le quito acceso a lo que estaba viendo), cae a
@@ -218,14 +213,15 @@ const AppContent: React.FC = () => {
     );
   }
 
-  if (seccionesPermitidas !== null && seccionesPermitidas.length === 0) {
+  if (seccionesPermitidas.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-8">
         <div className="max-w-sm text-center space-y-2">
           <h1 className="text-sm font-black text-slate-900">Sin acceso asignado</h1>
           <p className="text-xs text-slate-500">
-            Tu cuenta ({permisos?.email}) todavía no tiene un rol asignado en MTW ERP. Pídele a un administrador que
-            te asigne uno en Configuración &gt; Roles de Usuario.
+            Tu cuenta ({permisos?.email}) todavía no tiene un rol con permisos en MTW ERP
+            {permisos && !permisos.activo ? ' (está desactivada)' : ''}. Pídele a un administrador que te asigne uno
+            en Configuración &gt; Roles de Usuario.
           </p>
         </div>
       </div>
@@ -274,7 +270,7 @@ const AppContent: React.FC = () => {
           {activeTab === 'bodega' && <BodegaPage />}
 
           {activeTab === 'configuracion' && (
-            <ConfiguracionPage tabsPermitidas={permisos?.esAdmin ? null : permisos?.configTabs ?? []} />
+            <ConfiguracionPage />
           )}
 
           {activeTab === TAB_CENTRO_NOTIFICACIONES && (
