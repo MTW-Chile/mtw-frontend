@@ -785,13 +785,12 @@ export async function updateOrdenCompraEstado(
   return response.data;
 }
 
-// Solo administrador (ver requireAdmin en mtw-api) -- borra la OC entera,
-// incluida CANCELADA, y reversa el stock que haya ingresado por ella. El
-// backend devuelve 409 (forzable: true) si ese stock ya se movio de
-// Bodega o se borro a mano -- forzar=true salta esa validacion (nunca
-// deja stock negativo, ver mtw-api).
-export async function eliminarOrdenCompra(id: string, forzar?: boolean): Promise<{ success: boolean }> {
-  const response = await apiClient.post<{ success: boolean }>(`/ordenes-compra/${id}/eliminar`, forzar ? { forzar: true } : undefined);
+// Purga de superadministrador, solo fuera de producción (sistema.purgas en
+// mtw-api): borra la OC entera y sus ingresos a bodega. Se rechaza (409) si
+// parte de lo que ingresó ya salió de bodega: el kardex no puede quedar
+// descuadrado. En producción una OC se cancela, no se borra.
+export async function eliminarOrdenCompra(id: string): Promise<{ success: boolean }> {
+  const response = await apiClient.post<{ success: boolean }>(`/ordenes-compra/${id}/eliminar`);
   return response.data;
 }
 
@@ -849,15 +848,6 @@ export async function trasladarBodega(
 
 export async function getUnidadesMaterial(bodegaId: string, materialId: string): Promise<UnidadesMaterialResponse> {
   const response = await apiClient.get<UnidadesMaterialResponse>(`/bodega/${bodegaId}/materiales/${materialId}/unidades`);
-  return response.data;
-}
-
-// Solo administrador -- borra una fila de stock completa (y sus unidades
-// individualizadas si corresponde). Limpieza directa para datos de
-// prueba, no genera movimiento de kardex -- ver POST
-// /api/bodega/stock/:id/eliminar en mtw-api.
-export async function eliminarStockMaterial(stockId: string): Promise<{ success: boolean }> {
-  const response = await apiClient.post<{ success: boolean }>(`/bodega/stock/${stockId}/eliminar`);
   return response.data;
 }
 

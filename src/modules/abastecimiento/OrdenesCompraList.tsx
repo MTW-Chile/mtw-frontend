@@ -217,26 +217,16 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
     },
   });
 
-  // Solo admin (ver requireAdmin en mtw-api) -- borra la OC completa,
-  // cualquier estado, y libera su numero (no es un contador aparte, ver
-  // generarNumeroOC en mtw-api). El backend devuelve 409 (forzable) si el
-  // stock que ingreso ya se movio de Bodega o se borro a mano -- en ese
-  // caso se ofrece reintentar forzado (nunca deja stock negativo).
+  // Purga de superadministrador fuera de produccion (ver eliminarOrdenCompra
+  // en api/client.ts): borra la OC completa y libera su numero.
   const eliminarMutation = useMutation({
-    mutationFn: ({ id, forzar }: { id: string; forzar?: boolean }) => eliminarOrdenCompra(id, forzar),
+    mutationFn: ({ id }: { id: string }) => eliminarOrdenCompra(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ordenesCompra'] });
       queryClient.invalidateQueries({ queryKey: ['misAprobacionesPendientes'] });
     },
-    onError: (error: any, variables) => {
-      const mensaje = error?.response?.data?.error || 'No se pudo eliminar la OC.';
-      if (error?.response?.status === 409 && error?.response?.data?.forzable && !variables.forzar) {
-        if (window.confirm(`${mensaje}\n\n¿Forzar la eliminación de todos modos? El stock afectado queda en 0, nunca negativo.`)) {
-          eliminarMutation.mutate({ id: variables.id, forzar: true });
-        }
-        return;
-      }
-      window.alert(mensaje);
+    onError: (error: any) => {
+      window.alert(error?.response?.data?.error || 'No se pudo eliminar la OC.');
     },
   });
 

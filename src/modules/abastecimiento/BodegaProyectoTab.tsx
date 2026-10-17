@@ -1,7 +1,7 @@
 import React from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Boxes, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, Wrench, ChevronDown, ChevronRight, Tags, Send, Trash2 } from 'lucide-react';
-import { getBodegaProyecto, getBodegaGlobal, getUnidadesMaterial, eliminarStockMaterial } from '../../api/client';
+import { useQuery } from '@tanstack/react-query';
+import { Loader2, Boxes, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, Wrench, ChevronDown, ChevronRight, Tags, Send } from 'lucide-react';
+import { getBodegaProyecto, getBodegaGlobal, getUnidadesMaterial } from '../../api/client';
 import { Button } from '../../components/ui/Button';
 import { TrasladoBodegaModal } from './TrasladoBodegaModal';
 import type { TipoMovimientoBodega, EstadoUnidadMaterial, Bodega, StockMaterial, BodegaProyectoResponse, BodegaGlobalResponse } from '../../types';
@@ -81,7 +81,6 @@ const esGlobal = (d: BodegaProyectoResponse | BodegaGlobalResponse | undefined):
   !!d && 'bodegas' in d;
 
 export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoId }) => {
-  const queryClient = useQueryClient();
   const { data, isLoading } = useQuery<BodegaProyectoResponse | BodegaGlobalResponse>({
     queryKey: proyectoId ? ['bodegaProyecto', proyectoId] : ['bodegaGlobal'],
     queryFn: () => (proyectoId ? getBodegaProyecto(proyectoId) : getBodegaGlobal()),
@@ -91,19 +90,6 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
   const { tiene } = usePermisos();
   const [expandido, setExpandido] = React.useState<Set<string>>(new Set());
   const [trasladando, setTrasladando] = React.useState<{ stock: StockMaterial; bodegasDestino: Bodega[] } | null>(null);
-
-  // Solo administrador, y solo mientras el modulo esta en desarrollo --
-  // borra una fila de stock de prueba directamente, sin pasar por un
-  // ajuste de kardex (ver eliminarStockMaterial en api/client.ts).
-  const eliminarMutation = useMutation({
-    mutationFn: (stockId: string) => eliminarStockMaterial(stockId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: proyectoId ? ['bodegaProyecto', proyectoId] : ['bodegaGlobal'] });
-    },
-    onError: (error: any) => {
-      window.alert(error?.response?.data?.error || 'No se pudo eliminar el stock.');
-    },
-  });
 
   const toggleExpandido = (materialId: string) => {
     setExpandido((prev) => {
@@ -128,11 +114,10 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
     : [];
   const bodegasDisponibles: Bodega[] = global ? data.bodegas : [];
   // "Enviar a obra" solo tiene sentido en la vista global (hay a donde
-  // trasladar) y exige bodega.trasladar; "Eliminar" es una purga de
-  // superadministrador (fuera de produccion).
+  // trasladar) y exige bodega.trasladar. El stock no se borra: se corrige
+  // con un ajuste, que queda en el kardex.
   const puedeTrasladar = !proyectoId && tiene('bodega.trasladar');
-  const puedePurgar = tiene('sistema.purgas');
-  const mostrarAcciones = puedeTrasladar || puedePurgar;
+  const mostrarAcciones = puedeTrasladar;
   const colSpanDetalle = 4 + (!proyectoId ? 1 : 0) + (mostrarAcciones ? 1 : 0);
 
   const isDesktop = useMediaQuery(BREAKPOINT_DESKTOP);
@@ -175,25 +160,6 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
           onClick={() => setTrasladando({ stock: s, bodegasDestino: bodegasDisponibles.filter((b) => b.id !== s.bodegaId) })}
         >
           Enviar a obra
-        </Button>
-      )}
-      {puedePurgar && (
-        <Button
-          size="sm"
-          variant="danger"
-          leftIcon={<Trash2 className="w-3.5 h-3.5" />}
-          isLoading={eliminarMutation.isPending && eliminarMutation.variables === s.id}
-          onClick={() => {
-            if (
-              window.confirm(
-                `¿Eliminar el stock de "${s.material.descripcion}" en ${labelBodega(s.bodega)}? Esto borra la fila completa (y sus unidades individualizadas si corresponde) sin dejar movimiento de kardex.`
-              )
-            ) {
-              eliminarMutation.mutate(s.id);
-            }
-          }}
-        >
-          Eliminar
         </Button>
       )}
     </div>
