@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink, Folder, Loader2, Search } from 'lucide-react';
+import { ExternalLink, Folder, Loader2 } from 'lucide-react';
 import { buscarCarpetasOneDrive, desvincularCarpetaOneDrive, getOneDriveObra, vincularCarpetaOneDrive } from '../../../../api/client';
 import { Button } from '../../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../../lib/toast';
 import type { CarpetaOneDriveSugerida } from '../../../../types';
 import { useConfirmar } from '../../../../components/ui/Confirmar';
 import { Modal } from '../../../../components/ui/Modal';
+import { InputCompacto } from '../../../../components/ui/Campos';
+import { Buscador } from '../../../../components/ui/Buscador';
 
 interface Props {
   proyectoId: string;
   onClose: () => void;
 }
 
-const campo =
-  'w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600';
 
 // Vincula la obra con su carpeta de OneDrive (donde se guardan los adjuntos de
 // los pendientes). Se propone la carpeta que parece ser de la obra (por el
@@ -145,16 +145,7 @@ export const VincularCarpetaModal: React.FC<Props> = ({ proyectoId, onClose }) =
                 setConsulta(busqueda.trim());
               }}
             >
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                  placeholder="Parte del nombre o del número"
-                  aria-label="Buscar carpeta"
-                  className={`${campo} pl-9`}
-                />
-              </div>
+              <Buscador className="flex-1" valor={busqueda} onChange={setBusqueda} placeholder="Parte del nombre o del número" etiqueta="Buscar carpeta" />
               <Button type="submit" size="sm" variant="outline" disabled={!busqueda.trim()}>
                 Buscar
               </Button>
@@ -183,7 +174,7 @@ export const VincularCarpetaModal: React.FC<Props> = ({ proyectoId, onClose }) =
             ) : (
               <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
                 <p className="text-xs text-amber-900">Se creará esta carpeta en OneDrive. Úsalo solo si la obra aún no tiene carpeta.</p>
-                <input value={nombreNuevaFinal} onChange={(e) => setNombreNueva(e.target.value)} maxLength={120} aria-label="Nombre de la carpeta nueva" className={campo} />
+                <InputCompacto value={nombreNuevaFinal} onChange={(e) => setNombreNueva(e.target.value)} maxLength={120} aria-label="Nombre de la carpeta nueva" />
                 <div className="flex gap-2">
                   <Button
                     size="sm"

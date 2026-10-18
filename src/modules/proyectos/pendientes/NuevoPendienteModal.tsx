@@ -32,7 +32,8 @@ import {
 import { Modal } from '../../../components/ui/Modal';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
-import { Textarea } from '../../../components/ui/Campos';
+import { Textarea, SelectCompacto, OpcionesTarjeta } from '../../../components/ui/Campos';
+import { Buscador } from '../../../components/ui/Buscador';
 
 interface Props {
   proyecto: Proyecto;
@@ -40,8 +41,6 @@ interface Props {
   onCreado: () => void;
 }
 
-const campo =
-  'w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600';
 const etiqueta = 'block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5';
 
 // Crea un pendiente. Si la obra tiene documentos de fabricacion vinculados, se
@@ -307,28 +306,17 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
                 ) : (
                   <>
                     {ventanas.length > 12 && (
-                      <input
-                        value={filtroVentana}
-                        onChange={(e) => setFiltroVentana(e.target.value)}
-                        placeholder="Filtrar por posición o modelo..."
-                        aria-label="Filtrar ventanas"
-                        className={campo}
-                      />
+                      <Buscador compacto valor={filtroVentana} onChange={setFiltroVentana} placeholder="Filtrar por posición o modelo…" etiqueta="Filtrar ventanas" />
                     )}
                     <div className="flex gap-2">
-                      <select
-                        id="pend-ventana"
-                        value={ventanaId}
-                        onChange={(e) => cambiarVentana(e.target.value)}
-                        className={campo}
-                      >
+                      <SelectCompacto id="pend-ventana" value={ventanaId} onChange={(e) => cambiarVentana(e.target.value)}>
                         <option value="">— sin ventana —</option>
                         {ventanasFiltradas.map((v) => (
                           <option key={v.id} value={v.id}>
                             Pos {v.orden} · {v.modelo} · {formatoMm(v.anchoMm)} × {formatoMm(v.altoMm)} mm
                           </option>
                         ))}
-                      </select>
+                      </SelectCompacto>
                       {admiteRectificacion(tipo) && (
                         <Button
                           type="button"
@@ -358,23 +346,16 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
                     <Loader2 className="w-3.5 h-3.5 animate-spin" /> Leyendo vidrios de HETMO...
                   </div>
                 ) : vidrios.length > 0 ? (
-                  <div className="space-y-1.5">
-                    {vidrios.map((v) => (
-                      <label key={v.material_hetmo} className="flex items-center gap-2 text-xs cursor-pointer">
-                        <input
-                          type="radio"
-                          name="vidrio"
-                          checked={elementoId === String(v.material_hetmo)}
-                          onChange={() => elegirVidrio(String(v.material_hetmo))}
-                        />
-                        <span className="font-mono text-slate-500">{v.codigo_articulo}</span>
-                        <span className="font-bold text-slate-800">
-                          {formatoMm(v.ANCHO)} × {formatoMm(v.ALTO)} mm
-                        </span>
-                        <span className="text-slate-400">· {v.UDS} un</span>
-                      </label>
-                    ))}
-                  </div>
+                  <OpcionesTarjeta
+                    columnas={2}
+                    valor={elementoId}
+                    onChange={elegirVidrio}
+                    opciones={vidrios.map((v) => ({
+                      value: String(v.material_hetmo),
+                      label: `${formatoMm(v.ANCHO)} × ${formatoMm(v.ALTO)} mm`,
+                      ayuda: `${v.codigo_articulo} · ${v.UDS} un`,
+                    }))}
+                  />
                 ) : null}
               </div>
             )}
@@ -386,14 +367,14 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
                 {hojas.length === 0 ? (
                   <p className="text-xs text-slate-500">El documento no trae las hojas de esta ventana (aparecen cuando se optimiza el corte). Descríbela a mano.</p>
                 ) : (
-                  <select id="pend-hoja" value={elementoId} onChange={(e) => elegirHoja(e.target.value)} className={campo}>
+                  <SelectCompacto id="pend-hoja" value={elementoId} onChange={(e) => elegirHoja(e.target.value)}>
                     <option value="">— elegir hoja —</option>
                     {hojas.map((h) => (
                       <option key={h.id} value={h.id}>
                         Hoja {h.numeroCuadro} · {formatoMm(h.anchoMm)} × {formatoMm(h.altoMm)} mm
                       </option>
                     ))}
-                  </select>
+                  </SelectCompacto>
                 )}
               </div>
             )}

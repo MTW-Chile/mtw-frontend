@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, Loader2, RotateCcw, ShoppingCart, Trash2, X } from 'lucide-react';
+import { CheckCircle2, RotateCcw, ShoppingCart, Trash2 } from 'lucide-react';
 import { cambiarEstadoPendiente, editarPendiente, eliminarPendiente, getEtapasPendiente, getPendiente } from '../../../api/client';
 import { NuevoAdicionalModal } from '../adicionales/NuevoAdicionalModal';
 import { actualizarParams } from '../../../lib/navigation';
@@ -26,7 +26,9 @@ import {
   varianteEstadoPendiente,
 } from './utils';
 import { useConfirmar } from '../../../components/ui/Confirmar';
-import { IconButton } from '../../../components/ui/IconButton';
+import { SelectCompacto, Textarea } from '../../../components/ui/Campos';
+import { Modal } from '../../../components/ui/Modal';
+import { Cargando } from '../../../components/ui/Estados';
 
 interface Props {
   proyectoId: string;
@@ -96,26 +98,28 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
   const ocupado = cambiar.isPending || eliminar.isPending;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" role="dialog" aria-modal="true">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[92vh] overflow-y-auto p-5 space-y-4">
+    <>
+    <Modal
+      ancho="lg"
+      titulo={
+        p ? (
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="font-mono">{codigoPendiente(p.numero)}</span>
+            <Badge size="sm" variant={varianteEstadoPendiente(p.estado)}>
+              {textoEstadoPendiente(p)}
+            </Badge>
+          </span>
+        ) : (
+          'Pendiente'
+        )
+      }
+      subtitulo={p?.descripcion}
+      onClose={onClose}
+    >
         {isLoading || !p ? (
-          <div className="p-10 flex items-center justify-center text-slate-400">
-            <Loader2 className="w-5 h-5 animate-spin" />
-          </div>
+          <Cargando />
         ) : (
           <>
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-sm font-black text-slate-900 font-mono">{codigoPendiente(p.numero)}</h3>
-                  <Badge size="sm" variant={varianteEstadoPendiente(p.estado)}>
-                    {textoEstadoPendiente(p)}
-                  </Badge>
-                </div>
-                <p className="text-sm font-bold text-slate-900 mt-1 break-words">{p.descripcion}</p>
-              </div>
-              <IconButton icono={X} etiqueta="Cerrar" onClick={onClose} className="shrink-0" />
-            </div>
 
             <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3 rounded-xl bg-slate-50 border border-slate-200 p-3">
               <Dato etiqueta="Qué">{ETIQUETA_TIPO[p.tipo]}</Dato>
@@ -147,11 +151,10 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
             <div className="rounded-xl border border-slate-200 p-3 flex flex-wrap items-center justify-between gap-2">
               <label className="flex items-center gap-2 text-xs">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">A cargo de</span>
-                <select
+                <SelectCompacto
                   value={p.cargoA ?? ''}
                   disabled={!p.puedeResolver || p.estado === 'RESUELTO' || cambiarCargo.isPending}
                   onChange={(e) => cambiarCargo.mutate((e.target.value || null) as CargoPendiente | null)}
-                  className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:border-brand-600 disabled:bg-slate-50"
                 >
                   <option value="">Según el motivo ({p.cargoEfectivo && !p.cargoA ? ETIQUETA_CARGO[p.cargoEfectivo] : 'sin cargo aparte'})</option>
                   {(['CLIENTE', 'INSTALADOR', 'MTW'] as CargoPendiente[]).map((c) => (
@@ -159,7 +162,7 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
                       {ETIQUETA_CARGO[c]}
                     </option>
                   ))}
-                </select>
+                </SelectCompacto>
               </label>
               {(p.cargoEfectivo === 'CLIENTE' || p.cargoEfectivo === 'INSTALADOR') && tiene('adicionales.editar') && p.estado !== 'RESUELTO' && (
                 <Button size="sm" variant="outline" onClick={() => setCotizandoAdicional(true)}>
@@ -210,19 +213,14 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
                     <label htmlFor="pend-etapa" className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
                       Etapa
                     </label>
-                    <select
-                      id="pend-etapa"
-                      value={etapaSeleccionada}
-                      onChange={(e) => setEtapaElegida(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-brand-600"
-                    >
+                    <SelectCompacto id="pend-etapa" value={etapaSeleccionada} onChange={(e) => setEtapaElegida(e.target.value)} className="w-full">
                       <option value="">{p.estado === 'EN_CURSO' ? '— sin etapa —' : '— primera etapa —'}</option>
                       {aplicables.map((e) => (
                         <option key={e.id} value={e.id}>
                           {e.nombre}
                         </option>
                       ))}
-                    </select>
+                    </SelectCompacto>
                   </div>
                   <Button
                     size="sm"
@@ -244,14 +242,13 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
               {p.puedeResolver ? (
                 <div className="space-y-2">
                   {p.estado !== 'RESUELTO' && (
-                    <textarea
+                    <Textarea
                       value={comentario}
                       onChange={(e) => setComentario(e.target.value)}
                       rows={2}
                       maxLength={500}
                       placeholder="Nota al resolver, ej. recibido en obra (opcional)"
                       aria-label="Nota de resolución"
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600"
                     />
                   )}
                   <div className="flex flex-wrap gap-2">
@@ -313,7 +310,7 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
             </div>
           </>
         )}
-      </div>
+    </Modal>
       {p && cotizandoAdicional && (
         <NuevoAdicionalModal
           proyectoId={proyectoId}
@@ -337,6 +334,6 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
           obraPendiente={p}
         />
       )}
-    </div>
+    </>
   );
 };

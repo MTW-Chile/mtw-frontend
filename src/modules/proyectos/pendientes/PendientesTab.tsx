@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ClipboardList, Loader2, Paperclip, Plus, Search } from 'lucide-react';
+import { ClipboardList, Loader2, Paperclip, Plus } from 'lucide-react';
 import { getPendientes } from '../../../api/client';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
@@ -25,13 +25,15 @@ import {
   varianteEstadoPendiente,
 } from './utils';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
+import { SelectCompacto } from '../../../components/ui/Campos';
+import { Buscador } from '../../../components/ui/Buscador';
+import { Segmentado } from '../../../components/ui/Segmentado';
+import { BotonFila } from '../../../components/ui/Lista';
 
 interface Props {
   proyecto: Proyecto;
 }
 
-const selector =
-  'px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-brand-600 cursor-pointer';
 
 // Seccion "Control de pendientes" de una obra: lo que falta o fallo (ventanas,
 // hojas, vidrios, materiales), levantado por Fabricacion o por la supervision en
@@ -83,44 +85,23 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
       </div>
 
       {/* Resumen por estado: cada uno filtra la lista */}
-      <div className="flex flex-wrap gap-2">
-        {ESTADOS_PENDIENTE.map((e) => {
-          const activo = estado === e;
-          return (
-            <button
-              key={e}
-              type="button"
-              onClick={() => setEstado(activo ? '' : e)}
-              aria-pressed={activo}
-              className={`px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-colors ${
-                activo ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              {ETIQUETA_ESTADO[e]} <span className={`ml-1 font-mono ${activo ? 'text-slate-300' : 'text-slate-400'}`}>{conteo[e]}</span>
-            </button>
-          );
-        })}
-      </div>
+      <Segmentado
+        etiqueta="Filtrar por estado"
+        valor={estado}
+        onChange={(v) => setEstado(v === estado ? '' : v)}
+        opciones={[{ value: '' as const, label: 'Todos' }, ...ESTADOS_PENDIENTE.map((e) => ({ value: e, label: ETIQUETA_ESTADO[e], contador: conteo[e] }))]}
+      />
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[12rem]">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            placeholder="Buscar por número, descripción o ventana..."
-            aria-label="Buscar pendientes"
-            className="w-full pl-9 pr-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-brand-600"
-          />
-        </div>
-        <select value={destino} onChange={(e) => setDestino(e.target.value as DestinoPendiente | '')} aria-label="Filtrar por área" className={selector}>
+        <Buscador className="flex-1 min-w-[12rem]" valor={texto} onChange={setTexto} placeholder="Buscar por número, descripción o ventana…" etiqueta="Buscar pendientes" />
+        <SelectCompacto value={destino} onChange={(e) => setDestino(e.target.value as DestinoPendiente | '')} aria-label="Filtrar por área">
           <option value="">Todas las áreas</option>
           {DESTINOS_PENDIENTE.map((d) => (
             <option key={d} value={d}>
               {ETIQUETA_DESTINO[d]}
             </option>
           ))}
-        </select>
+        </SelectCompacto>
       </div>
 
       {isLoading ? (
@@ -196,7 +177,7 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
           {visibles.map((p) => {
             const f = filas(p);
             return (
-              <button key={p.id} type="button" onClick={() => setAbierto(p.id)} className="w-full text-left px-4 py-3.5 space-y-1.5 cursor-pointer hover:bg-slate-50/70">
+              <BotonFila key={p.id} onClick={() => setAbierto(p.id)} className="px-4! py-3.5! space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-mono font-bold text-xs text-slate-600">{f.codigo}</span>
                   <Badge size="sm" variant={varianteEstadoPendiente(p.estado)}>
@@ -217,7 +198,7 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
                 <p className="text-[11px] text-slate-500">
                   {ETIQUETA_TIPO[p.tipo]} · {ETIQUETA_MOTIVO[p.motivo]} · {ETIQUETA_DESTINO[p.destino]}
                 </p>
-              </button>
+              </BotonFila>
             );
           })}
         </div>

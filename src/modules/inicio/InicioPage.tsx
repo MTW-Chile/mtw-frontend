@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { useIndicadoresChile } from '../../lib/useIndicadoresChile';
 import { formatNumber } from '../../lib/utils';
 import { IconButton } from '../../components/ui/IconButton';
+import { Input } from '../../components/ui/Input';
 
 interface InicioPageProps {
   onNavigate: (tabId: string, search?: string) => void;
@@ -32,13 +33,14 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
     <div className="w-full min-w-0 p-3 sm:p-5 md:p-6 xl:p-8 space-y-4 sm:space-y-6 max-w-7xl mx-auto animate-fade-in">
       {/* BUSCADOR PRINCIPAL EN EL CONTENIDO */}
       <form onSubmit={handleSearchSubmit} className="relative w-full">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-        <input
+        <Input
+          aria-label="Buscar en el ERP"
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Buscar obra, cliente, RUT o presupuesto HETMO..."
-          className="w-full pl-11 pr-24 py-3 sm:py-3.5 rounded-2xl bg-white border border-slate-200/90 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/10 shadow-xs transition-all"
+          placeholder="Buscar obra, cliente, RUT o presupuesto HETMO…"
+          leftIcon={<Search className="w-4 h-4" />}
+          className="pr-24! py-3! sm:py-3.5! rounded-2xl! bg-white! text-xs sm:text-sm shadow-xs"
         />
         {searchQuery ? (
           <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">

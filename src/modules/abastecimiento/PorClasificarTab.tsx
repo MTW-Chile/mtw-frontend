@@ -5,16 +5,12 @@ import { getPartidas, getPorClasificar, reclasificarItemOC, updateAdicionalItem 
 import { avisarError } from '../configuracion/catalogo/comun';
 import type { Partida } from '../../types';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
+import { SelectCompacto } from '../../components/ui/Campos';
 
 const clp = (v: number) => v.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
 const SelectorPartida: React.FC<{ partidas: Partida[]; onElegir: (id: string) => void; disabled: boolean }> = ({ partidas, onElegir, disabled }) => (
-  <select
-    defaultValue=""
-    disabled={disabled}
-    onChange={(e) => e.target.value && onElegir(e.target.value)}
-    className="text-xs border border-amber-300 bg-amber-50 text-amber-800 rounded-lg px-2 py-1 focus:outline-none focus:border-brand-600"
-  >
+  <SelectCompacto aria-label="Asignar partida" tono="advertencia" defaultValue="" disabled={disabled} onChange={(e) => e.target.value && onElegir(e.target.value)}>
     <option value="">Asignar partida…</option>
     {partidas
       .filter((p) => p.activa && !p.porDefecto)
@@ -23,7 +19,7 @@ const SelectorPartida: React.FC<{ partidas: Partida[]; onElegir: (id: string) =>
           {p.nombre}
         </option>
       ))}
-  </select>
+  </SelectCompacto>
 );
 
 /**

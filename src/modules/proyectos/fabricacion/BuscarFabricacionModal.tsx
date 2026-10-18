@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Link2, Search } from 'lucide-react';
+import { Loader2, Link2 } from 'lucide-react';
 import { buscarFabricacionesHetmo, vincularFabricacion } from '../../../api/client';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
@@ -11,6 +11,7 @@ import type { FabricacionHetmoBusqueda } from '../../../types';
 import { formatoFechaHora, textoEstadoFabricacion, textoVinculacionCubicacion, varianteEstadoFabricacion } from './utils';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
 import { Modal } from '../../../components/ui/Modal';
+import { Buscador } from '../../../components/ui/Buscador';
 
 interface Props {
   proyectoId: string;
@@ -91,18 +92,7 @@ export const BuscarFabricacionModal: React.FC<Props> = ({ proyectoId, onClose })
       onClose={onClose}
     >
       <div className="px-5 pb-3 shrink-0">
-        <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            autoFocus
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            placeholder="Buscar documento de fabricación..."
-            maxLength={100}
-            className="w-full pl-9 pr-9 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600"
-          />
-          {isFetching && <Loader2 className="w-4 h-4 text-slate-400 animate-spin absolute right-3 top-1/2 -translate-y-1/2" />}
-        </div>
+        <Buscador autoFocus valor={texto} onChange={setTexto} placeholder="Buscar documento de fabricación…" cargando={isFetching} />
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 pb-5 min-h-[12rem]">

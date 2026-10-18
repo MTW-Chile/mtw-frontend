@@ -8,6 +8,7 @@ import { leerMilimetros } from '../pendientes/utils';
 import { mmATexto } from './utils';
 import { Modal } from '../../../components/ui/Modal';
 import { Input } from '../../../components/ui/Input';
+import { Casilla } from '../../../components/ui/Campos';
 
 interface Props {
   proyectoId: string;
@@ -110,12 +111,9 @@ export const TipoModal: React.FC<Props> = ({ proyectoId, moneda, tipo, onClose }
       </div>
       {codigoBloqueado && <p className="text-[11px] text-slate-500 -mt-2">El código no se cambia mientras el tipo tenga ventanas con posición: su nomenclatura depende de él.</p>}
 
-      <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
-        <input type="checkbox" checked={areaComun} disabled={tipoBloqueado} onChange={(e) => setAreaComun(e.target.checked)} />
-        <span>
+      <Casilla checked={areaComun} onChange={setAreaComun} disabled={tipoBloqueado} label={<><span>
           <b>Área común / fachada</b> (sin medidas: muro cortina, antifuego, film…). Por ahora cuenta como una sola unidad.
-        </span>
-      </label>
+        </span></>} />
 
       {!areaComun && (
         <div className="grid grid-cols-3 gap-3">

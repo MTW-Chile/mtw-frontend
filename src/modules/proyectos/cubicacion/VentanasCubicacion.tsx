@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { editarUnidadCubicacion, eliminarUnidadCubicacion, getUbicacionesCubicacion, getUnidadesCubicacion } from '../../../api/client';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
@@ -8,12 +8,13 @@ import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import type { ConfigCubicacion, TipoCubicacion, UnidadCubicacion } from '../../../types';
 import { formatoMm } from '../fabricacion/utils';
 import { leerMilimetros } from '../pendientes/utils';
-import { campoChico } from './estilos';
 import { UnidadModal } from './UnidadModal';
 import { formatoMonto, mmATexto, textoTorre } from './utils';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
 import { useConfirmar } from '../../../components/ui/Confirmar';
 import { IconButton } from '../../../components/ui/IconButton';
+import { Casilla, InputCompacto, SelectCompacto } from '../../../components/ui/Campos';
+import { Buscador } from '../../../components/ui/Buscador';
 
 export interface FiltroVentanas {
   pisoId: string;
@@ -93,25 +94,9 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
       </Td>
       <Td onBlur={alSalir}>
         <div className="flex items-center gap-1 min-w-[10rem]">
-          <input
-            aria-label={`Rasgo ancho de ${unidad.nomenclatura ?? unidad.codigo}`}
-            inputMode="decimal"
-            value={ancho}
-            onChange={(e) => setAncho(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.blur(), intentarGuardar())}
-            placeholder="ancho"
-            className={`${campoChico} ${invalido ? 'border-rose-300' : ''}`}
-          />
+          <InputCompacto aria-label={`Rasgo ancho de ${unidad.nomenclatura ?? unidad.codigo}`} inputMode="decimal" value={ancho} onChange={(e) => setAncho(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.blur(), intentarGuardar())} placeholder="ancho" className={`${invalido ? 'border-rose-300' : ''}`} />
           <span className="text-slate-300">×</span>
-          <input
-            aria-label={`Rasgo alto de ${unidad.nomenclatura ?? unidad.codigo}`}
-            inputMode="decimal"
-            value={alto}
-            onChange={(e) => setAlto(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.blur(), intentarGuardar())}
-            placeholder="alto"
-            className={`${campoChico} ${invalido ? 'border-rose-300' : ''}`}
-          />
+          <InputCompacto aria-label={`Rasgo alto de ${unidad.nomenclatura ?? unidad.codigo}`} inputMode="decimal" value={alto} onChange={(e) => setAlto(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.blur(), intentarGuardar())} placeholder="alto" className={`${invalido ? 'border-rose-300' : ''}`} />
           {guardar.isPending && <Loader2 className="w-3 h-3 animate-spin text-slate-400 shrink-0" />}
         </div>
       </Td>
@@ -167,44 +152,28 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
   });
 
   const unidades = data?.unidades ?? [];
-  const selector = 'px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-brand-600 cursor-pointer';
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[12rem]">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            placeholder="Buscar por nomenclatura, código o ubicación..."
-            aria-label="Buscar ventanas"
-            className="w-full pl-9 pr-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-brand-600"
-          />
-        </div>
-        <select value={filtro.torreId} onChange={(e) => onFiltro({ torreId: e.target.value, pisoId: '' })} aria-label="Filtrar por torre" className={selector}>
+        <Buscador className="flex-1 min-w-[12rem]" valor={texto} onChange={setTexto} placeholder="Buscar por nomenclatura, código o ubicación…" etiqueta="Buscar ventanas" />
+        <SelectCompacto value={filtro.torreId} onChange={(e) => onFiltro({ torreId: e.target.value, pisoId: '' })} aria-label="Filtrar por torre">
           <option value="">Todas las torres</option>
           {(ubicaciones.data ?? []).map((t) => (
             <option key={t.id} value={t.id}>
               {textoTorre(t.nombre)}
             </option>
           ))}
-        </select>
-        <select
-          value={filtro.pisoId}
-          onChange={(e) => onFiltro({ ...filtro, pisoId: e.target.value })}
-          disabled={!filtro.torreId}
-          aria-label="Filtrar por piso"
-          className={`${selector} disabled:opacity-50 disabled:cursor-not-allowed`}
-        >
+        </SelectCompacto>
+        <SelectCompacto value={filtro.pisoId} onChange={(e) => onFiltro({ ...filtro, pisoId: e.target.value })} disabled={!filtro.torreId} aria-label="Filtrar por piso">
           <option value="">Todos los pisos</option>
           {(ubicaciones.data?.find((t) => t.id === filtro.torreId)?.pisos ?? []).map((p) => (
             <option key={p.id} value={p.id}>
               Piso {p.numero}
             </option>
           ))}
-        </select>
-        <select value={tipoId} onChange={(e) => setTipoId(e.target.value)} aria-label="Filtrar por tipo" className={selector}>
+        </SelectCompacto>
+        <SelectCompacto value={tipoId} onChange={(e) => setTipoId(e.target.value)} aria-label="Filtrar por tipo">
           <option value="">Todos los tipos</option>
           {tipos
             .filter((t) => !t.esAreaComun)
@@ -213,15 +182,13 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
                 {t.codigo}
               </option>
             ))}
-        </select>
-        <select value={estado} onChange={(e) => setEstado(e.target.value as '' | 'sinPosicion' | 'posicionadas')} aria-label="Filtrar por posición" className={selector}>
+        </SelectCompacto>
+        <SelectCompacto value={estado} onChange={(e) => setEstado(e.target.value as '' | 'sinPosicion' | 'posicionadas')} aria-label="Filtrar por posición">
           <option value="">Con y sin posición</option>
           <option value="sinPosicion">Sin posición</option>
           <option value="posicionadas">Con posición</option>
-        </select>
-        <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
-          <input type="checkbox" checked={sinRectificar} onChange={(e) => setSinRectificar(e.target.checked)} /> Solo sin rectificar
-        </label>
+        </SelectCompacto>
+        <Casilla checked={sinRectificar} onChange={setSinRectificar} label="Solo sin rectificar" />
         <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setModal({})}>
           Nueva ventana
         </Button>

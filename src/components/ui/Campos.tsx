@@ -223,8 +223,8 @@ export const Casilla: React.FC<{
   </label>
 );
 
-/** Select compacto para tablas editables en línea (sin etiqueta visible: requiere aria-label). */
-export const SelectCompacto: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { 'aria-label': string; tono?: 'advertencia' }> = ({
+/** Select compacto para tablas editables y filtros. Sin etiqueta visible, pasar aria-label (o un id con <label htmlFor>). */
+export const SelectCompacto: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { tono?: 'advertencia' }> = ({
   tono,
   className = '',
   ...props

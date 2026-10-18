@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight, Factory, Link2, Loader2, RefreshCw, Search, Unlink } from 'lucide-react';
+import { Factory, Link2, Loader2, RefreshCw, Search, Unlink } from 'lucide-react';
 import {
   desvincularFabricacion,
   detectarFabricaciones,
@@ -17,6 +17,7 @@ import { BuscarFabricacionModal } from './BuscarFabricacionModal';
 import { FabricacionDetalle } from './FabricacionDetalle';
 import { formatoFechaHora, textoEstadoFabricacion, textoVinculacionCubicacion, varianteEstadoFabricacion } from './utils';
 import { useConfirmar } from '../../../components/ui/Confirmar';
+import { BotonColapsar } from '../../../components/ui/BotonColapsar';
 
 interface Props {
   proyecto: Proyecto;
@@ -177,16 +178,7 @@ const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyect
             return (
               <div key={f.id} className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
                 <div className="p-4 flex flex-wrap items-center gap-3">
-                  <button
-                    onClick={() => setAbierto(expandido ? null : f.id)}
-                    className="flex items-center gap-2 min-w-0 text-left cursor-pointer flex-1 basis-full sm:basis-0"
-                    aria-expanded={expandido}
-                  >
-                    {expandido ? (
-                      <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
-                    )}
+                  <BotonColapsar abierto={expandido} onClick={() => setAbierto(expandido ? null : f.id)} className="flex-nowrap! gap-2! flex-1 basis-full sm:basis-0">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-bold text-slate-900 truncate">{f.descripcion || `Documento ${f.hetmoId}`}</span>
@@ -202,7 +194,7 @@ const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyect
                         {f.hetmoVentaId ? ` · venta ${f.hetmoVentaId}` : ''} · {f._count?.ventanas ?? 0} ventana(s) · leído {formatoFechaHora(f.sincronizadoEn)}
                       </p>
                     </div>
-                  </button>
+                  </BotonColapsar>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <Button
                       variant="ghost"

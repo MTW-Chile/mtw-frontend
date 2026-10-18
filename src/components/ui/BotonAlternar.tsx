@@ -9,7 +9,7 @@ import type { LucideIcon } from 'lucide-react';
 export const BotonAlternar: React.FC<{
   activo: boolean;
   onClick: () => void;
-  icono: LucideIcon;
+  icono?: LucideIcon;
   cargando?: boolean;
   disabled?: boolean;
   title?: string;
@@ -25,7 +25,7 @@ export const BotonAlternar: React.FC<{
       activo ? 'bg-brand-600/10 text-brand-600 border-brand-600/30 font-bold' : 'bg-white text-slate-700 border-slate-200 hover:text-slate-900 hover:bg-slate-100/80 shadow-2xs font-semibold'
     }`}
   >
-    {cargando ? <Loader2 className="w-3 h-3 animate-spin" /> : <Icono className="w-3 h-3" />}
+    {cargando ? <Loader2 className="w-3 h-3 animate-spin" /> : Icono && <Icono className="w-3 h-3" />}
     {children}
   </button>
 );

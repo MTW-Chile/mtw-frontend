@@ -19,6 +19,8 @@ import { leerEntero, leerTorres, mensajeAsignacion, mensajeCopiaPiso, rangoPisos
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
 import { IconButton } from '../../../components/ui/IconButton';
+import { Casilla, InputCompacto } from '../../../components/ui/Campos';
+import { BotonAlternar } from '../../../components/ui/BotonAlternar';
 
 // Formularios del cubicador visual. Todos avisan con onHecho() para que la pantalla vuelva a leer la estructura.
 
@@ -76,7 +78,7 @@ const Campo: React.FC<{ id: string; etiquetaTexto: string; valor: string; onCamb
     <label htmlFor={id} className={etiqueta}>
       {etiquetaTexto}
     </label>
-    <input id={id} value={valor} onChange={(e) => onCambio(e.target.value)} placeholder={placeholder} maxLength={max} inputMode={mono ? 'numeric' : undefined} className={`${campo} ${invalido ? 'border-rose-300' : ''}`} />
+    <InputCompacto id={id} value={valor} onChange={(e) => onCambio(e.target.value)} placeholder={placeholder} maxLength={max} inputMode={mono ? 'numeric' : undefined} className={`${invalido ? 'border-rose-300' : ''}`} />
     {ayuda && <p className="text-[11px] text-slate-500 mt-1">{ayuda}</p>}
   </div>
 );
@@ -247,10 +249,7 @@ export const DeptosModal: React.FC<Base & { torre: string; piso?: number }> = ({
         <Campo id="deptos-hasta" etiquetaTexto="Hasta el depto" valor={hasta} onCambio={setHasta} mono invalido={hasta !== '' && (h === null || (d !== null && h < d))} />
       </div>
       {piso !== undefined && (
-        <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
-          <input type="checkbox" checked={todos} onChange={(e) => setTodos(e.target.checked)} />
-          Crearlos en todos los pisos de la torre
-        </label>
+        <Casilla checked={todos} onChange={setTodos} label="Crearlos en todos los pisos de la torre" />
       )}
     </Marco>
   );
@@ -295,15 +294,9 @@ export const CopiarPisoModal: React.FC<Base & { torre: NodoTorreCubicacion; piso
         ) : (
           <div className="flex flex-wrap gap-1.5">
             {otros.map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => alternar(p)}
-                aria-pressed={elegidos.includes(p)}
-                className={`px-2.5 py-1 rounded-lg border text-xs font-mono cursor-pointer ${elegidos.includes(p) ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-slate-200 text-slate-700 hover:border-brand-400'}`}
-              >
-                {p}
-              </button>
+              <BotonAlternar key={p} activo={elegidos.includes(p)} onClick={() => alternar(p)}>
+                <span className="font-mono">{p}</span>
+              </BotonAlternar>
             ))}
           </div>
         )}
@@ -312,8 +305,8 @@ export const CopiarPisoModal: React.FC<Base & { torre: NodoTorreCubicacion; piso
             <Button variant="link" size="sm" onClick={() => setElegidos(otros)}>todos</Button>
             <Button variant="link" size="sm" onClick={() => setElegidos([])}>ninguno</Button>
             <span className="text-slate-300">|</span>
-            <input aria-label="Rango desde" value={desde} onChange={(e) => setDesde(e.target.value)} placeholder="desde" className="w-16 px-2 py-1 rounded-lg border border-slate-200 text-xs font-mono" />
-            <input aria-label="Rango hasta" value={hasta} onChange={(e) => setHasta(e.target.value)} placeholder="hasta" className="w-16 px-2 py-1 rounded-lg border border-slate-200 text-xs font-mono" />
+            <InputCompacto aria-label="Rango desde" value={desde} onChange={(e) => setDesde(e.target.value)} placeholder="desde" className="w-16 font-mono" />
+            <InputCompacto aria-label="Rango hasta" value={hasta} onChange={(e) => setHasta(e.target.value)} placeholder="hasta" className="w-16 font-mono" />
             <Button variant="link" size="sm" onClick={agregarRango} disabled={d === null || h === null}>agregar rango</Button>
           </div>
         )}
@@ -381,12 +374,9 @@ export const AsignarModal: React.FC<Base & { unidadId: string; torre: string; no
         </div>
       </div>
       {pasa && (
-        <label className="flex items-start gap-2 text-xs text-amber-900 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 cursor-pointer">
-          <input type="checkbox" className="mt-0.5" checked={exceder} onChange={(e) => setExceder(e.target.checked)} />
-          <span>
+        <Casilla checked={exceder} onChange={setExceder} label={<><span>
             Solo quedan {saldo} {tipo!.codigo} sin ubicar (contratadas {tipo!.cantidadContratada}). Marca esto para agregar igualmente las {n! - saldo} de más; quedarán por sobre lo contratado.
-          </span>
-        </label>
+          </span></>} />
       )}
     </Marco>
   );

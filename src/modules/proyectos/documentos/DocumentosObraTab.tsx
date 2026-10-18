@@ -8,6 +8,8 @@ import type { ItemOneDrive, Proyecto } from '../../../types';
 import { formatoFechaHora } from '../fabricacion/utils';
 import { BotonesAdjuntar } from '../pendientes/adjuntos/BotonesAdjuntar';
 import { formatoTamano, mimeDeArchivo } from '../pendientes/adjuntos/utils';
+import { InputCompacto } from '../../../components/ui/Campos';
+import { BotonFila } from '../../../components/ui/Lista';
 
 interface Miga {
   id: string;
@@ -113,19 +115,10 @@ export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }
 
       {creandoCarpeta && (
         <div className="flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50/50 p-3">
-          <input
-            autoFocus
-            value={nombreCarpeta}
-            onChange={(e) => setNombreCarpeta(e.target.value)}
-            onKeyDown={(e) => {
+          <InputCompacto autoFocus value={nombreCarpeta} onChange={(e) => setNombreCarpeta(e.target.value)} onKeyDown={(e) => {
               if (e.key === 'Enter' && nombreCarpeta.trim()) crearCarpeta.mutate(nombreCarpeta.trim());
               if (e.key === 'Escape') setCreandoCarpeta(false);
-            }}
-            placeholder="Nombre de la carpeta"
-            maxLength={120}
-            aria-label="Nombre de la carpeta nueva"
-            className="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-sm focus:outline-none focus:border-brand-600"
-          />
+            }} placeholder="Nombre de la carpeta" maxLength={120} aria-label="Nombre de la carpeta nueva" className="flex-1 min-w-0" />
           <Button size="sm" variant="primary" isLoading={crearCarpeta.isPending} disabled={!nombreCarpeta.trim()} onClick={() => crearCarpeta.mutate(nombreCarpeta.trim())}>
             Crear
           </Button>
@@ -153,8 +146,12 @@ export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }
         <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white overflow-hidden">
           {data.items.map((item) => (
             <li key={item.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
-              <Button variant="ghost" size="sm" onClick={() => (item.tipo === 'carpeta' ? setMigas([...migas, { id: item.id, nombre: item.nombre }]) : abrirArchivo(proyecto.id, item))} className="flex-1 min-w-0">
-{item.tipo === 'carpeta' ? (
+              <BotonFila
+                sinRelleno
+                onClick={() => (item.tipo === 'carpeta' ? setMigas([...migas, { id: item.id, nombre: item.nombre }]) : abrirArchivo(proyecto.id, item))}
+                className="flex-1 min-w-0 flex items-center gap-3"
+              >
+                {item.tipo === 'carpeta' ? (
                   <Folder className="w-4.5 h-4.5 text-brand-500 shrink-0" />
                 ) : item.mime?.startsWith('image/') ? (
                   <FileText className="w-4.5 h-4.5 text-slate-400 shrink-0" />
@@ -164,7 +161,7 @@ export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }
                 <span className="flex-1 min-w-0 text-xs font-bold text-slate-800 truncate" title={item.nombre}>
                   {item.nombre}
                 </span>
-</Button>
+              </BotonFila>
               <span className="text-[11px] text-slate-400 shrink-0 hidden sm:inline">{item.tamano != null ? formatoTamano(item.tamano) : ''}</span>
               <span className="text-[11px] text-slate-400 shrink-0 hidden md:inline">{formatoFechaHora(item.modificadoEn)}</span>
               {item.webUrl && (

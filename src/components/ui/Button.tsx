@@ -76,7 +76,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ) : (
           leftIcon && <span className="shrink-0">{leftIcon}</span>
         )}
-        {children && <span>{children}</span>}
+        {children && <span className="inline-flex items-center gap-1.5 min-w-0">{children}</span>}
         {!isLoading && rightIcon && (
           <span className="shrink-0">{rightIcon}</span>
         )}

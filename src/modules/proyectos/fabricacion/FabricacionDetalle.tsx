@@ -8,6 +8,7 @@ import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import type { FabricacionVentana, MaterialFabricacion, MaterialesFabricacion } from '../../../types';
 import { formatoMm, resumenCuadros } from './utils';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
+import { SelectCompacto } from '../../../components/ui/Campos';
 
 interface Props {
   proyectoId: string;
@@ -144,19 +145,14 @@ const CeldaVinculoCubicacion: React.FC<{ fabricacionId: string; ventana: Fabrica
   }
   return (
     <div className="flex items-center gap-1">
-      <select
-        value={elegido}
-        onChange={(e) => setElegido(e.target.value)}
-        className="text-[11px] border border-slate-200 rounded-md px-1 py-0.5 max-w-[9rem]"
-        aria-label={`Vincular ventana de fabricación ${ventana.modelo} a una ventana cubicada`}
-      >
+      <SelectCompacto value={elegido} onChange={(e) => setElegido(e.target.value)} aria-label={`Vincular ventana de fabricación ${ventana.modelo} a una ventana cubicada`} className="max-w-[9rem]">
         <option value="">Elegir...</option>
         {opciones.map((c) => (
           <option key={c.id} value={c.id}>
             {c.codigo} {c.nomenclatura}
           </option>
         ))}
-      </select>
+      </SelectCompacto>
       <Button size="sm" variant="outline" disabled={!elegido} isLoading={vincular.isPending} onClick={() => vincular.mutate()}>
         Vincular
       </Button>

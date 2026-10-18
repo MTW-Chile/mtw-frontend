@@ -11,6 +11,7 @@ import { ColumnFilterHeader } from '../../components/ui/ColumnFilterHeader';
 import { BREAKPOINT_DESKTOP } from '../../lib/designSystem';
 import { usePermisos } from '../../lib/permisos';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
+import { BotonFila } from '../../components/ui/Lista';
 
 const TIPO_MOVIMIENTO: Record<TipoMovimientoBodega, { label: string; icon: React.ReactNode; color: string }> = {
   INGRESO_OC: { label: 'Ingreso (OC)', icon: <ArrowDownToLine className="w-3.5 h-3.5" />, color: 'text-emerald-600' },
@@ -284,11 +285,7 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
               const abierto = expandido.has(s.materialId);
               return (
                 <div key={s.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => s.material.individualizado && toggleExpandido(s.materialId)}
-                    className="w-full flex items-start justify-between gap-2 text-left cursor-pointer"
-                  >
+                  <BotonFila sinRelleno onClick={() => s.material.individualizado && toggleExpandido(s.materialId)} className="flex items-start justify-between gap-2">
                     <div className="min-w-0 space-y-0.5">
                       <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-500">
                         {s.material.individualizado &&
@@ -313,7 +310,7 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
                     <div className="text-right shrink-0 text-xs font-bold text-slate-900 whitespace-nowrap">
                       {Number(s.cantidad).toLocaleString('es-CL')} {s.material.unidadMedida}
                     </div>
-                  </button>
+                  </BotonFila>
                   {abierto && s.material.individualizado && (
                     <div className="pt-2 border-t border-slate-100 -mx-4">
                       <UnidadesMaterialDetalle bodegaId={s.bodegaId} materialId={s.materialId} />

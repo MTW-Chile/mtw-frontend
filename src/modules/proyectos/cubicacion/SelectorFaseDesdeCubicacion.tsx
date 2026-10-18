@@ -5,6 +5,7 @@ import { getEstructuraCubicacion } from '../../../api/client';
 import type { NodoDeptoCubicacion, SeleccionFaseCubicacion } from '../../../types';
 import { textoTorre } from './utils';
 import { IconButton } from '../../../components/ui/IconButton';
+import { Casilla } from '../../../components/ui/Campos';
 
 interface Props {
   proyectoId: string;
@@ -67,20 +68,24 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
     <div key={nodo.id} className="pl-4 border-l border-slate-100">
       <div className="flex items-center gap-1.5 py-1">
         <IconButton icono={expandidas.has(nodo.id) ? ChevronDown : ChevronRight} etiqueta="Expandir" onClick={() => expandir(nodo.id)} />
-        <label className="flex items-center gap-1.5 text-xs cursor-pointer">
-          <input type="checkbox" checked={unidadIds.has(nodo.id)} onChange={() => alternar(unidadIds, setUnidadIds, nodo.id)} />
-          <span className="font-mono font-bold text-slate-800">{nodo.nombre}</span>
-          <span className="text-slate-400">({nodo.ventanas.length} ventana(s))</span>
-        </label>
+        <Casilla checked={unidadIds.has(nodo.id)} onChange={() => alternar(unidadIds, setUnidadIds, nodo.id)} label={<><span className="font-mono font-bold text-slate-800">{nodo.nombre}</span>
+          <span className="text-slate-400">({nodo.ventanas.length} ventana(s))</span></>} />
       </div>
       {expandidas.has(nodo.id) && (
         <div className="pl-6 pb-1 space-y-0.5">
           {nodo.ventanas.map((v) => (
-            <label key={v.id} className="flex items-center gap-1.5 text-[11px] text-slate-600 cursor-pointer">
-              <input type="checkbox" checked={ventanaIds.has(v.id)} onChange={() => alternar(ventanaIds, setVentanaIds, v.id)} />
-              <span className="font-mono">{v.codigo}</span>
-              {v.nomenclatura && <span className="text-slate-400">{v.nomenclatura}</span>}
-            </label>
+            <Casilla
+              key={v.id}
+              className="flex! text-[11px]! text-slate-600"
+              checked={ventanaIds.has(v.id)}
+              onChange={() => alternar(ventanaIds, setVentanaIds, v.id)}
+              label={
+                <>
+                  <span className="font-mono">{v.codigo}</span>
+                  {v.nomenclatura && <span className="text-slate-400 ml-1.5">{v.nomenclatura}</span>}
+                </>
+              }
+            />
           ))}
           {nodo.ventanas.length === 0 && <p className="text-[11px] text-slate-300">Sin ventanas.</p>}
         </div>
@@ -94,10 +99,7 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
         <div key={torre.id}>
           <div className="flex items-center gap-1.5 py-1">
             <IconButton icono={expandidas.has(torre.id) ? ChevronDown : ChevronRight} etiqueta="Expandir torre" onClick={() => expandir(torre.id)} />
-            <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer">
-              <input type="checkbox" checked={torreIds.has(torre.id)} onChange={() => alternar(torreIds, setTorreIds, torre.id)} />
-              {textoTorre(torre.nombre)}
-            </label>
+            <Casilla checked={torreIds.has(torre.id)} onChange={() => alternar(torreIds, setTorreIds, torre.id)} label={<>{textoTorre(torre.nombre)}</>} />
           </div>
           {expandidas.has(torre.id) && (
             <div className="pl-4">
@@ -105,11 +107,8 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
                 <div key={piso.id}>
                   <div className="flex items-center gap-1.5 py-1">
                     <IconButton icono={expandidas.has(piso.id) ? ChevronDown : ChevronRight} etiqueta="Expandir piso" onClick={() => expandir(piso.id)} />
-                    <label className="flex items-center gap-1.5 text-xs cursor-pointer">
-                      <input type="checkbox" checked={pisoIds.has(piso.id)} onChange={() => alternar(pisoIds, setPisoIds, piso.id)} />
-                      <span className="font-bold text-slate-800">Piso {piso.numero}</span>
-                      <span className="text-slate-400">({piso.deptos.length} depto(s))</span>
-                    </label>
+                    <Casilla checked={pisoIds.has(piso.id)} onChange={() => alternar(pisoIds, setPisoIds, piso.id)} label={<><span className="font-bold text-slate-800">Piso {piso.numero}</span>
+                      <span className="text-slate-400">({piso.deptos.length} depto(s))</span></>} />
                   </div>
                   {expandidas.has(piso.id) && <div className="pl-4">{piso.deptos.map(filaUnidad)}</div>}
                 </div>

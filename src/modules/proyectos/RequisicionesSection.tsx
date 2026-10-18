@@ -14,6 +14,8 @@ import {
 } from '../../api/client';
 import type { EstadoSolicitudMaterial, Proyecto, ProyectoVersion } from '../../types';
 import { BotonFila } from '../../components/ui/Lista';
+import { InputCompacto } from '../../components/ui/Campos';
+import { IconButton } from '../../components/ui/IconButton';
 
 const ESTADO_LABEL: Record<EstadoSolicitudMaterial, string> = {
   GENERADA: 'Generada',
@@ -155,22 +157,15 @@ export const RequisicionesSection: React.FC<{ proyecto?: Proyecto; activeVersion
             {items.map((item, idx) => (
               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200">
                 <span className="flex-1 text-xs text-slate-700 truncate">{item.descripcion}</span>
-                <input
+                <InputCompacto
+                  aria-label={`Cantidad de ${item.descripcion}`}
                   type="number"
                   placeholder="Cantidad"
                   value={item.cantidadSolicitada}
-                  onChange={(e) =>
-                    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, cantidadSolicitada: e.target.value } : it)))
-                  }
-                  className="w-24 text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-brand-600"
+                  onChange={(e) => setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, cantidadSolicitada: e.target.value } : it)))}
+                  className="w-24"
                 />
-                <button
-                  type="button"
-                  onClick={() => setItems((prev) => prev.filter((_, i) => i !== idx))}
-                  className="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0"
-                >
-                  <XIcon className="w-3.5 h-3.5" />
-                </button>
+                <IconButton icono={XIcon} tono="peligro" etiqueta={`Quitar ${item.descripcion}`} onClick={() => setItems((prev) => prev.filter((_, i) => i !== idx))} />
               </div>
             ))}
           </div>

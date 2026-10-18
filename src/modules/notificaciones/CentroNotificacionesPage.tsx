@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Bell, Landmark, ShoppingCart, Loader2, ChevronRight } from 'lucide-react';
 import { getMisAprobacionesPendientes } from '../../api/client';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { BotonFila } from '../../components/ui/Lista';
 
 const formatoMoneda = (valor: number) => valor.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
@@ -56,7 +57,7 @@ export const CentroNotificacionesPage: React.FC<CentroNotificacionesPageProps> =
       ) : (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm divide-y divide-slate-50">
           {gerencial.map((item) => (
-            <button
+            <BotonFila
               key={item.tipo === 'orden_compra' ? `oc-${item.ordenCompraId}` : item.tipo === 'adicional' ? `adi-${item.adicionalId}` : `cot-${item.versionId}`}
               onClick={() =>
                 item.tipo === 'orden_compra'
@@ -65,8 +66,8 @@ export const CentroNotificacionesPage: React.FC<CentroNotificacionesPageProps> =
                     ? onAbrirAdicional?.(item.proyectoId, item.adicionalId)
                     : onAbrirCotizacion?.(item.proyectoId)
               }
-              className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-slate-50/70 transition-colors cursor-pointer"
-            >
+              className="flex items-center justify-between gap-3 px-5! py-4!"
+              >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
                   {item.tipo === 'orden_compra' ? <ShoppingCart className="w-4 h-4" /> : <Landmark className="w-4 h-4" />}
@@ -95,7 +96,7 @@ export const CentroNotificacionesPage: React.FC<CentroNotificacionesPageProps> =
                 </div>
               </div>
               <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
-            </button>
+            </BotonFila>
           ))}
         </div>
       )}

@@ -102,17 +102,15 @@ export const TiposCubicacion: React.FC<Props> = ({ proyectoId, moneda, tipos }) 
                     </Td>
                     <Td alinear="derecha" className="whitespace-nowrap">
                       <IconButton icono={Pencil} etiqueta={`Editar tipo ${t.codigo}`} tono="marca" onClick={() => setModal({ tipo: t })} />
-                      <Button variant="ghost" size="sm" disabled={!t.esAreaComun && t.cubicadas >
-0}
+                      <IconButton
+                        icono={Trash2}
+                        tono="peligro"
+                        disabled={!t.esAreaComun && t.cubicadas > 0}
+                        etiqueta={!t.esAreaComun && t.cubicadas > 0 ? 'Tiene ventanas con posición: elimínalas primero' : `Eliminar tipo ${t.codigo}`}
                         onClick={async () => {
                           if (await confirmar({ titulo: `¿Eliminar el tipo ${t.codigo}?`, confirmar: 'Eliminar', peligro: true })) eliminar.mutate(t.id);
                         }}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                        aria-label={`Eliminar tipo ${t.codigo}`}
-                        title={!t.esAreaComun && t.cubicadas > 0 ? 'Tiene ventanas con posición: elimínalas primero' : 'Eliminar'}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-</Button>
+                      />
                     </Td>
                   </Tr>
                 );

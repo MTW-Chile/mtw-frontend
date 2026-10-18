@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Pencil, Users, X, Trash2, Plus, Loader2, Receipt } from 'lucide-react';
+import { Pencil, Users, Trash2, Plus, Receipt } from 'lucide-react';
 import { getClientes, eliminarCliente } from '../../api/client';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { Badge } from '../../components/ui/Badge';
@@ -16,7 +16,7 @@ import { usePermisos } from '../../lib/permisos';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
 import { mostrarToast } from '../../lib/toast';
 import { useConfirmar } from '../../components/ui/Confirmar';
-import { IconButton } from '../../components/ui/IconButton';
+import { Buscador } from '../../components/ui/Buscador';
 
 /**
  * Maestro de Clientes: quién es cada cliente y sus datos de contacto/
@@ -99,19 +99,7 @@ export const ClientesPage: React.FC = () => {
       />
 
       <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-xs">
-        <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por razón social, RUT, giro o contacto..."
-            className="w-full pl-10 pr-9 py-2.5 sm:py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-brand-600 transition-all"
-          />
-          {searchTerm && (
-            <IconButton icono={X} etiqueta="Limpiar búsqueda" onClick={() => setSearchTerm('')} />
-          )}
-        </div>
+        <Buscador valor={searchTerm} onChange={setSearchTerm} placeholder="Buscar por razón social, RUT, giro o contacto…" />
       </div>
 
       {isLoading ? (
@@ -196,18 +184,22 @@ export const ClientesPage: React.FC = () => {
                           <div className="flex items-center justify-end gap-1">
                             <Button variant="ghost" size="sm" leftIcon={<Pencil className="w-3.5 h-3.5" />} onClick={() => setEditando(c)}>Editar</Button>
                             {puedeEliminar && (
-                              <Button variant="ghost" size="sm" onClick={async () => {
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+                                isLoading={eliminarMutation.isPending && eliminarMutation.variables === c.id}
+                                onClick={async () => {
                                   if (await confirmar({ titulo: `¿Eliminar el cliente "${c.nombre}"?`, mensaje: `Esta acción no se puede deshacer.`, confirmar: 'Eliminar', peligro: true })) {
                                     eliminarMutation.mutate(c.id);
                                   }
-                                }} disabled={!sinUso || (eliminarMutation.isPending && eliminarMutation.variables === c.id)} title={sinUso ? undefined : 'Tiene proyectos enlazados -- desvincúlalos primero'} className="text-rose-600! hover:bg-rose-50!">
-{eliminarMutation.isPending && eliminarMutation.variables === c.id ? (
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                ) : (
-                                  <Trash2 className="w-3 h-3" />
-                                )}
-                                <span>Eliminar</span>
-</Button>
+                                }}
+                                disabled={!sinUso}
+                                title={sinUso ? undefined : 'Tiene proyectos enlazados: desvincúlalos primero'}
+                                className="text-rose-600! hover:bg-rose-50!"
+                              >
+                                Eliminar
+                              </Button>
                             )}
                           </div>
                         </Td>
@@ -258,18 +250,22 @@ export const ClientesPage: React.FC = () => {
                     <div className="pt-2.5 border-t border-slate-100 flex justify-end gap-1 flex-wrap">
                       <Button variant="ghost" size="sm" leftIcon={<Pencil className="w-3.5 h-3.5" />} onClick={() => setEditando(c)}>Editar</Button>
                       {puedeEliminar && (
-                        <Button variant="ghost" size="sm" onClick={async () => {
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+                          isLoading={eliminarMutation.isPending && eliminarMutation.variables === c.id}
+                          onClick={async () => {
                             if (await confirmar({ titulo: `¿Eliminar el cliente "${c.nombre}"?`, mensaje: `Esta acción no se puede deshacer.`, confirmar: 'Eliminar', peligro: true })) {
                               eliminarMutation.mutate(c.id);
                             }
-                          }} disabled={!sinUso || (eliminarMutation.isPending && eliminarMutation.variables === c.id)} className="text-rose-600! hover:bg-rose-50!">
-{eliminarMutation.isPending && eliminarMutation.variables === c.id ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <Trash2 className="w-3 h-3" />
-                          )}
-                          <span>Eliminar</span>
-</Button>
+                          }}
+                          disabled={!sinUso}
+                          title={sinUso ? undefined : 'Tiene proyectos enlazados: desvincúlalos primero'}
+                          className="text-rose-600! hover:bg-rose-50!"
+                        >
+                          Eliminar
+                        </Button>
                       )}
                     </div>
                   </div>

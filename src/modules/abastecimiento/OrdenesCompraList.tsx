@@ -18,6 +18,9 @@ import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
 import { mostrarToast } from '../../lib/toast';
 import { useConfirmar } from '../../components/ui/Confirmar';
 import { FiltroChips } from '../../components/ui/FiltroChips';
+import { InputCompacto } from '../../components/ui/Campos';
+import { BotonColapsar } from '../../components/ui/BotonColapsar';
+import { BotonFila } from '../../components/ui/Lista';
 
 export const ESTADO_OC_LABEL: Record<EstadoOC, string> = {
   BORRADOR: 'Borrador',
@@ -385,12 +388,13 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
   const RechazoInline: React.FC<{ oc: OrdenCompra }> = ({ oc }) => (
     <div className="flex items-center gap-2.5 flex-wrap">
       <span className="text-xs font-semibold text-rose-700 shrink-0">Motivo del rechazo:</span>
-      <input
+      <InputCompacto
+        aria-label="Motivo del rechazo"
         autoFocus
         value={motivoRechazo}
         onChange={(e) => setMotivoRechazo(e.target.value)}
-        placeholder="Ej: precio fuera de rango, proveedor no homologado..."
-        className="flex-1 min-w-[180px] text-xs border border-rose-200 rounded-lg px-3 py-1.5 outline-none focus:border-rose-400 bg-white"
+        placeholder="Ej: precio fuera de rango, proveedor no homologado…"
+        className="flex-1 min-w-[180px]"
       />
       <Button
         size="sm"
@@ -470,23 +474,14 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                 <React.Fragment key={oc.id}>
                   <Tr className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                     <Td>
-                      <button
-                        type="button"
-                        onClick={() => toggleExpandida(oc.id)}
-                        className="flex items-center gap-1.5 font-mono font-bold text-slate-900 hover:text-brand-600 transition-colors cursor-pointer whitespace-nowrap"
-                      >
-                        {expandidas.has(oc.id) ? (
-                          <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        ) : (
-                          <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        )}
+                      <BotonColapsar abierto={expandidas.has(oc.id)} onClick={() => toggleExpandida(oc.id)} className="flex-nowrap! gap-1.5! font-mono font-bold text-slate-900 hover:text-brand-600 whitespace-nowrap">
                         {oc.numero}
                         {oc.naturaleza && oc.naturaleza !== 'PRESUPUESTO' && (
                           <Badge size="sm" variant={oc.naturaleza === 'REPOSICION' ? 'warning' : 'violet'}>
                             {ETIQUETA_NATURALEZA[oc.naturaleza]}
                           </Badge>
                         )}
-                      </button>
+                      </BotonColapsar>
                     </Td>
                     {!proyectoId && (
                       <Td className="text-slate-700 min-w-[8rem] max-w-[20rem]" title={oc.proyecto?.obra || oc.centroCosto?.nombre || ''}>
@@ -534,7 +529,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
         <div className="space-y-3">
           {ordenesFiltradas.map((oc) => (
             <div key={oc.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2.5">
-              <button type="button" onClick={() => toggleExpandida(oc.id)} className="w-full flex items-start justify-between gap-2 text-left cursor-pointer">
+              <BotonFila sinRelleno onClick={() => toggleExpandida(oc.id)} className="flex items-start justify-between gap-2">
                 <div className="min-w-0 space-y-0.5">
                   <div className="flex items-center gap-1.5 font-mono font-bold text-xs text-slate-900">
                     {expandidas.has(oc.id) ? (
@@ -559,7 +554,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                   </Badge>
                   <div className="text-xs font-bold text-slate-900">{formatoMoneda(totalOC(oc), oc.moneda)}</div>
                 </div>
-              </button>
+              </BotonFila>
               {expandidas.has(oc.id) && (
                 <div className="pt-2 border-t border-slate-100">
                   <DetalleItemsOC oc={oc} />

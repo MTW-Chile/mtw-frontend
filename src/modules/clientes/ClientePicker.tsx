@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Check, Loader2, Plus, Search, User } from 'lucide-react';
+import { Check, Loader2, Plus, User } from 'lucide-react';
 import { getClientes } from '../../api/client';
 import type { Cliente } from '../../types';
 import { ClienteFormModal } from './ClienteFormModal';
 import { Button } from '../../components/ui/Button';
+import { Buscador } from '../../components/ui/Buscador';
+import { BotonFila } from '../../components/ui/Lista';
 
 interface Props {
   value: Cliente | null;
@@ -56,16 +58,7 @@ export const ClientePicker: React.FC<Props> = ({ value, onChange }) => {
   return (
     <div>
       <span className={etiqueta}>Cliente (del maestro)</span>
-      <div className="relative">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-        <input
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          placeholder="Buscar por nombre o RUT..."
-          aria-label="Buscar cliente"
-          className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600"
-        />
-      </div>
+      <Buscador valor={texto} onChange={setTexto} placeholder="Buscar por nombre o RUT…" etiqueta="Buscar cliente" />
       <div className="mt-2 max-h-40 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100 bg-white">
         {isLoading ? (
           <div className="p-3 flex items-center justify-center text-slate-400">
@@ -75,18 +68,13 @@ export const ClientePicker: React.FC<Props> = ({ value, onChange }) => {
           <p className="p-3 text-xs text-slate-500">{busqueda ? 'Ningún cliente coincide.' : 'Todavía no hay clientes en el maestro.'}</p>
         ) : (
           clientes.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => onChange(c)}
-              className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
-            >
+            <BotonFila key={c.id} onClick={() => onChange(c)} className="flex items-center gap-2">
               <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <span className="min-w-0">
                 <span className="block text-xs font-bold text-slate-900 truncate">{c.nombre}</span>
                 <span className="block text-[11px] text-slate-500 truncate">{c.rut || 'Sin RUT'}</span>
               </span>
-            </button>
+            </BotonFila>
           ))
         )}
       </div>

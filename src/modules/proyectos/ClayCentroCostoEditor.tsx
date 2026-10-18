@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Check, Loader2, Pencil, X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { updateClayCentroCosto } from '../../api/client';
 import { IconButton } from '../../components/ui/IconButton';
+import { ActivadorEdicion } from '../../components/ui/ActivadorEdicion';
+import { InputCompacto } from '../../components/ui/Campos';
 
 // Centro de costo de la obra en Clay (Proyecto.clayCentroCosto) -- el
 // gasto de las facturas de sus OC se contabiliza con este centro. Clay los
@@ -27,25 +29,25 @@ export const ClayCentroCostoEditor: React.FC<{ proyectoId: string; valor: string
 
   if (!editando) {
     return (
-      <button
+      <ActivadorEdicion
+        etiqueta="Centro de costo de esta obra en Clay: se usa al contabilizar las facturas de sus OC"
+        className="px-2.5 py-1 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-[11px]"
         onClick={() => {
           setTexto(valor ?? '');
           setEditando(true);
         }}
-        title="Centro de costo de esta obra en Clay -- se usa al contabilizar las facturas de sus OC"
-        className="group flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-[11px] transition-colors min-w-0"
       >
-        <span className="text-slate-400 shrink-0">Centro de costo Clay:</span>
-        <span className={`font-semibold truncate ${valor ? 'text-slate-800' : 'text-amber-600'}`}>{valor || 'Sin configurar'}</span>
-        <Pencil className="w-3 h-3 text-slate-400 group-hover:text-slate-700 shrink-0" />
-      </button>
+        <span className="text-slate-400">Centro de costo Clay: </span>
+        <span className={`font-semibold ${valor ? 'text-slate-800' : 'text-amber-600'}`}>{valor || 'Sin configurar'}</span>
+      </ActivadorEdicion>
     );
   }
 
   return (
     <div className="flex flex-col items-end gap-1">
       <div className="flex items-center gap-1.5">
-        <input
+        <InputCompacto
+          aria-label="Centro de costo en Clay"
           autoFocus
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
@@ -54,16 +56,9 @@ export const ClayCentroCostoEditor: React.FC<{ proyectoId: string; valor: string
             if (e.key === 'Escape') setEditando(false);
           }}
           placeholder="Nombre exacto en Clay"
-          className="w-48 text-[11px] border border-slate-200 rounded-lg px-2 py-1 outline-none focus:border-brand-600"
+          className="w-48"
         />
-        <button
-          onClick={() => mutation.mutate()}
-          disabled={mutation.isPending}
-          title="Guardar"
-          className="w-6 h-6 rounded-lg bg-brand-600 text-white flex items-center justify-center disabled:opacity-50"
-        >
-          {mutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-        </button>
+        <IconButton icono={Check} tono="marca" etiqueta="Guardar" onClick={() => mutation.mutate()} cargando={mutation.isPending} />
         <IconButton icono={X} etiqueta="Cancelar" onClick={() => setEditando(false)} disabled={mutation.isPending} />
       </div>
       {error && <span className="text-[10px] text-rose-600">{error}</span>}

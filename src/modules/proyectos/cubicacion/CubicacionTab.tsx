@@ -12,6 +12,7 @@ import { TiposCubicacion } from './TiposCubicacion';
 import { VentanasCubicacion, type FiltroVentanas } from './VentanasCubicacion';
 import { descargarBlob, formatoMonto, lineaReporteSincronizacion, lineasReporteImportacion } from './utils';
 import { IconButton } from '../../../components/ui/IconButton';
+import { InputArchivo } from '../../../components/ui/InputArchivo';
 
 interface Props {
   proyecto: Proyecto;
@@ -94,9 +95,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
     onSuccess: (blob) => descargarBlob(blob, `Planilla de cubicación ${proyecto.obra}.xlsx`),
     onError: aviso,
   });
-  const elegirArchivo = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const archivo = e.target.files?.[0];
-    e.target.value = '';
+  const elegirArchivo = ([archivo]: File[]) => {
     if (!archivo) return;
     if (!/\.xlsx$/i.test(archivo.name)) {
       mostrarToast('La planilla debe ser un archivo Excel (.xlsx).', { tipo: 'info' });
@@ -106,7 +105,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
   };
 
   const entradaArchivo = (
-    <input ref={entrada} type="file" accept=".xlsx" className="hidden" onChange={elegirArchivo} aria-label="Elegir planilla de cubicación" data-testid="planilla-cubicacion" />
+    <InputArchivo ref={entrada} accept=".xlsx" onArchivos={elegirArchivo} etiqueta="Elegir planilla de cubicación" data-testid="planilla-cubicacion" />
   );
 
   if (isLoading) {

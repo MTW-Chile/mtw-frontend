@@ -17,6 +17,9 @@ import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
 import { useConfirmar } from '../../components/ui/Confirmar';
 import { BotonColapsar } from '../../components/ui/BotonColapsar';
 import { Segmentado } from '../../components/ui/Segmentado';
+import { IconButton } from '../../components/ui/IconButton';
+import { Aviso } from '../../components/ui/Aviso';
+import { InputCompacto } from '../../components/ui/Campos';
 
 const formatoMoneda = (valor: number) => valor.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
@@ -347,17 +350,10 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
           <div className="p-4 border-b border-slate-100 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold text-slate-800">{editando === 'nueva' ? 'Nueva fase' : 'Editar fase'}</h3>
-              <button onClick={resetForm} className="text-slate-400 hover:text-slate-700">
-                <XIcon className="w-4 h-4" />
-              </button>
+              <IconButton icono={XIcon} etiqueta="Cerrar el formulario" onClick={resetForm} />
             </div>
 
-            {error && (
-              <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                {error}
-              </div>
-            )}
+            {error && <Aviso tono="peligro">{error}</Aviso>}
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Input label="Nombre" placeholder="Ej. Torre Norte" value={nombre} onChange={(e) => setNombre(e.target.value)} />
@@ -430,14 +426,13 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                             {restante}
                           </Td>
                           <Td alinear="derecha">
-                            <input
+                            <InputCompacto
+                              aria-label="Cantidad en esta fase"
                               type="number"
                               min={0}
                               value={cantidades[f.ventanaId] || ''}
                               onChange={(e) => setCantidades((prev) => ({ ...prev, [f.ventanaId]: e.target.value }))}
-                              className={`w-20 text-right text-xs border rounded-lg px-2 py-1 outline-none ${
-                                excedida ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-slate-200 focus:border-brand-600'
-                              }`}
+                              className={`w-20 text-right ${excedida ? 'border-rose-400 bg-rose-50 text-rose-700' : ''}`}
                             />
                           </Td>
                         </Tr>

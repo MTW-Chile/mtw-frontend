@@ -35,7 +35,7 @@ export const FilaLista: React.FC<{
  * Fila clicable de una lista de resultados (buscadores de material, cliente,
  * fabricación): ocupa todo el ancho y resalta al pasar.
  */
-export const BotonFila: React.FC<{ onClick: () => void; activa?: boolean; disabled?: boolean; children: React.ReactNode; className?: string; title?: string; sinRelleno?: boolean }> = ({
+export const BotonFila: React.FC<{ onClick: () => void; onMouseDown?: React.MouseEventHandler<HTMLButtonElement>; activa?: boolean; disabled?: boolean; children: React.ReactNode; className?: string; title?: string; sinRelleno?: boolean }> = ({
   onClick,
   activa,
   disabled,
@@ -43,10 +43,12 @@ export const BotonFila: React.FC<{ onClick: () => void; activa?: boolean; disabl
   className = '',
   title,
   sinRelleno,
+  onMouseDown,
 }) => (
   <button
     type="button"
     onClick={onClick}
+    onMouseDown={onMouseDown}
     disabled={disabled}
     title={title}
     className={`w-full text-left transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${sinRelleno ? '' : 'px-3 py-2'} ${activa ? 'bg-brand-50' : sinRelleno ? '' : 'hover:bg-slate-50'} ${className}`}

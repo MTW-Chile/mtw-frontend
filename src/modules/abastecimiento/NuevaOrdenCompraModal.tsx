@@ -26,9 +26,10 @@ import { usePermisos } from '../../lib/permisos';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
 import { Modal } from '../../components/ui/Modal';
 import { Aviso } from '../../components/ui/Aviso';
-import { Textarea } from '../../components/ui/Campos';
+import { Textarea, SelectCompacto, OpcionesTarjeta, InputCompacto } from '../../components/ui/Campos';
 import { IconButton } from '../../components/ui/IconButton';
 import { BotonAlternar } from '../../components/ui/BotonAlternar';
+import { BotonFila } from '../../components/ui/Lista';
 
 // Campo de descripcion de un item manual: con proveedor elegido, busca en
 // vivo en el catalogo filtrado a ESE proveedor (Material.proveedorId) para
@@ -101,15 +102,13 @@ const BuscadorProductoProveedor: React.FC<{
             <div className="p-2.5 text-[11px] text-slate-400">Sin productos de este proveedor que coincidan -- se guarda como item nuevo.</div>
           ) : (
             resultados.map((m) => (
-              <button
+              <BotonFila
                 key={m.id}
-                type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   onSeleccionar(m);
                   setAbierto(false);
                 }}
-                className="w-full text-left px-3 py-2 hover:bg-slate-50 cursor-pointer"
               >
                 <div className="text-[11px] font-semibold text-slate-800 leading-tight">{m.descripcion}</div>
                 <div className="text-[10px] text-slate-400">
@@ -117,7 +116,7 @@ const BuscadorProductoProveedor: React.FC<{
                   {m.precioOrigen != null &&
                     ` · ${m.precioOrigen.toLocaleString('es-CL')} ${m.formato?.moneda ?? ''}/${m.formato?.unidadPrecio.simbolo ?? m.unidadMedida}`}
                 </div>
-              </button>
+              </BotonFila>
             ))
           )}
         </div>
@@ -740,38 +739,22 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
             Qué cubre esta compra
             {obraPendiente && <span className="ml-1.5 normal-case font-normal text-slate-500">(pendiente {obraPendiente.numero})</span>}
           </span>
-          <div role="radiogroup" className="grid grid-cols-3 gap-1.5">
-            {(['PRESUPUESTO', 'REPOSICION', 'ADICIONAL'] as NaturalezaCompra[]).map((n) => (
-              <button
-                key={n}
-                type="button"
-                role="radio"
-                aria-checked={naturaleza === n}
-                onClick={() => setNaturaleza(n)}
-                className={`px-3 py-2 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
-                  naturaleza === n ? 'bg-brand-600/10 text-brand-700 border-brand-600/40' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                {ETIQUETA_NATURALEZA[n]}
-              </button>
-            ))}
-          </div>
+          <OpcionesTarjeta
+            valor={naturaleza}
+            onChange={setNaturaleza}
+            opciones={(['PRESUPUESTO', 'REPOSICION', 'ADICIONAL'] as NaturalezaCompra[]).map((n) => ({ value: n, label: ETIQUETA_NATURALEZA[n] }))}
+          />
           <p className="text-[11px] text-slate-500">{AYUDA_NATURALEZA[naturaleza]}</p>
           {esAdicional && (
             <div className="space-y-1">
-              <select
-                aria-label="Adicional que cubre la compra"
-                value={adicionalId}
-                onChange={(e) => setAdicionalId(e.target.value)}
-                className={`w-full py-2 px-3 rounded-xl border text-xs bg-white focus:outline-none focus:border-brand-600 ${adicionalId ? 'border-slate-200' : 'border-amber-300'}`}
-              >
+              <SelectCompacto aria-label="Adicional que cubre la compra" value={adicionalId} onChange={(e) => setAdicionalId(e.target.value)} className={`w-full ${adicionalId ? 'border-slate-200' : 'border-amber-300'}`}>
                 <option value="">Elige el adicional que cubre esta compra…</option>
                 {adicionalesDisponibles.map((a) => (
                   <option key={a.id} value={a.id}>
                     A{a.numero} · {a.titulo} ({a.estado.toLowerCase().replace('_', ' ')})
                   </option>
                 ))}
-              </select>
+              </SelectCompacto>
               {adicionalesDisponibles.find((a) => a.id === adicionalId && a.estado !== 'ACEPTADO') && (
                 <p className="text-[11px] text-amber-700">Ese adicional aún no está aceptado: estás comprando antes de que el cliente lo acepte.</p>
               )}
@@ -917,41 +900,19 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
                       )}
                     </Td>
                     <Td>
-                      <input
-                        type="text"
-                        value={item.unidadMedida}
-                        onChange={(e) => setItemField(index, 'unidadMedida', e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs"
-                      />
+                      <InputCompacto aria-label="Unidad" type="text" value={item.unidadMedida} onChange={(e) => setItemField(index, 'unidadMedida', e.target.value)} className="w-full" />
                     </Td>
                     <Td>
-                      <input
-                        type="number"
-                        value={item.cantidad}
-                        onChange={(e) => setItemField(index, 'cantidad', e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-mono text-right"
-                      />
+                      <InputCompacto aria-label="Cantidad" type="number" value={item.cantidad} onChange={(e) => setItemField(index, 'cantidad', e.target.value)} className="w-full font-mono text-right" />
                     </Td>
                     {modo !== 'solicitar' && (
                       <Td>
-                        <input
-                          type="number"
-                          value={item.precioUnitario}
-                          onChange={(e) => setItemField(index, 'precioUnitario', e.target.value)}
-                          className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-mono text-right"
-                        />
+                        <InputCompacto aria-label="Precio unitario" type="number" value={item.precioUnitario} onChange={(e) => setItemField(index, 'precioUnitario', e.target.value)} className="w-full font-mono text-right" />
                       </Td>
                     )}
                     <Td alinear="derecha" className="font-mono font-semibold text-slate-900">{formatCLP(subtotal)}</Td>
                     <Td>
-                      <button
-                        type="button"
-                        onClick={() => quitarItem(index)}
-                        disabled={items.length === 1}
-                        className="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors disabled:opacity-30 disabled:pointer-events-none"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <IconButton icono={Trash2} tono="peligro" etiqueta="Quitar ítem" onClick={() => quitarItem(index)} disabled={items.length === 1} />
                     </Td>
                   </Tr>
                 );

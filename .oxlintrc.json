@@ -4,9 +4,9 @@
   "rules": {
     "react/rules-of-hooks": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }],
-    "no-alert": "warn",
+    "no-alert": "error",
     "react/forbid-elements": [
-      "warn",
+      "error",
       {
         "forbid": [
           { "element": "table", "message": "Usa <Tabla> de components/ui/Tabla (DESIGN.md 5)." },

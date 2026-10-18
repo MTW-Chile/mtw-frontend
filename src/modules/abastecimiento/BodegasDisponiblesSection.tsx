@@ -12,6 +12,7 @@ import { formatNumber } from '../../lib/utils';
 import type { Bodega, TipoMovimientoBodega } from '../../types';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
 import { EstadoVacio } from '../../components/ui/Estados';
+import { BotonFila } from '../../components/ui/Lista';
 
 const nombreAsociado = (b: Bodega) => b.proyecto?.obra || b.centroCosto?.nombre || '—';
 
@@ -103,11 +104,7 @@ export const BodegasDisponiblesSection: React.FC = () => {
       ) : (
       <div className="space-y-2">
         {bodegas.map((b) => (
-          <button
-            key={b.id}
-            onClick={() => setBodegaId(b.id)}
-            className="w-full text-left bg-white rounded-2xl border border-slate-200 shadow-xs p-4 flex items-start justify-between gap-3 cursor-pointer hover:bg-slate-50/70 transition-colors"
-          >
+          <BotonFila key={b.id} onClick={() => setBodegaId(b.id)} className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4! flex items-start justify-between gap-3">
             <div className="min-w-0 space-y-0.5">
               <div className="text-sm font-bold text-slate-900 truncate">{b.nombre}</div>
               <div className="text-xs text-slate-500 truncate">{nombreAsociado(b)}</div>
@@ -116,7 +113,7 @@ export const BodegasDisponiblesSection: React.FC = () => {
             <Badge size="sm" variant={b.activa ? 'success' : 'default'} className="shrink-0">
               {b.activa ? 'Activa' : 'Inactiva'}
             </Badge>
-          </button>
+          </BotonFila>
         ))}
       </div>
       )
