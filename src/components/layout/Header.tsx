@@ -1,8 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Menu, User, Settings, LogOut, ChevronDown, Bell, UserCog } from 'lucide-react';
-import { MiUsuarioModal } from './MiUsuarioModal';
+import { Menu, User, LogOut, ChevronDown, Bell, UserCog } from 'lucide-react';
 import { BotonAtras, BotonRecargar, MigasDePan } from './NavControls';
 import { seccionDesdePath, useLocationHref } from '../../lib/navigation';
 import { useSession, displayName } from '../../lib/useCloudflareAccessSession';
@@ -11,7 +9,6 @@ import { getMisPermisos, getMisAprobacionesPendientes } from '../../api/client';
 interface HeaderProps {
   onOpenSidebar: () => void;
   onNavigateHome: () => void;
-  onNavigateConfig?: () => void;
   moduleTitle?: string;
   // Navegación genérica (ej. al Centro de Notificaciones desde el menú de usuario).
   onNavigate?: (tab: string, search?: string) => void;
@@ -20,7 +17,6 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   onOpenSidebar,
   onNavigateHome,
-  onNavigateConfig,
   moduleTitle = 'Inicio',
   onNavigate,
 }) => {
@@ -28,7 +24,6 @@ export const Header: React.FC<HeaderProps> = ({
   const seccionActual = seccionDesdePath() || 'inicio';
   useLocationHref();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isMiUsuarioOpen, setIsMiUsuarioOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // mismo queryKey que App.tsx -- sale del cache de react-query, no pega
@@ -84,11 +79,6 @@ export const Header: React.FC<HeaderProps> = ({
     setIsMenuOpen(false);
     // Redirige al logout estándar de Cloudflare Access
     window.location.href = '/cdn-cgi/access/logout';
-  };
-
-  const handleConfig = () => {
-    setIsMenuOpen(false);
-    onNavigateConfig?.();
   };
 
   return (
@@ -210,7 +200,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 onClick={() => {
                   setIsMenuOpen(false);
-                  setIsMiUsuarioOpen(true);
+                  onNavigate?.('mi-configuracion');
                 }}
                 className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer text-left group"
               >
@@ -218,22 +208,10 @@ export const Header: React.FC<HeaderProps> = ({
                   <UserCog className="w-3.5 h-3.5" />
                 </div>
                 <div>
-                  <div className="font-semibold text-slate-800">Editar mi usuario</div>
-                  <div className={`text-[10px] ${permisos?.tieneTokenClay ? 'text-emerald-600' : 'text-amber-600'}`}>
-                    {permisos?.tieneTokenClay ? 'Nombre y token de Clay' : 'Token de Clay sin configurar'}
+                  <div className="font-semibold text-slate-800">Mi configuración</div>
+                  <div className={`text-[10px] ${permisos?.tieneTokenClay ? 'text-slate-400' : 'text-amber-600'}`}>
+                    {permisos?.tieneTokenClay ? 'Mis datos y token de Clay' : 'Token de Clay sin configurar'}
                   </div>
-                </div>
-              </button>
-              <button
-                onClick={handleConfig}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer text-left group"
-              >
-                <div className="w-7 h-7 rounded-lg bg-slate-100 group-hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors shrink-0">
-                  <Settings className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <div className="font-semibold text-slate-800">Configuración</div>
-                  <div className="text-[10px] text-slate-400">Preferencias del sistema</div>
                 </div>
               </button>
             </div>
@@ -257,14 +235,6 @@ export const Header: React.FC<HeaderProps> = ({
         )}
         </div>
       </div>
-      {/* Portal: el backdrop-blur del header crea un containing block que
-          atraparia el modal "fixed" dentro de sus 64px de alto. */}
-      {isMiUsuarioOpen &&
-        permisos &&
-        createPortal(
-          <MiUsuarioModal permisos={permisos} onClose={() => setIsMiUsuarioOpen(false)} />,
-          document.body
-        )}
     </header>
   );
 };

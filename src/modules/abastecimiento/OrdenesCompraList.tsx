@@ -430,7 +430,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
           />
         </div>
         <Button leftIcon={<Plus className="w-4 h-4" />} onClick={() => setModalAbierto(true)}>
-          {puedeEmitir ? 'Nueva OC' : 'Solicitar materiales'}
+          {puedeEmitir && !proyectoId ? 'Nueva OC' : 'Solicitar materiales'}
         </Button>
       </div>
 
@@ -574,12 +574,14 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
       )}
 
       <NuevaOrdenCompraModal
+        origen={proyectoId ? 'obra' : 'compras'}
         isOpen={modalAbierto}
         onClose={() => setModalAbierto(false)}
         proyectoIdFijo={proyectoId}
         proyectoLabelFijo={proyectoLabel}
       />
       <NuevaOrdenCompraModal
+        origen="compras"
         isOpen={!!solicitudIdParaCompletar}
         onClose={() => setSolicitudIdParaCompletar(null)}
         solicitudId={solicitudIdParaCompletar || undefined}

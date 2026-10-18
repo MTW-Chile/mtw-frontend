@@ -128,10 +128,13 @@ const BuscadorProductoProveedor: React.FC<{
 interface NuevaOrdenCompraModalProps {
   isOpen: boolean;
   onClose: () => void;
+  // Desde dónde se abre: en Compras se emite la OC directamente; desde una
+  // obra (fases, abastecimiento de la obra, pendientes) siempre es una
+  // solicitud de materiales que Compras completa, aunque quien la pide pueda
+  // emitir OC.
+  origen: 'compras' | 'obra';
   // Cuando se abre desde la ficha de un proyecto ya sabemos el proyecto --
   // se fija y no se puede cambiar, en vez de mostrar el selector completo.
-  // Con esto puesto (y sin solicitudId) el modo es "solicitar": no se
-  // elige proveedor ni precio, solo se pide -- ver comentario de `modo`.
   proyectoIdFijo?: string;
   proyectoLabelFijo?: string;
   // Cuando se abre desde el boton "Generar OC" de una fase puntual (ver
@@ -217,6 +220,7 @@ const fmtCantidad = (n: number | undefined) => (n ?? 0).toLocaleString('es-CL', 
 const formatCLP = (v: number) => v.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
 export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
+  origen,
   isOpen,
   onClose,
   proyectoIdFijo,
@@ -227,13 +231,13 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   obraPendiente,
 }) => {
   // "completar": Compras abre una solicitud existente, ve el contraste contra
-  // stock y arma el pedido final. Si no, depende de quien la abre (no de
-  // donde): quien puede emitir OC (Compras) arma una OC completa con
-  // proveedor y precios ("crear"), aunque la abra desde una obra; quien solo
-  // puede solicitar (obra) pide sin proveedor ni precio ("solicitar") y
-  // Compras la completa despues -- ver PATCH /api/ordenes-compra/:id/completar.
+  // stock y arma el pedido final. "crear": desde Compras, una OC completa con
+  // proveedor y precios (requiere compras.oc.emitir, la API lo valida).
+  // "solicitar": desde la obra, se pide sin proveedor ni precio y queda en
+  // borrador para que Compras la complete -- ver PATCH
+  // /api/ordenes-compra/:id/completar.
   const { tiene } = usePermisos();
-  const modo: 'solicitar' | 'completar' | 'crear' = solicitudId ? 'completar' : tiene('compras.oc.emitir') ? 'crear' : 'solicitar';
+  const modo: 'solicitar' | 'completar' | 'crear' = solicitudId ? 'completar' : origen === 'compras' && tiene('compras.oc.emitir') ? 'crear' : 'solicitar';
   const queryClient = useQueryClient();
 
   const [proyectoId, setProyectoId] = useState(proyectoIdFijo || '');

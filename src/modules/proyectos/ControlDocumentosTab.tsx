@@ -152,7 +152,7 @@ export const ControlDocumentosTab: React.FC = () => {
       {sinTokenClay && (
         <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
           <KeyRound className="w-3.5 h-3.5 shrink-0" />
-          Para buscar y contabilizar facturas necesitas tu token de Clay. Cárgalo en el menú de usuario (arriba a la derecha) &gt; Editar mi usuario.
+          Para buscar y contabilizar facturas necesitas tu token de Clay. Cárgalo en Mi configuración (menú de usuario, arriba a la derecha).
         </div>
       )}
 

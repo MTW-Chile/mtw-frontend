@@ -10,6 +10,7 @@ import { ProyectosPage } from './modules/proyectos/ProyectosPage';
 import { ComprasPage } from './modules/abastecimiento/ComprasPage';
 import { BodegaPage } from './modules/abastecimiento/BodegaPage';
 import { CentroNotificacionesPage } from './modules/notificaciones/CentroNotificacionesPage';
+import { MiConfiguracionPage } from './modules/mi-configuracion/MiConfiguracionPage';
 import { getProyectos } from './api/client';
 import { clavePresupuestos, consultarPresupuestos } from './modules/cotizaciones/presupuestosQuery';
 import { esPresupuestoPrincipal } from './lib/estadosHetmo';
@@ -23,6 +24,8 @@ import { navegar, seccionDesdePath, useLocationHref, inicializarHistorial } from
 // Sidebar -- solo se llega ahi desde el menú de usuario del Header o el link de
 // un correo de aprobacion pendiente, ver puedeVerCentro mas abajo).
 const TAB_CENTRO_NOTIFICACIONES = 'centro-notificaciones';
+// Configuración personal (menú de usuario): la ve cualquier usuario con algún permiso.
+const TAB_MI_CONFIGURACION = 'mi-configuracion';
 
 // Debug global: CUALQUIER query o mutation que falle en cualquier parte de
 // la app dispara un toast (ver ToastContainer, montado en main.tsx) --
@@ -100,11 +103,12 @@ import { ConfirmarProvider } from './components/ui/Confirmar';
 const MODULE_TITLES: Record<string, string> = {
   ...Object.fromEntries(SECCIONES_FRONTEND.map((s) => [s.id, s.label])),
   [TAB_CENTRO_NOTIFICACIONES]: 'Centro de Notificaciones',
+  [TAB_MI_CONFIGURACION]: 'Mi configuración',
 };
 
 inicializarHistorial();
 
-const SECCIONES_CONOCIDAS = new Set([...SECCIONES_FRONTEND.map((s) => s.id), TAB_CENTRO_NOTIFICACIONES]);
+const SECCIONES_CONOCIDAS = new Set([...SECCIONES_FRONTEND.map((s) => s.id), TAB_CENTRO_NOTIFICACIONES, TAB_MI_CONFIGURACION]);
 
 const AppContent: React.FC = () => {
   // La seccion activa vive en la URL (/proyectos, /compras...) -- ver
@@ -124,7 +128,7 @@ const AppContent: React.FC = () => {
   // SECCIONES_FRONTEND/Sidebar) -- lo ve cualquier usuario con algun permiso.
   const puedeVerCentroNotificaciones = (permisos?.permisos.length ?? 0) > 0;
   const puedeVer = (id: string) =>
-    id === TAB_CENTRO_NOTIFICACIONES ? puedeVerCentroNotificaciones : seccionesPermitidas.includes(id);
+    id === TAB_CENTRO_NOTIFICACIONES || id === TAB_MI_CONFIGURACION ? puedeVerCentroNotificaciones : seccionesPermitidas.includes(id);
 
   // Si el usuario no tiene acceso a la pestaña activa (recien resueltos
   // los permisos, o un rol le quito acceso a lo que estaba viendo), cae a
@@ -250,7 +254,6 @@ const AppContent: React.FC = () => {
         <Header
           onOpenSidebar={() => setIsSidebarOpen(true)}
           onNavigateHome={() => handleNavigate('inicio')}
-          onNavigateConfig={() => handleNavigate('configuracion')}
           moduleTitle={MODULE_TITLES[activeTab] || 'Inicio'}
           onNavigate={handleNavigate}
         />
@@ -278,6 +281,8 @@ const AppContent: React.FC = () => {
           {activeTab === 'configuracion' && (
             <ConfiguracionPage />
           )}
+
+          {activeTab === TAB_MI_CONFIGURACION && <MiConfiguracionPage />}
 
           {activeTab === TAB_CENTRO_NOTIFICACIONES && (
             <CentroNotificacionesPage onAbrirCompras={() => handleNavigate('compras')} onAbrirCotizacion={abrirCotizacion} onAbrirAdicional={abrirAdicional} />
