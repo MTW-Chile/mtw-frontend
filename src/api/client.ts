@@ -1780,7 +1780,8 @@ export async function createAdicional(
   payload: {
     titulo: string;
     // ITEMS: items sueltos. VENTANAS: ventanas de la cotizacion recotizadas.
-    origen?: 'ITEMS' | 'VENTANAS';
+    // HETMO: un documento de venta de HETMO vinculado (se vincula despues).
+    origen?: 'ITEMS' | 'VENTANAS' | 'HETMO';
     cargoA?: CargoAdicional;
     instaladorProveedorId?: string | null;
     formaCobroInstalador?: FormaCobroInstalador | null;
@@ -1863,5 +1864,16 @@ export async function elegirVentanasAdicional(id: string, ventanas: { ventanaId:
 // Una version con el detalle completo (la de un adicional, para la Analitica y la Hoja).
 export async function getVersion(id: string): Promise<ProyectoVersion> {
   const response = await apiClient.get<{ data: ProyectoVersion }>(`/versiones/${id}`);
+  return response.data.data;
+}
+
+// Vincula un documento de venta de HETMO (por su codigo interno) como version del adicional.
+export async function vincularDocumentoHetmo(id: string, hetmoId: number): Promise<Adicional> {
+  const response = await apiClient.post<{ data: Adicional }>(`/adicionales/${id}/hetmo`, { hetmoId });
+  return response.data.data;
+}
+
+export async function desvincularDocumentoHetmo(id: string): Promise<Adicional> {
+  const response = await apiClient.post<{ data: Adicional }>(`/adicionales/${id}/hetmo/desvincular`);
   return response.data.data;
 }

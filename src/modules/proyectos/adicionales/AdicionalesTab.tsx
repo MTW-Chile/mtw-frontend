@@ -68,7 +68,13 @@ export const AdicionalesTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }) =
                   </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
                     {a.cargoA === 'CLIENTE' ? 'Cliente' : `Instalador ${a.instalador?.nombre ?? ''}`} ·{' '}
-                    {a.origen === 'ITEMS' ? `${a.items.length} ítems` : `${a.version?.ventanas.length ?? 0} ventanas recotizadas`} · creado{' '}
+                    {a.origen === 'ITEMS'
+                      ? `${a.items.length} ítems`
+                      : a.origen === 'HETMO'
+                        ? a.versionId
+                          ? `documento de HETMO · ${a.version?.ventanas.length ?? 0} ventanas`
+                          : 'documento de HETMO por vincular'
+                        : `${a.version?.ventanas.length ?? 0} ventanas recotizadas`} · creado{' '}
                     {new Date(a.creadoEn).toLocaleDateString('es-CL')}
                   </p>
                 </div>

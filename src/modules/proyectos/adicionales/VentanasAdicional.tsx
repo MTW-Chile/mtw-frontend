@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { LayoutGrid, Loader2 } from 'lucide-react';
-import { elegirVentanasAdicional, getVersion } from '../../../api/client';
+import { LayoutGrid, Link2, Loader2, Unlink } from 'lucide-react';
+import { desvincularDocumentoHetmo, elegirVentanasAdicional, getVersion, vincularDocumentoHetmo } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import { SubTabs } from '../../../components/ui/PageHeader';
 import { extraerErrorParaToast } from '../../../lib/toast';
@@ -14,9 +14,9 @@ import { ElegirVentanasModal } from './ElegirVentanasModal';
 export const versionAdicionalKey = (proyectoId: string, versionId: string | null) => ['proyectoDetail', proyectoId, 'versionAdicional', versionId];
 
 /**
- * Adicional de ventanas: las ventanas elegidas de la cotización, recotizadas
- * en la versión del adicional con el mismo flujo (Analítica y Hoja de
- * Fijación) y precios vigentes.
+ * Adicional de ventanas o de documento de HETMO: las ventanas de su versión
+ * (elegidas de la cotización y recotizadas, o las del documento de HETMO
+ * vinculado) con el mismo flujo de cotización (Analítica y Hoja de Fijación).
  */
 export const VentanasAdicional: React.FC<{ proyecto: Proyecto; adicional: Adicional; editable: boolean; onCambio: (a: Adicional) => void }> = ({
   proyecto,
@@ -41,18 +41,57 @@ export const VentanasAdicional: React.FC<{ proyecto: Proyecto; adicional: Adicio
     },
   });
   const tasas = { dolar: String(Number(adicional.tasaDolar)), euro: String(Number(adicional.tasaEuro)), uf: String(Number(adicional.tasaUf)) };
+  const esHetmo = adicional.origen === 'HETMO';
+  const [codigoHetmo, setCodigoHetmo] = useState('');
+  const vincular = useMutation({
+    mutationFn: () => vincularDocumentoHetmo(adicional.id, Number(codigoHetmo)),
+    onSuccess: (a) => {
+      setCodigoHetmo('');
+      onCambio(a);
+    },
+  });
+  const desvincular = useMutation({ mutationFn: () => desvincularDocumentoHetmo(adicional.id), onSuccess: onCambio });
+  const errorHetmo = vincular.error ?? desvincular.error;
 
   return (
     <div className="space-y-4">
       <section className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">Ventanas recotizadas</h3>
-          {editable && (
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">{esHetmo ? 'Documento de HETMO' : 'Ventanas recotizadas'}</h3>
+          {editable && !esHetmo && (
             <Button size="sm" variant="outline" leftIcon={<LayoutGrid className="w-3.5 h-3.5" />} onClick={() => setEligiendo(true)}>
               {adicional.version ? 'Cambiar ventanas' : 'Elegir ventanas'}
             </Button>
           )}
+          {editable && esHetmo && adicional.versionId && (
+            <Button size="sm" variant="outline" leftIcon={<Unlink className="w-3.5 h-3.5" />} isLoading={desvincular.isPending} onClick={() => desvincular.mutate()}>
+              Desvincular
+            </Button>
+          )}
         </div>
+        {esHetmo && !adicional.versionId && (
+          <div className="p-4 border-b border-slate-100 space-y-2 text-xs">
+            <p className="text-slate-500">
+              Indica el código interno del documento de venta en HETMO (puede ser una fase del mismo proyecto). Si todavía no está en el ERP, se
+              trae ahora. HETMO no verifica que sus líneas correspondan a las de la cotización.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                value={codigoHetmo}
+                disabled={!editable}
+                onChange={(e) => setCodigoHetmo(e.target.value)}
+                placeholder="Código interno HETMO"
+                className="w-48 text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-brand-600"
+              />
+              <Button size="sm" leftIcon={<Link2 className="w-3.5 h-3.5" />} disabled={!editable || !(Number(codigoHetmo) > 0)} isLoading={vincular.isPending} onClick={() => vincular.mutate()}>
+                Vincular
+              </Button>
+            </div>
+          </div>
+        )}
+        {errorHetmo && <p className="px-4 py-2 text-xs text-rose-700 bg-rose-50">{extraerErrorParaToast(errorHetmo).mensaje}</p>}
         {adicional.version?.ventanas.length ? (
           <ul className="divide-y divide-slate-100 text-xs">
             {adicional.version.ventanas.map((v) => (
@@ -66,7 +105,7 @@ export const VentanasAdicional: React.FC<{ proyecto: Proyecto; adicional: Adicio
             ))}
           </ul>
         ) : (
-          <p className="px-4 py-6 text-center text-xs text-slate-400">Elige las ventanas de la cotización que se recotizan en este adicional.</p>
+          !esHetmo && <p className="px-4 py-6 text-center text-xs text-slate-400">Elige las ventanas de la cotización que se recotizan en este adicional.</p>
         )}
       </section>
 

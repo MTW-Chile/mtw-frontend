@@ -25,7 +25,7 @@ export const NuevoAdicionalModal: React.FC<{
   const { data: proveedores = [] } = useQuery({ queryKey: ['proveedores'], queryFn: async () => (await getProveedores()).data });
   const [titulo, setTitulo] = useState(obraPendiente ? obraPendiente.descripcion : '');
   // Items sueltos o recotizar ventanas de la cotizacion (se eligen despues).
-  const [origen, setOrigen] = useState<'ITEMS' | 'VENTANAS'>('ITEMS');
+  const [origen, setOrigen] = useState<'ITEMS' | 'VENTANAS' | 'HETMO'>('ITEMS');
   const [cargoA, setCargoA] = useState<CargoAdicional>(obraPendiente?.cargoEfectivo === 'INSTALADOR' ? 'INSTALADOR' : 'CLIENTE');
   const [instaladorId, setInstaladorId] = useState('');
   const [forma, setForma] = useState<FormaCobroInstalador>('DESCUENTO_ESTADO_PAGO');
@@ -77,9 +77,10 @@ export const NuevoAdicionalModal: React.FC<{
             options={[
               { value: 'ITEMS', label: 'Ítems sueltos (materiales, servicios, ítems libres)' },
               { value: 'VENTANAS', label: 'Recotizar ventanas de la cotización' },
+              { value: 'HETMO', label: 'Vincular un documento de venta de HETMO' },
             ]}
             value={origen}
-            onChange={(e) => setOrigen(e.target.value as 'ITEMS' | 'VENTANAS')}
+            onChange={(e) => setOrigen(e.target.value as 'ITEMS' | 'VENTANAS' | 'HETMO')}
           />
           <Select
             label="A cargo de"
