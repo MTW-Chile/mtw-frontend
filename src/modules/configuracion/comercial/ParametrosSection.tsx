@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Save } from 'lucide-react';
+import { Save, SlidersHorizontal } from 'lucide-react';
 import { getConfiguracionGeneral, updateConfiguracionGeneral } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import type { ParametrosGenerales } from '../../../types';
@@ -68,6 +68,8 @@ export const ParametrosSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdi
 
   return (
     <Seccion
+      icono={SlidersHorizontal}
+      antetitulo="Comercial"
       titulo="Parámetros"
       descripcion="Valores comerciales y operativos que usa todo el sistema. Cambiarlos no altera cotizaciones ya congeladas."
       acciones={

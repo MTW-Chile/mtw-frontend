@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Save } from 'lucide-react';
+import { Save, Workflow } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { getFamiliasHetmo, getTiposProducto, updateFamiliaHetmo } from '../../../api/client';
 import { mostrarToast } from '../../../lib/toast';
@@ -46,6 +46,8 @@ export const FamiliasHetmoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
 
   return (
     <Seccion
+      icono={Workflow}
+      antetitulo="Catálogo"
       sinRelleno
       titulo="Familias de HETMO"
       descripcion="Tipo de producto que recibe cada material nuevo que llega de HETMO, según su familia. Los materiales existentes conservan su tipo salvo que marques aplicarlo."

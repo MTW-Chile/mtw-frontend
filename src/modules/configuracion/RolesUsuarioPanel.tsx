@@ -66,6 +66,8 @@ const RolesSection: React.FC<{ puedeGestionar: boolean }> = ({ puedeGestionar })
 
   return (
     <Seccion
+      icono={ShieldCheck}
+      antetitulo="Sistema"
       sinRelleno
       titulo="Roles"
       descripcion="Cada rol es un conjunto de permisos. Lo que un usuario puede hacer depende del rol que tenga asignado."
@@ -151,6 +153,8 @@ const UsuariosSection: React.FC<{ puedeGestionar: boolean }> = ({ puedeGestionar
 
   return (
     <Seccion
+      icono={UserCog}
+      antetitulo="Sistema"
       sinRelleno
       titulo="Usuarios"
       descripcion="El correo debe coincidir con la cuenta de Entra ID con la que inician sesión vía Cloudflare Access."

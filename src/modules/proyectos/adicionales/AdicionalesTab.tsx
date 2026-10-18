@@ -13,6 +13,7 @@ import { NuevoAdicionalModal } from './NuevoAdicionalModal';
 import { VARIANTE_ESTADO, clp, uf } from './comun';
 import { BotonFila } from '../../../components/ui/Lista';
 import { EstadoVacio } from '../../../components/ui/Estados';
+import { EncabezadoSeccion } from '../../../components/ui/EncabezadoSeccion';
 
 /**
  * Adicionales de la obra: ventas o cargos fuera del presupuesto aceptado,
@@ -30,19 +31,21 @@ export const AdicionalesTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }) =
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-black text-slate-900">Adicionales</h2>
-          <p className="text-xs text-slate-500">
-            Ventas al cliente o cargos al instalador fuera del presupuesto aceptado. Se cotizan con precios y divisas vigentes.
-          </p>
-        </div>
-        {tiene('adicionales.editar') && (
-          <Button size="sm" leftIcon={<FilePlus2 className="w-3.5 h-3.5" />} onClick={() => setCreando(true)}>
-            Nuevo adicional
-          </Button>
-        )}
-      </div>
+      <EncabezadoSeccion
+        icono={FilePlus2}
+        antetitulo="Obra"
+        titulo="Adicionales"
+        descripcion="Ventas al cliente o cargos al instalador fuera del presupuesto aceptado. Se cotizan con precios y divisas vigentes."
+        acciones={
+          <>
+            {tiene('adicionales.editar') && (
+              <Button size="sm" leftIcon={<FilePlus2 className="w-3.5 h-3.5" />} onClick={() => setCreando(true)}>
+                Nuevo adicional
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {isLoading ? (
         <div className="p-12 flex items-center justify-center text-slate-400">

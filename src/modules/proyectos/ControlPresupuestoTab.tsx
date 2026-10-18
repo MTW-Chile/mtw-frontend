@@ -6,6 +6,7 @@ import { getControlPresupuesto } from '../../api/client';
 import { useAnalitica } from '../cotizaciones/lib/useAnalitica';
 import type { Proyecto, ProyectoVersion } from '../../types';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
+import { EncabezadoSeccion } from '../../components/ui/EncabezadoSeccion';
 
 const formatCLP = (v: number) => v.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
@@ -91,14 +92,12 @@ export const ControlPresupuestoTab: React.FC<{ proyecto: Proyecto; activeVersion
 
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-sm font-black text-slate-900">Control de presupuesto por partida</h2>
-        <p className="text-xs text-slate-500">
-          Presupuestado = Analítica de Materiales de la versión activa (v{activeVersion?.versionNumero || '—'}). En OC = Órdenes de
-          Compra no canceladas que aún no tienen factura. Facturado = neto de las facturas conciliadas (al conciliar, el monto pasa de
-          En OC a Facturado). Recibido = lo que realmente ya entró a bodega.
-        </p>
-      </div>
+      <EncabezadoSeccion
+        icono={Wallet}
+        antetitulo="Obra"
+        titulo="Control de presupuesto por partida"
+        descripcion={<>Presupuestado = Analítica de Materiales de la versión activa (v{activeVersion?.versionNumero || '—'}). En OC = Órdenes de Compra no canceladas que aún no tienen factura. Facturado = neto de las facturas conciliadas (al conciliar, el monto pasa de En OC a Facturado). Recibido = lo que realmente ya entró a bodega.</>}
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard

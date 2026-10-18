@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Boxes, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, Wrench, ChevronDown, ChevronRight, Tags, Send } from 'lucide-react';
+import { Loader2, Boxes, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, Wrench, ChevronDown, ChevronRight, Tags, Send, Warehouse, History } from 'lucide-react';
 import { getBodegaProyecto, getBodegaGlobal, getUnidadesMaterial } from '../../api/client';
 import { Button } from '../../components/ui/Button';
 import { TrasladoBodegaModal } from './TrasladoBodegaModal';
@@ -12,6 +12,7 @@ import { BREAKPOINT_DESKTOP } from '../../lib/designSystem';
 import { usePermisos } from '../../lib/permisos';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
 import { BotonFila } from '../../components/ui/Lista';
+import { EncabezadoSeccion } from '../../components/ui/EncabezadoSeccion';
 
 const TIPO_MOVIMIENTO: Record<TipoMovimientoBodega, { label: string; icon: React.ReactNode; color: string }> = {
   INGRESO_OC: { label: 'Ingreso (OC)', icon: <ArrowDownToLine className="w-3.5 h-3.5" />, color: 'text-emerald-600' },
@@ -175,7 +176,7 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
     <div className="space-y-5">
       {!proyectoId && (
         <div className="space-y-2.5">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Bodegas disponibles</h3>
+          <EncabezadoSeccion icono={Warehouse} antetitulo="Bodega" titulo="Bodegas disponibles" />
           <div className="flex flex-wrap gap-1.5">
             {bodegasDisponibles.map((b) => {
               const items = stock.filter((s) => s.bodegaId === b.id).length;
@@ -196,7 +197,7 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
       )}
 
       <div className="space-y-2.5">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Stock actual</h3>
+        <EncabezadoSeccion icono={Boxes} antetitulo="Bodega" titulo="Stock actual" />
         {stock.length === 0 ? (
           <div className="p-8 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">Sin stock por ahora.</div>
         ) : stockVisible.length === 0 ? (
@@ -329,7 +330,7 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
       </div>
 
       <div className="space-y-2.5">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Movimientos recientes</h3>
+        <EncabezadoSeccion icono={History} antetitulo="Bodega" titulo="Movimientos recientes" />
         {movimientos.length === 0 ? (
           <div className="p-8 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">Sin movimientos todavía.</div>
         ) : (

@@ -13,6 +13,7 @@ import { VentanasCubicacion, type FiltroVentanas } from './VentanasCubicacion';
 import { descargarBlob, formatoMonto, lineaReporteSincronizacion, lineasReporteImportacion } from './utils';
 import { IconButton } from '../../../components/ui/IconButton';
 import { InputArchivo } from '../../../components/ui/InputArchivo';
+import { EncabezadoSeccion } from '../../../components/ui/EncabezadoSeccion';
 
 interface Props {
   proyecto: Proyecto;
@@ -122,25 +123,26 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
   return (
     <div className="space-y-4">
       {entradaArchivo}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-black text-slate-900">Cubicación</h2>
-          <p className="text-xs text-slate-500 max-w-2xl">
-            Paso previo y opcional de las fases. Lo que ya sabemos del presupuesto de HETMO (tipos, descripción, medidas, cantidades y precios) se lee solo: aquí solo se completa dónde va
-            cada ventana y su rasgo medido en obra. Sin cubicación, las fases se crean con el modal de siempre.
-          </p>
-        </div>
-        {resumen.tipos > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="primary" size="sm" leftIcon={<Download className="w-3.5 h-3.5" />} isLoading={plantilla.isPending} onClick={() => plantilla.mutate()} title="Excel con una fila por ventana y lo que el sistema ya sabe, para completar piso, depto y rasgo">
-              Descargar planilla para completar
-            </Button>
-            <Button variant="outline" size="sm" leftIcon={<Upload className="w-3.5 h-3.5" />} isLoading={subir.isPending} onClick={() => entrada.current?.click()}>
-              Subir planilla completada
-            </Button>
-          </div>
-        )}
-      </div>
+      <EncabezadoSeccion
+        icono={Ruler}
+        antetitulo="Obra"
+        titulo="Cubicación"
+        descripcion="Paso previo y opcional de las fases. Lo que ya sabemos del presupuesto de HETMO (tipos, descripción, medidas, cantidades y precios) se lee solo: aquí solo se completa dónde va cada ventana y su rasgo medido en obra. Sin cubicación, las fases se crean con el modal de siempre."
+        acciones={
+          <>
+            {resumen.tipos > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="primary" size="sm" leftIcon={<Download className="w-3.5 h-3.5" />} isLoading={plantilla.isPending} onClick={() => plantilla.mutate()} title="Excel con una fila por ventana y lo que el sistema ya sabe, para completar piso, depto y rasgo">
+                  Descargar planilla para completar
+                </Button>
+                <Button variant="outline" size="sm" leftIcon={<Upload className="w-3.5 h-3.5" />} isLoading={subir.isPending} onClick={() => entrada.current?.click()}>
+                  Subir planilla completada
+                </Button>
+              </div>
+            )}
+          </>
+        }
+      />
 
       {panel && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900 space-y-1" role="status" data-testid="reporte-importacion">

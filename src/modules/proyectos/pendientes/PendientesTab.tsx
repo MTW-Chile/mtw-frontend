@@ -29,6 +29,7 @@ import { SelectCompacto } from '../../../components/ui/Campos';
 import { Buscador } from '../../../components/ui/Buscador';
 import { Segmentado } from '../../../components/ui/Segmentado';
 import { BotonFila } from '../../../components/ui/Lista';
+import { EncabezadoSeccion } from '../../../components/ui/EncabezadoSeccion';
 
 interface Props {
   proyecto: Proyecto;
@@ -71,18 +72,19 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-black text-slate-900">Control de pendientes</h2>
-          <p className="text-xs text-slate-500 max-w-xl">
-            Lo que falta o falló en esta obra, solicitado desde la obra o desde la fábrica. Cada pendiente va solo al área que corresponde (técnica o
-            fábrica) y lo resuelve quien lo solicitó.
-          </p>
-        </div>
-        <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setCreando(true)}>
-          Nuevo pendiente
-        </Button>
-      </div>
+      <EncabezadoSeccion
+        icono={ClipboardList}
+        antetitulo="Obra"
+        titulo="Control de pendientes"
+        descripcion="Lo que falta o falló en esta obra, solicitado desde la obra o desde la fábrica. Cada pendiente va solo al área que corresponde (técnica o fábrica) y lo resuelve quien lo solicitó."
+        acciones={
+          <>
+            <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setCreando(true)}>
+              Nuevo pendiente
+            </Button>
+          </>
+        }
+      />
 
       {/* Resumen por estado: cada uno filtra la lista */}
       <Segmentado

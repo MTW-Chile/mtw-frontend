@@ -1,11 +1,12 @@
 import React from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, CheckCircle2 } from 'lucide-react';
+import { Loader2, CheckCircle2, Tags, ShoppingCart, FilePlus2 } from 'lucide-react';
 import { getPartidas, getPorClasificar, reclasificarItemOC, updateAdicionalItem } from '../../api/client';
 import { avisarError } from '../configuracion/catalogo/comun';
 import type { Partida } from '../../types';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
 import { SelectCompacto } from '../../components/ui/Campos';
+import { EncabezadoSeccion } from '../../components/ui/EncabezadoSeccion';
 
 const clp = (v: number) => v.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
@@ -62,12 +63,10 @@ export const PorClasificarTab: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      <p className="text-xs text-slate-500">
-        Ítems libres que quedaron sin partida. Cuentan en el costo y la venta, pero no se contabilizan en Clay hasta asignársela.
-      </p>
+      <EncabezadoSeccion icono={Tags} antetitulo="Compras" titulo="Por clasificar" descripcion="Ítems libres que quedaron sin partida. Cuentan en el costo y la venta, pero no se contabilizan en Clay hasta asignársela." />
       {data.ordenesCompra.length > 0 && (
         <section className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-          <h3 className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-800 border-b border-slate-100">Órdenes de compra</h3>
+          <EncabezadoSeccion className="px-5 py-4 border-b border-slate-100" icono={ShoppingCart} titulo="Órdenes de compra" />
           <Tabla>
             <Thead>
               <Tr>
@@ -99,7 +98,7 @@ export const PorClasificarTab: React.FC = () => {
       )}
       {data.adicionales.length > 0 && (
         <section className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-          <h3 className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-800 border-b border-slate-100">Adicionales</h3>
+          <EncabezadoSeccion className="px-5 py-4 border-b border-slate-100" icono={FilePlus2} titulo="Adicionales" />
           <Tabla>
             <Thead>
               <Tr>

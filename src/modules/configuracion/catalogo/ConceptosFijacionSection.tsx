@@ -1,3 +1,4 @@
+import { Calculator } from 'lucide-react';
 import React from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getConceptosFijacion, getPartidas, updateConceptoFijacion } from '../../../api/client';
@@ -34,6 +35,8 @@ export const ConceptosFijacionSection: React.FC<{ puedeEditar: boolean }> = ({ p
 
   return (
     <Seccion
+      icono={Calculator}
+      antetitulo="Catálogo"
       sinRelleno
       titulo="Hoja de Fijación"
       descripcion="Partida a la que se carga por defecto cada concepto de la Hoja de Fijación. Cada Hoja puede cambiarla, y los extras eligen la suya. Sin partida, el costo queda en “Sin asignar”."

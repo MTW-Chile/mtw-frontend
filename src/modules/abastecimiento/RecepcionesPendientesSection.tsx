@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { getOrdenesCompra } from '../../api/client';
 import { RecepcionarOCModal } from './RecepcionarOCModal';
 import type { OrdenCompra } from '../../types';
+import { EncabezadoSeccion } from '../../components/ui/EncabezadoSeccion';
 
 const itemsPendientes = (oc: OrdenCompra) =>
   oc.items.filter((i) => {
@@ -30,10 +31,7 @@ export const RecepcionesPendientesSection: React.FC<{ proyectoId?: string }> = (
 
   return (
     <div className="space-y-3">
-      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-        <PackageCheck className="w-4 h-4 text-brand-600" />
-        Recepciones pendientes
-      </h3>
+      <EncabezadoSeccion icono={PackageCheck} antetitulo="Bodega" titulo="Recepciones pendientes" descripcion="Órdenes de compra enviadas al proveedor que aún falta recibir." />
 
       {isLoading ? (
         <div className="p-8 flex items-center justify-center text-slate-400">

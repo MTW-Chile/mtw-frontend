@@ -18,6 +18,7 @@ import { FabricacionDetalle } from './FabricacionDetalle';
 import { formatoFechaHora, textoEstadoFabricacion, textoVinculacionCubicacion, varianteEstadoFabricacion } from './utils';
 import { useConfirmar } from '../../../components/ui/Confirmar';
 import { BotonColapsar } from '../../../components/ui/BotonColapsar';
+import { EncabezadoSeccion } from '../../../components/ui/EncabezadoSeccion';
 
 interface Props {
   proyecto: Proyecto;
@@ -126,32 +127,33 @@ const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyect
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-black text-slate-900">Fabricación</h2>
-          <p className="text-xs text-slate-500 max-w-xl">
-            Documentos de fabricación de HETMO de esta obra. Los datos se leen de HETMO (solo lectura) y se guardan como copia
-            para consultar ventanas y materiales.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {tienePresupuestoHetmo && (
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<Search className="w-3.5 h-3.5" />}
-              isLoading={detectar.isPending}
-              onClick={() => detectar.mutate()}
-              title="Busca en HETMO los documentos de fabricación de los presupuestos de esta obra"
-            >
-              Detectar automáticamente
-            </Button>
-          )}
-          <Button variant="primary" size="sm" leftIcon={<Link2 className="w-3.5 h-3.5" />} onClick={() => setBuscando(true)}>
-            Vincular documento
-          </Button>
-        </div>
-      </div>
+      <EncabezadoSeccion
+        icono={Factory}
+        antetitulo="Obra"
+        titulo="Fabricación"
+        descripcion="Documentos de fabricación de HETMO de esta obra. Los datos se leen de HETMO (solo lectura) y se guardan como copia para consultar ventanas y materiales."
+        acciones={
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              {tienePresupuestoHetmo && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  leftIcon={<Search className="w-3.5 h-3.5" />}
+                  isLoading={detectar.isPending}
+                  onClick={() => detectar.mutate()}
+                  title="Busca en HETMO los documentos de fabricación de los presupuestos de esta obra"
+                >
+                  Detectar automáticamente
+                </Button>
+              )}
+              <Button variant="primary" size="sm" leftIcon={<Link2 className="w-3.5 h-3.5" />} onClick={() => setBuscando(true)}>
+                Vincular documento
+              </Button>
+            </div>
+          </>
+        }
+      />
 
       {isLoading ? (
         <div className="p-12 flex items-center justify-center text-slate-400">

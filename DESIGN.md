@@ -72,6 +72,11 @@ Montos, fechas y unidades se formatean **siempre** con `src/lib/formato.ts`
 - Pestañas dentro de una sección (segundo nivel, ej. Materiales/Proveedores):
   `SubTabs`. Ambas con la pestaña activa en la URL.
 - El encabezado del sitio no repite datos: el nombre va una sola vez.
+- Toda pestaña y toda sección empieza con el encabezado estándar
+  (`EncabezadoSeccion`, el mismo de las tarjetas del cotizador): ícono en
+  caja, antetítulo (módulo, ej. "Obra", "Bodega"), título en negrita,
+  descripción breve y acciones a la derecha. `Seccion` lo usa por dentro
+  (props `icono`, `antetitulo`, `titulo`, `descripcion`, `acciones`).
 - Navegación de configuración con muchas secciones: `NavLateral`.
 - Contenido agrupado en `Seccion` (tarjeta con encabezado). Sin tarjetas
   dentro de tarjetas.
