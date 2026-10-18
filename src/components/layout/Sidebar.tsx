@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, PanelLeftClose, PanelLeftOpen, ChevronDown } from 'lucide-react';
 import { MENU_LATERAL, SECCIONES_FRONTEND } from '../../lib/accessControl';
+import { VERSION, VERSION_VISIBLE } from '../../lib/version';
 
 // Preferencia de esta pantalla (no de datos): si el menú queda fijado abierto.
 const CLAVE_FIJADO = 'mtw-sidebar-fijado';
@@ -187,7 +188,7 @@ export const Sidebar: React.FC<{
               />
               <div className={`min-w-0 ${ocultarEnRiel}`}>
                 <h2 className="text-xs font-black tracking-tight uppercase text-white">MTW ERP</h2>
-                <span className="text-[10px] font-mono text-brand-300 tracking-wider uppercase font-medium">Alpha V1</span>
+                <span className="text-[10px] font-mono text-brand-300 tracking-wider uppercase font-medium" title={`Versión ${VERSION}`}>{VERSION_VISIBLE}</span>
               </div>
             </button>
 
