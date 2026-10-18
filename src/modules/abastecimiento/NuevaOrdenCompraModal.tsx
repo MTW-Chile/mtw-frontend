@@ -22,6 +22,7 @@ import { precioCompraCLP, unidadCompra } from '../../lib/formatoMaterial';
 import { ETIQUETA_NATURALEZA } from '../../types';
 import type { Fase, GrupoRequerimiento, ItemRequerimiento, Material, NaturalezaCompra, ObraPendienteDetalle } from '../../types';
 import { useParametrosGenerales } from '../../lib/parametrosGenerales';
+import { usePermisos } from '../../lib/permisos';
 
 // Campo de descripcion de un item manual: con proveedor elegido, busca en
 // vivo en el catalogo filtrado a ESE proveedor (Material.proveedorId) para
@@ -222,13 +223,14 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   solicitudId,
   obraPendiente,
 }) => {
-  // "solicitar": desde un Proyecto, se pide sin elegir proveedor/precio --
-  // Compras la completa despues. "completar": Compras abre una solicitud
-  // existente, ve el contraste contra stock y arma el pedido final.
-  // "crear": Compras arma una OC nueva y completa de una (con proveedor),
-  // igual que antes -- ver PATCH /api/ordenes-compra/:id/completar y POST
-  // /api/ordenes-compra en mtw-api.
-  const modo: 'solicitar' | 'completar' | 'crear' = solicitudId ? 'completar' : proyectoIdFijo ? 'solicitar' : 'crear';
+  // "completar": Compras abre una solicitud existente, ve el contraste contra
+  // stock y arma el pedido final. Si no, depende de quien la abre (no de
+  // donde): quien puede emitir OC (Compras) arma una OC completa con
+  // proveedor y precios ("crear"), aunque la abra desde una obra; quien solo
+  // puede solicitar (obra) pide sin proveedor ni precio ("solicitar") y
+  // Compras la completa despues -- ver PATCH /api/ordenes-compra/:id/completar.
+  const { tiene } = usePermisos();
+  const modo: 'solicitar' | 'completar' | 'crear' = solicitudId ? 'completar' : tiene('compras.oc.emitir') ? 'crear' : 'solicitar';
   const queryClient = useQueryClient();
 
   const [proyectoId, setProyectoId] = useState(proyectoIdFijo || '');

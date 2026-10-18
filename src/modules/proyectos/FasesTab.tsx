@@ -23,6 +23,7 @@ import { StatCard } from '../../components/ui/StatCard';
 import { createFase, updateFase, deleteFase, descargarInformeHetmoFase } from '../../api/client';
 import { extraerErrorParaToast, mostrarToast } from '../../lib/toast';
 import { useRequerimientosFases } from '../cotizaciones/lib/useAnalitica';
+import { usePermisos } from '../../lib/permisos';
 import { NuevaOrdenCompraModal } from '../abastecimiento/NuevaOrdenCompraModal';
 import { SelectorFaseDesdeCubicacion } from './cubicacion/SelectorFaseDesdeCubicacion';
 import { descargarBlob } from './cubicacion/utils';
@@ -60,6 +61,8 @@ interface FilaVentana {
 // ventana nunca puede superar el total de esa linea (el backend lo valida
 // igual, esto es feedback antes de mandar el request).
 export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVersion }> = ({ proyecto, activeVersion }) => {
+  // Quien puede emitir OC genera la OC completa; si no, la solicita a Compras.
+  const puedeEmitirOC = usePermisos().tiene('compras.oc.emitir');
   const queryClient = useQueryClient();
   const [editando, setEditando] = useState<'nueva' | string | null>(null);
   const [nombre, setNombre] = useState('');
@@ -607,7 +610,7 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                                     leftIcon={<ShoppingCart className="w-3.5 h-3.5" />}
                                     onClick={() => setOcParaFase({ fase, partida: c.codigo })}
                                   >
-                                    Solicitud de Materiales
+                                    {puedeEmitirOC ? 'Generar OC' : 'Solicitar materiales'}
                                   </Button>
                                 </div>
                               </div>

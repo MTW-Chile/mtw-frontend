@@ -436,7 +436,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
           ))}
         </div>
         <Button leftIcon={<Plus className="w-4 h-4" />} onClick={() => setModalAbierto(true)}>
-          Nueva OC
+          {puedeEmitir ? 'Nueva OC' : 'Solicitar materiales'}
         </Button>
       </div>
 

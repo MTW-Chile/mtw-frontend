@@ -174,7 +174,7 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
                 </h4>
                 {tiene('compras.oc.solicitar') && p.estado !== 'RESUELTO' && (
                   <Button size="sm" variant="outline" leftIcon={<ShoppingCart className="w-3.5 h-3.5" />} onClick={() => setComprando(true)}>
-                    Solicitar materiales
+                    {tiene('compras.oc.emitir') ? 'Generar OC' : 'Solicitar materiales'}
                   </Button>
                 )}
               </div>
