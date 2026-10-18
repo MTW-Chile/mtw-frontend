@@ -7,6 +7,8 @@ describe('seccionDisponible', () => {
     expect(seccionDisponible('pendientes', 'MANUAL_OBRA')).toBe(true);
     expect(seccionDisponible('cubicacion', 'MANUAL_OBRA')).toBe(true);
     expect(seccionDisponible('documentos', 'MANUAL_OBRA')).toBe(true);
+    // Un adicional se cotiza con precios vigentes: no depende de la cotizacion.
+    expect(seccionDisponible('adicionales', 'MANUAL_OBRA')).toBe(true);
     expect(seccionDisponible('presupuesto', 'MANUAL_OBRA')).toBe(false);
     expect(seccionDisponible('abastecimiento', 'MANUAL_OBRA')).toBe(false);
     expect(seccionDisponible('bodega', 'MANUAL_OBRA')).toBe(false);

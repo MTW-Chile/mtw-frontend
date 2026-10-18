@@ -14,6 +14,7 @@ interface CentroNotificacionesPageProps {
   // info y el boton de aprobar.
   onAbrirCotizacion?: (proyectoId: string) => void;
   onAbrirCompras?: () => void;
+  onAbrirAdicional?: (proyectoId: string, adicionalId: string) => void;
 }
 
 /**
@@ -27,6 +28,7 @@ interface CentroNotificacionesPageProps {
 export const CentroNotificacionesPage: React.FC<CentroNotificacionesPageProps> = ({
   onAbrirCotizacion,
   onAbrirCompras,
+  onAbrirAdicional,
 }) => {
   const { data: pendientes, isLoading } = useQuery({
     queryKey: ['misAprobacionesPendientes'],
@@ -55,8 +57,14 @@ export const CentroNotificacionesPage: React.FC<CentroNotificacionesPageProps> =
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm divide-y divide-slate-50">
           {gerencial.map((item) => (
             <button
-              key={item.tipo === 'orden_compra' ? `oc-${item.ordenCompraId}` : `cot-${item.versionId}`}
-              onClick={() => (item.tipo === 'orden_compra' ? onAbrirCompras?.() : onAbrirCotizacion?.(item.proyectoId))}
+              key={item.tipo === 'orden_compra' ? `oc-${item.ordenCompraId}` : item.tipo === 'adicional' ? `adi-${item.adicionalId}` : `cot-${item.versionId}`}
+              onClick={() =>
+                item.tipo === 'orden_compra'
+                  ? onAbrirCompras?.()
+                  : item.tipo === 'adicional'
+                    ? onAbrirAdicional?.(item.proyectoId, item.adicionalId)
+                    : onAbrirCotizacion?.(item.proyectoId)
+              }
               className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div className="flex items-center gap-3 min-w-0">
@@ -64,7 +72,14 @@ export const CentroNotificacionesPage: React.FC<CentroNotificacionesPageProps> =
                   {item.tipo === 'orden_compra' ? <ShoppingCart className="w-4 h-4" /> : <Landmark className="w-4 h-4" />}
                 </div>
                 <div className="min-w-0">
-                  {item.tipo === 'orden_compra' ? (
+                  {item.tipo === 'adicional' ? (
+                    <>
+                      <h3 className="text-sm font-bold text-slate-900 truncate">
+                        Adicional A{item.numero} · {item.titulo}
+                      </h3>
+                      <p className="text-xs text-slate-500 truncate">{item.obra} · Esperando aprobación gerencial</p>
+                    </>
+                  ) : item.tipo === 'orden_compra' ? (
                     <>
                       <h3 className="text-sm font-bold text-slate-900 truncate">{item.numero} · {item.proveedorNombre}</h3>
                       <p className="text-xs text-slate-500 truncate">

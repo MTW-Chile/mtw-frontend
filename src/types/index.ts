@@ -80,8 +80,18 @@ export interface AprobacionPendienteOC {
   total: number;
 }
 
+export interface AprobacionPendienteAdicional {
+  tipo: 'adicional';
+  adicionalId: string;
+  numero: number;
+  titulo: string;
+  proyectoId: string;
+  obra: string;
+  codigoInterno: string | null;
+}
+
 export interface AprobacionesPendientes {
-  gerencial: (AprobacionPendienteCotizacion | AprobacionPendienteOC)[];
+  gerencial: (AprobacionPendienteCotizacion | AprobacionPendienteOC | AprobacionPendienteAdicional)[];
   total: number;
 }
 
@@ -164,7 +174,11 @@ export interface Material {
   familia: string;
   unidadMedida: string;
   tipoProductoId: string;
-  tipoProducto?: Pick<TipoProducto, 'id' | 'nombre'> & { medicion?: MedicionReceta; partida?: Pick<Partida, 'codigo' | 'nombre'> & { orden?: number } };
+  tipoProducto?: Pick<TipoProducto, 'id' | 'nombre'> & {
+    medicion?: MedicionReceta;
+    compraPorPieza?: boolean;
+    partida?: Pick<Partida, 'codigo' | 'nombre'> & { orden?: number };
+  };
   // Formato de compra resuelto (el propio del material o el de su tipo).
   formato?: FormatoMaterial;
   unidadCompraId?: string | null;
@@ -1435,7 +1449,17 @@ export type EstadoPendiente = 'INGRESADO' | 'EN_CURSO' | 'RESUELTO';
 export type DestinoPendiente = 'TECNICA' | 'FABRICA';
 export type OrigenPendiente = 'FABRICACION' | 'OBRA';
 export type TipoElementoPendiente = 'VENTANA' | 'HOJA' | 'MATERIAL' | 'VIDRIO' | 'OTRO';
-export type MotivoPendiente = 'FALLA' | 'DANO_OBRA' | 'DANO_INSTALACION' | 'NO_RECEPCION' | 'NO_FABRICADO';
+export type MotivoPendiente = 'FALLA' | 'DANO_OBRA' | 'DANO_INSTALACION' | 'NO_RECEPCION' | 'NO_FABRICADO' | 'CAMBIO_CLIENTE';
+
+// A cargo de quien va un pendiente: cliente o instalador -> adicional (se les
+// cobra); nosotros -> reposicion contra la holgura.
+export type CargoPendiente = 'CLIENTE' | 'INSTALADOR' | 'MTW';
+
+export const ETIQUETA_CARGO: Record<CargoPendiente, string> = {
+  CLIENTE: 'Cliente',
+  INSTALADOR: 'Instalador',
+  MTW: 'Nosotros',
+};
 
 // Catalogo editable de etapas de un pendiente EN_CURSO. destino null = aplica a
 // ambos destinos. No se borran: se desactivan.
@@ -1472,6 +1496,8 @@ export interface ObraPendiente {
   descripcion: string;
   notas: string | null;
   responsable: string | null;
+  // A cargo de quien (null: el que sugiere el motivo).
+  cargoA?: CargoPendiente | null;
   // Rectificacion de medidas (ventana o vidrio); los decimales llegan como texto.
   anchoOriginalMm: string | null;
   altoOriginalMm: string | null;
@@ -1553,7 +1579,9 @@ export interface ObraPendienteDetalle extends Omit<ObraPendiente, 'material'> {
   eventos: ObraPendienteEvento[];
   adjuntos: AdjuntoPendiente[];
   material?: { id: string; skuInterno: string; descripcion: string; tipoProducto?: { compraPorPieza: boolean } } | null;
-  // Que cubriria una compra por este pendiente (la API la deduce del motivo).
+  // A cargo de quien va (el indicado o el que sugiere el motivo; null: sin cargo
+  // aparte) y que cubriria una compra por el.
+  cargoEfectivo: CargoPendiente | null;
   naturalezaSugerida: NaturalezaCompra;
   // Compras generadas por este pendiente.
   ordenesCompra: { id: string; numero: string; estado: EstadoOC; naturaleza: NaturalezaCompra }[];
@@ -1571,6 +1599,8 @@ export interface NuevoPendientePayload {
   notas?: string;
   // Obligatorio con DANO_OBRA / DANO_INSTALACION.
   responsable?: string;
+  // A cargo de quien (sin indicar: el que sugiere el motivo).
+  cargoA?: CargoPendiente | null;
   // Solo ventana o vidrio. Para un vidrio van tambien las medidas originales.
   rectificacion?: { anchoMm: number; altoMm: number; anchoOriginalMm?: number; altoOriginalMm?: number };
   ventanaRef?: string;
@@ -1776,4 +1806,102 @@ export interface FiltroUnidadesCubicacion {
   estado?: '' | 'sinPosicion' | 'posicionadas';
   areasComunes?: boolean;
   limit?: number;
+}
+
+// ---- Adicionales (ventas o cargos fuera del presupuesto aceptado de una obra) ----
+
+export type EstadoAdicional = 'BORRADOR' | 'ESPERANDO_APROBACION' | 'APROBADO' | 'ENVIADO' | 'ACEPTADO' | 'RECHAZADO' | 'ANULADO';
+export type CargoAdicional = 'CLIENTE' | 'INSTALADOR';
+export type FormaCobroInstalador = 'FACTURA' | 'DESCUENTO_ESTADO_PAGO';
+
+export const ETIQUETA_ESTADO_ADICIONAL: Record<EstadoAdicional, string> = {
+  BORRADOR: 'Borrador',
+  ESPERANDO_APROBACION: 'Esperando aprobación',
+  APROBADO: 'Aprobado',
+  ENVIADO: 'Enviado',
+  ACEPTADO: 'Aceptado',
+  RECHAZADO: 'Rechazado',
+  ANULADO: 'Anulado',
+};
+
+export const ETIQUETA_FORMA_COBRO: Record<FormaCobroInstalador, string> = {
+  FACTURA: 'Factura al instalador',
+  DESCUENTO_ESTADO_PAGO: 'Descuento en su estado de pago',
+};
+
+export interface AdicionalItem {
+  id: string;
+  orden: number;
+  materialId: string | null;
+  material: { id: string; skuInterno: string; descripcion: string } | null;
+  descripcion: string;
+  unidad: string;
+  cantidad: number | string;
+  // Costo CLP por unidad (vigente para el catalogo; a mano para un item libre).
+  costoUnitario: number | string;
+  partidaId: string;
+  partida: Pick<Partida, 'id' | 'codigo' | 'nombre' | 'porDefecto'>;
+  anchoMm: number | null;
+  altoMm: number | null;
+  // En "Sin asignar": cuenta, pero no se contabiliza hasta clasificarlo.
+  porClasificar: boolean;
+  // Precio de venta (el costo llevado a la escala de venta con el margen).
+  precioUnitario: number;
+  precioTotal: number;
+}
+
+export interface Adicional {
+  id: string;
+  proyectoId: string;
+  proyecto: { id: string; obra: string; codigoInterno: string | null; cliente: { id: string; nombre: string; rut: string | null } | null };
+  numero: number;
+  titulo: string;
+  estado: EstadoAdicional;
+  origen: 'ITEMS' | 'VENTANAS' | 'HETMO';
+  cargoA: CargoAdicional;
+  formaCobroInstalador: FormaCobroInstalador | null;
+  instaladorProveedorId: string | null;
+  instalador: { id: string; nombre: string; rut: string | null } | null;
+  obraPendienteId: string | null;
+  obraPendiente: { id: string; numero: number; descripcion: string } | null;
+  tasaDolar: number | string;
+  tasaEuro: number | string;
+  tasaUf: number | string;
+  margenPct: number | string;
+  plantillaOfertaId: string | null;
+  textoPresentacion: string;
+  condicionesComerciales: string;
+  creadoPor: { id: string; nombre: string } | null;
+  aprobadoPor: { id: string; nombre: string } | null;
+  fechaAprobacion: string | null;
+  fechaEnvio: string | null;
+  fechaRespuesta: string | null;
+  motivoRechazo: string | null;
+  preciosAl: string;
+  creadoEn: string;
+  items: AdicionalItem[];
+  ordenesCompra: { id: string; numero: string; estado: EstadoOC }[];
+  totales: { costo: number; venta: number; ventaUf: number; iva: number; totalConIva: number; ivaPct: number };
+  // Segun la configuracion vigente (si se exige y desde que monto).
+  requiereAprobacion: boolean;
+}
+
+export interface PorClasificar {
+  ordenesCompra: {
+    id: string;
+    descripcion: string;
+    unidadMedida: string;
+    cantidad: number | string;
+    precioUnitario: number | string | null;
+    ordenCompra: { id: string; numero: string; estado: EstadoOC; proyecto: { id: string; obra: string } | null; proveedor: { nombre: string } | null };
+  }[];
+  adicionales: {
+    id: string;
+    descripcion: string;
+    unidad: string;
+    cantidad: number | string;
+    costoUnitario: number | string;
+    adicional: { id: string; numero: number; titulo: string; estado: EstadoAdicional; proyecto: { id: string; obra: string; codigoInterno: string | null } };
+  }[];
+  total: number;
 }

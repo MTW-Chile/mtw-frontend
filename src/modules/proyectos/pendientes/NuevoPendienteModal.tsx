@@ -4,10 +4,12 @@ import { AlertTriangle, Loader2, Ruler, X } from 'lucide-react';
 import { crearPendiente, getFabricacionDetalle, getFabricacionesProyecto, getMaterialesFabricacion } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import type {
+  CargoPendiente,
   MotivoPendiente,
   Proyecto,
   TipoElementoPendiente,
 } from '../../../types';
+import { ETIQUETA_CARGO } from '../../../types';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import { formatoMm } from '../fabricacion/utils';
 import { AdjuntosNuevoPendiente } from './adjuntos/AdjuntosNuevoPendiente';
@@ -20,6 +22,7 @@ import {
   TIPOS_PENDIENTE,
   admiteRectificacion,
   areaDelPendiente,
+  cargoDeMotivo,
   exigeResponsable,
   leerMilimetros,
   textoRectificacion,
@@ -52,6 +55,8 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
   const [elementoId, setElementoId] = useState(''); // vidrio / hoja / material elegido de la ventana
   const [notas, setNotas] = useState('');
   const [responsable, setResponsable] = useState('');
+  // A cargo de quien: '' = el que sugiere el motivo.
+  const [cargo, setCargo] = useState<CargoPendiente | ''>('');
   // Rectificacion de medidas (solo ventana o vidrio elegidos)
   const [rectificando, setRectificando] = useState(false);
   const [rectAncho, setRectAncho] = useState('');
@@ -158,6 +163,7 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
         descripcion: tituloPendiente(datosTitulo, notas),
         notas: notas.trim() || undefined,
         responsable: pideResponsable ? responsable.trim() : undefined,
+        cargoA: cargo || undefined,
         rectificacion:
           rectificando && rectificacionValida && medidaOriginal
             ? { anchoMm: nuevoAncho!, altoMm: nuevoAlto!, anchoOriginalMm: medidaOriginal.ancho, altoOriginalMm: medidaOriginal.alto }
@@ -223,6 +229,21 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
               {MOTIVOS_PENDIENTE.map((m) => (
                 <option key={m} value={m}>
                   {ETIQUETA_MOTIVO[m]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="pend-cargo" className={etiqueta}>
+              A cargo de
+            </label>
+            <select id="pend-cargo" value={cargo} onChange={(e) => setCargo(e.target.value as CargoPendiente | '')} className={campo}>
+              <option value="">
+                Según el motivo ({cargoDeMotivo(motivo) ? ETIQUETA_CARGO[cargoDeMotivo(motivo)!] : 'sin cargo aparte'})
+              </option>
+              {(['CLIENTE', 'INSTALADOR', 'MTW'] as CargoPendiente[]).map((c) => (
+                <option key={c} value={c}>
+                  {ETIQUETA_CARGO[c]}
                 </option>
               ))}
             </select>

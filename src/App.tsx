@@ -176,6 +176,11 @@ const AppContent: React.FC = () => {
     navegar('/cotizaciones', { cotizar: proyectoId, paso: 4 }, opts);
   };
 
+  // Abre un adicional en la seccion Adicionales de su obra.
+  const abrirAdicional = (proyectoId: string, adicionalId: string) => {
+    navegar('/proyectos', { proyecto: proyectoId, seccion: 'adicionales', adicional: adicionalId });
+  };
+
   // Deep-link desde el link "Ver Centro de Notificaciones" de los correos
   // de aprobacion pendiente (?abrir=centro, ver
   // notificarAprobacionGerencialPendiente en mtw-api) -- tambien soporta
@@ -274,7 +279,7 @@ const AppContent: React.FC = () => {
           )}
 
           {activeTab === TAB_CENTRO_NOTIFICACIONES && (
-            <CentroNotificacionesPage onAbrirCompras={() => handleNavigate('compras')} onAbrirCotizacion={abrirCotizacion} />
+            <CentroNotificacionesPage onAbrirCompras={() => handleNavigate('compras')} onAbrirCotizacion={abrirCotizacion} onAbrirAdicional={abrirAdicional} />
           )}
         </main>
       </div>

@@ -1,13 +1,14 @@
 import React from 'react';
-import { ShoppingCart, FileCheck2 } from 'lucide-react';
+import { ShoppingCart, FileCheck2, Tags } from 'lucide-react';
 import { SubTabs } from '../../components/ui/PageHeader';
 import { HeaderSeccion } from '../../components/layout/HeaderSeccion';
 import { useUrlParam } from '../../lib/navigation';
 import { OrdenesCompraList } from './OrdenesCompraList';
 import { ControlDocumentosTab } from '../proyectos/ControlDocumentosTab';
+import { PorClasificarTab } from './PorClasificarTab';
 import { PAGE_CONTAINER_CLASS } from '../../lib/designSystem';
 
-type SubTab = 'ordenes' | 'conciliacion';
+type SubTab = 'ordenes' | 'conciliacion' | 'por-clasificar';
 
 /**
  * Módulo Compras de primer nivel (Sidebar) -- fuera de la vista
@@ -22,6 +23,7 @@ export const ComprasPage: React.FC = () => {
   const tabs: { id: SubTab; label: string; icon: React.ElementType }[] = [
     { id: 'ordenes', label: 'Órdenes de Compra', icon: ShoppingCart },
     { id: 'conciliacion', label: 'Conciliación de Facturas', icon: FileCheck2 },
+    { id: 'por-clasificar', label: 'Por clasificar', icon: Tags },
   ];
 
   // Pestaña activa en la URL (?tab=...) -- Atras del navegador y F5 la respetan.
@@ -35,6 +37,7 @@ export const ComprasPage: React.FC = () => {
 
       {activeSubTab === 'ordenes' && <OrdenesCompraList />}
       {activeSubTab === 'conciliacion' && <ControlDocumentosTab />}
+      {activeSubTab === 'por-clasificar' && <PorClasificarTab />}
     </div>
   );
 };

@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, Loader2, RotateCcw, ShoppingCart, Trash2, X } from 'lucide-react';
-import { cambiarEstadoPendiente, eliminarPendiente, getEtapasPendiente, getPendiente } from '../../../api/client';
+import { cambiarEstadoPendiente, editarPendiente, eliminarPendiente, getEtapasPendiente, getPendiente } from '../../../api/client';
+import { NuevoAdicionalModal } from '../adicionales/NuevoAdicionalModal';
+import { actualizarParams } from '../../../lib/navigation';
+import { avisarError } from '../../configuracion/catalogo/comun';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { formatoFechaHora } from '../fabricacion/utils';
 import { AdjuntosDetalle } from './adjuntos/AdjuntosDetalle';
 import { NuevaOrdenCompraModal } from '../../abastecimiento/NuevaOrdenCompraModal';
 import { usePermisos } from '../../../lib/permisos';
-import { ETIQUETA_NATURALEZA } from '../../../types';
+import { ETIQUETA_CARGO, ETIQUETA_NATURALEZA } from '../../../types';
+import type { CargoPendiente } from '../../../types';
 import {
   ETIQUETA_DESTINO,
   ETIQUETA_ESTADO,
@@ -46,6 +50,7 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
   const [etapaElegida, setEtapaElegida] = useState('');
   const [comentario, setComentario] = useState('');
   const [comprando, setComprando] = useState(false);
+  const [cotizandoAdicional, setCotizandoAdicional] = useState(false);
   const { tiene } = usePermisos();
 
   const { data: p, isLoading } = useQuery({
@@ -53,6 +58,12 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
     queryFn: () => getPendiente(pendienteId),
   });
   const { data: etapas = [] } = useQuery({ queryKey: ['etapasPendiente'], queryFn: () => getEtapasPendiente(), staleTime: 1000 * 60 });
+
+  const cambiarCargo = useMutation({
+    mutationFn: (cargoA: CargoPendiente | null) => editarPendiente(pendienteId, { cargoA }),
+    onSuccess: () => refrescar(),
+    onError: avisarError,
+  });
 
   const refrescar = () => {
     queryClient.invalidateQueries({ queryKey: ['pendientes', proyectoId] });
@@ -131,6 +142,30 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
                 {p.destino === 'FABRICA' && p.tipo === 'VENTANA' ? ' — pedido a Fábrica' : ''}
               </p>
             )}
+            {/* A cargo de quien: cliente o instalador -> adicional (se cobra); nosotros -> reposicion. */}
+            <div className="rounded-xl border border-slate-200 p-3 flex flex-wrap items-center justify-between gap-2">
+              <label className="flex items-center gap-2 text-xs">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">A cargo de</span>
+                <select
+                  value={p.cargoA ?? ''}
+                  disabled={!p.puedeResolver || p.estado === 'RESUELTO' || cambiarCargo.isPending}
+                  onChange={(e) => cambiarCargo.mutate((e.target.value || null) as CargoPendiente | null)}
+                  className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:border-brand-600 disabled:bg-slate-50"
+                >
+                  <option value="">Según el motivo ({p.cargoEfectivo && !p.cargoA ? ETIQUETA_CARGO[p.cargoEfectivo] : 'sin cargo aparte'})</option>
+                  {(['CLIENTE', 'INSTALADOR', 'MTW'] as CargoPendiente[]).map((c) => (
+                    <option key={c} value={c}>
+                      {ETIQUETA_CARGO[c]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {(p.cargoEfectivo === 'CLIENTE' || p.cargoEfectivo === 'INSTALADOR') && tiene('adicionales.editar') && p.estado !== 'RESUELTO' && (
+                <Button size="sm" variant="outline" onClick={() => setCotizandoAdicional(true)}>
+                  Cotizar adicional
+                </Button>
+              )}
+            </div>
             {/* Compras del pendiente: reposicion (falla o daño) u otra, enlazadas a el. */}
             <div className="rounded-xl border border-slate-200 p-3 space-y-2">
               <div className="flex items-center justify-between gap-2">
@@ -278,6 +313,18 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
           </>
         )}
       </div>
+      {p && cotizandoAdicional && (
+        <NuevoAdicionalModal
+          proyectoId={proyectoId}
+          obraPendiente={p}
+          onClose={() => setCotizandoAdicional(false)}
+          onCreado={(a) => {
+            setCotizandoAdicional(false);
+            onClose();
+            actualizarParams({ seccion: 'adicionales', adicional: a.id });
+          }}
+        />
+      )}
       {p && comprando && (
         <NuevaOrdenCompraModal
           isOpen

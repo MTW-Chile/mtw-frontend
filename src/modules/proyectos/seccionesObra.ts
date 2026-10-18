@@ -3,9 +3,9 @@ import type { Proyecto } from '../../types';
 // 'fases' se fusiono dentro de 'fabricacion' (sub-pestañas Fases /
 // Documentos de fabricación) -- fabricacion ya estaba siempre disponible,
 // la sub-pestaña Fases se oculta ahi mismo para una obra manual.
-export type SeccionObra = 'presupuesto' | 'documentos' | 'cubicacion' | 'abastecimiento' | 'fabricacion' | 'pendientes' | 'bodega';
+export type SeccionObra = 'presupuesto' | 'documentos' | 'cubicacion' | 'abastecimiento' | 'fabricacion' | 'pendientes' | 'adicionales' | 'bodega';
 
-export const SECCIONES_OBRA: SeccionObra[] = ['presupuesto', 'documentos', 'cubicacion', 'abastecimiento', 'fabricacion', 'pendientes', 'bodega'];
+export const SECCIONES_OBRA: SeccionObra[] = ['presupuesto', 'documentos', 'cubicacion', 'abastecimiento', 'fabricacion', 'pendientes', 'adicionales', 'bodega'];
 
 // Secciones que dependen de haber cotizado la obra (presupuesto, ventanas,
 // fases...). Una obra manual (origen MANUAL_OBRA) nunca se cotizo, asi que

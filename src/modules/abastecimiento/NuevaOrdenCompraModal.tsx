@@ -14,6 +14,7 @@ import {
   getOrdenCompraById,
   getMateriales,
   getPartidas,
+  getAdicionales,
   type ItemOrdenCompraPayload,
 } from '../../api/client';
 import { useAnalitica, useRequerimientoFase } from '../cotizaciones/lib/useAnalitica';
@@ -242,6 +243,14 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   // igual que Obras Mayores. Se vuelve a elegir al cambiar de obra.
   const [naturaleza, setNaturaleza] = useState<NaturalezaCompra>(obraPendiente?.naturalezaSugerida ?? 'PRESUPUESTO');
   const esAdicional = naturaleza === 'ADICIONAL';
+  // Una compra adicional va con el adicional de la obra que la cubre.
+  const [adicionalId, setAdicionalId] = useState('');
+  const { data: adicionalesObra = [] } = useQuery({
+    queryKey: ['adicionales', proyectoId],
+    queryFn: () => getAdicionales(proyectoId),
+    enabled: isOpen && !!proyectoId && esAdicional,
+  });
+  const adicionalesDisponibles = adicionalesObra.filter((a) => a.estado !== 'RECHAZADO' && a.estado !== 'ANULADO');
 
   // Solo modo "completar": la solicitud que se esta completando.
   const { data: solicitud, isLoading: cargandoSolicitud } = useQuery({
@@ -488,6 +497,9 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
       if (itemsValidos.length === 0) {
         throw new Error(modo === 'solicitar' ? 'Agrega al menos un item con descripción y cantidad.' : 'Agrega al menos un item con descripción, cantidad y precio.');
       }
+      if (modo !== 'completar' && proyectoId && esAdicional && !adicionalId) {
+        throw new Error('Elige el adicional que cubre esta compra.');
+      }
       if (itemsValidos.some((i) => !i.materialId && !i.partidaId)) {
         throw new Error('Elige una partida para cada item sin material del catálogo -- sirve para el Control de Presupuesto.');
       }
@@ -529,6 +541,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
         faseId: faseId || null,
         naturaleza: proyectoId ? naturaleza : 'PRESUPUESTO',
         obraPendienteId: obraPendiente?.id ?? null,
+        adicionalId: esAdicional ? adicionalId || null : null,
         // En "solicitar" nunca se manda -- aunque haya un chip de
         // proveedor elegido arriba (solo sirve para agrupar los items),
         // mandarlo la convertiria en una OC completa, no una solicitud.
@@ -761,6 +774,26 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
                 ))}
               </div>
               <p className="text-[11px] text-slate-500">{AYUDA_NATURALEZA[naturaleza]}</p>
+              {esAdicional && (
+                <div className="space-y-1">
+                  <select
+                    aria-label="Adicional que cubre la compra"
+                    value={adicionalId}
+                    onChange={(e) => setAdicionalId(e.target.value)}
+                    className={`w-full py-2 px-3 rounded-xl border text-xs bg-white focus:outline-none focus:border-brand-600 ${adicionalId ? 'border-slate-200' : 'border-amber-300'}`}
+                  >
+                    <option value="">Elige el adicional que cubre esta compra…</option>
+                    {adicionalesDisponibles.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        A{a.numero} · {a.titulo} ({a.estado.toLowerCase().replace('_', ' ')})
+                      </option>
+                    ))}
+                  </select>
+                  {adicionalesDisponibles.find((a) => a.id === adicionalId && a.estado !== 'ACEPTADO') && (
+                    <p className="text-[11px] text-amber-700">Ese adicional aún no está aceptado: estás comprando antes de que el cliente lo acepte.</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

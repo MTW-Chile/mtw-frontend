@@ -13,6 +13,11 @@ import type {
   PresupuestoConfig,
   ConfiguracionEmpresa,
   ParametrosGenerales,
+  Adicional,
+  CargoAdicional,
+  FormaCobroInstalador,
+  EstadoAdicional,
+  PorClasificar,
   TipoProyecto,
   PlantillaOferta,
   TipoDocumentoComercial,
@@ -36,6 +41,7 @@ import type {
   RequerimientoFase,
   ControlPresupuestoPartida,
   NaturalezaCompra,
+  CargoPendiente,
   SolicitudMaterial,
   BodegaProyectoResponse,
   BodegaGlobalResponse,
@@ -909,6 +915,8 @@ export async function createOrdenCompra(payload: {
   // Que cubre la compra; sin indicarla, la sugiere el motivo del pendiente o es PRESUPUESTO.
   naturaleza?: NaturalezaCompra;
   obraPendienteId?: string | null;
+  // Obligatorio si la compra es ADICIONAL: el adicional que la cubre.
+  adicionalId?: string | null;
 }): Promise<{ success: boolean; ordenCompra: OrdenCompra }> {
   const response = await apiClient.post<{ success: boolean; ordenCompra: OrdenCompra }>('/ordenes-compra', payload);
   return response.data;
@@ -1380,6 +1388,13 @@ export async function cambiarEstadoPendiente(
   return response.data;
 }
 
+// Edita datos de un pendiente (no su estado). Por ahora: a cargo de quien va
+// (null = el que sugiere el motivo).
+export async function editarPendiente(id: string, payload: { cargoA?: CargoPendiente | null }): Promise<ObraPendiente> {
+  const response = await apiClient.patch<ObraPendiente>(`/pendientes/${id}`, payload);
+  return response.data;
+}
+
 // POST y no DELETE: Cloudflare Access bloquea DELETE/PUT en produccion.
 export async function eliminarPendiente(id: string): Promise<void> {
   await apiClient.post(`/pendientes/${id}/eliminar`);
@@ -1744,4 +1759,95 @@ export async function getPlantillaDeProyecto(proyectoId: string, tipoDocumento: 
 export async function setTipoProyecto(proyectoId: string, tipoProyectoId: string): Promise<{ id: string; tipoProyecto: TipoProyecto }> {
   const response = await apiClient.patch<{ data: { id: string; tipoProyecto: TipoProyecto } }>(`/proyectos/${proyectoId}/tipo`, { tipoProyectoId });
   return response.data.data;
+}
+
+// ---- Adicionales ----
+
+type Tasas = { dolar: number; euro: number; uf: number };
+
+export async function getAdicionales(proyectoId: string): Promise<Adicional[]> {
+  const response = await apiClient.get<{ data: Adicional[] }>(`/proyectos/${proyectoId}/adicionales`);
+  return response.data.data;
+}
+
+export async function getAdicional(id: string): Promise<Adicional> {
+  const response = await apiClient.get<{ data: Adicional }>(`/adicionales/${id}`);
+  return response.data.data;
+}
+
+export async function createAdicional(
+  proyectoId: string,
+  payload: {
+    titulo: string;
+    cargoA?: CargoAdicional;
+    instaladorProveedorId?: string | null;
+    formaCobroInstalador?: FormaCobroInstalador | null;
+    obraPendienteId?: string | null;
+    tasas?: Tasas;
+    margenPct?: number;
+  }
+): Promise<Adicional> {
+  const response = await apiClient.post<{ data: Adicional }>(`/proyectos/${proyectoId}/adicionales`, payload);
+  return response.data.data;
+}
+
+export async function updateAdicional(
+  id: string,
+  payload: Partial<{
+    titulo: string;
+    cargoA: CargoAdicional;
+    instaladorProveedorId: string | null;
+    formaCobroInstalador: FormaCobroInstalador | null;
+    margenPct: number;
+    textoPresentacion: string;
+    condicionesComerciales: string;
+    plantillaOfertaId: string | null;
+  }>
+): Promise<Adicional> {
+  const response = await apiClient.patch<{ data: Adicional }>(`/adicionales/${id}`, payload);
+  return response.data.data;
+}
+
+export async function addAdicionalItem(
+  id: string,
+  payload: { cantidad: number; materialId?: string; descripcion?: string; unidad?: string; costoUnitario?: number; partidaId?: string; anchoMm?: number; altoMm?: number }
+): Promise<Adicional> {
+  const response = await apiClient.post<{ data: Adicional }>(`/adicionales/${id}/items`, payload);
+  return response.data.data;
+}
+
+export async function updateAdicionalItem(
+  id: string,
+  itemId: string,
+  payload: Partial<{ cantidad: number; descripcion: string; unidad: string; costoUnitario: number; partidaId: string }>
+): Promise<Adicional> {
+  const response = await apiClient.patch<{ data: Adicional }>(`/adicionales/${id}/items/${itemId}`, payload);
+  return response.data.data;
+}
+
+export async function deleteAdicionalItem(id: string, itemId: string): Promise<Adicional> {
+  const response = await apiClient.post<{ data: Adicional }>(`/adicionales/${id}/items/${itemId}/eliminar`);
+  return response.data.data;
+}
+
+export async function actualizarPreciosAdicional(id: string, tasas?: Tasas): Promise<Adicional> {
+  const response = await apiClient.post<{ data: Adicional }>(`/adicionales/${id}/actualizar-precios`, { tasas });
+  return response.data.data;
+}
+
+export async function cambiarEstadoAdicional(id: string, estado: EstadoAdicional, motivoRechazo?: string): Promise<Adicional> {
+  const response = await apiClient.post<{ data: Adicional }>(`/adicionales/${id}/estado`, { estado, motivoRechazo });
+  return response.data.data;
+}
+
+// ---- Por clasificar ----
+
+export async function getPorClasificar(): Promise<PorClasificar> {
+  const response = await apiClient.get<{ data: PorClasificar }>('/por-clasificar');
+  return response.data.data;
+}
+
+export async function reclasificarItemOC(itemId: string, partidaId: string) {
+  const response = await apiClient.patch(`/ordenes-compra/items/${itemId}/partida`, { partidaId });
+  return response.data;
 }

@@ -1,7 +1,7 @@
 import React from 'react';
 import { actualizarParams } from '../../lib/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Wallet, ShoppingCart, Warehouse, Factory, ClipboardList, Ruler, FolderOpen } from 'lucide-react';
+import { Loader2, Wallet, ShoppingCart, Warehouse, Factory, ClipboardList, Ruler, FolderOpen, FilePlus2 } from 'lucide-react';
 import { HeaderSlot } from '../../components/layout/HeaderSlot';
 import { Badge } from '../../components/ui/Badge';
 import { getProyectoById } from '../../api/client';
@@ -14,8 +14,10 @@ import { CubicacionTab } from './cubicacion/CubicacionTab';
 import { DocumentosObraTab } from './documentos/DocumentosObraTab';
 import { FabricacionTab } from './fabricacion/FabricacionTab';
 import { PendientesTab } from './pendientes/PendientesTab';
+import { AdicionalesTab } from './adicionales/AdicionalesTab';
 import { ClayCentroCostoEditor } from './ClayCentroCostoEditor';
 import { seccionDisponible, seccionEfectiva, type SeccionObra } from './seccionesObra';
+import { usePermisos } from '../../lib/permisos';
 
 // "Control de documentos" (conciliacion de OC contra facturas de Clay) se
 // saco de aca -- vive solo en Compras (ComprasPage > sub-tab
@@ -30,6 +32,7 @@ const SECCIONES: { id: Seccion; label: string; hint: string; icon: React.ReactNo
   { id: 'abastecimiento', label: 'Abastecimiento', hint: 'Generación y gestión de OC', icon: <ShoppingCart className="w-4 h-4" /> },
   { id: 'fabricacion', label: 'Fabricación', hint: 'Documentos de fabricación de HETMO', icon: <Factory className="w-4 h-4" /> },
   { id: 'pendientes', label: 'Control de pendientes', hint: 'Lo que falta o falló en la obra', icon: <ClipboardList className="w-4 h-4" /> },
+  { id: 'adicionales', label: 'Adicionales', hint: 'Ventas o cargos fuera del presupuesto aceptado', icon: <FilePlus2 className="w-4 h-4" /> },
   { id: 'bodega', label: 'Bodega', hint: 'Requisiciones, stock y movimientos', icon: <Warehouse className="w-4 h-4" /> },
 ];
 
@@ -37,6 +40,7 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
   proyectoId,
   seccionInicial,
 }) => {
+  const { tiene } = usePermisos();
   // La seccion activa vive en la URL (?seccion=...) -- Atras del navegador
   // vuelve a la seccion anterior. replace: cambiar de pestaña dentro del
   // proyecto no llena el historial (Atras sale del proyecto al listado).
@@ -86,7 +90,7 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
             cubre el caso de que no entren todos los tabs en una pantalla
             angosta. */}
         <div className="border-b border-slate-200 bg-white overflow-x-auto flex shrink-0 px-2 sm:px-5">
-          {SECCIONES.map((s) => {
+          {SECCIONES.filter((s) => s.id !== 'adicionales' || tiene('adicionales.ver')).map((s) => {
             const disponible = seccionDisponible(s.id, proyecto?.origen);
             return (
               <button
@@ -125,6 +129,7 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
               {seccion === 'abastecimiento' && <OrdenesCompraList proyectoId={proyectoId} proyectoLabel={proyecto.obra} />}
               {seccion === 'fabricacion' && <FabricacionTab proyecto={proyecto} activeVersion={activeVersion} />}
               {seccion === 'pendientes' && <PendientesTab proyecto={proyecto} />}
+              {seccion === 'adicionales' && <AdicionalesTab proyecto={proyecto} />}
               {seccion === 'bodega' && (
                 <div className="space-y-8">
                   <RecepcionesPendientesSection proyectoId={proyectoId} />
