@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Loader2, Check, Send, X as XIcon, Ban, ChevronDown, ChevronRight, Package, Undo2, FileDown, Trash2, ClipboardList, ShoppingCart } from 'lucide-react';
+import { Plus, Loader2, Check, Send, X as XIcon, Ban, ChevronDown, ChevronRight, Package, Undo2, FileDown, Trash2, ClipboardList } from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { getOrdenesCompra, updateOrdenCompraEstado, eliminarOrdenCompra, renderPdf, getConfiguracionGeneral } from '../../api/client';
@@ -21,7 +21,6 @@ import { FiltroChips } from '../../components/ui/FiltroChips';
 import { InputCompacto } from '../../components/ui/Campos';
 import { BotonColapsar } from '../../components/ui/BotonColapsar';
 import { BotonFila } from '../../components/ui/Lista';
-import { EncabezadoSeccion } from '../../components/ui/EncabezadoSeccion';
 
 export const ESTADO_OC_LABEL: Record<EstadoOC, string> = {
   BORRADOR: 'Borrador',
@@ -421,19 +420,8 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
 
   return (
     <div className="space-y-4">
-      <EncabezadoSeccion
-        icono={ShoppingCart}
-        antetitulo={proyectoId ? 'Obra' : 'Compras'}
-        titulo="Órdenes de compra"
-        descripcion={proyectoId ? 'Órdenes de compra de esta obra.' : 'Órdenes de compra de todas las obras y Obras Mayores.'}
-        acciones={
-          <Button leftIcon={<Plus className="w-4 h-4" />} onClick={() => setModalAbierto(true)}>
-            {puedeEmitir ? 'Nueva OC' : 'Solicitar materiales'}
-          </Button>
-        }
-      />
       <div className="flex items-center justify-between flex-wrap gap-3">
-      <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1">
           <FiltroChips
             etiqueta="Filtrar por estado"
             valor={filtroEstado}
@@ -441,6 +429,9 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
             opciones={[{ id: '' as const, label: 'Todas' }, ...(Object.keys(ESTADO_OC_LABEL) as EstadoOC[]).map((estado) => ({ id: estado, label: ESTADO_OC_LABEL[estado] }))]}
           />
         </div>
+        <Button leftIcon={<Plus className="w-4 h-4" />} onClick={() => setModalAbierto(true)}>
+          {puedeEmitir ? 'Nueva OC' : 'Solicitar materiales'}
+        </Button>
       </div>
 
       {isLoading ? (

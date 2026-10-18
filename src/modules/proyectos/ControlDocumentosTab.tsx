@@ -10,7 +10,6 @@ import { CheckoutFacturaModal } from './CheckoutFacturaModal';
 import { IconButton } from '../../components/ui/IconButton';
 import { Buscador } from '../../components/ui/Buscador';
 import { BotonColapsar } from '../../components/ui/BotonColapsar';
-import { EncabezadoSeccion } from '../../components/ui/EncabezadoSeccion';
 
 const ESTADO_CUADRE_VARIANT: Record<EstadoConciliacionFactura, BadgeVariant> = {
   PENDIENTE: 'subtle',
@@ -141,12 +140,10 @@ export const ControlDocumentosTab: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <EncabezadoSeccion
-        icono={FileCheck2}
-        antetitulo="Compras"
-        titulo="Conciliación de facturas"
-        descripcion="Conciliación de órdenes de compra con la factura real del proveedor en Clay: se buscan facturas sin contabilizar, revisas el asiento y al confirmar se contabiliza en Clay y la OC queda conciliada."
-      />
+      <p className="text-xs text-slate-500">
+        Conciliación de Órdenes de Compra con la factura real del proveedor en Clay -- se buscan facturas sin contabilizar,
+        revisas el asiento y al confirmar se contabiliza en Clay y la OC queda conciliada.
+      </p>
 
       <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-xs">
         <Buscador valor={searchTerm} onChange={setSearchTerm} placeholder="Buscar por número de OC, proveedor u obra…" />

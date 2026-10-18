@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Save, X, Ruler } from 'lucide-react';
+import { Plus, Save, X } from 'lucide-react';
 import { IconButton } from '../../../components/ui/IconButton';
 import { createUnidadMedida, getUnidadesMedida, updateUnidadMedida } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
@@ -58,8 +58,6 @@ export const UnidadesSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdita
 
   return (
     <Seccion
-      icono={Ruler}
-      antetitulo="Catálogo"
       sinRelleno
       titulo="Unidades de medida"
       descripcion="Las usan los tipos de producto para medir el consumo, expresar el precio y comprar (ej. metro, barra, m²)."

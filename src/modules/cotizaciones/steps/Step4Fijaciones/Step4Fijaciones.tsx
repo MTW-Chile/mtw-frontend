@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Calculator, Check, Plus, Trash2, FileDown, Lock, ShieldCheck, ArrowLeft, Percent, ListOrdered, Ruler, Sigma, Tags } from 'lucide-react';
+import { Calculator, Check, Plus, Trash2, FileDown, Lock, ShieldCheck, ArrowLeft, Percent } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
 import { getConceptosFijacion, getPartidas, updateFijacionConfig, updateEstadoAprobacion } from '../../../../api/client';
 import type { ConceptoFijacionCodigo, Partida, Proyecto, ProyectoVersion, FijacionExtra, FijacionBorrador } from '../../../../types';
@@ -489,7 +489,6 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
   return (
     <div className="space-y-5 animate-fade-in">
       <Seccion
-        antetitulo="Paso 4 · Hoja de Fijación"
         icono={Calculator}
         titulo={
           <span className="flex flex-wrap items-center gap-2">
@@ -564,8 +563,6 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
         <Seccion
-          icono={ListOrdered}
-          antetitulo="Hoja de Fijación"
           className="xl:col-span-2"
           sinRelleno
           titulo="Costos de la hoja"
@@ -648,7 +645,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
         </Seccion>
 
         <div className="space-y-5">
-          <Seccion icono={Ruler} antetitulo="Analítica" titulo="Métricas" sinRelleno>
+          <Seccion titulo="Métricas" sinRelleno>
             <dl className="divide-y divide-slate-100 text-xs">
               {[
                 ['Ventanas', String(cantidadVentanas)],
@@ -665,7 +662,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
             </dl>
           </Seccion>
 
-          <Seccion icono={Sigma} antetitulo="Totales" titulo="Resumen de costos" sinRelleno>
+          <Seccion titulo="Resumen de costos" sinRelleno>
             <dl className="divide-y divide-slate-100 text-xs">
               {[
                 ...totalesPorCategoria.map((c) => [`Materiales · ${c.etiqueta}`, c.monto] as const),
@@ -691,8 +688,6 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
       </div>
 
       <Seccion
-        icono={Tags}
-        antetitulo="Control de presupuesto"
         sinRelleno
         titulo="Presupuesto por partida"
         descripcion="Materiales (con descuento y holgura) más los costos de esta hoja según su partida. Es lo que el Control de Presupuesto compara contra las OC."

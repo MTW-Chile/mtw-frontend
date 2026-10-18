@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Pencil, Boxes } from 'lucide-react';
+import { Plus, Pencil } from 'lucide-react';
 import { getTiposProducto } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
@@ -34,8 +34,6 @@ export const TiposProductoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
   return (
     <>
       <Seccion
-        icono={Boxes}
-        antetitulo="Catálogo"
         sinRelleno
         titulo="Tipos de producto"
         descripcion="Cada material tiene un tipo: define su partida, cómo se mide en la receta, en qué unidad y moneda viene el precio y cómo se compra."

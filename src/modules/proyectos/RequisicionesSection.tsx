@@ -16,7 +16,6 @@ import type { EstadoSolicitudMaterial, Proyecto, ProyectoVersion } from '../../t
 import { BotonFila } from '../../components/ui/Lista';
 import { InputCompacto } from '../../components/ui/Campos';
 import { IconButton } from '../../components/ui/IconButton';
-import { EncabezadoSeccion } from '../../components/ui/EncabezadoSeccion';
 
 const ESTADO_LABEL: Record<EstadoSolicitudMaterial, string> = {
   GENERADA: 'Generada',
@@ -108,20 +107,17 @@ export const RequisicionesSection: React.FC<{ proyecto?: Proyecto; activeVersion
 
   return (
     <div className="space-y-3">
-      <EncabezadoSeccion
-        icono={ClipboardList}
-        antetitulo="Bodega"
-        titulo="Requisiciones de materiales"
-        descripcion="Lo que la obra pide a bodega por fase."
-        acciones={
-          !creando &&
-          fases.length > 0 && (
-            <Button size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setCreando(true)}>
-              Nueva requisición
-            </Button>
-          )
-        }
-      />
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+          <ClipboardList className="w-4 h-4 text-brand-600" />
+          Requisiciones de materiales
+        </h3>
+        {!creando && fases.length > 0 && (
+          <Button size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setCreando(true)}>
+            Nueva requisición
+          </Button>
+        )}
+      </div>
 
       {creando && (
         <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">

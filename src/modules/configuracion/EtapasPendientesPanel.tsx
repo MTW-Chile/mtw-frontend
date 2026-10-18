@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowDown, ArrowUp, Plus, ListChecks } from 'lucide-react';
+import { ArrowDown, ArrowUp, Plus } from 'lucide-react';
 import { crearEtapaPendiente, editarEtapaPendiente, getEtapasPendiente } from '../../api/client';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -75,8 +75,6 @@ export const EtapasPendientesPanel: React.FC = () => {
 
   return (
     <Seccion
-      icono={ListChecks}
-      antetitulo="Obras"
       sinRelleno
       titulo="Etapas de los pendientes"
       descripcion='Las etapas que sigue un pendiente mientras está "En curso". Cada una puede aplicar a Compras, a Fabricación o a ambos. Una etapa no se elimina (el historial conserva su nombre): se desactiva y deja de ofrecerse.'

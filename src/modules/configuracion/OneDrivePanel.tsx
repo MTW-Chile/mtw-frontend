@@ -83,7 +83,6 @@ export const OneDrivePanel: React.FC = () => {
 
   return (
     <Seccion
-      antetitulo="Sistema"
       icono={Cloud}
       titulo="OneDrive"
       descripcion="La cuenta de OneDrive de la empresa donde se guardan las fotos y documentos de los pendientes de obra. Se conecta una sola vez; nadie más necesita iniciar sesión en OneDrive. Cada obra se vincula a su carpeta desde su Control de pendientes."

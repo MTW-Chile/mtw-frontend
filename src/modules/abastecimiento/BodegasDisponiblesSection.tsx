@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Warehouse, Boxes, History } from 'lucide-react';
+import { ArrowLeft, Warehouse } from 'lucide-react';
 import { getBodegaGlobal } from '../../api/client';
 import { useUrlParam } from '../../lib/navigation';
 import { Badge } from '../../components/ui/Badge';
@@ -13,7 +13,6 @@ import type { Bodega, TipoMovimientoBodega } from '../../types';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
 import { EstadoVacio } from '../../components/ui/Estados';
 import { BotonFila } from '../../components/ui/Lista';
-import { EncabezadoSeccion } from '../../components/ui/EncabezadoSeccion';
 
 const nombreAsociado = (b: Bodega) => b.proyecto?.obra || b.centroCosto?.nombre || '—';
 
@@ -73,10 +72,7 @@ export const BodegasDisponiblesSection: React.FC = () => {
   if (isLoading) return <Loader block size="lg" />;
 
   if (!bodegaActiva) {
-    return (
-      <div className="space-y-4">
-        <EncabezadoSeccion icono={Warehouse} antetitulo="Bodega" titulo="Bodegas disponibles" descripcion="Bodegas de obra y de centro de costo. Abre una para ver su stock y movimientos." />
-        {bodegas.length === 0 ? (
+    return bodegas.length === 0 ? (
       <VaciaTabla texto="Todavía no hay bodegas. Se crean solas con la primera recepción de una Orden de Compra." />
     ) : (
       isDesktop ? (
@@ -121,8 +117,6 @@ export const BodegasDisponiblesSection: React.FC = () => {
         ))}
       </div>
       )
-        )}
-      </div>
     );
   }
 
@@ -131,20 +125,19 @@ export const BodegasDisponiblesSection: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      <EncabezadoSeccion
-        icono={Warehouse}
-        antetitulo="Bodega"
-        titulo={bodegaActiva.nombre}
-        descripcion={nombreAsociado(bodegaActiva)}
-        acciones={
-          <Button variant="outline" size="sm" leftIcon={<ArrowLeft className="w-3.5 h-3.5" />} onClick={() => setBodegaId(null)}>
-            Bodegas
-          </Button>
-        }
-      />
+      <div className="flex items-center gap-3 flex-wrap">
+        <Button variant="outline" size="sm" leftIcon={<ArrowLeft className="w-3.5 h-3.5" />} onClick={() => setBodegaId(null)}>
+          Bodegas
+        </Button>
+        <div className="flex items-center gap-2 min-w-0">
+          <Warehouse className="w-4 h-4 text-brand-600 shrink-0" />
+          <h2 className="text-sm font-extrabold text-slate-900 truncate">{bodegaActiva.nombre}</h2>
+          <span className="text-xs text-slate-500 truncate">· {nombreAsociado(bodegaActiva)}</span>
+        </div>
+      </div>
 
       <section className="space-y-2">
-        <EncabezadoSeccion icono={Boxes} titulo="Stock actual" />
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Stock actual</h3>
         {stock.length === 0 ? (
           <VaciaTabla texto="Esta bodega no tiene stock." />
         ) : (
@@ -171,7 +164,7 @@ export const BodegasDisponiblesSection: React.FC = () => {
       </section>
 
       <section className="space-y-2">
-        <EncabezadoSeccion icono={History} titulo="Movimientos recientes" />
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Movimientos recientes</h3>
         {movimientos.length === 0 ? (
           <VaciaTabla texto="Sin movimientos recientes en esta bodega." />
         ) : (

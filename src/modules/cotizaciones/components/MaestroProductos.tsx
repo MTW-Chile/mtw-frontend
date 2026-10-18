@@ -140,8 +140,6 @@ export const MaestroProductos: React.FC = () => {
   return (
     <div className="space-y-4 sm:space-y-5 animate-fade-in">
       <Seccion
-        icono={Boxes}
-        antetitulo="Maestro de materiales"
         titulo={
           <span className="flex items-center gap-2">
             Materiales

@@ -45,8 +45,6 @@ export const PlantillasPuertasPanel: React.FC = () => {
 
   return (
     <Seccion
-      icono={DoorClosed}
-      antetitulo="Catálogo"
       sinRelleno
       titulo="Plantillas de puertas Protex"
       descripcion="Herrajes que lleva cada tipo de puerta. Se usan al agregar una línea manual en Revisión de Líneas."

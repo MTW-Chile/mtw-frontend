@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Save, Building } from 'lucide-react';
+import { Save } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Seccion } from '../../components/ui/Seccion';
@@ -45,8 +45,6 @@ export const PresupuestoConfigPanel: React.FC = () => {
 
   return (
     <Seccion
-      icono={Building}
-      antetitulo="Comercial"
       titulo="Redes sociales del pie de los PDF"
       descripcion="Los textos de presentación y condiciones comerciales se configuran por tipo de proyecto en Comercial › Plantillas de textos."
       acciones={

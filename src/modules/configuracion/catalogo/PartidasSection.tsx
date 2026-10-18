@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Save, X, Tags } from 'lucide-react';
+import { Plus, Save, X } from 'lucide-react';
 import { createPartida, getPartidas, updatePartida, type PartidaPayload } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
@@ -66,8 +66,6 @@ export const PartidasSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdita
 
   return (
     <Seccion
-      icono={Tags}
-      antetitulo="Catálogo"
       sinRelleno
       titulo="Partidas"
       descripcion="Agrupan la Analítica, la Hoja de Fijación, las OC y el Control de Presupuesto. El orden es el de la Analítica; el código Clay es la cuenta contable de la integración."

@@ -112,8 +112,6 @@ export const PlantillasSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdi
   return (
     <>
       <Seccion
-        icono={FileText}
-        antetitulo="Comercial"
         titulo="Plantillas de textos"
         descripcion="Texto de presentación y condiciones comerciales de cotizaciones y adicionales, por tipo de proyecto. Cada versión parte de la plantilla por defecto y la puede cambiar o editar."
         sinRelleno

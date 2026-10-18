@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, ExternalLink, File, FileText, Folder, FolderPlus, Home, Loader2, FolderOpen } from 'lucide-react';
+import { ChevronRight, ExternalLink, File, FileText, Folder, FolderPlus, Home, Loader2 } from 'lucide-react';
 import { crearCarpetaDocumento, getContenidoDocumentoObra, getDocumentosObra, getOneDriveEstado, subirDocumentoObra } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
@@ -10,7 +10,6 @@ import { BotonesAdjuntar } from '../pendientes/adjuntos/BotonesAdjuntar';
 import { formatoTamano, mimeDeArchivo } from '../pendientes/adjuntos/utils';
 import { InputCompacto } from '../../../components/ui/Campos';
 import { BotonFila } from '../../../components/ui/Lista';
-import { EncabezadoSeccion } from '../../../components/ui/EncabezadoSeccion';
 
 interface Miga {
   id: string;
@@ -96,7 +95,6 @@ export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }
 
   return (
     <div className="space-y-4">
-      <EncabezadoSeccion icono={FolderOpen} antetitulo="Obra" titulo="Documentos" descripcion="Carpeta de OneDrive de la obra: planos, contratos, fotos y documentos de los pendientes." />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <nav className="flex items-center gap-1 text-xs font-bold text-slate-500 flex-wrap" aria-label="Ruta de carpetas">
           <Button variant="ghost" size="sm" leftIcon={<Home className="w-3.5 h-3.5" />} onClick={() => setMigas([])}>{proyecto.onedriveCarpetaNombre || 'Carpeta de la obra'}</Button>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Save, X, FolderKanban } from 'lucide-react';
+import { Plus, Save, X } from 'lucide-react';
 import { createTipoProyecto, getTiposProyecto, updateTipoProyecto } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
@@ -48,8 +48,6 @@ export const TiposProyectoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
 
   return (
     <Seccion
-      icono={FolderKanban}
-      antetitulo="Comercial"
       titulo="Tipos de proyecto"
       descripcion="Cada proyecto tiene un tipo; define sus plantillas de textos por defecto. El tipo por defecto lo recibe todo proyecto nuevo de HETMO."
       sinRelleno
