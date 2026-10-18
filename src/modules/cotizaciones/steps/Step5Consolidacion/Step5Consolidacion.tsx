@@ -4,6 +4,7 @@ import type { Proyecto, ProyectoVersion } from '../../../../types';
 import { SubTabs, type SubTab } from '../../../../components/ui/PageHeader';
 import { EstadoComercialCard } from './EstadoComercialCard';
 import { PresupuestoOferta } from './PresupuestoOferta';
+import { useMigas } from '../../../../lib/migas';
 
 type EstadoAprobacion = 'EN_COTIZACION' | 'ESPERANDO_APROBACION_COMERCIAL' | 'APROBADO_GERENCIA' | 'ACEPTADO_CLIENTE';
 
@@ -41,6 +42,7 @@ export const Step5Consolidacion: React.FC<Step5ConsolidacionProps> = ({
   isCreandoVersionInterna,
 }) => {
   const [subTab, setSubTab] = useState<SubTabId>('oferta-cliente');
+  useMigas(2, [{ label: SUB_TABS.find((t) => t.id === subTab)?.label ?? '' }]);
 
   return (
     <div className="space-y-6 animate-fade-in">

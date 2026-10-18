@@ -18,6 +18,7 @@ import { FabricacionDetalle } from './FabricacionDetalle';
 import { formatoFechaHora, textoEstadoFabricacion, textoVinculacionCubicacion, varianteEstadoFabricacion } from './utils';
 import { useConfirmar } from '../../../components/ui/Confirmar';
 import { BotonColapsar } from '../../../components/ui/BotonColapsar';
+import { useMigas } from '../../../lib/migas';
 
 interface Props {
   proyecto: Proyecto;
@@ -33,6 +34,8 @@ type SubTab = 'fases' | 'documentos';
 // documentos, sin el switcher de sub-pestañas.
 export const FabricacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
   const [subTab, setSubTab] = useState<SubTab>('fases');
+  const conSubpestanas = proyecto.origen !== 'MANUAL_OBRA' && !!activeVersion;
+  useMigas(2, [conSubpestanas && { label: subTab === 'fases' ? 'Fases' : 'Documentos de fabricación' }]);
 
   if (proyecto.origen === 'MANUAL_OBRA' || !activeVersion) {
     return <DocumentosFabricacionSubTab proyecto={proyecto} />;

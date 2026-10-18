@@ -13,6 +13,7 @@ import { VentanasCubicacion, type FiltroVentanas } from './VentanasCubicacion';
 import { descargarBlob, formatoMonto, lineaReporteSincronizacion, lineasReporteImportacion } from './utils';
 import { IconButton } from '../../../components/ui/IconButton';
 import { InputArchivo } from '../../../components/ui/InputArchivo';
+import { useMigas } from '../../../lib/migas';
 
 interface Props {
   proyecto: Proyecto;
@@ -59,6 +60,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
   const queryClient = useQueryClient();
   const entrada = useRef<HTMLInputElement>(null);
   const [vista, setVista] = useState<'estructura' | 'ventanas' | 'tipos'>('estructura');
+  useMigas(2, [{ label: { estructura: 'Cubicador visual', ventanas: 'Ventanas', tipos: 'Tipos' }[vista] }]);
   const [config, setConfig] = useState(false);
   const [filtro, setFiltro] = useState<FiltroVentanas>({ pisoId: '', torreId: '' });
   const [panel, setPanel] = useState<ResultadoPanel | null>(null);

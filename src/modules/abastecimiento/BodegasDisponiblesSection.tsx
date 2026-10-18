@@ -13,6 +13,7 @@ import type { Bodega, TipoMovimientoBodega } from '../../types';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
 import { EstadoVacio } from '../../components/ui/Estados';
 import { BotonFila } from '../../components/ui/Lista';
+import { useMigas } from '../../lib/migas';
 
 const nombreAsociado = (b: Bodega) => b.proyecto?.obra || b.centroCosto?.nombre || '—';
 
@@ -61,6 +62,7 @@ export const BodegasDisponiblesSection: React.FC = () => {
 
   const bodegas = data?.bodegas ?? [];
   const bodegaActiva = bodegaId ? bodegas.find((b) => b.id === bodegaId) : undefined;
+  useMigas(2, [bodegaActiva && { label: bodegaActiva.nombre }]);
 
   // Stock y movimientos de cada bodega, calculados una sola vez.
   const stockPorBodega = useMemo(() => {

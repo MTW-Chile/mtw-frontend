@@ -6,6 +6,8 @@ import { ReimportModal } from './components/workspace/ReimportModal';
 import { Loader } from '../../components/ui/Loader';
 import { ErrorCarga } from '../../components/ui/Estados';
 import { Button } from '../../components/ui/Button';
+import { useMigas } from '../../lib/migas';
+import { STEPS } from './components/workspace/pasos';
 
 // Cada paso se carga sólo cuando el usuario lo abre, no en el primer
 // render del cotizador: Step2 arrastra todo el motor de geometría SVG
@@ -71,6 +73,7 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
     // Reimportar
     reimportMutation,
   } = useCotizadorWorkspace(proyectoId, pasoInicial);
+  useMigas(1, [{ label: STEPS.find((x) => x.step === currentStep)?.label ?? '' }]);
 
   if (isLoading) {
     return (

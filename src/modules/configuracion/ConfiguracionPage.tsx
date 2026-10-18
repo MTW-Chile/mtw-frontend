@@ -22,6 +22,7 @@ import { PAGE_CONTAINER_CLASS } from '../../lib/designSystem';
 import { usePermisos } from '../../lib/permisos';
 import { useUrlParam, actualizarParams } from '../../lib/navigation';
 import type { Permiso } from '../../types';
+import { useMigas } from '../../lib/migas';
 
 /** Panel de cada sección; `editar` es el permiso que habilita sus controles (la API lo valida igual). */
 const PANELES: Record<string, { Panel: React.ComponentType<{ puedeEditar: boolean }>; editar?: Permiso }> = {
@@ -55,6 +56,7 @@ export const ConfiguracionPage: React.FC = () => {
   const pedida = tab ? (CONFIG_ALIAS[sub ? `${tab}/${sub}` : tab] ?? CONFIG_ALIAS[tab] ?? tab) : null;
   const activa = visibles.find((c) => c.id === pedida) ?? visibles[0];
   const panel = activa ? PANELES[activa.id] : undefined;
+  useMigas(1, [activa && { label: activa.label }]);
 
   const grupos: GrupoNav<string>[] = [];
   for (const s of visibles) {

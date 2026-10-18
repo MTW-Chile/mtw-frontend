@@ -72,6 +72,12 @@ Montos, fechas y unidades se formatean **siempre** con `src/lib/formato.ts`
 - Pestañas dentro de una sección (segundo nivel, ej. Materiales/Proveedores):
   `SubTabs`. Ambas con la pestaña activa en la URL.
 - El encabezado del sitio no repite datos: el nombre va una sola vez.
+- **Migas de pan:** el encabezado del sitio muestra dónde estás, nivel por
+  nivel: "Bodega › Maestro de materiales › Proveedores", "Obras › Edificio X
+  › Cubicación › Tipos". La sección la pone el Header; cada pantalla declara
+  sus niveles con `useMigas(nivel, [{ label, alHacerClic }])` (1 = pestaña de
+  la página, 2 = subpestaña o registro abierto). Toda pestaña o registro
+  nuevo DEBE declararse. Las migas intermedias vuelven a ese nivel.
 - Navegación de configuración con muchas secciones: `NavLateral`.
 - Contenido agrupado en `Seccion` (tarjeta con encabezado). Sin tarjetas
   dentro de tarjetas.

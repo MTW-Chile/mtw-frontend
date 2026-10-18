@@ -2,12 +2,13 @@ import React from 'react';
 import { PackageCheck, ClipboardList, Warehouse, Boxes } from 'lucide-react';
 import { BarraPestanas } from '../../components/ui/PageHeader';
 import { HeaderSeccion } from '../../components/layout/HeaderSeccion';
-import { useUrlParam } from '../../lib/navigation';
+import { useUrlParam, actualizarParams } from '../../lib/navigation';
 import { RecepcionesPendientesSection } from './RecepcionesPendientesSection';
 import { RequisicionesSection } from '../proyectos/RequisicionesSection';
 import { BodegasDisponiblesSection } from './BodegasDisponiblesSection';
 import { MaestroSecciones } from '../cotizaciones/MaestroPage';
 import { PAGE_CONTAINER_CLASS } from '../../lib/designSystem';
+import { useMigas } from '../../lib/migas';
 
 type SubTab = 'recepciones' | 'requisiciones' | 'bodegas' | 'maestro';
 
@@ -26,6 +27,8 @@ export const BodegaPage: React.FC = () => {
   // Pestaña activa en la URL (?tab=...) -- Atras del navegador y F5 la respetan.
   const [tabUrl, setTabUrl] = useUrlParam('tab');
   const activeSubTab: SubTab = tabs.some((t) => t.id === tabUrl) ? (tabUrl as SubTab) : 'recepciones';
+  // Volver a la pestaña limpia lo abierto dentro de ella (subpestaña, bodega).
+  useMigas(1, [{ label: tabs.find((t) => t.id === activeSubTab)!.label, alHacerClic: () => actualizarParams({ tab: activeSubTab, sub: null, bodega: null }) }]);
 
   return (
     <>

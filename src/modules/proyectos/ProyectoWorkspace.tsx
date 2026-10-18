@@ -19,6 +19,7 @@ import { ClayCentroCostoEditor } from './ClayCentroCostoEditor';
 import { seccionDisponible, seccionEfectiva, type SeccionObra } from './seccionesObra';
 import { usePermisos } from '../../lib/permisos';
 import { BarraPestanas } from '../../components/ui/PageHeader';
+import { useMigas } from '../../lib/migas';
 
 // "Control de documentos" (conciliacion de OC contra facturas de Clay) se
 // saco de aca -- vive solo en Compras (ComprasPage > sub-tab
@@ -56,6 +57,8 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
   // presupuesto se ven en gris (ver seccionesObra.ts) y un enlace a una de
   // ellas cae a Fabricacion. Mientras carga la obra no se sabe su origen.
   const seccion: Seccion = seccionEfectiva(seccionInicial, proyecto?.origen);
+  // Volver a la sección cierra lo abierto dentro de ella (ej. un adicional).
+  useMigas(1, [{ label: SECCIONES.find((x) => x.id === seccion)?.label ?? '', alHacerClic: () => actualizarParams({ seccion, adicional: null }) }]);
 
   // La ejecucion real de la obra sigue la version activa (la misma que
   // define versionActivaHetmoId en Cotizaciones), no siempre la de

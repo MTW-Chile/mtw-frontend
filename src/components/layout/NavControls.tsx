@@ -3,6 +3,7 @@ import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, RotateCw, ChevronRight } from 'lucide-react';
 import { getProyectoById } from '../../api/client';
 import { navegar, useLocationHref, usePuedeVolver } from '../../lib/navigation';
+import { useMigasActuales, type Miga } from '../../lib/migas';
 
 // Controles de navegacion "dentro de la app" del Header -- la app es una
 // sola pagina, asi que F5 recarga TODO (permisos, sesion, listados) solo
@@ -47,14 +48,16 @@ export const BotonRecargar: React.FC = () => {
 };
 
 /**
- * Migas de pan: "Proyectos › Edificio X". La primera miga vuelve al
- * listado de la seccion. El nombre de la obra sale del mismo cache que usa
- * la pantalla de detalle (['proyectoDetail', id]), no hace un fetch extra.
+ * Migas de pan: "Sección › nivel › nivel". La sección la da el Sidebar; la
+ * obra abierta sale del mismo cache que usa su pantalla (['proyectoDetail',
+ * id]); el resto lo declara cada pantalla con useMigas (lib/migas.ts). Cada
+ * miga con destino vuelve a ese nivel; la última es la pantalla actual.
  */
 export const MigasDePan: React.FC<{ seccion: string; titulo: string }> = ({ seccion, titulo }) => {
   const href = useLocationHref();
   const params = new URL(href, window.location.origin).searchParams;
   const proyectoId = params.get('proyecto') || params.get('cotizar');
+  const extra = useMigasActuales();
 
   const { data: proyecto } = useQuery({
     queryKey: ['proyectoDetail', proyectoId],
@@ -62,26 +65,31 @@ export const MigasDePan: React.FC<{ seccion: string; titulo: string }> = ({ secc
     enabled: !!proyectoId,
   });
 
+  const migas: Miga[] = [
+    { label: titulo, alHacerClic: () => navegar(`/${seccion}`) },
+    ...(proyectoId ? [{ label: proyecto?.obra || 'Cargando…' }] : []),
+    ...extra,
+  ];
+
   return (
     <nav aria-label="Ruta" className="flex items-center gap-1.5 min-w-0 text-sm">
-      {proyectoId ? (
-        <button
-          onClick={() => navegar(`/${seccion}`)}
-          className="font-semibold text-slate-500 hover:text-brand-700 transition-colors cursor-pointer shrink-0"
-        >
-          {titulo}
-        </button>
-      ) : (
-        <span className="font-bold text-slate-900 tracking-tight truncate">{titulo}</span>
-      )}
-      {proyectoId && (
-        <>
-          <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-          <span className="font-bold text-slate-900 truncate" title={proyecto?.obra}>
-            {proyecto?.obra || 'Cargando…'}
-          </span>
-        </>
-      )}
+      {migas.map((m, i) => {
+        const ultima = i === migas.length - 1;
+        return (
+          <React.Fragment key={`${i}-${m.label}`}>
+            {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />}
+            {ultima || !m.alHacerClic ? (
+              <span className={`truncate ${ultima ? 'font-bold text-slate-900' : 'font-semibold text-slate-500'}`} title={m.label}>
+                {m.label}
+              </span>
+            ) : (
+              <button onClick={m.alHacerClic} className="font-semibold text-slate-500 hover:text-brand-700 transition-colors cursor-pointer truncate max-w-[16rem]" title={m.label}>
+                {m.label}
+              </button>
+            )}
+          </React.Fragment>
+        );
+      })}
     </nav>
   );
 };

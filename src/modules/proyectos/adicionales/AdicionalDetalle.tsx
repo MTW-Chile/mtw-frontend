@@ -32,6 +32,7 @@ import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
 import { useConfirmar } from '../../../components/ui/Confirmar';
 import { Campo, InputCompacto, NumeroInput, SelectCompacto, Textarea } from '../../../components/ui/Campos';
 import { IconButton } from '../../../components/ui/IconButton';
+import { useMigas } from '../../../lib/migas';
 
 // Número editable que guarda al salir del campo (no en cada tecla).
 const NumeroEditable: React.FC<{ valor: number; disabled: boolean; onGuardar: (v: number) => void; className?: string }> = ({ valor, disabled, onGuardar, className }) => (
@@ -55,6 +56,7 @@ export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: strin
   // su versión (que invalidan ese detalle) refresca también sus totales.
   const claveAdicional = ['proyectoDetail', proyecto.id, 'adicional', adicionalId];
   const { data: a, isLoading } = useQuery({ queryKey: claveAdicional, queryFn: () => getAdicional(adicionalId) });
+  useMigas(2, [a && { label: `${codigoAdicional(a)} · ${a.titulo}` }]);
   const { data: partidas = [] } = useQuery({ queryKey: ['partidas'], queryFn: getPartidas });
   const { data: plantillas = [] } = useQuery({ queryKey: ['plantillasOferta', 'ADICIONAL'], queryFn: () => getPlantillasOferta('ADICIONAL') });
   const [agregando, setAgregando] = useState<'material' | 'libre' | null>(null);

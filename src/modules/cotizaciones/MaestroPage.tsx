@@ -4,6 +4,7 @@ import { SubTabs } from '../../components/ui/PageHeader';
 import { useUrlParam } from '../../lib/navigation';
 import { MaestroProductos } from './components/MaestroProductos';
 import { ProveedoresPanel } from './components/ProveedoresPanel';
+import { useMigas } from '../../lib/migas';
 
 type SubTab = 'materiales' | 'proveedores';
 
@@ -22,6 +23,7 @@ export const MaestroSecciones: React.FC = () => {
 
   const [subUrl, setSubUrl] = useUrlParam('sub');
   const activeSubTab: SubTab = tabs.some((t) => t.id === subUrl) ? (subUrl as SubTab) : 'materiales';
+  useMigas(2, [{ label: tabs.find((t) => t.id === activeSubTab)!.label }]);
 
   return (
     <div className="space-y-5">
