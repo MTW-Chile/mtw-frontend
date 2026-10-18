@@ -20,6 +20,7 @@ import { Buscador } from '../../../components/ui/Buscador';
 import { ErrorCarga } from '../../../components/ui/Estados';
 import { mostrarToast } from '../../../lib/toast';
 import { useConfirmar } from '../../../components/ui/Confirmar';
+import { Seccion } from '../../../components/ui/Seccion';
 
 /**
  * Maestro de Proveedores: quién es cada proveedor y sus datos de
@@ -86,14 +87,26 @@ export const ProveedoresPanel: React.FC = () => {
 
   return (
     <div className="space-y-4 sm:space-y-5 animate-fade-in">
-      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center gap-3">
-        <Buscador className="flex-1" valor={searchTerm} onChange={setSearchTerm} placeholder="Buscar por nombre, RUT o email…" />
-        {puedeFusionar && (
-          <Button variant="outline" size="sm" leftIcon={<GitMerge className="w-3.5 h-3.5" />} onClick={() => setReparando(true)}>
-            Reparar duplicados
-          </Button>
-        )}
-      </div>
+      <Seccion
+        titulo={
+          <span className="flex items-center gap-2">
+            Proveedores
+            <Badge size="sm" className="normal-case tracking-normal font-mono">
+              {visibles.length}
+            </Badge>
+          </span>
+        }
+        descripcion="Datos de facturación de cada proveedor. Los que vienen de HETMO conservan lo que edites aquí."
+        acciones={
+          puedeFusionar && (
+            <Button variant="outline" size="sm" leftIcon={<GitMerge className="w-3.5 h-3.5" />} onClick={() => setReparando(true)}>
+              Reparar duplicados
+            </Button>
+          )
+        }
+      >
+        <Buscador valor={searchTerm} onChange={setSearchTerm} placeholder="Buscar por nombre, RUT o email…" />
+      </Seccion>
       {reparando && <RepararDuplicadosModal onClose={() => setReparando(false)} />}
 
       {isLoading ? (

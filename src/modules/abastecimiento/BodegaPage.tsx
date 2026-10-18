@@ -1,6 +1,6 @@
 import React from 'react';
 import { PackageCheck, ClipboardList, Warehouse, Boxes } from 'lucide-react';
-import { SubTabs } from '../../components/ui/PageHeader';
+import { BarraPestanas } from '../../components/ui/PageHeader';
 import { HeaderSeccion } from '../../components/layout/HeaderSeccion';
 import { useUrlParam } from '../../lib/navigation';
 import { RecepcionesPendientesSection } from './RecepcionesPendientesSection';
@@ -28,14 +28,15 @@ export const BodegaPage: React.FC = () => {
   const activeSubTab: SubTab = tabs.some((t) => t.id === tabUrl) ? (tabUrl as SubTab) : 'recepciones';
 
   return (
-    <div className={PAGE_CONTAINER_CLASS}>
+    <>
       <HeaderSeccion titulo="Bodega" />
-      <SubTabs tabs={tabs} active={activeSubTab} onChange={(id) => setTabUrl(id)} />
-
-      {activeSubTab === 'recepciones' && <RecepcionesPendientesSection />}
-      {activeSubTab === 'requisiciones' && <RequisicionesSection />}
-      {activeSubTab === 'bodegas' && <BodegasDisponiblesSection />}
-      {activeSubTab === 'maestro' && <MaestroSecciones />}
-    </div>
+      <BarraPestanas tabs={tabs} active={activeSubTab} onChange={(id) => setTabUrl(id)} />
+      <div className={PAGE_CONTAINER_CLASS}>
+        {activeSubTab === 'recepciones' && <RecepcionesPendientesSection />}
+        {activeSubTab === 'requisiciones' && <RequisicionesSection />}
+        {activeSubTab === 'bodegas' && <BodegasDisponiblesSection />}
+        {activeSubTab === 'maestro' && <MaestroSecciones />}
+      </div>
+    </>
   );
 };

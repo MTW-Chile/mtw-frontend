@@ -1,4 +1,5 @@
 import React, { useEffect, useId } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -38,8 +39,10 @@ export const Modal: React.FC<ModalProps> & { Pie: typeof Pie } = ({ titulo, subt
     return () => document.removeEventListener('keydown', alPresionar);
   }, [onClose, cerrable]);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+  // Portal a <body>: un modal abierto desde una celda de tabla o una tarjeta animada
+  // no hereda su whitespace-nowrap ni queda atrapado por su transform.
+  return createPortal(
+    <div className="fixed inset-0 z-50 whitespace-normal flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
       <div
         role="dialog"
         aria-modal="true"
@@ -57,7 +60,7 @@ export const Modal: React.FC<ModalProps> & { Pie: typeof Pie } = ({ titulo, subt
               <h2 id={idTitulo} className="text-sm font-black tracking-tight text-slate-900 truncate">
                 {titulo}
               </h2>
-              {subtitulo && <p className="text-[11px] text-slate-500 truncate">{subtitulo}</p>}
+              {subtitulo && <p className="text-[11px] text-slate-500 line-clamp-2">{subtitulo}</p>}
             </div>
           </div>
           {/* eslint-disable-next-line react/forbid-elements -- el propio Modal */}
@@ -89,7 +92,8 @@ export const Modal: React.FC<ModalProps> & { Pie: typeof Pie } = ({ titulo, subt
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

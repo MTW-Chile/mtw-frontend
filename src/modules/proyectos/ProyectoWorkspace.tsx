@@ -18,7 +18,7 @@ import { AdicionalesTab } from './adicionales/AdicionalesTab';
 import { ClayCentroCostoEditor } from './ClayCentroCostoEditor';
 import { seccionDisponible, seccionEfectiva, type SeccionObra } from './seccionesObra';
 import { usePermisos } from '../../lib/permisos';
-import { SubTabs } from '../../components/ui/PageHeader';
+import { BarraPestanas } from '../../components/ui/PageHeader';
 
 // "Control de documentos" (conciliacion de OC contra facturas de Clay) se
 // saco de aca -- vive solo en Compras (ComprasPage > sub-tab
@@ -74,9 +74,11 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
             <Badge size="sm" className="hidden sm:inline-flex font-mono font-bold text-slate-600" title="Código de la obra">
               {proyecto.codigoInterno || `PRJ-${proyecto.numeroPresupuesto}`}
             </Badge>
-            <span className="hidden @3xl:inline text-xs text-slate-500 truncate max-w-[220px]" title={proyecto.clienteNombreRaw}>
-              {proyecto.clienteNombreRaw}
-            </span>
+            {proyecto.clienteNombreRaw && proyecto.clienteNombreRaw.trim().toLowerCase() !== proyecto.obra.trim().toLowerCase() && (
+              <span className="hidden @3xl:inline text-xs text-slate-500 truncate max-w-[220px]" title="Cliente">
+                {proyecto.clienteNombreRaw}
+              </span>
+            )}
             <div className="ml-auto hidden sm:block">
               <ClayCentroCostoEditor proyectoId={proyecto.id} valor={proyecto.clayCentroCosto} />
             </div>
@@ -90,8 +92,7 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
             mobile; reemplazado por pedido explicito). overflow-x-auto
             cubre el caso de que no entren todos los tabs en una pantalla
             angosta. */}
-        <div className="bg-white shrink-0 px-2 sm:px-5">
-          <SubTabs
+        <BarraPestanas
             active={seccion}
             onChange={(id) => setSeccion(id)}
             tabs={SECCIONES.filter((s) => s.id !== 'adicionales' || tiene('adicionales.ver')).map((s) => {
@@ -99,7 +100,6 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
               return { id: s.id, label: s.label, icon: s.icon, disabled: !disponible, title: disponible ? s.hint : 'No disponible: esta obra se creó a mano y no fue cotizada' };
             })}
           />
-        </div>
 
         <div className="flex-1 overflow-y-auto p-5 sm:p-6">
           {isLoading ? (

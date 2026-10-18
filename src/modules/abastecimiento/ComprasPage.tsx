@@ -1,6 +1,6 @@
 import React from 'react';
 import { ShoppingCart, FileCheck2, Tags } from 'lucide-react';
-import { SubTabs } from '../../components/ui/PageHeader';
+import { BarraPestanas } from '../../components/ui/PageHeader';
 import { HeaderSeccion } from '../../components/layout/HeaderSeccion';
 import { useUrlParam } from '../../lib/navigation';
 import { OrdenesCompraList } from './OrdenesCompraList';
@@ -31,13 +31,14 @@ export const ComprasPage: React.FC = () => {
   const activeSubTab: SubTab = tabs.some((t) => t.id === tabUrl) ? (tabUrl as SubTab) : 'ordenes';
 
   return (
-    <div className={PAGE_CONTAINER_CLASS}>
+    <>
       <HeaderSeccion titulo="Compras" />
-      <SubTabs tabs={tabs} active={activeSubTab} onChange={(id) => setTabUrl(id)} />
-
-      {activeSubTab === 'ordenes' && <OrdenesCompraList />}
-      {activeSubTab === 'conciliacion' && <ControlDocumentosTab />}
-      {activeSubTab === 'por-clasificar' && <PorClasificarTab />}
-    </div>
+      <BarraPestanas tabs={tabs} active={activeSubTab} onChange={(id) => setTabUrl(id)} />
+      <div className={PAGE_CONTAINER_CLASS}>
+        {activeSubTab === 'ordenes' && <OrdenesCompraList />}
+        {activeSubTab === 'conciliacion' && <ControlDocumentosTab />}
+        {activeSubTab === 'por-clasificar' && <PorClasificarTab />}
+      </div>
+    </>
   );
 };

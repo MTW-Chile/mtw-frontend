@@ -18,6 +18,7 @@ import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
 import { Buscador } from '../../../components/ui/Buscador';
 import { FiltroChips } from '../../../components/ui/FiltroChips';
 import { IconButton } from '../../../components/ui/IconButton';
+import { Seccion } from '../../../components/ui/Seccion';
 
 // El catálogo trae hasta ~2000 materiales -- volcar esa cantidad de filas al
 // DOM de una sola vez (tabla + cards, sin virtualizar) es lo que hacía que
@@ -138,43 +139,27 @@ export const MaestroProductos: React.FC = () => {
 
   return (
     <div className="space-y-4 sm:space-y-5 animate-fade-in">
-      {/* Encabezado Superior */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
-        <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-base sm:text-lg font-black tracking-tight text-slate-900 flex items-center gap-2">
-              <span>Maestro de Productos & Materiales</span>
-            </h2>
-            <Badge variant="brand" size="sm">
-              {materialesFiltradosPorColumna.length} ítems
+      <Seccion
+        titulo={
+          <span className="flex items-center gap-2">
+            Materiales
+            <Badge size="sm" className="normal-case tracking-normal font-mono">
+              {materialesFiltradosPorColumna.length}
             </Badge>
-          </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Catálogo con SKU, tipo de producto, formato de compra y precio de origen. Las reglas de cada tipo se configuran en Configuración › Catálogo.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="primary"
-            size="md"
-            leftIcon={<Plus className="w-4 h-4" />}
-            onClick={() => setIsModalOpen(true)}
-            className="w-full sm:w-auto"
-          >
-            Nuevo Artículo
+          </span>
+        }
+        descripcion="Catálogo con SKU, tipo de producto, formato de compra y precio de origen. Las reglas de cada tipo se configuran en Configuración › Catálogo."
+        acciones={
+          <Button size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setIsModalOpen(true)}>
+            Nuevo artículo
           </Button>
+        }
+      >
+        <div className="space-y-3">
+          <Buscador valor={searchTerm} onChange={setSearchTerm} placeholder="Buscar por SKU, descripción o tipo…" />
+          <FiltroChips etiqueta="Filtrar por tipo de producto" opciones={familiasChips} valor={selectedFamilia} onChange={setSelectedFamilia} />
         </div>
-      </div>
-
-      {/* Barra de Búsqueda y Filtros Responsivos */}
-      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-          <Buscador className="flex-1" valor={searchTerm} onChange={setSearchTerm} placeholder="Buscar por SKU, descripción o tipo…" />
-        </div>
-
-        <FiltroChips etiqueta="Filtrar por tipo de producto" opciones={familiasChips} valor={selectedFamilia} onChange={setSelectedFamilia} />
-      </div>
+      </Seccion>
 
       {/* Contenedor Principal de Datos */}
       {isLoading ? (

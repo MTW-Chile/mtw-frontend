@@ -60,14 +60,18 @@ Montos, fechas y unidades se formatean **siempre** con `src/lib/formato.ts`
 ## 4. Estructura de una página
 
 ```
+<HeaderSeccion titulo=… />                    (título y acciones en el encabezado del sitio)
+<BarraPestanas tabs=… />                      (si la página tiene secciones)
 <div className={PAGE_CONTAINER_CLASS}>
-  <PageHeader title=… description=… actions=… />   o  <HeaderSeccion/>
-  <SubTabs/>                (si tiene secciones)
   <Seccion titulo=… descripcion=… acciones=…>…</Seccion>
 </div>
 ```
 
-- Pestañas de segundo nivel: `SubTabs`, con la pestaña activa en la URL.
+- Pestañas de la página (Obra, Compras, Bodega): `BarraPestanas`, barra blanca
+  bajo el encabezado y fuera del contenedor con padding. Es el estándar.
+- Pestañas dentro de una sección (segundo nivel, ej. Materiales/Proveedores):
+  `SubTabs`. Ambas con la pestaña activa en la URL.
+- El encabezado del sitio no repite datos: el nombre va una sola vez.
 - Navegación de configuración con muchas secciones: `NavLateral`.
 - Contenido agrupado en `Seccion` (tarjeta con encabezado). Sin tarjetas
   dentro de tarjetas.
