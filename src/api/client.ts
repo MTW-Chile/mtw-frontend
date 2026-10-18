@@ -1369,6 +1369,12 @@ export async function getPendientes(proyectoId: string): Promise<ObraPendiente[]
   return response.data;
 }
 
+/** Visor central: los pendientes de todas las obras, cada uno con su obra. */
+export async function getPendientesTodos(): Promise<ObraPendiente[]> {
+  const response = await apiClient.get<ObraPendiente[]>('/pendientes');
+  return response.data;
+}
+
 export async function getPendiente(id: string): Promise<ObraPendienteDetalle> {
   const response = await apiClient.get<ObraPendienteDetalle>(`/pendientes/${id}`);
   return response.data;

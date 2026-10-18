@@ -213,7 +213,7 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
                 </Badge>
               </div>
               <h3 className="font-bold text-sm text-slate-900 group-hover:text-brand-600 transition-colors">
-                Obras
+                Obras en curso
               </h3>
               <p className="text-xs text-slate-500 leading-relaxed">
                 Obras ya aceptadas por el cliente: presupuesto, órdenes de compra, documentos y bodega.
@@ -221,14 +221,14 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
             </div>
 
             <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-700">
-              <span>Ingresar a Obras</span>
+              <span>Ingresar a Obras en curso</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>
 
           {/* Tarjeta Maestro / Materiales */}
           <div
-            onClick={() => onNavigate('cotizaciones')}
+            onClick={() => onNavigate('maestro')}
             className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between space-y-4"
           >
             <div className="space-y-2">
@@ -237,7 +237,7 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
                   <Package className="w-5 h-5" />
                 </div>
                 <Badge variant="default" size="sm">
-                  En Presupuestos
+                  En Abastecimiento
                 </Badge>
               </div>
               <h3 className="font-bold text-sm text-slate-900 group-hover:text-brand-600 transition-colors">

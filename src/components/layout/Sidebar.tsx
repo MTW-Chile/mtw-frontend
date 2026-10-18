@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { X, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-import { SECCIONES_FRONTEND } from '../../lib/accessControl';
+import { X, PanelLeftClose, PanelLeftOpen, ChevronDown } from 'lucide-react';
+import { MENU_LATERAL, SECCIONES_FRONTEND } from '../../lib/accessControl';
 
 // Preferencia de esta pantalla (no de datos): si el menú queda fijado abierto.
 const CLAVE_FIJADO = 'mtw-sidebar-fijado';
@@ -10,6 +10,23 @@ const leerFijado = () => {
     return localStorage.getItem(CLAVE_FIJADO) !== '0';
   } catch {
     return true;
+  }
+};
+// Grupos del menú que la persona dejó desplegados.
+const CLAVE_GRUPOS = 'mtw-sidebar-grupos';
+const leerGrupos = (): string[] | null => {
+  try {
+    const v = localStorage.getItem(CLAVE_GRUPOS);
+    return v ? (JSON.parse(v) as string[]) : null;
+  } catch {
+    return null;
+  }
+};
+const guardarGrupos = (ids: string[]) => {
+  try {
+    localStorage.setItem(CLAVE_GRUPOS, JSON.stringify(ids));
+  } catch {
+    // Sin storage: los grupos se despliegan igual, sin recordarlo.
   }
 };
 const guardarFijado = (valor: boolean) => {
@@ -58,15 +75,27 @@ export const Sidebar: React.FC<{
     ...s,
     count: s.id === 'cotizaciones' ? totalProyectos : s.id === 'proyectos' ? totalProyectosEnCurso : undefined,
   }));
+  const item = (id: string) => menuItems.find((m) => m.id === id);
+
+  // Grupos desplegados: los que la persona dejó abiertos; la primera vez, el de la sección activa.
+  const [abiertos, setAbiertos] = useState<string[]>(
+    () => leerGrupos() ?? MENU_LATERAL.filter((e) => e.tipo === 'grupo' && e.secciones.includes(activeTab)).map((e) => e.id)
+  );
+  const alternarGrupo = (id: string) =>
+    setAbiertos((prev) => {
+      const siguiente = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      guardarGrupos(siguiente);
+      return siguiente;
+    });
 
   // Botón de una sección del Sidebar (usado por el menú principal y por el pie).
-  const renderItem = (item: (typeof menuItems)[number]) => {
+  const renderItem = (item: (typeof menuItems)[number], anidado = false, clave: string = item.id) => {
         const Icon = item.icon;
         const isActive = activeTab === item.id;
 
         return (
           <button
-            key={item.id}
+            key={clave}
             onClick={() => {
               setActiveTab(item.id);
               onClose();
@@ -78,7 +107,7 @@ export const Sidebar: React.FC<{
               isActive
                 ? 'bg-white/10 text-white font-semibold before:absolute before:left-0 before:top-2 before:bottom-2 before:w-[3px] before:rounded-r before:bg-brand-400'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
-            } ${expandido ? '' : 'md:justify-center md:px-0'}`}
+            } ${anidado && expandido ? 'pl-9' : ''} ${expandido ? '' : 'md:justify-center md:px-0'}`}
           >
             <div className={`flex items-center gap-3 min-w-0 ${expandido ? '' : 'md:gap-0'}`}>
               <Icon
@@ -86,6 +115,10 @@ export const Sidebar: React.FC<{
               />
               <span className={`truncate ${ocultarEnRiel}`}>{item.label}</span>
             </div>
+
+            {item.enConstruccion && (
+              <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-white/8 text-slate-500 ${ocultarEnRiel}`}>Pronto</span>
+            )}
 
             {item.count !== undefined && item.count > 0 && (
               <span
@@ -173,14 +206,46 @@ export const Sidebar: React.FC<{
               Menú Principal
             </div>
             <nav className="space-y-1">
-              {menuItems.filter((item) => item.id !== 'configuracion').map(renderItem)}
+              {MENU_LATERAL.map((entrada) => {
+                if (entrada.tipo === 'seccion') {
+                  const it = item(entrada.id);
+                  return it ? renderItem(it) : null;
+                }
+                const hijos = entrada.secciones.map(item).filter((x): x is NonNullable<typeof x> => !!x);
+                if (hijos.length === 0) return null;
+                const GrupoIcon = entrada.icon;
+                const abierto = abiertos.includes(entrada.id);
+                const contieneActiva = hijos.some((h) => h.id === activeTab);
+                return (
+                  <div key={entrada.id} className="space-y-1">
+                    {/* En el riel (contraído) no hay grupos que desplegar: se ve un separador y los íconos. */}
+                    <div className={`hidden ${expandido ? '' : 'md:block'} mx-2 my-2 border-t border-white/8`} />
+                    <button
+                      onClick={() => alternarGrupo(entrada.id)}
+                      aria-expanded={abierto}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors cursor-pointer hover:bg-white/5 ${
+                        contieneActiva && !abierto ? 'text-white' : 'text-slate-400 hover:text-white'
+                      } ${expandido ? '' : 'md:hidden'}`}
+                    >
+                      <span className="flex items-center gap-3 min-w-0">
+                        <GrupoIcon className={`w-4 h-4 shrink-0 ${contieneActiva ? 'text-brand-300' : 'text-slate-500'}`} />
+                        <span className="truncate">{entrada.titulo}</span>
+                      </span>
+                      <ChevronDown className={`w-3.5 h-3.5 shrink-0 text-slate-500 transition-transform ${abierto ? 'rotate-180' : ''}`} />
+                    </button>
+                    <div className={`space-y-1 ${abierto ? '' : 'hidden'} ${expandido ? '' : 'md:block'}`}>
+                      {hijos.map((h) => renderItem(h, true, `${entrada.id}-${h.id}`))}
+                    </div>
+                  </div>
+                );
+              })}
             </nav>
           </div>
         </div>
 
         {menuItems.some((item) => item.id === 'configuracion') && (
           <div className="pt-2 border-t border-white/10">
-            {menuItems.filter((item) => item.id === 'configuracion').map(renderItem)}
+            {menuItems.filter((item) => item.id === 'configuracion').map((it) => renderItem(it))}
           </div>
         )}
       </aside>

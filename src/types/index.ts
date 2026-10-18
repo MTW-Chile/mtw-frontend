@@ -1485,6 +1485,8 @@ export interface ObraPendiente {
   id: string;
   numero: number;
   proyectoId: string;
+  // Solo en el visor central (GET /pendientes).
+  proyecto?: { id: string; obra: string; codigoInterno: string | null; numeroPresupuesto: number };
   origen: OrigenPendiente;
   destino: DestinoPendiente;
   tipo: TipoElementoPendiente;

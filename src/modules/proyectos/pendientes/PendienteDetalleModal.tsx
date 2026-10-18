@@ -71,7 +71,7 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
   });
 
   const refrescar = () => {
-    queryClient.invalidateQueries({ queryKey: ['pendientes', proyectoId] });
+    queryClient.invalidateQueries({ queryKey: ['pendientes'] }); // la lista de la obra y el visor central
     queryClient.invalidateQueries({ queryKey: ['pendiente', pendienteId] });
   };
 
@@ -87,7 +87,7 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
   const eliminar = useMutation({
     mutationFn: () => eliminarPendiente(pendienteId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pendientes', proyectoId] });
+      queryClient.invalidateQueries({ queryKey: ['pendientes'] }); // la lista de la obra y el visor central
       onClose();
     },
   });

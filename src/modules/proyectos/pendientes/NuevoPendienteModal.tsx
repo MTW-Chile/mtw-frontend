@@ -189,7 +189,7 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
       return creado;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pendientes', proyecto.id] });
+      queryClient.invalidateQueries({ queryKey: ['pendientes'] }); // la lista de la obra y el visor central
       onCreado();
     },
     onError: (e) => {

@@ -1,5 +1,5 @@
 import type { ElementType } from 'react';
-import { LayoutDashboard, Building, Building2, FolderKanban, Settings, FileText, DoorClosed, ShieldCheck, Warehouse, ShoppingCart, Users, ListChecks, Cloud, Boxes, SlidersHorizontal, Tags, Calculator, Ruler, Workflow } from 'lucide-react';
+import { LayoutDashboard, Building, Building2, FolderKanban, Settings, FileText, DoorClosed, ShieldCheck, Warehouse, ShoppingCart, Users, ListChecks, Cloud, Boxes, SlidersHorizontal, Tags, Calculator, Ruler, Workflow, ClipboardList, Factory, Briefcase, Hammer, Truck } from 'lucide-react';
 import type { Permiso } from '../types';
 
 export interface EntradaAcceso {
@@ -9,6 +9,8 @@ export interface EntradaAcceso {
   // Se muestra si el usuario tiene AL MENOS UNO de estos permisos (catalogo de
   // mtw-api). La API exige lo mismo en sus rutas: ocultar aca es solo UX.
   permisos: Permiso[];
+  // Visible en el menú pero aún sin construir: abre un aviso.
+  enConstruccion?: boolean;
 }
 
 // Secciones del Sidebar y pestañas de Configuración, con el permiso que las
@@ -53,21 +55,40 @@ export const CONFIG_ALIAS: Record<string, string> = {
   'catalogo/familias': 'familias-hetmo',
 };
 
+// Lo ve cualquiera que entra al ERP (Inicio y las secciones en construcción).
+const PERMISOS_GENERALES: Permiso[] = ['presupuestos.ver', 'obras.ver', 'compras.ver', 'bodega.ver', 'clientes.ver'];
+
 export const SECCIONES_FRONTEND: EntradaAcceso[] = [
-  {
-    id: 'inicio',
-    label: 'Inicio',
-    icon: LayoutDashboard,
-    permisos: ['presupuestos.ver', 'obras.ver', 'compras.ver', 'bodega.ver', 'clientes.ver'],
-  },
+  { id: 'inicio', label: 'Inicio', icon: LayoutDashboard, permisos: PERMISOS_GENERALES },
   { id: 'clientes', label: 'Clientes', icon: Users, permisos: ['clientes.ver'] },
+  { id: 'proveedores', label: 'Proveedores', icon: Building, permisos: ['catalogo.ver'] },
   // El id sigue siendo 'cotizaciones' (URLs y enlaces de correo existentes);
   // solo cambia el nombre visible.
   { id: 'cotizaciones', label: 'Presupuestos', icon: Building2, permisos: ['presupuestos.ver'] },
-  { id: 'proyectos', label: 'Obras', icon: FolderKanban, permisos: ['obras.ver'] },
+  // Igual: el id sigue siendo 'proyectos'.
+  { id: 'proyectos', label: 'Obras en curso', icon: FolderKanban, permisos: ['obras.ver'] },
+  { id: 'pendientes', label: 'Pendientes en obra', icon: ClipboardList, permisos: ['pendientes.ver'] },
+  { id: 'fabricacion', label: 'Fabricación', icon: Factory, permisos: PERMISOS_GENERALES, enConstruccion: true },
   { id: 'compras', label: 'Compras', icon: ShoppingCart, permisos: ['compras.ver'] },
   { id: 'bodega', label: 'Bodega', icon: Warehouse, permisos: ['bodega.ver'] },
+  { id: 'maestro', label: 'Maestro de materiales', icon: Boxes, permisos: ['catalogo.ver'] },
+  { id: 'contabilidad', label: 'Contabilidad', icon: Calculator, permisos: PERMISOS_GENERALES, enConstruccion: true },
   { id: 'configuracion', label: 'Configuración', icon: Settings, permisos: CONFIG_SECCIONES.flatMap((t) => t.permisos) },
+];
+
+/**
+ * Menú lateral: entradas sueltas y grupos que se despliegan. Una sección puede
+ * estar en más de un grupo (Pendientes en obra en Comercial y en Taller).
+ * Configuración va siempre fijada abajo, fuera de esta lista.
+ */
+export type EntradaMenu = { tipo: 'seccion'; id: string } | { tipo: 'grupo'; id: string; titulo: string; icon: ElementType; secciones: string[] };
+
+export const MENU_LATERAL: EntradaMenu[] = [
+  { tipo: 'seccion', id: 'inicio' },
+  { tipo: 'grupo', id: 'comercial', titulo: 'Comercial', icon: Briefcase, secciones: ['clientes', 'proveedores', 'cotizaciones', 'proyectos', 'pendientes'] },
+  { tipo: 'grupo', id: 'taller', titulo: 'Taller', icon: Hammer, secciones: ['fabricacion', 'pendientes'] },
+  { tipo: 'grupo', id: 'abastecimiento', titulo: 'Abastecimiento', icon: Truck, secciones: ['compras', 'bodega', 'maestro'] },
+  { tipo: 'seccion', id: 'contabilidad' },
 ];
 
 export function entradaVisible(entrada: EntradaAcceso, tieneAlguno: (...permisos: Permiso[]) => boolean): boolean {

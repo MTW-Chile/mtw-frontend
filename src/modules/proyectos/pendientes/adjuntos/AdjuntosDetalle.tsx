@@ -67,7 +67,7 @@ export const AdjuntosDetalle: React.FC<Props> = ({ proyectoId, pendienteId, adju
 
   const refrescar = () => {
     queryClient.invalidateQueries({ queryKey: ['pendiente', pendienteId] });
-    queryClient.invalidateQueries({ queryKey: ['pendientes', proyectoId] });
+    queryClient.invalidateQueries({ queryKey: ['pendientes'] }); // la lista de la obra y el visor central
   };
 
   const quitar = useMutation({
