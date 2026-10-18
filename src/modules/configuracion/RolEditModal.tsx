@@ -1,8 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { X, ShieldCheck, AlertCircle, Crown } from 'lucide-react';
+import { ShieldCheck, Crown } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { Modal } from '../../components/ui/Modal';
+import { Aviso } from '../../components/ui/Aviso';
+import { Casilla } from '../../components/ui/Campos';
+import { Cargando } from '../../components/ui/Estados';
 import { createRol, getCatalogoPermisos, updateRol } from '../../api/client';
 import type { ModuloPermisos, Rol } from '../../types';
 
@@ -77,8 +81,8 @@ export const RolEditModal: React.FC<RolEditModalProps> = ({ rol, onClose }) => {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
     setGeneralError(null);
     if (!nombre.trim()) {
       setGeneralError('El nombre es obligatorio.');
@@ -88,116 +92,84 @@ export const RolEditModal: React.FC<RolEditModalProps> = ({ rol, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
-      <div
-        className="w-full sm:max-w-2xl bg-white rounded-t-2xl sm:rounded-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[94vh] sm:max-h-[90vh] animate-slide-up sm:animate-none"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-brand-600/10 border border-brand-600/20 flex items-center justify-center text-brand-600 shrink-0">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-sm font-black tracking-tight text-slate-900">{esNuevo ? 'Nuevo rol' : rol!.nombre}</h2>
-              <p className="text-[11px] text-slate-500">Qué puede hacer en el sistema quien tenga este rol</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar"
-            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-5 space-y-5 overflow-y-auto flex-1">
-          {generalError && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{generalError}</span>
-            </div>
-          )}
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="Nombre del rol" placeholder="Ej: Jefe Comercial" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
-            <Input
-              label="Descripción"
-              placeholder="Para qué sirve este rol"
-              value={descripcion}
-              onChange={(e) => setDescripcion(e.target.value)}
-            />
-          </div>
-
-          <label className="flex items-start gap-3 p-3 rounded-xl border border-amber-200 bg-amber-50/60 cursor-pointer">
-            <input
-              type="checkbox"
-              className="mt-0.5 accent-amber-600"
-              checked={esAdministradorNegocio}
-              onChange={(e) => setEsAdministradorNegocio(e.target.checked)}
-            />
-            <span className="text-xs text-slate-700">
-              <span className="flex items-center gap-1.5 font-bold text-slate-900">
-                <Crown className="w-3.5 h-3.5 text-amber-600" /> Administrador de negocio
-              </span>
-              <span className="block mt-0.5 text-slate-600">
-                Tiene todos los permisos de negocio, incluidos los que se agreguen en el futuro. No incluye las funciones
-                técnicas del sistema.
-              </span>
-            </span>
-          </label>
-
-          {!esAdministradorNegocio && (
-            <div className="space-y-4">
-              {cargandoCatalogo && <p className="text-xs text-slate-400">Cargando permisos…</p>}
-              {catalogo.map((modulo) => (
-                <fieldset key={modulo.id} className="rounded-xl border border-slate-200 overflow-hidden">
-                  <legend className="sr-only">{modulo.nombre}</legend>
-                  <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    {modulo.nombre}
-                  </div>
-                  <div className="divide-y divide-slate-100">
-                    {modulo.permisos.map((p) => {
-                      const marcado = permisos.includes(p.clave);
-                      const incluidoPor = incluidos.get(p.clave);
-                      return (
-                        <label
-                          key={p.clave}
-                          className={`flex items-start gap-3 px-4 py-2.5 text-xs ${incluidoPor ? 'cursor-default' : 'cursor-pointer hover:bg-slate-50/60'}`}
-                        >
-                          <input
-                            type="checkbox"
-                            className="mt-0.5 accent-brand-600"
-                            checked={marcado || !!incluidoPor}
-                            disabled={!!incluidoPor}
-                            onChange={() => toggle(p.clave)}
-                          />
-                          <span className="min-w-0">
-                            <span className="font-semibold text-slate-800">{p.nombre}</span>
-                            <span className="block text-slate-500">{p.descripcion}</span>
-                            {incluidoPor && <span className="block text-[11px] text-brand-700">Incluido por «{incluidoPor}»</span>}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </fieldset>
-              ))}
-            </div>
-          )}
-        </form>
-
-        <div className="px-5 py-3.5 border-t border-slate-100 flex justify-end gap-2 bg-slate-50/50 shrink-0">
-          <Button type="button" variant="ghost" onClick={onClose}>
+    <Modal
+      icono={ShieldCheck}
+      ancho="lg"
+      titulo={esNuevo ? 'Nuevo rol' : rol!.nombre}
+      subtitulo="Qué puede hacer en el sistema quien tenga este rol"
+      onClose={onClose}
+      cerrable={!mutation.isPending}
+      onSubmit={handleSubmit}
+      pie={
+        <Modal.Pie>
+          <Button type="button" variant="outline" onClick={onClose}>
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} isLoading={mutation.isPending}>
+          <Button type="submit" isLoading={mutation.isPending}>
             {esNuevo ? 'Crear rol' : 'Guardar cambios'}
           </Button>
-        </div>
+        </Modal.Pie>
+      }
+    >
+      {generalError && <Aviso tono="peligro">{generalError}</Aviso>}
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Input label="Nombre del rol" placeholder="Ej: Jefe Comercial" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
+        <Input
+          label="Descripción"
+          placeholder="Para qué sirve este rol"
+          value={descripcion}
+          onChange={(e) => setDescripcion(e.target.value)}
+        />
       </div>
-    </div>
+
+      <Casilla
+        className="flex! p-3 rounded-xl border border-amber-200 bg-amber-50/60"
+        checked={esAdministradorNegocio}
+        onChange={setEsAdministradorNegocio}
+        label={
+          <span className="flex items-center gap-1.5">
+            <Crown className="w-3.5 h-3.5 text-amber-600" /> Administrador de negocio
+          </span>
+        }
+        descripcion="Tiene todos los permisos de negocio, incluidos los que se agreguen en el futuro. No incluye las funciones técnicas del sistema."
+      />
+
+      {!esAdministradorNegocio && (
+        <div className="space-y-4">
+          {cargandoCatalogo && <Cargando texto="Cargando permisos…" />}
+          {catalogo.map((modulo) => (
+            <fieldset key={modulo.id} className="rounded-xl border border-slate-200 overflow-hidden">
+              <legend className="sr-only">{modulo.nombre}</legend>
+              <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                {modulo.nombre}
+              </div>
+              <div className="divide-y divide-slate-100">
+                {modulo.permisos.map((p) => {
+                  const marcado = permisos.includes(p.clave);
+                  const incluidoPor = incluidos.get(p.clave);
+                  return (
+                    <Casilla
+                      key={p.clave}
+                      className="flex! px-4 py-2.5 hover:bg-slate-50/60"
+                      checked={marcado || !!incluidoPor}
+                      disabled={!!incluidoPor}
+                      onChange={() => toggle(p.clave)}
+                      label={p.nombre}
+                      descripcion={
+                        <>
+                          {p.descripcion}
+                          {incluidoPor && <span className="block text-[11px] text-brand-700">Incluido por «{incluidoPor}»</span>}
+                        </>
+                      }
+                    />
+                  );
+                })}
+              </div>
+            </fieldset>
+          ))}
+        </div>
+      )}
+    </Modal>
   );
 };

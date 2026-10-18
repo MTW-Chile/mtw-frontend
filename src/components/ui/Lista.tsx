@@ -1,0 +1,32 @@
+import React from 'react';
+
+/**
+ * Lista de registros como filas (DESIGN.md 5), para cuando una tabla sobra:
+ * pocos campos por registro y acciones a la derecha (roles, usuarios,
+ * plantillas). Va dentro de una Seccion con `sinRelleno`.
+ */
+export const Lista: React.FC<{ children: React.ReactNode }> = ({ children }) => <ul className="divide-y divide-slate-100">{children}</ul>;
+
+export const FilaLista: React.FC<{
+  titulo: React.ReactNode;
+  /** Badges junto al título. */
+  insignias?: React.ReactNode;
+  /** Líneas de detalle bajo el título. */
+  children?: React.ReactNode;
+  /** Controles a la izquierda (ej. reordenar). */
+  inicio?: React.ReactNode;
+  acciones?: React.ReactNode;
+  atenuada?: boolean;
+}> = ({ titulo, insignias, children, inicio, acciones, atenuada }) => (
+  <li className={`flex items-center justify-between gap-3 px-5 py-3 hover:bg-slate-50/70 transition-colors ${atenuada ? 'opacity-60' : ''}`}>
+    {inicio && <div className="shrink-0">{inicio}</div>}
+    <div className="min-w-0 flex-1">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-xs font-bold text-slate-900 truncate">{titulo}</span>
+        {insignias}
+      </div>
+      {children && <div className="text-[11px] text-slate-500 space-y-0.5">{children}</div>}
+    </div>
+    {acciones && <div className="flex items-center gap-1 shrink-0">{acciones}</div>}
+  </li>
+);

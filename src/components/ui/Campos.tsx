@@ -105,7 +105,9 @@ export const Interruptor: React.FC<{
   etiqueta: string;
   label?: React.ReactNode;
   helperText?: React.ReactNode;
-}> = ({ valor, onChange, disabled, etiqueta, label, helperText }) => {
+  /** Con borde, para grillas de ajustes. */
+  enTarjeta?: boolean;
+}> = ({ valor, onChange, disabled, etiqueta, label, helperText, enTarjeta }) => {
   const control = (
     <button
       type="button"
@@ -124,34 +126,99 @@ export const Interruptor: React.FC<{
   );
   if (!label) return control;
   return (
-    <div className="flex items-start gap-2.5 text-xs">
+    <label className={`flex items-start gap-2.5 text-xs ${disabled ? '' : 'cursor-pointer'} ${enTarjeta ? 'p-3 rounded-xl border border-slate-200' : ''}`}>
       {control}
       <span>
         <span className="block font-bold text-slate-800">{label}</span>
         {helperText && <span className="block text-[11px] text-slate-500">{helperText}</span>}
       </span>
-    </div>
+    </label>
   );
 };
 
-/** Casilla para elegir elementos de una lista. */
-export const Casilla: React.FC<{ checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; label?: React.ReactNode; 'aria-label'?: string }> = ({
-  checked,
+/**
+ * Elegir una opción entre pocas, como tarjetas (radio). Para muchas opciones
+ * usar Select.
+ */
+export function OpcionesTarjeta<T extends string>({
+  legend,
+  opciones,
+  valor,
   onChange,
+  columnas = 3,
   disabled,
-  label,
-  ...rest
-}) => (
-  <label className={`inline-flex items-center gap-2 text-xs ${disabled ? 'opacity-60' : 'cursor-pointer'}`}>
+}: {
+  legend?: React.ReactNode;
+  opciones: { value: T; label: React.ReactNode; ayuda?: React.ReactNode; icono?: React.ReactNode }[];
+  valor: T | null | undefined;
+  onChange: (v: T) => void;
+  columnas?: 2 | 3 | 4;
+  disabled?: boolean;
+}) {
+  const nombre = useId();
+  const cols = { 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-2 lg:grid-cols-4' }[columnas];
+  return (
+    <fieldset className="space-y-2" disabled={disabled}>
+      {legend && <legend className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">{legend}</legend>}
+      <div className={`grid grid-cols-1 ${cols} gap-2`}>
+        {opciones.map((o) => {
+          const sel = o.value === valor;
+          return (
+            <label
+              key={o.value}
+              className={`p-3 rounded-xl border text-xs transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-600/30 ${
+                disabled ? 'opacity-60' : 'cursor-pointer'
+              } ${sel ? 'border-brand-600 bg-brand-50/50' : 'border-slate-200 hover:border-slate-300'}`}
+            >
+              <input type="radio" name={nombre} className="sr-only" checked={sel} onChange={() => onChange(o.value)} />
+              <span className="flex items-center gap-1.5 font-bold text-slate-900">
+                {o.icono}
+                {o.label}
+              </span>
+              {o.ayuda && <span className="block text-[11px] text-slate-500 mt-0.5">{o.ayuda}</span>}
+            </label>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
+/** Grupo de campos con título, en grilla (formularios de ajustes). */
+export const GrupoCampos: React.FC<{ titulo: React.ReactNode; columnas?: 1 | 2 | 3; children: React.ReactNode }> = ({ titulo, columnas = 3, children }) => (
+  <fieldset className="space-y-3">
+    <legend className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">{titulo}</legend>
+    <div className={`grid grid-cols-1 gap-4 ${columnas === 3 ? 'sm:grid-cols-2 lg:grid-cols-3' : columnas === 2 ? 'sm:grid-cols-2' : ''}`}>{children}</div>
+  </fieldset>
+);
+
+/** Casilla para elegir elementos de una lista. Con `descripcion`, va en dos líneas. */
+export const Casilla: React.FC<{
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+  label?: React.ReactNode;
+  descripcion?: React.ReactNode;
+  className?: string;
+  'aria-label'?: string;
+}> = ({ checked, onChange, disabled, label, descripcion, className = '', ...rest }) => (
+  <label className={`inline-flex ${descripcion ? 'items-start' : 'items-center'} gap-2 text-xs ${disabled ? 'opacity-60' : 'cursor-pointer'} ${className}`}>
     <input
       type="checkbox"
-      className="accent-brand-600 w-3.5 h-3.5"
+      className={`accent-brand-600 w-3.5 h-3.5 shrink-0 ${descripcion ? 'mt-0.5' : ''}`}
       checked={checked}
       disabled={disabled}
       aria-label={rest['aria-label']}
       onChange={(e) => onChange(e.target.checked)}
     />
-    {label}
+    {descripcion ? (
+      <span className="min-w-0">
+        <span className="block font-semibold text-slate-800">{label}</span>
+        <span className="block text-slate-500">{descripcion}</span>
+      </span>
+    ) : (
+      label
+    )}
   </label>
 );
 

@@ -84,8 +84,10 @@ Montos, fechas y unidades se formatean **siempre** con `src/lib/formato.ts`
 | Aviso en la página | `Aviso` (`info`, `exito`, `advertencia`, `peligro`) | cajas de color a mano |
 | Campo con etiqueta | `Input`, `Select`, `Textarea`, `NumeroInput`, `Campo` | `<input>`, `<select>`, `<textarea>` sueltos |
 | Campo dentro de una tabla editable | `InputCompacto`, `SelectCompacto`, `NumeroInput` (siempre con `aria-label`) | |
-| Sí/no | `Interruptor` (ajuste) o `Casilla` (selección en lista) | checkbox suelto |
+| Sí/no | `Interruptor` (ajuste; `label` + `enTarjeta` en grillas) o `Casilla` (selección en lista) | checkbox suelto |
+| Una opción entre pocas | `OpcionesTarjeta` (radio en tarjetas); entre muchas, `Select` | radios sueltos |
 | Estado de carga / vacío / error | `Cargando`, `EstadoVacio`, `ErrorCarga` | spinners y textos sueltos |
+| Lista de registros con pocos campos | `Lista`, `FilaLista` (dentro de `Seccion sinRelleno`) | tarjetas por fila a mano |
 | Estado de un registro | `Badge` | spans con color |
 | Indicador numérico | `StatCard` | |
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 export interface SelectOption {
@@ -16,7 +16,8 @@ export interface SelectProps
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
   ({ label, error, helperText, options, className = '', id, ...props }, ref) => {
-    const selectId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
+    const generado = useId();
+    const selectId = id || generado;
 
     return (
       <div className="space-y-1.5 w-full">
@@ -32,7 +33,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           <select
             ref={ref}
             id={selectId}
-            className={`w-full py-2.5 pl-3.5 pr-10 rounded-xl bg-slate-50 border text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600 focus:ring-2 focus:ring-brand-600/10 transition-all appearance-none cursor-pointer ${
+            className={`w-full py-2.5 pl-3.5 pr-10 rounded-xl bg-slate-50 border text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600 focus:ring-2 focus:ring-brand-600/10 transition-all appearance-none cursor-pointer disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed ${
               error ? 'border-rose-300 bg-rose-50/30' : 'border-slate-200'
             } ${className}`}
             {...props}

@@ -1,7 +1,14 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { DoorClosed, Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { DoorClosed, Plus, Pencil, Trash2 } from 'lucide-react';
 import { getPlantillasLinea, eliminarPlantillaLinea } from '../../api/client';
+import { Button } from '../../components/ui/Button';
+import { IconButton } from '../../components/ui/IconButton';
+import { Badge } from '../../components/ui/Badge';
+import { Seccion } from '../../components/ui/Seccion';
+import { FilaLista, Lista } from '../../components/ui/Lista';
+import { Cargando, EstadoVacio, ErrorCarga } from '../../components/ui/Estados';
+import { useConfirmar } from '../../components/ui/Confirmar';
 import type { PlantillaLinea } from '../../types';
 import { PlantillaLineaEditModal } from './PlantillaLineaEditModal';
 
@@ -12,110 +19,80 @@ import { PlantillaLineaEditModal } from './PlantillaLineaEditModal';
  */
 export const PlantillasPuertasPanel: React.FC = () => {
   const queryClient = useQueryClient();
-  const [editando, setEditando] = useState<PlantillaLinea | null>(null);
-  const [creandoNueva, setCreandoNueva] = useState(false);
-  const [eliminandoId, setEliminandoId] = useState<string | null>(null);
+  const { confirmar } = useConfirmar();
+  const [editando, setEditando] = useState<PlantillaLinea | 'nueva' | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery<PlantillaLinea[]>({
     queryKey: ['plantillasLinea'],
     queryFn: async () => (await getPlantillasLinea()).data,
   });
-
   const plantillas = data || [];
 
-  const deleteMutation = useMutation({
+  const eliminar = useMutation({
     mutationFn: (id: string) => eliminarPlantillaLinea(id),
-    onMutate: (id) => setEliminandoId(id),
-    onSettled: () => setEliminandoId(null),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['plantillasLinea'] }),
   });
 
+  const pedirEliminar = async (p: PlantillaLinea) => {
+    const ok = await confirmar({
+      titulo: `¿Eliminar la plantilla "${p.nombre}"?`,
+      mensaje: 'Las puertas ya agregadas a proyectos no se ven afectadas.',
+      confirmar: 'Eliminar',
+      peligro: true,
+    });
+    if (ok) eliminar.mutate(p.id);
+  };
+
   return (
-    <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">Plantillas de Puertas Protex</h2>
-          <p className="text-[11px] text-slate-500 mt-0.5">
-            Herrajes que lleva cada tipo de puerta -- se usan al agregar una línea manual en Revisión de Líneas.
-          </p>
-        </div>
-        <button
-          onClick={() => setCreandoNueva(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold text-brand-600 bg-brand-50 hover:bg-brand-100 border border-brand-200 transition-colors cursor-pointer shrink-0"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Nueva Plantilla</span>
-        </button>
-      </div>
-
+    <Seccion
+      sinRelleno
+      titulo="Plantillas de puertas Protex"
+      descripcion="Herrajes que lleva cada tipo de puerta. Se usan al agregar una línea manual en Revisión de Líneas."
+      acciones={
+        <Button size="sm" variant="outline" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setEditando('nueva')}>
+          Nueva plantilla
+        </Button>
+      }
+    >
       {isLoading ? (
-        <div className="py-8 flex items-center justify-center text-slate-400">
-          <Loader2 className="w-5 h-5 animate-spin" />
-        </div>
+        <Cargando />
       ) : isError ? (
-        <div className="py-6 text-center space-y-2">
-          <p className="text-xs font-bold text-rose-600">Error al consultar las plantillas.</p>
-          <button onClick={() => refetch()} className="text-xs font-bold text-brand-600 hover:underline cursor-pointer">
-            Reintentar
-          </button>
-        </div>
+        <ErrorCarga que="las plantillas" onReintentar={refetch} />
       ) : plantillas.length === 0 ? (
-        <div className="py-8 text-center space-y-2">
-          <DoorClosed className="w-8 h-8 text-slate-300 mx-auto" />
-          <p className="text-xs text-slate-500">Aún no hay plantillas de puerta configuradas.</p>
-        </div>
+        <EstadoVacio enTarjeta={false} icono={DoorClosed} titulo="Aún no hay plantillas de puerta configuradas" />
       ) : (
-        <div className="space-y-2">
+        <Lista>
           {plantillas.map((p) => (
-            <div
+            <FilaLista
               key={p.id}
-              className="flex items-center justify-between gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50/80 transition-colors"
+              titulo={p.nombre}
+              insignias={
+                <Badge size="sm" variant="info">
+                  {p.hojas} {p.hojas === 1 ? 'hoja' : 'hojas'}
+                </Badge>
+              }
+              acciones={
+                <>
+                  <Button size="sm" variant="ghost" leftIcon={<Pencil className="w-3.5 h-3.5" />} onClick={() => setEditando(p)}>
+                    Editar
+                  </Button>
+                  <IconButton
+                    icono={Trash2}
+                    tono="peligro"
+                    etiqueta={`Eliminar la plantilla ${p.nombre}`}
+                    cargando={eliminar.isPending && eliminar.variables === p.id}
+                    onClick={() => pedirEliminar(p)}
+                  />
+                </>
+              }
             >
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <div className="text-xs font-bold text-slate-900">{p.nombre}</div>
-                  <span className="text-[10px] font-bold uppercase text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded-md shrink-0">
-                    {p.hojas} {p.hojas === 1 ? 'Hoja' : 'Hojas'}
-                  </span>
-                </div>
-                <div className="text-[11px] text-slate-500">
-                  {p.items.length} {p.items.length === 1 ? 'material' : 'materiales'}
-                </div>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => setEditando(p)}
-                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-brand-600 hover:bg-brand-50 transition-colors cursor-pointer"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  <span>Editar</span>
-                </button>
-                <button
-                  onClick={() => {
-                    if (window.confirm(`¿Eliminar la plantilla "${p.nombre}"? Las puertas ya agregadas a proyectos no se ven afectadas.`)) {
-                      deleteMutation.mutate(p.id);
-                    }
-                  }}
-                  disabled={eliminandoId === p.id}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  {eliminandoId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-            </div>
+              {p.items.length} {p.items.length === 1 ? 'material' : 'materiales'}
+            </FilaLista>
           ))}
-        </div>
+        </Lista>
       )}
 
-      {(editando || creandoNueva) && (
-        <PlantillaLineaEditModal
-          plantilla={editando}
-          onClose={() => {
-            setEditando(null);
-            setCreandoNueva(false);
-          }}
-        />
-      )}
-    </div>
+      {editando && <PlantillaLineaEditModal plantilla={editando === 'nueva' ? null : editando} onClose={() => setEditando(null)} />}
+    </Seccion>
   );
 };

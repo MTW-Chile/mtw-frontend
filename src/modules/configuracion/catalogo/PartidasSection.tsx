@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Save, Loader2, X } from 'lucide-react';
+import { Plus, Save, X } from 'lucide-react';
 import { createPartida, getPartidas, updatePartida, type PartidaPayload } from '../../../api/client';
-import { TABLE_CLASS, TABLE_WRAPPER_CLASS } from '../../../lib/designSystem';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
 import type { Partida } from '../../../types';
-import { CAMPO_CLASS, Cargando, ErrorCarga, Interruptor, Seccion, avisarError } from './comun';
+import { IconButton } from '../../../components/ui/IconButton';
+import { Seccion } from '../../../components/ui/Seccion';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
+import { InputCompacto, Interruptor } from '../../../components/ui/Campos';
+import { Cargando, ErrorCarga } from '../../../components/ui/Estados';
+import { avisarError } from './comun';
 
 type Edicion = { nombre: string; integracionClay: string; orden: string };
 
@@ -62,9 +66,10 @@ export const PartidasSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdita
 
   return (
     <Seccion
+      sinRelleno
       titulo="Partidas"
       descripcion="Agrupan la Analítica, la Hoja de Fijación, las OC y el Control de Presupuesto. El orden es el de la Analítica; el código Clay es la cuenta contable de la integración."
-      accion={
+      acciones={
         puedeEditar && !nueva ? (
           <Button size="sm" variant="outline" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setNueva({ codigo: '', nombre: '', integracionClay: '', orden: String(partidas.length * 10) })}>
             Nueva partida
@@ -72,76 +77,73 @@ export const PartidasSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdita
         ) : undefined
       }
     >
-      <div className={TABLE_WRAPPER_CLASS}>
-        <table className={`${TABLE_CLASS} text-left text-slate-700`}>
-          <thead className="bg-slate-50/80 border-b border-slate-200 uppercase">
-            <tr>
-              <th className="py-3">Código</th>
-              <th className="py-3">Nombre</th>
-              <th className="py-3">Código Clay</th>
-              <th className="py-3 w-20">Orden</th>
-              <th className="py-3">Uso</th>
-              <th className="py-3 text-center">Activa</th>
-              {puedeEditar && <th className="py-3 text-right">Acciones</th>}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
+      <Tabla>
+          <Thead>
+            <Tr>
+              <Th>Código</Th>
+              <Th>Nombre</Th>
+              <Th>Código Clay</Th>
+              <Th className="w-20">Orden</Th>
+              <Th>Uso</Th>
+              <Th alinear="centro">Activa</Th>
+              {puedeEditar && <Th alinear="derecha">Acciones</Th>}
+            </Tr>
+          </Thead>
+          <Tbody>
             {nueva && (
-              <tr className="bg-brand-50/40">
-                <td className="py-2">
-                  <input autoFocus placeholder="EJ: SELLANTES" value={nueva.codigo} onChange={(e) => setNueva({ ...nueva, codigo: e.target.value.toUpperCase() })} className={`${CAMPO_CLASS} font-mono`} />
-                </td>
-                <td className="py-2">
-                  <input placeholder="Nombre" value={nueva.nombre} onChange={(e) => setNueva({ ...nueva, nombre: e.target.value })} className={CAMPO_CLASS} />
-                </td>
-                <td className="py-2">
-                  <input placeholder="Sin código" value={nueva.integracionClay} onChange={(e) => setNueva({ ...nueva, integracionClay: e.target.value })} className={`${CAMPO_CLASS} font-mono`} />
-                </td>
-                <td className="py-2">
-                  <input type="number" min={0} value={nueva.orden} onChange={(e) => setNueva({ ...nueva, orden: e.target.value })} className={`${CAMPO_CLASS} text-right`} />
-                </td>
-                <td className="py-2 text-slate-400">—</td>
-                <td className="py-2" />
-                <td className="py-2 text-right whitespace-nowrap">
+              <Tr tono="destacada">
+                <Td>
+                  <InputCompacto aria-label="Código" autoFocus placeholder="EJ: SELLANTES" value={nueva.codigo} onChange={(e) => setNueva({ ...nueva, codigo: e.target.value.toUpperCase() })} className="w-full font-mono" />
+                </Td>
+                <Td>
+                  <InputCompacto aria-label="Nombre" placeholder="Nombre" value={nueva.nombre} onChange={(e) => setNueva({ ...nueva, nombre: e.target.value })} className="w-full" />
+                </Td>
+                <Td>
+                  <InputCompacto aria-label="Código Clay" placeholder="Sin código" value={nueva.integracionClay} onChange={(e) => setNueva({ ...nueva, integracionClay: e.target.value })} className="w-full font-mono" />
+                </Td>
+                <Td>
+                  <InputCompacto aria-label="Orden" type="number" min={0} value={nueva.orden} onChange={(e) => setNueva({ ...nueva, orden: e.target.value })} className="w-full text-right" />
+                </Td>
+                <Td className="text-slate-400">—</Td>
+                <Td />
+                <Td className="text-right whitespace-nowrap">
                   <Button size="sm" onClick={() => crear.mutate(nueva)} disabled={!nueva.codigo.trim() || !nueva.nombre.trim()} isLoading={crear.isPending}>
                     Crear
                   </Button>
-                  <button onClick={() => setNueva(null)} className="ml-1 p-1.5 text-slate-400 hover:text-slate-700 cursor-pointer" aria-label="Cancelar">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </td>
-              </tr>
+                  <IconButton icono={X} etiqueta="Cancelar" className="ml-1" onClick={() => setNueva(null)} />
+                </Td>
+              </Tr>
             )}
             {partidas.map((p) => {
               const v = valor(p);
               const guardando = guardar.isPending && guardar.variables?.id === p.id;
               return (
-                <tr key={p.id} className={`hover:bg-slate-50/80 ${p.activa ? '' : 'opacity-60'}`}>
-                  <td className="py-2 font-mono text-[10px] text-slate-500">
+                <Tr key={p.id} tono={p.activa ? undefined : 'atenuada'}>
+                  <Td className="font-mono text-[10px] text-slate-500">
                     {p.codigo}
                     {p.porDefecto && (
                       <Badge size="sm" variant="warning" className="ml-1.5" title="Recibe lo que todavía no tiene partida">
                         Por defecto
                       </Badge>
                     )}
-                  </td>
-                  <td className="py-2">
-                    {puedeEditar ? <input value={v.nombre} onChange={(e) => cambiar(p, 'nombre', e.target.value)} className={CAMPO_CLASS} /> : <span className="font-semibold text-slate-900">{p.nombre}</span>}
-                  </td>
-                  <td className="py-2">
+                  </Td>
+                  <Td>
+                    {puedeEditar ? <InputCompacto aria-label="Nombre" value={v.nombre} onChange={(e) => cambiar(p, 'nombre', e.target.value)} className="w-full" /> : <span className="font-semibold text-slate-900">{p.nombre}</span>}
+                  </Td>
+                  <Td>
                     {puedeEditar ? (
-                      <input value={v.integracionClay} placeholder="Sin código" onChange={(e) => cambiar(p, 'integracionClay', e.target.value)} className={`${CAMPO_CLASS} font-mono`} />
+                      <InputCompacto aria-label="Código Clay" value={v.integracionClay} placeholder="Sin código" onChange={(e) => cambiar(p, 'integracionClay', e.target.value)} className="w-full font-mono" />
                     ) : (
                       <span className="font-mono text-slate-600">{p.integracionClay || '—'}</span>
                     )}
-                  </td>
-                  <td className="py-2">
-                    {puedeEditar ? <input type="number" min={0} value={v.orden} onChange={(e) => cambiar(p, 'orden', e.target.value)} className={`${CAMPO_CLASS} text-right`} /> : p.orden}
-                  </td>
-                  <td className="py-2 text-[11px] text-slate-500 whitespace-nowrap">
+                  </Td>
+                  <Td>
+                    {puedeEditar ? <InputCompacto aria-label="Orden" type="number" min={0} value={v.orden} onChange={(e) => cambiar(p, 'orden', e.target.value)} className="w-full text-right" /> : p.orden}
+                  </Td>
+                  <Td className="text-[11px] text-slate-500 whitespace-nowrap">
                     {p._count?.tiposProducto ?? 0} tipos · {p._count?.ordenCompraItems ?? 0} ítems OC
-                  </td>
-                  <td className="py-2 text-center">
+                  </Td>
+                  <Td className="text-center">
                     {puedeEditar ? (
                       <Interruptor
                         valor={p.activa}
@@ -152,30 +154,31 @@ export const PartidasSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdita
                     ) : (
                       <Badge size="sm" variant={p.activa ? 'success' : 'default'}>{p.activa ? 'Activa' : 'Inactiva'}</Badge>
                     )}
-                  </td>
+                  </Td>
                   {puedeEditar && (
-                    <td className="py-2 text-right">
-                      <button
+                    <Td className="text-right">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        leftIcon={<Save className="w-3.5 h-3.5" />}
+                        isLoading={guardando}
                         onClick={() =>
                           guardar.mutate({
                             id: p.id,
                             payload: { nombre: v.nombre.trim(), integracionClay: v.integracionClay.trim() || null, orden: Number(v.orden) || 0 },
                           })
                         }
-                        disabled={!sucia(p) || guardando || !v.nombre.trim()}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-brand-600 hover:bg-brand-50 cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
+                        disabled={!sucia(p) || !v.nombre.trim()}
                       >
-                        {guardando ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
                         Guardar
-                      </button>
-                    </td>
+                      </Button>
+                    </Td>
                   )}
-                </tr>
+                </Tr>
               );
             })}
-          </tbody>
-        </table>
-      </div>
+          </Tbody>
+      </Tabla>
     </Seccion>
   );
 };

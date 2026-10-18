@@ -15,6 +15,8 @@ export interface ModalProps {
   cerrable?: boolean;
   /** Pie fijo (acciones): usar <Modal.Pie>. */
   pie?: React.ReactNode;
+  /** Convierte cuerpo y pie en un <form> (Enter envía; el botón principal es type="submit"). */
+  onSubmit?: (e: React.FormEvent<HTMLFormElement>) => void;
   children: React.ReactNode;
 }
 
@@ -24,7 +26,7 @@ export interface ModalProps {
  * cierra con Escape o la X, no al hacer clic fuera (se perderían datos).
  * Se monta solo cuando está abierto: `{abierto && <Modal …/>}`.
  */
-export const Modal: React.FC<ModalProps> & { Pie: typeof Pie } = ({ titulo, subtitulo, icono: Icono, ancho = 'md', onClose, cerrable = true, pie, children }) => {
+export const Modal: React.FC<ModalProps> & { Pie: typeof Pie } = ({ titulo, subtitulo, icono: Icono, ancho = 'md', onClose, cerrable = true, pie, onSubmit, children }) => {
   const idTitulo = useId();
   useEffect(() => {
     const alPresionar = (e: KeyboardEvent) => {
@@ -67,8 +69,23 @@ export const Modal: React.FC<ModalProps> & { Pie: typeof Pie } = ({ titulo, subt
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="p-5 space-y-4 overflow-y-auto flex-1">{children}</div>
-        {pie}
+        {onSubmit ? (
+          <form
+            className="flex flex-col flex-1 min-h-0"
+            onSubmit={(e) => {
+              e.preventDefault();
+              onSubmit(e);
+            }}
+          >
+            <div className="p-5 space-y-4 overflow-y-auto flex-1">{children}</div>
+            {pie}
+          </form>
+        ) : (
+          <>
+            <div className="p-5 space-y-4 overflow-y-auto flex-1">{children}</div>
+            {pie}
+          </>
+        )}
       </div>
     </div>
   );

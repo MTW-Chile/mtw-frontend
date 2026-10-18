@@ -4,9 +4,13 @@ import { Save } from 'lucide-react';
 import { getConfiguracionGeneral, updateConfiguracionGeneral } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import type { ParametrosGenerales } from '../../../types';
-import { CAMPO_CLASS, Cargando, ErrorCarga, Interruptor, Seccion, avisarError } from '../catalogo/comun';
+import { Input } from '../../../components/ui/Input';
+import { Seccion } from '../../../components/ui/Seccion';
+import { GrupoCampos as Grupo, Interruptor } from '../../../components/ui/Campos';
+import { Cargando, ErrorCarga } from '../../../components/ui/Estados';
+import { avisarError } from '../catalogo/comun';
 
-// Campo numerico con etiqueta y ayuda; guarda texto local para editar sin saltos.
+// Campo numérico de ajustes: vacío vale 0 (o null si permiteVacio).
 const Numero: React.FC<{
   etiqueta: string;
   ayuda?: string;
@@ -16,30 +20,19 @@ const Numero: React.FC<{
   sufijo?: string;
   permiteVacio?: boolean;
 }> = ({ etiqueta, ayuda, valor, onChange, disabled, sufijo, permiteVacio }) => (
-  <label className="block space-y-1">
-    <span className="block text-[11px] font-bold text-slate-600">{etiqueta}</span>
-    <span className="flex items-center gap-1.5">
-      <input
-        type="number"
-        step="any"
-        min={0}
-        disabled={disabled}
-        value={valor ?? ''}
-        placeholder={permiteVacio ? 'Sin límite' : undefined}
-        onChange={(e) => onChange(e.target.value === '' ? (permiteVacio ? null : 0) : Number(e.target.value))}
-        className={`${CAMPO_CLASS} text-right max-w-[160px]`}
-      />
-      {sufijo && <span className="text-[11px] text-slate-400">{sufijo}</span>}
-    </span>
-    {ayuda && <span className="block text-[10px] text-slate-400">{ayuda}</span>}
-  </label>
-);
-
-const Grupo: React.FC<{ titulo: string; children: React.ReactNode }> = ({ titulo, children }) => (
-  <fieldset className="space-y-3">
-    <legend className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">{titulo}</legend>
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{children}</div>
-  </fieldset>
+  <Input
+    label={etiqueta}
+    helperText={ayuda}
+    sufijo={sufijo}
+    type="number"
+    step="any"
+    min={0}
+    disabled={disabled}
+    value={valor ?? ''}
+    placeholder={permiteVacio ? 'Sin límite' : undefined}
+    onChange={(e) => onChange(e.target.value === '' ? (permiteVacio ? null : 0) : Number(e.target.value))}
+    className="text-right tabular-nums"
+  />
 );
 
 /**
@@ -77,7 +70,7 @@ export const ParametrosSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdi
     <Seccion
       titulo="Parámetros"
       descripcion="Valores comerciales y operativos que usa todo el sistema. Cambiarlos no altera cotizaciones ya congeladas."
-      accion={
+      acciones={
         puedeEditar ? (
           <Button size="sm" leftIcon={<Save className="w-3.5 h-3.5" />} disabled={!sucio} isLoading={guardar.isPending} onClick={() => guardar.mutate(form)}>
             Guardar
@@ -85,7 +78,7 @@ export const ParametrosSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdi
         ) : undefined
       }
     >
-      <div className="p-5 space-y-6">
+      <div className="space-y-6">
         <Grupo titulo="Impuestos y divisas">
           <Numero etiqueta="IVA" sufijo="%" valor={form.ivaPct} disabled={dis} onChange={(v) => set('ivaPct', v ?? 0)} />
           <Numero
@@ -125,18 +118,14 @@ export const ParametrosSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdi
         </Grupo>
 
         <Grupo titulo="Adicionales">
-          <label className="flex items-start gap-2.5 text-xs">
-            <Interruptor
-              valor={form.adicional.requiereAprobacion}
-              disabled={dis}
-              etiqueta="Requiere aprobación gerencial"
-              onChange={(v) => set('adicional', { ...form.adicional, requiereAprobacion: v })}
-            />
-            <span>
-              <span className="block font-bold text-slate-800">Requiere aprobación gerencial</span>
-              <span className="block text-[10px] text-slate-400">Antes de enviarse al cliente o al instalador.</span>
-            </span>
-          </label>
+          <Interruptor
+            valor={form.adicional.requiereAprobacion}
+            disabled={dis}
+            etiqueta="Requiere aprobación gerencial"
+            label="Requiere aprobación gerencial"
+            helperText="Antes de enviarse al cliente o al instalador."
+            onChange={(v) => set('adicional', { ...form.adicional, requiereAprobacion: v })}
+          />
           <Numero
             etiqueta="Desde un monto de venta"
             sufijo="UF"

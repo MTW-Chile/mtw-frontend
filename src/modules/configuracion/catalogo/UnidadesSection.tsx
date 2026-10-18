@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Save, Loader2, X } from 'lucide-react';
+import { Plus, Save, X } from 'lucide-react';
+import { IconButton } from '../../../components/ui/IconButton';
 import { createUnidadMedida, getUnidadesMedida, updateUnidadMedida } from '../../../api/client';
-import { TABLE_CLASS, TABLE_WRAPPER_CLASS } from '../../../lib/designSystem';
 import { Button } from '../../../components/ui/Button';
 import type { UnidadMedida } from '../../../types';
-import { CAMPO_CLASS, Cargando, ErrorCarga, Interruptor, Seccion, avisarError } from './comun';
+import { Seccion } from '../../../components/ui/Seccion';
+import { Cargando, ErrorCarga } from '../../../components/ui/Estados';
+import { InputCompacto, Interruptor } from '../../../components/ui/Campos';
+import { avisarError } from './comun';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
 
 type Edicion = { nombre: string; simbolo: string };
 
@@ -54,9 +58,10 @@ export const UnidadesSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdita
 
   return (
     <Seccion
+      sinRelleno
       titulo="Unidades de medida"
       descripcion="Las usan los tipos de producto para medir el consumo, expresar el precio y comprar (ej. metro, barra, m²)."
-      accion={
+      acciones={
         puedeEditar && !nueva ? (
           <Button size="sm" variant="outline" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setNueva({ codigo: '', nombre: '', simbolo: '' })}>
             Nueva unidad
@@ -64,73 +69,71 @@ export const UnidadesSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdita
         ) : undefined
       }
     >
-      <div className={TABLE_WRAPPER_CLASS}>
-        <table className={`${TABLE_CLASS} text-left text-slate-700`}>
-          <thead className="bg-slate-50/80 border-b border-slate-200 uppercase">
-            <tr>
-              <th className="py-3">Código</th>
-              <th className="py-3">Nombre</th>
-              <th className="py-3 w-28">Símbolo</th>
-              <th className="py-3 text-center">Activa</th>
-              {puedeEditar && <th className="py-3 text-right">Acciones</th>}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {nueva && (
-              <tr className="bg-brand-50/40">
-                <td className="py-2">
-                  <input autoFocus placeholder="EJ: ROLLO" value={nueva.codigo} onChange={(e) => setNueva({ ...nueva, codigo: e.target.value.toUpperCase() })} className={`${CAMPO_CLASS} font-mono`} />
-                </td>
-                <td className="py-2">
-                  <input placeholder="Nombre" value={nueva.nombre} onChange={(e) => setNueva({ ...nueva, nombre: e.target.value })} className={CAMPO_CLASS} />
-                </td>
-                <td className="py-2">
-                  <input placeholder="Ej: rollo" value={nueva.simbolo} onChange={(e) => setNueva({ ...nueva, simbolo: e.target.value })} className={CAMPO_CLASS} />
-                </td>
-                <td className="py-2" />
-                <td className="py-2 text-right whitespace-nowrap">
-                  <Button size="sm" onClick={() => crear.mutate(nueva)} disabled={!nueva.codigo.trim() || !nueva.nombre.trim() || !nueva.simbolo.trim()} isLoading={crear.isPending}>
-                    Crear
-                  </Button>
-                  <button onClick={() => setNueva(null)} className="ml-1 p-1.5 text-slate-400 hover:text-slate-700 cursor-pointer" aria-label="Cancelar">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </td>
-              </tr>
-            )}
-            {unidades.map((u) => {
-              const v = valor(u);
-              const guardando = guardar.isPending && guardar.variables?.id === u.id;
-              return (
-                <tr key={u.id} className={`hover:bg-slate-50/80 ${u.activa ? '' : 'opacity-60'}`}>
-                  <td className="py-2 font-mono text-[10px] text-slate-500">{u.codigo}</td>
-                  <td className="py-2">
-                    {puedeEditar ? <input value={v.nombre} onChange={(e) => cambiar(u, 'nombre', e.target.value)} className={CAMPO_CLASS} /> : u.nombre}
-                  </td>
-                  <td className="py-2">
-                    {puedeEditar ? <input value={v.simbolo} onChange={(e) => cambiar(u, 'simbolo', e.target.value)} className={CAMPO_CLASS} /> : u.simbolo}
-                  </td>
-                  <td className="py-2 text-center">
-                    <Interruptor valor={u.activa} disabled={!puedeEditar} etiqueta={u.activa ? 'Desactivar' : 'Activar'} onChange={(activa) => guardar.mutate({ id: u.id, payload: { activa } })} />
-                  </td>
-                  {puedeEditar && (
-                    <td className="py-2 text-right">
-                      <button
-                        onClick={() => guardar.mutate({ id: u.id, payload: { nombre: v.nombre.trim(), simbolo: v.simbolo.trim() } })}
-                        disabled={!sucia(u) || guardando || !v.nombre.trim() || !v.simbolo.trim()}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-brand-600 hover:bg-brand-50 cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
-                      >
-                        {guardando ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                        Guardar
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <Tabla>
+        <Thead>
+          <Tr>
+            <Th>Código</Th>
+            <Th>Nombre</Th>
+            <Th className="w-28">Símbolo</Th>
+            <Th alinear="centro">Activa</Th>
+            {puedeEditar && <Th alinear="derecha">Acciones</Th>}
+          </Tr>
+        </Thead>
+        <Tbody>
+          {nueva && (
+            <Tr tono="destacada">
+              <Td>
+                <InputCompacto aria-label="Código" autoFocus placeholder="EJ: ROLLO" value={nueva.codigo} onChange={(e) => setNueva({ ...nueva, codigo: e.target.value.toUpperCase() })} className="w-full font-mono" />
+              </Td>
+              <Td>
+                <InputCompacto aria-label="Nombre" placeholder="Nombre" value={nueva.nombre} onChange={(e) => setNueva({ ...nueva, nombre: e.target.value })} className="w-full" />
+              </Td>
+              <Td>
+                <InputCompacto aria-label="Símbolo" placeholder="Ej: rollo" value={nueva.simbolo} onChange={(e) => setNueva({ ...nueva, simbolo: e.target.value })} className="w-full" />
+              </Td>
+              <Td />
+              <Td alinear="derecha" className="whitespace-nowrap">
+                <Button size="sm" onClick={() => crear.mutate(nueva)} disabled={!nueva.codigo.trim() || !nueva.nombre.trim() || !nueva.simbolo.trim()} isLoading={crear.isPending}>
+                  Crear
+                </Button>
+                <IconButton icono={X} etiqueta="Cancelar" className="ml-1" onClick={() => setNueva(null)} />
+              </Td>
+            </Tr>
+          )}
+          {unidades.map((u) => {
+            const v = valor(u);
+            const guardando = guardar.isPending && guardar.variables?.id === u.id;
+            return (
+              <Tr key={u.id} tono={u.activa ? undefined : 'atenuada'}>
+                <Td className="font-mono text-[10px] text-slate-500">{u.codigo}</Td>
+                <Td>
+                  {puedeEditar ? <InputCompacto aria-label="Nombre" value={v.nombre} onChange={(e) => cambiar(u, 'nombre', e.target.value)} className="w-full" /> : u.nombre}
+                </Td>
+                <Td>
+                  {puedeEditar ? <InputCompacto aria-label="Símbolo" value={v.simbolo} onChange={(e) => cambiar(u, 'simbolo', e.target.value)} className="w-full" /> : u.simbolo}
+                </Td>
+                <Td alinear="centro">
+                  <Interruptor valor={u.activa} disabled={!puedeEditar} etiqueta={u.activa ? 'Desactivar' : 'Activar'} onChange={(activa) => guardar.mutate({ id: u.id, payload: { activa } })} />
+                </Td>
+                {puedeEditar && (
+                  <Td alinear="derecha">
+                    <Button
+                     size="sm"
+                     variant="ghost"
+                     leftIcon={<Save className="w-3.5 h-3.5" />}
+                     isLoading={guardando}
+                     onClick={() => guardar.mutate({ id: u.id, payload: { nombre: v.nombre.trim(), simbolo: v.simbolo.trim() } })}
+                     disabled={!sucia(u) || !v.nombre.trim() || !v.simbolo.trim()}
+                   >
+                     Guardar
+                   </Button>
+                  </Td>
+                )}
+              </Tr>
+            );
+          })}
+        </Tbody>
+        </Tabla>
     </Seccion>
   );
 };

@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, HelpCircle } from 'lucide-react';
 import { Modal } from './Modal';
 import { Button } from './Button';
@@ -41,7 +41,9 @@ export const ConfirmarProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [pedido, setPedido] = useState<Pedido | null>(null);
   const [texto, setTexto] = useState('');
   const pedidoRef = useRef<Pedido | null>(null);
-  pedidoRef.current = pedido;
+  useEffect(() => {
+    pedidoRef.current = pedido;
+  }, [pedido]);
 
   const confirmar = useCallback(
     (o: OpcionesConfirmar) => new Promise<boolean>((resolver) => setPedido({ tipo: 'confirmar', resolver, ...o })),
