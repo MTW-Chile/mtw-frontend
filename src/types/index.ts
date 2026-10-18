@@ -1881,6 +1881,12 @@ export interface Adicional {
   creadoEn: string;
   items: AdicionalItem[];
   ordenesCompra: { id: string; numero: string; estado: EstadoOC }[];
+  // Origen VENTANAS u HETMO: su version (que se cotiza en la Analitica y la Hoja).
+  versionId: string | null;
+  version: {
+    id: string;
+    ventanas: { id: string; lineaHetmo: number; modelo: string; descripcionCorta: string | null; unidades: number; anchoMm: number | string; altoMm: number | string }[];
+  } | null;
   totales: { costo: number; venta: number; ventaUf: number; iva: number; totalConIva: number; ivaPct: number };
   // Segun la configuracion vigente (si se exige y desde que monto).
   requiereAprobacion: boolean;

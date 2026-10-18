@@ -1779,6 +1779,8 @@ export async function createAdicional(
   proyectoId: string,
   payload: {
     titulo: string;
+    // ITEMS: items sueltos. VENTANAS: ventanas de la cotizacion recotizadas.
+    origen?: 'ITEMS' | 'VENTANAS';
     cargoA?: CargoAdicional;
     instaladorProveedorId?: string | null;
     formaCobroInstalador?: FormaCobroInstalador | null;
@@ -1850,4 +1852,16 @@ export async function getPorClasificar(): Promise<PorClasificar> {
 export async function reclasificarItemOC(itemId: string, partidaId: string) {
   const response = await apiClient.patch(`/ordenes-compra/items/${itemId}/partida`, { partidaId });
   return response.data;
+}
+
+// Ventanas de la cotizacion que recotiza un adicional (reemplaza las elegidas antes).
+export async function elegirVentanasAdicional(id: string, ventanas: { ventanaId: string; unidades: number }[]): Promise<Adicional> {
+  const response = await apiClient.post<{ data: Adicional }>(`/adicionales/${id}/ventanas`, { ventanas });
+  return response.data.data;
+}
+
+// Una version con el detalle completo (la de un adicional, para la Analitica y la Hoja).
+export async function getVersion(id: string): Promise<ProyectoVersion> {
+  const response = await apiClient.get<{ data: ProyectoVersion }>(`/versiones/${id}`);
+  return response.data.data;
 }

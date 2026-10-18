@@ -24,6 +24,8 @@ export const NuevoAdicionalModal: React.FC<{
   const { tasas, delDia } = useTasasVigentes();
   const { data: proveedores = [] } = useQuery({ queryKey: ['proveedores'], queryFn: async () => (await getProveedores()).data });
   const [titulo, setTitulo] = useState(obraPendiente ? obraPendiente.descripcion : '');
+  // Items sueltos o recotizar ventanas de la cotizacion (se eligen despues).
+  const [origen, setOrigen] = useState<'ITEMS' | 'VENTANAS'>('ITEMS');
   const [cargoA, setCargoA] = useState<CargoAdicional>(obraPendiente?.cargoEfectivo === 'INSTALADOR' ? 'INSTALADOR' : 'CLIENTE');
   const [instaladorId, setInstaladorId] = useState('');
   const [forma, setForma] = useState<FormaCobroInstalador>('DESCUENTO_ESTADO_PAGO');
@@ -33,6 +35,7 @@ export const NuevoAdicionalModal: React.FC<{
     mutationFn: () =>
       createAdicional(proyectoId, {
         titulo: titulo.trim(),
+        origen,
         cargoA,
         instaladorProveedorId: cargoA === 'INSTALADOR' ? instaladorId : null,
         formaCobroInstalador: cargoA === 'INSTALADOR' ? forma : null,
@@ -69,6 +72,15 @@ export const NuevoAdicionalModal: React.FC<{
             </div>
           )}
           <Input label="Título" value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Ej: Cambio de ventana V12 a corredera" required />
+          <Select
+            label="Cómo se cotiza"
+            options={[
+              { value: 'ITEMS', label: 'Ítems sueltos (materiales, servicios, ítems libres)' },
+              { value: 'VENTANAS', label: 'Recotizar ventanas de la cotización' },
+            ]}
+            value={origen}
+            onChange={(e) => setOrigen(e.target.value as 'ITEMS' | 'VENTANAS')}
+          />
           <Select
             label="A cargo de"
             options={[

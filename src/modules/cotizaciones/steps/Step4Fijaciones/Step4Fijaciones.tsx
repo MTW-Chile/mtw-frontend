@@ -19,8 +19,11 @@ interface Step4FijacionesProps {
   euro: string;
   // Aprobación gerencial: vive acá (antes estaba en el Paso 5). Solo la
   // puede dar quien tiene el permiso 'gerencial' (o es admin).
-  onCambiarEstadoAprobacion: (estado: 'EN_COTIZACION' | 'ESPERANDO_APROBACION_COMERCIAL' | 'APROBADO_GERENCIA') => void;
-  isCambiandoEstadoAprobacion: boolean;
+  onCambiarEstadoAprobacion?: (estado: 'EN_COTIZACION' | 'ESPERANDO_APROBACION_COMERCIAL' | 'APROBADO_GERENCIA') => void;
+  isCambiandoEstadoAprobacion?: boolean;
+  // Version de un adicional: sin el flujo de aprobacion de la cotizacion (el
+  // adicional tiene el suyo); queda de solo lectura fuera de borrador.
+  modoAdicional?: boolean;
 }
 
 type DraftFijacion = Omit<FijacionBorrador, 'extras'>;
@@ -113,7 +116,8 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
   uf,
   euro,
   onCambiarEstadoAprobacion,
-  isCambiandoEstadoAprobacion,
+  isCambiandoEstadoAprobacion = false,
+  modoAdicional = false,
 }) => {
   const queryClient = useQueryClient();
   const { tiene } = usePermisos();
@@ -469,9 +473,11 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
           {congelado ? (
             <span className="text-[11px] text-slate-500 flex items-center gap-1.5 mr-1">
               <Lock className="w-3.5 h-3.5" />
-              {estadoActual === 'ESPERANDO_APROBACION_COMERCIAL'
-                ? 'Esperando Aprobación Gerencial'
-                : 'Presupuesto congelado -- solo lectura'}
+              {modoAdicional
+                ? 'El adicional ya no está en borrador -- solo lectura'
+                : estadoActual === 'ESPERANDO_APROBACION_COMERCIAL'
+                  ? 'Esperando Aprobación Gerencial'
+                  : 'Presupuesto congelado -- solo lectura'}
             </span>
           ) : (
             hayCambios && <span className="text-[11px] font-semibold text-amber-600 mr-1">Cambios sin guardar</span>
@@ -494,7 +500,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
               Guardar
             </Button>
           )}
-          {!congelado && (
+          {!congelado && !modoAdicional && (
             <Button
               variant="primary"
               size="sm"
@@ -511,7 +517,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
               Solicitar Aprobación Gerencial
             </Button>
           )}
-          {estadoActual === 'ESPERANDO_APROBACION_COMERCIAL' && (
+          {estadoActual === 'ESPERANDO_APROBACION_COMERCIAL' && !modoAdicional && onCambiarEstadoAprobacion && (
             <>
               {puedeAprobarGerencia && (
                 <Button

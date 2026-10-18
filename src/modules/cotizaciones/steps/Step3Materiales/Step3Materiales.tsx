@@ -36,6 +36,9 @@ interface Step3MaterialesProps {
   // Recibe el callback que cierra la edición: solo se llama si el guardado tuvo éxito.
   onSaveDivisas: (onGuardado: () => void) => void;
   isSavingDivisas: boolean;
+  // Version de un adicional: las divisas las fija el adicional y no hay
+  // aprobacion tecnica por partida (el adicional tiene su propio flujo).
+  modoAdicional?: boolean;
 }
 
 // BORRADOR es el valor historico de la columna antes del flujo de estado
@@ -149,6 +152,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   saveSuccess,
   onSaveDivisas,
   isSavingDivisas,
+  modoAdicional = false,
 }) => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
@@ -498,8 +502,8 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
 
   return (
     <div className="space-y-5 sm:space-y-6 animate-fade-in">
-      {/* 1. PARÁMETROS ECONÓMICOS */}
-      {!divisasEditables ? (
+      {/* 1. PARÁMETROS ECONÓMICOS (en un adicional, las fija el adicional) */}
+      {modoAdicional ? null : !divisasEditables ? (
         <DivisasResumen dolar={dolar} uf={uf} euro={euro} congelado={congelado} onEditar={() => setEditandoDivisas(true)} />
       ) : (
       <DivisasForm
@@ -553,7 +557,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 lg:justify-end shrink-0">
-            {versionId && puedeAprobarTecnico && estadoActual === 'EN_COTIZACION' && !todasLasPartidasAprobadas && (
+            {versionId && !modoAdicional && puedeAprobarTecnico && estadoActual === 'EN_COTIZACION' && !todasLasPartidasAprobadas && (
               <Button
                 variant="primary"
                 size="sm"
@@ -566,7 +570,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                 Aprobar analítica completa
               </Button>
             )}
-            {versionId && puedeAprobarTecnico && puedeDeshacerAca && (
+            {versionId && !modoAdicional && puedeAprobarTecnico && puedeDeshacerAca && (
               <Button
                 variant="outline"
                 size="sm"
@@ -679,7 +683,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                         <ShieldCheck className="w-3 h-3" /> Aprobada
                       </Badge>
                     )}
-                    {puedeAprobarTecnico && estadoActual === 'EN_COTIZACION' && (
+                    {!modoAdicional && puedeAprobarTecnico && estadoActual === 'EN_COTIZACION' && (
                       <Button
                         variant={aprobada ? 'outline' : 'primary'}
                         size="sm"

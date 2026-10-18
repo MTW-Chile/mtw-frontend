@@ -7,11 +7,14 @@ import {
   cambiarEstadoAdicional,
   deleteAdicionalItem,
   getAdicional,
+  getAnalitica,
+  getConfiguracionEmpresa,
   getPartidas,
   getPlantillasOferta,
   renderPdf,
   updateAdicional,
   updateAdicionalItem,
+  getVersion,
 } from '../../../api/client';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
@@ -23,6 +26,8 @@ import { avisarError } from '../../configuracion/catalogo/comun';
 import type { Adicional, EstadoAdicional, Material, Proyecto } from '../../../types';
 import { ETIQUETA_ESTADO_ADICIONAL, ETIQUETA_FORMA_COBRO } from '../../../types';
 import { buildAdicionalHtml } from './adicionalPdf';
+import { VentanasAdicional } from './VentanasAdicional';
+import { buildDocumentoHtml, buildHeaderFooterTemplates, rasterizarDibujos } from '../../cotizaciones/steps/Step5Consolidacion/presupuestoPdf';
 import { VARIANTE_ESTADO, clp, codigoAdicional, uf, useTasasVigentes } from './comun';
 
 const campo = 'text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-brand-600 bg-white disabled:bg-slate-50 disabled:text-slate-500';
@@ -61,14 +66,17 @@ export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: strin
   const puedeEditar = tiene('adicionales.editar');
   const puedeAprobar = tiene('adicionales.aprobar');
   const { tasas: tasasDelDia } = useTasasVigentes();
-  const { data: a, isLoading } = useQuery({ queryKey: ['adicional', adicionalId], queryFn: () => getAdicional(adicionalId) });
+  // Cuelga del detalle del proyecto: lo que guardan la Analítica y la Hoja de
+  // su versión (que invalidan ese detalle) refresca también sus totales.
+  const claveAdicional = ['proyectoDetail', proyecto.id, 'adicional', adicionalId];
+  const { data: a, isLoading } = useQuery({ queryKey: claveAdicional, queryFn: () => getAdicional(adicionalId) });
   const { data: partidas = [] } = useQuery({ queryKey: ['partidas'], queryFn: getPartidas });
   const { data: plantillas = [] } = useQuery({ queryKey: ['plantillasOferta', 'ADICIONAL'], queryFn: () => getPlantillasOferta('ADICIONAL') });
   const [agregando, setAgregando] = useState<'material' | 'libre' | null>(null);
   const [exportando, setExportando] = useState(false);
 
   const aplicar = (actualizado: Adicional) => {
-    queryClient.setQueryData(['adicional', adicionalId], actualizado);
+    queryClient.setQueryData(claveAdicional, actualizado);
     queryClient.invalidateQueries({ queryKey: ['adicionales', proyecto.id] });
   };
   const mutacion = <T,>(fn: (v: T) => Promise<Adicional>) => useMutation({ mutationFn: fn, onSuccess: aplicar, onError: avisarError });
@@ -100,7 +108,7 @@ export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: strin
         // decorativo
       }
       const nombre = `adicional-${(a.proyecto.codigoInterno ?? a.proyecto.obra).replace(/\s+/g, '-')}-A${a.numero}.pdf`;
-      const blob = await renderPdf(buildAdicionalHtml({ adicional: a, logoDataUrl: logo }), nombre);
+      const blob = a.versionId ? await pdfVentanas(a, logo, nombre) : await renderPdf(buildAdicionalHtml({ adicional: a, logoDataUrl: logo }), nombre);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -177,7 +185,14 @@ export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: strin
                   {x.label}
                 </Button>
               ))}
-            <Button size="sm" variant="outline" leftIcon={<FileDown className="w-3.5 h-3.5" />} onClick={exportarPdf} isLoading={exportando} disabled={a.items.length === 0}>
+            <Button
+              size="sm"
+              variant="outline"
+              leftIcon={<FileDown className="w-3.5 h-3.5" />}
+              onClick={exportarPdf}
+              isLoading={exportando}
+              disabled={a.versionId ? !a.version?.ventanas.length : a.items.length === 0}
+            >
               PDF
             </Button>
           </div>
@@ -197,11 +212,15 @@ export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: strin
               Actualizar precios y divisas a hoy
             </Button>
           )}
-          <label className="flex items-center gap-2 pt-2">
-            <span className="text-slate-600">Margen de venta</span>
-            <NumeroEditable valor={Number(a.margenPct)} disabled={!borrador} onGuardar={(v) => editar.mutate({ margenPct: Math.min(99, v) })} className="w-20" />
-            <span className="text-slate-400">%</span>
-          </label>
+          {a.origen === 'ITEMS' ? (
+            <label className="flex items-center gap-2 pt-2">
+              <span className="text-slate-600">Margen de venta</span>
+              <NumeroEditable valor={Number(a.margenPct)} disabled={!borrador} onGuardar={(v) => editar.mutate({ margenPct: Math.min(99, v) })} className="w-20" />
+              <span className="text-slate-400">%</span>
+            </label>
+          ) : (
+            <p className="pt-2 text-slate-500">El margen y los costos de flete e instalación se fijan en la Hoja de fijación de abajo.</p>
+          )}
         </div>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs self-start">
           <dt className="text-slate-500">Costo</dt>
@@ -217,6 +236,8 @@ export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: strin
         </dl>
       </section>
 
+      {a.origen === 'ITEMS' ? (
+        <>
       {/* Items */}
       <section className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100">
@@ -320,6 +341,11 @@ export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: strin
           </table>
         </div>
       </section>
+
+        </>
+      ) : (
+        <VentanasAdicional proyecto={proyecto} adicional={a} editable={borrador} onCambio={aplicar} />
+      )}
 
       {/* Textos */}
       <section className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5 space-y-3">
@@ -494,3 +520,45 @@ const AgregarLibre: React.FC<{
     </div>
   );
 };
+
+/**
+ * PDF de un adicional de ventanas: el mismo formato de la oferta (tarjetas con
+ * dibujo y precio por línea), con los textos del adicional. Precio por línea
+ * y venta salen de la Analítica de su versión.
+ */
+async function pdfVentanas(a: Adicional, logo: string | null, nombre: string): Promise<Blob> {
+  const tasas = { dolar: Number(a.tasaDolar), euro: Number(a.tasaEuro), uf: Number(a.tasaUf) };
+  const [version, analitica, empresa] = await Promise.all([getVersion(a.versionId!), getAnalitica(a.versionId!, tasas), getConfiguracionEmpresa()]);
+  const ventanas = version.ventanas ?? [];
+  const pngPorVentana = await rasterizarDibujos(ventanas);
+  const proyecto = { obra: a.proyecto.obra, codigoInterno: a.proyecto.codigoInterno, numeroPresupuesto: 0, cliente: a.proyecto.cliente } as unknown as Proyecto;
+  const codigoLabel = `Adicional A${a.numero} · ${a.proyecto.codigoInterno ?? a.proyecto.obra}`;
+  const html = buildDocumentoHtml({
+    proyecto,
+    ventanas,
+    texto: a.textoPresentacion,
+    condiciones: a.condicionesComerciales,
+    venta: a.totales.venta,
+    iva: a.totales.iva,
+    totalConIva: a.totales.totalConIva,
+    ivaPct: a.totales.ivaPct,
+    tasaUf: tasas.uf,
+    logoDataUrl: logo,
+    logoMuchtekDataUrl: null,
+    preciosVenta: new Map(analitica.preciosVenta.map(({ ventanaId, ...p }) => [ventanaId, p])),
+    pngPorVentana,
+    titulo: 'Cotización de adicional',
+    codigoLabel,
+  });
+  const e = empresa.configuracionEmpresa;
+  const { headerTemplate, footerTemplate } = buildHeaderFooterTemplates({
+    proyecto,
+    logoDataUrl: logo,
+    codigoLabel,
+    footerWebUrl: e?.footerWebUrl,
+    footerWebLabel: e?.footerWebLabel,
+    footerInstagramUrl: e?.footerInstagramUrl,
+    footerInstagramHandle: e?.footerInstagramHandle,
+  });
+  return renderPdf(html, nombre, { headerTemplate, footerTemplate });
+}
