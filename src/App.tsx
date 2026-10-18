@@ -93,6 +93,7 @@ const queryClient = new QueryClient({
 });
 
 import { ScrollToTop } from './components/ui/ScrollToTop';
+import { ConfirmarProvider } from './components/ui/Confirmar';
 
 // Generado desde SECCIONES_FRONTEND (lib/accessControl.ts) -- una seccion
 // nueva agrega su titulo de pestaña del navegador sola, sin tocar este archivo.
@@ -310,9 +311,11 @@ const SessionGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 export const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <SessionGate>
-        <AppContent />
-      </SessionGate>
+      <ConfirmarProvider>
+        <SessionGate>
+          <AppContent />
+        </SessionGate>
+      </ConfirmarProvider>
     </QueryClientProvider>
   );
 };

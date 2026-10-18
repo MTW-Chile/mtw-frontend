@@ -133,6 +133,7 @@ apiClient.interceptors.response.use(
           'Mensaje:',
           error?.message
         );
+        // oxlint-disable-next-line no-alert -- unico aviso que sobrevive la redireccion (ver arriba)
         window.alert(
           `No se pudo contactar al servidor (${error?.config?.method?.toUpperCase() || '?'} ${error?.config?.url || '?'}): ${error?.message || 'error de red'}.\n\nSe va a intentar renovar la sesion.`
         );
