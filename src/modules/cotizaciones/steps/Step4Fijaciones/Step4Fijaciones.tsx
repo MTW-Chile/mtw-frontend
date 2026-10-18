@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Calculator, Check, Plus, Trash2, FileDown, Lock, ShieldCheck, ArrowLeft, Loader2 } from 'lucide-react';
+import { Calculator, Check, Plus, Trash2, FileDown, Lock, ShieldCheck, ArrowLeft, Percent } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
 import { getConceptosFijacion, getPartidas, updateFijacionConfig, updateEstadoAprobacion } from '../../../../api/client';
 import type { ConceptoFijacionCodigo, Partida, Proyecto, ProyectoVersion, FijacionExtra, FijacionBorrador } from '../../../../types';
@@ -10,6 +10,13 @@ import { computeCantidadCuadros } from '../../lib/cuadros';
 import { MTW_NAVY, MTW_GRIS, MTW_BORDE, pdfTableStyle, drawPdfHeader } from '../../lib/pdfTheme';
 import { usePermisos } from '../../../../lib/permisos';
 import { useParametrosGenerales } from '../../../../lib/parametrosGenerales';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../../components/ui/Tabla';
+import { Badge } from '../../../../components/ui/Badge';
+import { Aviso } from '../../../../components/ui/Aviso';
+import { IconButton } from '../../../../components/ui/IconButton';
+import { Seccion } from '../../../../components/ui/Seccion';
+import { InputCompacto, NumeroInput, SelectCompacto } from '../../../../components/ui/Campos';
+import { Cargando, EstadoVacio } from '../../../../components/ui/Estados';
 
 interface Step4FijacionesProps {
   proyecto: Proyecto;
@@ -76,15 +83,14 @@ const SelectorPartida: React.FC<{
 }> = ({ partidas, valor, disabled, onChange, etiqueta }) => {
   const sinAsignar = partidas.find((p) => p.codigo === valor)?.porDefecto ?? false;
   return (
-    <select
+    <SelectCompacto
       aria-label={etiqueta}
       title={sinAsignar ? 'Sin partida asignada: elige a cuál se carga' : etiqueta}
       value={valor}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
-      className={`mt-1 max-w-[180px] rounded-md border px-1.5 py-0.5 text-[10px] font-semibold focus:outline-none focus:border-brand-600 disabled:opacity-70 ${
-        sinAsignar ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-slate-200 bg-white text-slate-600'
-      }`}
+      tono={sinAsignar ? 'advertencia' : undefined}
+      className="max-w-[180px]"
     >
       {partidas
         .filter((p) => p.activa || p.codigo === valor)
@@ -93,7 +99,7 @@ const SelectorPartida: React.FC<{
             {p.porDefecto ? `⚠ ${p.nombre}` : p.nombre}
           </option>
         ))}
-    </select>
+    </SelectCompacto>
   );
 };
 
@@ -102,8 +108,6 @@ const ufLabel = (valor: number, tasaUf: number) =>
   tasaUf > 0 ? `${new Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 }).format(valor / tasaUf)} UF` : '—';
 const pctLabel = (monto: number, venta: number) =>
   venta > 0 ? `${new Intl.NumberFormat('es-CL', { maximumFractionDigits: 1 }).format((monto * 100) / venta)}% venta` : '—';
-
-const numeroInput = (value: unknown) => Math.max(0, Number(value) || 0);
 
 // BORRADOR es el valor historico de la columna antes del flujo de estado
 // comercial; se trata igual que EN_COTIZACION (ver relay-api).
@@ -434,405 +438,291 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
   };
 
   if (!activeVersion) {
-    return (
-      <div className="p-12 text-center space-y-3 rounded-2xl bg-white border border-slate-200 shadow-sm animate-fade-in">
-        <div className="w-12 h-12 rounded-2xl bg-brand-600/10 border border-brand-600/30 flex items-center justify-center text-brand-600 mx-auto">
-          <Calculator className="w-6 h-6" />
-        </div>
-        <h3 className="text-base font-bold text-slate-900">Paso 4: Hoja de Fijación</h3>
-        <p className="text-xs text-slate-600 max-w-md mx-auto">Seleccioná una versión para calcular la hoja de fijación.</p>
-      </div>
-    );
+    return <EstadoVacio icono={Calculator} titulo="Hoja de Fijación" descripcion="Selecciona una versión para calcular la hoja de fijación." />;
   }
 
-  if (!base) {
-    return (
-      <div className="p-12 flex items-center justify-center gap-2 text-xs text-slate-500 rounded-2xl bg-white border border-slate-200 shadow-sm">
-        <Loader2 className="w-4 h-4 animate-spin" /> Calculando la hoja de fijación…
-      </div>
-    );
-  }
+  if (!base) return <Cargando texto="Calculando la hoja de fijación…" />;
 
-  const inputClass =
-    'w-full px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 text-right focus:outline-none focus:border-brand-600 focus:bg-white disabled:bg-slate-100 disabled:text-slate-400';
+  const montoConcepto = (c: ConceptoFijacionCodigo) => vista?.lineasFijacion.find((l) => l.concepto === c)?.monto ?? 0;
+  const costoHoja = costosComplementarios + costoFlete + costoInstalacion;
+  const columnas = mostrarAnalisis ? 6 : 5;
+  const pct = (monto: number) => (mostrarAnalisis ? <Td numero className="text-slate-400">{pctLabel(monto, venta).replace(' venta', '')}</Td> : null);
+  const setNumero = (campo: CampoNumerico, max?: number) => (v: number | null) =>
+    setDraft((prev) => ({ ...prev, [campo]: Math.min(max ?? Infinity, Math.max(0, v ?? 0)) }));
+
+  const filaConcepto = (concepto: ConceptoFijacionCodigo, nombre: string, cantidad: React.ReactNode, campo: CampoNumerico, unidad: string) => {
+    const monto = montoConcepto(concepto);
+    return (
+      <Tr key={concepto}>
+        <Td className="font-semibold text-slate-800">{nombre}</Td>
+        <Td numero className="text-slate-500">{cantidad}</Td>
+        <Td alinear="derecha">
+          <NumeroInput valor={draft[campo] as number} onGuardar={setNumero(campo)} disabled={congelado} sufijo={unidad} aria-label={`${nombre}: valor unitario`} className="w-24" />
+        </Td>
+        <Td>{selectorConcepto(concepto)}</Td>
+        <Td numero fuerte>{clpLabel(monto)}</Td>
+        {pct(monto)}
+      </Tr>
+    );
+  };
+  const grupo = (titulo: string) => (
+    <Tr key={`g-${titulo}`} className="bg-slate-50/70 hover:bg-slate-50/70">
+      <Td colSpan={columnas} className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+        {titulo}
+      </Td>
+    </Tr>
+  );
+
+  const estadoBadge = congelado ? (
+    <Badge size="sm" variant={estadoActual === 'ESPERANDO_APROBACION_COMERCIAL' && !modoAdicional ? 'warning' : 'default'}>
+      <Lock className="w-3 h-3" />
+      {modoAdicional ? 'Solo lectura: el adicional ya no está en borrador' : estadoActual === 'ESPERANDO_APROBACION_COMERCIAL' ? 'Esperando aprobación gerencial' : 'Presupuesto congelado'}
+    </Badge>
+  ) : hayCambios ? (
+    <Badge size="sm" variant="warning" dot>
+      Cambios sin guardar
+    </Badge>
+  ) : null;
+
+  const tasaUfTexto = new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(tasaUf);
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Cabecera */}
-      <div className="flex items-center justify-between flex-wrap gap-3 p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-xl bg-brand-600/10 text-brand-600 border border-brand-600/20 flex items-center justify-center shrink-0">
-            <Calculator className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-900">Hoja de Fijación</h3>
-            <p className="text-[11px] text-slate-500">{proyecto.obra}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
-          {congelado ? (
-            <span className="text-[11px] text-slate-500 flex items-center gap-1.5 mr-1">
-              <Lock className="w-3.5 h-3.5" />
-              {modoAdicional
-                ? 'El adicional ya no está en borrador -- solo lectura'
-                : estadoActual === 'ESPERANDO_APROBACION_COMERCIAL'
-                  ? 'Esperando Aprobación Gerencial'
-                  : 'Presupuesto congelado -- solo lectura'}
-            </span>
-          ) : (
-            hayCambios && <span className="text-[11px] font-semibold text-amber-600 mr-1">Cambios sin guardar</span>
-          )}
-          <Button variant="outline" size="sm" onClick={() => setMostrarAnalisis((v) => !v)}>
-            {mostrarAnalisis ? 'Ocultar % venta' : 'Analizar precio'}
-          </Button>
-          <Button variant="secondary" size="sm" onClick={exportarPDF} leftIcon={<FileDown className="w-3.5 h-3.5" />}>
-            Exportar PDF
-          </Button>
-          {!congelado && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => guardarMutation.mutate()}
-              disabled={!hayCambios}
-              isLoading={guardarMutation.isPending}
-              leftIcon={<Check className="w-3.5 h-3.5" />}
-            >
-              Guardar
+    <div className="space-y-5 animate-fade-in">
+      <Seccion
+        icono={Calculator}
+        titulo={
+          <span className="flex flex-wrap items-center gap-2">
+            Hoja de Fijación {estadoBadge}
+          </span>
+        }
+        descripcion={proyecto.obra}
+        acciones={
+          <>
+            <Button variant="ghost" size="sm" leftIcon={<Percent className="w-3.5 h-3.5" />} onClick={() => setMostrarAnalisis((v) => !v)}>
+              {mostrarAnalisis ? 'Ocultar % venta' : 'Ver % venta'}
             </Button>
-          )}
-          {!congelado && !modoAdicional && (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => congelarMutation.mutate()}
-              disabled={!puedeCongelar}
-              isLoading={congelarMutation.isPending}
-              title={
-                todasLasPartidasAprobadas
-                  ? 'Guarda la Hoja de Fijación y la envía a aprobación gerencial'
-                  : 'Faltan partidas por aprobar en la Analítica de Materiales (Paso 3)'
-              }
-              leftIcon={<ShieldCheck className="w-3.5 h-3.5" />}
-            >
-              Solicitar Aprobación Gerencial
+            <Button variant="outline" size="sm" onClick={exportarPDF} leftIcon={<FileDown className="w-3.5 h-3.5" />}>
+              Exportar PDF
             </Button>
-          )}
-          {estadoActual === 'ESPERANDO_APROBACION_COMERCIAL' && !modoAdicional && onCambiarEstadoAprobacion && (
-            <>
-              {puedeAprobarGerencia && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => onCambiarEstadoAprobacion('APROBADO_GERENCIA')}
-                  isLoading={isCambiandoEstadoAprobacion}
-                  leftIcon={<ShieldCheck className="w-3.5 h-3.5" />}
-                >
-                  Aprobar (Gerencia)
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onCambiarEstadoAprobacion('EN_COTIZACION')}
-                disabled={isCambiandoEstadoAprobacion}
-                leftIcon={<ArrowLeft className="w-3.5 h-3.5" />}
-              >
-                Volver a Cotización
+            {!congelado && (
+              <Button variant="outline" size="sm" onClick={() => guardarMutation.mutate()} disabled={!hayCambios} isLoading={guardarMutation.isPending} leftIcon={<Check className="w-3.5 h-3.5" />}>
+                Guardar
               </Button>
-            </>
-          )}
+            )}
+            {!congelado && !modoAdicional && (
+              <Button
+                size="sm"
+                onClick={() => congelarMutation.mutate()}
+                disabled={!puedeCongelar}
+                isLoading={congelarMutation.isPending}
+                title={todasLasPartidasAprobadas ? 'Guarda la Hoja de Fijación y la envía a aprobación gerencial' : 'Faltan partidas por aprobar en la Analítica de Materiales (Paso 3)'}
+                leftIcon={<ShieldCheck className="w-3.5 h-3.5" />}
+              >
+                Solicitar aprobación gerencial
+              </Button>
+            )}
+            {estadoActual === 'ESPERANDO_APROBACION_COMERCIAL' && !modoAdicional && onCambiarEstadoAprobacion && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => onCambiarEstadoAprobacion('EN_COTIZACION')} disabled={isCambiandoEstadoAprobacion} leftIcon={<ArrowLeft className="w-3.5 h-3.5" />}>
+                  Volver a cotización
+                </Button>
+                {puedeAprobarGerencia && (
+                  <Button size="sm" onClick={() => onCambiarEstadoAprobacion('APROBADO_GERENCIA')} isLoading={isCambiandoEstadoAprobacion} leftIcon={<ShieldCheck className="w-3.5 h-3.5" />}>
+                    Aprobar (gerencia)
+                  </Button>
+                )}
+              </>
+            )}
+          </>
+        }
+      >
+        {/* Resultado: lo que se decide con esta hoja, arriba. */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Resultado etiqueta="Costo total NETO" valor={ufLabel(costoTotal, tasaUf)} detalle={clpLabel(costoTotal)} />
+          <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Margen de venta</div>
+            <div className="mt-1.5">
+              <NumeroInput valor={draft.margenVentaPct} onGuardar={setNumero('margenVentaPct', 99)} max={99} disabled={congelado} sufijo="%" aria-label="Margen de venta" className="w-20 text-sm! font-bold" />
+            </div>
+          </div>
+          <Resultado etiqueta="Valor por m²" valor={ufLabel(valorM2, tasaUf)} detalle="por m² de ventana" />
+          <Resultado etiqueta="Valor de venta NETO" valor={ufLabel(venta, tasaUf)} detalle={clpLabel(venta)} destacado />
         </div>
-      </div>
+        <p className="mt-2 text-[10px] text-slate-400 text-right">UF usada para el presupuesto: $ {tasaUfTexto}</p>
+      </Seccion>
 
       {congelarMutation.isError && (
-        <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs">
-          {(congelarMutation.error as any)?.response?.data?.error || 'No se pudo congelar el presupuesto.'}
-        </div>
+        <Aviso tono="peligro">{(congelarMutation.error as any)?.response?.data?.error || 'No se pudo enviar el presupuesto a aprobación.'}</Aviso>
+      )}
+      {(extrasSinPartida > 0 || presupuestoPorPartida.some((p) => p.codigo === codigoSinAsignar)) && (
+        <Aviso tono="advertencia" titulo="Hay costos en “Sin asignar”">
+          {extrasSinPartida > 0 && `${extrasSinPartida} ${extrasSinPartida === 1 ? 'extra' : 'extras'} sin partida. `}
+          Cuentan para el costo y la venta, pero no quedan en una partida real del Control de Presupuesto. Elige su partida en cada concepto o extra.
+        </Aviso>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Materiales y métricas (de la Analítica, solo lectura) */}
-        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-1">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-3">Materiales y métricas</h4>
-          {totalesPorCategoria.map((c) => (
-            <div key={c.etiqueta} className="flex items-center justify-between py-1.5 border-b border-slate-50 text-xs">
-              <span className="text-slate-600">
-                {c.etiqueta}
-                {mostrarAnalisis && <span className="text-slate-400 ml-1.5">({pctLabel(c.monto, venta)})</span>}
-              </span>
-              <span className="font-mono font-bold text-slate-900">{clpLabel(c.monto)}</span>
-            </div>
-          ))}
-          {[
-            ['Cantidad de ventanas', String(cantidadVentanas)],
-            ['m² de ventanas', `${formatNumber(m2Ventanas, 2)} m²`],
-            ['Cantidad de cuadros', String(cantidadCuadros)],
-            ['Cantidad de vidrios', String(cantidadVidrios)],
-            ['m² de vidrios', `${formatNumber(m2Vidrios, 2)} m²`],
-          ].map(([label, value]) => (
-            <div key={label} className="flex items-center justify-between py-1.5 border-b border-slate-50 text-xs">
-              <span className="text-slate-600">{label}</span>
-              <span className="font-mono font-bold text-slate-900">{value}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Costos complementarios + Flete + Instalación (editable) */}
-        <div className="space-y-5">
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">Costos complementarios</h4>
-              {!congelado && (
-                <button onClick={agregarExtra} className="text-[11px] font-semibold text-brand-600 hover:underline flex items-center gap-1">
-                  <Plus className="w-3 h-3" /> Agregar Extra
-                </button>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
+        <Seccion
+          className="xl:col-span-2"
+          sinRelleno
+          titulo="Costos de la hoja"
+          descripcion="Cantidad × valor unitario, cargado a su partida. Los cambios se calculan al salir de cada campo."
+          acciones={
+            !congelado && (
+              <Button size="sm" variant="outline" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={agregarExtra}>
+                Agregar extra
+              </Button>
+            )
+          }
+        >
+          <Tabla>
+            <Thead>
+              <Tr>
+                <Th>Concepto</Th>
+                <Th alinear="derecha">Cantidad</Th>
+                <Th alinear="derecha">Valor unitario</Th>
+                <Th>Partida</Th>
+                <Th alinear="derecha">Costo</Th>
+                {mostrarAnalisis && <Th alinear="derecha">% venta</Th>}
+              </Tr>
+            </Thead>
+            <Tbody>
+              {grupo('Fabricación')}
+              {filaConcepto('MANO_OBRA_FABRICACION', 'Mano de obra fabricación', `${formatNumber(m2Ventanas, 2)} m² vent.`, 'manoObraFabricacion', '$/m²')}
+              {filaConcepto('FILM_PROTECTOR', 'Film protector cristales', `${formatNumber(m2Vidrios, 2)} m² vidrio`, 'filmProtectorCristales', '$/m²')}
+              {filaConcepto('MATERIAL_INSTALACION', 'Material de instalación', `${formatNumber(m2Ventanas, 2)} m² vent.`, 'materialInstalacion', '$/m²')}
+              {grupo('Flete')}
+              {filaConcepto(
+                'FLETE',
+                'Flete',
+                <NumeroInput valor={draft.cantidadViajes} onGuardar={(v) => setNumero('cantidadViajes')(Math.trunc(v ?? 0))} disabled={congelado} sufijo="viajes" aria-label="Cantidad de viajes" className="w-16" />,
+                'valorViaje',
+                '$/viaje'
               )}
-            </div>
-            {(
-              [
-                ['manoObraFabricacion', 'Mano de obra fabricación', 'CLP por m² de ventana', costoManoObra, 'MANO_OBRA_FABRICACION'],
-                ['filmProtectorCristales', 'Film protector cristales', 'CLP por m² de vidrio', costoFilm, 'FILM_PROTECTOR'],
-                ['materialInstalacion', 'Material de instalación', 'CLP por m² de ventana', costoMaterialInstalacion, 'MATERIAL_INSTALACION'],
-              ] as const
-            ).map(([key, label, hint, costo, concepto]) => (
-              <div key={key as string} className="flex items-center justify-between gap-3 text-xs">
-                <span className="text-slate-600 flex-1">
-                  <span className="block">{label}</span>
-                  <span className="block text-[10px] text-slate-400">
-                    {hint}
-                    {mostrarAnalisis && <span className="ml-1.5">· {clpLabel(costo as number)} ({pctLabel(costo as number, venta)})</span>}
-                  </span>
-                  {selectorConcepto(concepto)}
-                </span>
-                <input
-                  type="number"
-                  min={0}
-                  disabled={congelado}
-                  value={draft[key] || ''}
-                  onChange={(e) => setDraft((prev) => ({ ...prev, [key]: numeroInput(e.target.value) }))}
-                  className={`${inputClass} max-w-[140px]`}
-                />
-              </div>
-            ))}
-            {extras.map((extra, idx) => (
-              <div key={idx} className="flex items-start justify-between gap-2 text-xs">
-                <div className="flex-1 min-w-0">
-                  <input
-                    type="text"
-                    disabled={congelado}
-                    placeholder="Glosa del extra"
-                    value={extra.glosa}
-                    onChange={(e) => actualizarExtra(idx, { glosa: e.target.value })}
-                    className="w-full px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white disabled:bg-slate-100"
-                  />
-                  <SelectorPartida
-                    partidas={catalogoPartidas}
-                    valor={extra.partidaCodigo || codigoSinAsignar}
-                    disabled={congelado}
-                    onChange={(codigo) => actualizarExtra(idx, { partidaCodigo: codigo === codigoSinAsignar ? null : codigo })}
-                    etiqueta={`Partida de ${extra.glosa || 'este extra'}`}
-                  />
-                </div>
-                <input
-                  type="number"
-                  min={0}
-                  disabled={congelado}
-                  value={extra.monto || ''}
-                  onChange={(e) => actualizarExtra(idx, { monto: numeroInput(e.target.value) })}
-                  className={`${inputClass} max-w-[120px]`}
-                />
-                {!congelado && (
-                  <button onClick={() => eliminarExtra(idx)} className="text-slate-400 hover:text-rose-600 transition-colors" aria-label={`Eliminar ${extra.glosa}`}>
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-            ))}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs font-bold">
-              <span>Costo</span>
-              <span className="font-mono">{clpLabel(costosComplementarios)}</span>
-            </div>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">Flete</h4>
-              {selectorConcepto('FLETE')}
-            </div>
-            <div className="flex items-center justify-between gap-3 text-xs">
-              <span className="text-slate-600 flex-1">Cantidad de viajes</span>
-              <input
-                type="number"
-                min={0}
-                disabled={congelado}
-                value={draft.cantidadViajes || ''}
-                onChange={(e) => setDraft((prev) => ({ ...prev, cantidadViajes: Math.trunc(numeroInput(e.target.value)) }))}
-                className={`${inputClass} max-w-[100px]`}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-3 text-xs">
-              <span className="text-slate-600 flex-1">Valor viaje</span>
-              <input
-                type="number"
-                min={0}
-                disabled={congelado}
-                value={draft.valorViaje || ''}
-                onChange={(e) => setDraft((prev) => ({ ...prev, valorViaje: numeroInput(e.target.value) }))}
-                className={`${inputClass} max-w-[140px]`}
-              />
-            </div>
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs font-bold">
-              <span>Costo flete{mostrarAnalisis && <span className="text-slate-400 font-normal ml-1.5">({pctLabel(costoFlete, venta)})</span>}</span>
-              <span className="font-mono">{clpLabel(costoFlete)}</span>
-            </div>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">Instalación</h4>
-            <div className="flex items-center justify-between gap-3 text-xs">
-              <span className="text-slate-600 flex-1">
-                <span className="block">Valor por m²</span>
-                <span className="block text-[10px] text-slate-400">CLP por m² de ventana</span>
-                {selectorConcepto('INSTALACION')}
-              </span>
-              <input
-                type="number"
-                min={0}
-                disabled={congelado}
-                value={draft.valorInstalacionM2 || ''}
-                onChange={(e) => setDraft((prev) => ({ ...prev, valorInstalacionM2: numeroInput(e.target.value) }))}
-                className={`${inputClass} max-w-[140px]`}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-3 text-xs">
-              <span className="text-slate-600 flex-1">
-                <span className="block">Valor por m² (Puerta Protex)</span>
-                <span className="block text-[10px] text-slate-400">CLP por m² de línea manual Protex</span>
-                {selectorConcepto('INSTALACION_PROTEX')}
-              </span>
-              <input
-                type="number"
-                min={0}
-                disabled={congelado}
-                value={draft.valorInstalacionProtexM2 || ''}
-                onChange={(e) => setDraft((prev) => ({ ...prev, valorInstalacionProtexM2: numeroInput(e.target.value) }))}
-                className={`${inputClass} max-w-[140px]`}
-              />
-            </div>
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs font-bold">
-              <span>Costo instalación{mostrarAnalisis && <span className="text-slate-400 font-normal ml-1.5">({pctLabel(costoInstalacion, venta)})</span>}</span>
-              <span className="font-mono">{clpLabel(costoInstalacion)}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Presupuesto por partida: lo que controla Obras contra las OC */}
-      <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
-        <div>
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">Presupuesto por partida</h4>
-          <p className="text-[11px] text-slate-500 mt-0.5">
-            Materiales (con descuento y holgura) más los costos de esta hoja según su partida. Es lo que el Control de Presupuesto
-            compara contra las OC.
-          </p>
-        </div>
-        {(extrasSinPartida > 0 || presupuestoPorPartida.some((p) => p.codigo === codigoSinAsignar)) && (
-          <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            Hay costos en “Sin asignar”
-            {extrasSinPartida > 0 && ` (${extrasSinPartida} ${extrasSinPartida === 1 ? 'extra' : 'extras'})`}: cuentan para el costo y la
-            venta, pero no quedan en una partida real del Control de Presupuesto. Elige su partida en cada concepto o extra.
-          </p>
-        )}
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-left text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-100">
-                <th className="py-1.5 font-semibold">Partida</th>
-                <th className="py-1.5 font-semibold text-right">Materiales</th>
-                <th className="py-1.5 font-semibold text-right">Holgura</th>
-                <th className="py-1.5 font-semibold text-right">Hoja de fijación</th>
-                <th className="py-1.5 font-semibold text-right">Presupuesto</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {presupuestoPorPartida.map((p) => (
-                <tr key={p.codigo} className={p.codigo === codigoSinAsignar ? 'bg-amber-50/60' : ''}>
-                  <td className="py-1.5 text-slate-700">{p.nombre}</td>
-                  <td className="py-1.5 text-right font-mono text-slate-600">{p.materiales ? clpLabel(p.materiales) : '—'}</td>
-                  <td className="py-1.5 text-right font-mono text-slate-600">{p.holgura ? clpLabel(p.holgura) : '—'}</td>
-                  <td className="py-1.5 text-right font-mono text-slate-600">{p.fijacion ? clpLabel(p.fijacion) : '—'}</td>
-                  <td className="py-1.5 text-right font-mono font-bold text-slate-900">{clpLabel(p.total)}</td>
-                </tr>
+              {grupo('Instalación')}
+              {filaConcepto('INSTALACION', 'Instalación', `${formatNumber(m2Ventanas, 2)} m² vent.`, 'valorInstalacionM2', '$/m²')}
+              {filaConcepto('INSTALACION_PROTEX', 'Instalación puerta Protex', `${formatNumber(t?.m2Protex ?? 0, 2)} m²`, 'valorInstalacionProtexM2', '$/m²')}
+              {extras.length > 0 && grupo('Extras')}
+              {extras.map((extra, idx) => (
+                <Tr key={idx}>
+                  <Td>
+                    <InputCompacto
+                      aria-label="Glosa del extra"
+                      disabled={congelado}
+                      placeholder="Glosa del extra"
+                      value={extra.glosa}
+                      onChange={(e) => actualizarExtra(idx, { glosa: e.target.value })}
+                      className="w-full min-w-[10rem] font-semibold"
+                    />
+                  </Td>
+                  <Td numero className="text-slate-400">—</Td>
+                  <Td alinear="derecha">
+                    <NumeroInput valor={extra.monto} onGuardar={(v) => actualizarExtra(idx, { monto: Math.max(0, v ?? 0) })} disabled={congelado} sufijo="$" aria-label={`Monto de ${extra.glosa || 'el extra'}`} className="w-24" />
+                  </Td>
+                  <Td>
+                    <span className="flex items-center gap-1">
+                      <SelectorPartida
+                        partidas={catalogoPartidas}
+                        valor={extra.partidaCodigo || codigoSinAsignar}
+                        disabled={congelado}
+                        onChange={(codigo) => actualizarExtra(idx, { partidaCodigo: codigo === codigoSinAsignar ? null : codigo })}
+                        etiqueta={`Partida de ${extra.glosa || 'este extra'}`}
+                      />
+                      {!congelado && <IconButton icono={Trash2} tono="peligro" etiqueta={`Quitar ${extra.glosa || 'el extra'}`} onClick={() => eliminarExtra(idx)} />}
+                    </span>
+                  </Td>
+                  <Td numero fuerte>{clpLabel(extra.monto)}</Td>
+                  {pct(extra.monto)}
+                </Tr>
               ))}
-            </tbody>
-          </table>
+              <Tr className="bg-slate-50/70 hover:bg-slate-50/70">
+                <Td colSpan={4} className="font-bold text-slate-900">Costo de la hoja</Td>
+                <Td numero fuerte>{clpLabel(costoHoja)}</Td>
+                {pct(costoHoja)}
+              </Tr>
+            </Tbody>
+          </Tabla>
+        </Seccion>
+
+        <div className="space-y-5">
+          <Seccion titulo="Métricas" sinRelleno>
+            <dl className="divide-y divide-slate-100 text-xs">
+              {[
+                ['Ventanas', String(cantidadVentanas)],
+                ['m² de ventanas', `${formatNumber(m2Ventanas, 2)} m²`],
+                ['Cuadros', String(cantidadCuadros)],
+                ['Vidrios', String(cantidadVidrios)],
+                ['m² de vidrios', `${formatNumber(m2Vidrios, 2)} m²`],
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between px-5 py-2">
+                  <dt className="text-slate-600">{label}</dt>
+                  <dd className="font-mono font-bold text-slate-900 tabular-nums">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </Seccion>
+
+          <Seccion titulo="Resumen de costos" sinRelleno>
+            <dl className="divide-y divide-slate-100 text-xs">
+              {[
+                ...totalesPorCategoria.map((c) => [`Materiales · ${c.etiqueta}`, c.monto] as const),
+                ['Costos complementarios', costosComplementarios] as const,
+                ['Flete', costoFlete] as const,
+                ['Instalación', costoInstalacion] as const,
+              ].map(([label, monto]) => (
+                <div key={label} className="flex items-center justify-between gap-3 px-5 py-2">
+                  <dt className="text-slate-600">
+                    {label}
+                    {mostrarAnalisis && <span className="text-slate-400 ml-1.5">({pctLabel(monto, venta)})</span>}
+                  </dt>
+                  <dd className="font-mono font-bold text-slate-900 tabular-nums">{clpLabel(monto)}</dd>
+                </div>
+              ))}
+              <div className="flex items-center justify-between px-5 py-3 bg-slate-50/70 text-sm font-bold text-slate-900">
+                <dt>Costo total NETO</dt>
+                <dd className="font-mono tabular-nums">{clpLabel(costoTotal)}</dd>
+              </div>
+            </dl>
+          </Seccion>
         </div>
       </div>
 
-      {/* Resumen de costos */}
-      <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-1">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-3">Resumen de costos</h4>
-        {[
-          ['Materiales', materialesTotal],
-          ['Costos complementarios', costosComplementarios],
-          ['Flete', costoFlete],
-          ['Instalación', costoInstalacion],
-        ].map(([label, monto]) => (
-          <div key={label as string} className="flex items-center justify-between py-1.5 border-b border-slate-50 text-xs">
-            <span className="text-slate-600">
-              {label}
-              {mostrarAnalisis && <span className="text-slate-400 ml-1.5">({pctLabel(monto as number, venta)})</span>}
-            </span>
-            <span className="font-mono font-bold text-slate-900">{clpLabel(monto as number)}</span>
-          </div>
-        ))}
-        <div className="flex items-center justify-between pt-2 text-sm font-bold text-slate-900">
-          <span>Costo total NETO</span>
-          <span className="font-mono">{clpLabel(costoTotal)}</span>
-        </div>
-      </div>
-
-      {/* Costo total / Margen + Valor por m² (centro) / Venta -- Valor por
-          m² es una metrica clave para el negocio, se le da el mismo peso
-          visual que el margen y se pone al lado para que ambas columnas
-          formen el centro del recuadro. */}
-      <div className="p-5 rounded-2xl bg-slate-900 text-white shadow-sm grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
-        <div>
-          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">
-            Costo total del proyecto · NETO
-          </div>
-          <div className="text-lg font-bold font-mono">{ufLabel(costoTotal, tasaUf)}</div>
-          <div className="text-xs font-mono text-slate-300">{clpLabel(costoTotal)}</div>
-        </div>
-        <div className="text-center">
-          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Margen de venta</div>
-          <div className="flex items-center justify-center gap-1.5">
-            <input
-              type="number"
-              min={0}
-              max={99}
-              disabled={congelado}
-              value={draft.margenVentaPct || ''}
-              onChange={(e) => setDraft((prev) => ({ ...prev, margenVentaPct: Math.min(99, numeroInput(e.target.value)) }))}
-              className="w-16 px-2 py-1 rounded-lg bg-white/10 border border-white/20 text-center text-sm font-mono font-bold text-white focus:outline-none focus:border-brand-600 disabled:opacity-60"
-            />
-            <span className="text-sm font-bold">%</span>
-          </div>
-        </div>
-        <div className="text-center">
-          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Valor por m²</div>
-          <div className="text-lg font-bold font-mono text-white">{ufLabel(valorM2, tasaUf)}</div>
-          <div className="text-xs font-mono text-slate-300">/m² de ventana</div>
-        </div>
-        <div className="text-right">
-          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Valor de venta · NETO</div>
-          <div className="text-lg font-bold font-mono text-[#ff8a63]">{ufLabel(venta, tasaUf)}</div>
-          <div className="text-xs font-mono text-slate-300">{clpLabel(venta)}</div>
-        </div>
-        <div className="col-span-2 md:col-span-4 text-[10px] text-slate-400 text-right">
-          Valor UF usado para presupuesto: $ {new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(tasaUf)} por UF
-        </div>
-      </div>
+      <Seccion
+        sinRelleno
+        titulo="Presupuesto por partida"
+        descripcion="Materiales (con descuento y holgura) más los costos de esta hoja según su partida. Es lo que el Control de Presupuesto compara contra las OC."
+      >
+        <Tabla>
+          <Thead>
+            <Tr>
+              <Th>Partida</Th>
+              <Th alinear="derecha">Materiales</Th>
+              <Th alinear="derecha">Holgura</Th>
+              <Th alinear="derecha">Hoja de fijación</Th>
+              <Th alinear="derecha">Presupuesto</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {presupuestoPorPartida.map((p) => (
+              <Tr key={p.codigo} tono={p.codigo === codigoSinAsignar ? 'advertencia' : undefined}>
+                <Td className="text-slate-700">{p.nombre}</Td>
+                <Td numero mono className="text-slate-600">{p.materiales ? clpLabel(p.materiales) : '—'}</Td>
+                <Td numero mono className="text-slate-600">{p.holgura ? clpLabel(p.holgura) : '—'}</Td>
+                <Td numero mono className="text-slate-600">{p.fijacion ? clpLabel(p.fijacion) : '—'}</Td>
+                <Td numero mono fuerte>{clpLabel(p.total)}</Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </Tabla>
+      </Seccion>
     </div>
   );
 };
+
+const Resultado: React.FC<{ etiqueta: string; valor: string; detalle?: string; destacado?: boolean }> = ({ etiqueta, valor, detalle, destacado }) => (
+  <div className={`p-3.5 rounded-xl border ${destacado ? 'border-brand-600/30 bg-brand-50/60' : 'border-slate-200 bg-slate-50/60'}`}>
+    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{etiqueta}</div>
+    <div className={`mt-1 text-lg font-black tabular-nums ${destacado ? 'text-brand-700' : 'text-slate-900'}`}>{valor}</div>
+    {detalle && <div className="text-[11px] font-mono text-slate-500 tabular-nums">{detalle}</div>}
+  </div>
+);

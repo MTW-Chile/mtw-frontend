@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Search, Loader2 } from 'lucide-react';
 import type { Material } from '../../../../types';
 import { getMateriales } from '../../../../api/client';
+import { Input } from '../../../../components/ui/Input';
+import { BotonFila } from '../../../../components/ui/Lista';
 
 interface MaterialPickerProps {
   onSelect: (material: Material) => void;
@@ -46,43 +48,34 @@ export const MaterialPicker: React.FC<MaterialPickerProps> = ({ onSelect, placeh
 
   return (
     <div className="space-y-2">
-      <div className="relative">
-        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-        <input
-          type="text"
-          value={term}
-          onChange={(e) => {
-            const value = e.target.value;
-            setTerm(value);
-            if (value.trim().length < 2) {
-              setResults([]);
-              setIsLoading(false);
-            }
-          }}
-          placeholder={placeholder || 'Buscar por SKU o descripción…'}
-          autoFocus
-          className="w-full pl-8 pr-8 py-2 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-brand-600/30 focus:border-brand-600"
-        />
-        {isLoading && (
-          <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin absolute right-2.5 top-1/2 -translate-y-1/2" />
-        )}
-      </div>
+      <Input
+        type="search"
+        aria-label="Buscar material"
+        value={term}
+        onChange={(e) => {
+          const value = e.target.value;
+          setTerm(value);
+          if (value.trim().length < 2) {
+            setResults([]);
+            setIsLoading(false);
+          }
+        }}
+        placeholder={placeholder || 'Buscar por SKU o descripción…'}
+        autoFocus
+        leftIcon={<Search className="w-3.5 h-3.5" />}
+        rightIcon={isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : undefined}
+      />
       {term.trim().length >= 2 && (
         <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 divide-y divide-slate-100 bg-white">
           {visibles.length === 0 && !isLoading ? (
             <div className="p-3 text-[11px] text-slate-400 text-center">Sin resultados</div>
           ) : (
             visibles.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => onSelect(m)}
-                className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors cursor-pointer"
-              >
+              <BotonFila key={m.id} onClick={() => onSelect(m)}>
                 <div className="font-mono font-semibold text-[11px] text-slate-900">{m.skuInterno}</div>
                 <div className="text-[11px] text-slate-600 leading-tight">{m.descripcion}</div>
                 <div className="text-[10px] text-slate-400">{m.tipoProducto?.nombre ?? m.familia}</div>
-              </button>
+              </BotonFila>
             ))
           )}
         </div>

@@ -76,7 +76,7 @@ Montos, fechas y unidades se formatean **siempre** con `src/lib/formato.ts`
 
 | Necesidad | Componente | No usar |
 |---|---|---|
-| Acción | `Button` (variantes `primary`, `outline`, `ghost`, `danger`, `subtle`), `IconButton` con `etiqueta` | `<button>` suelto |
+| Acción | `Button` (variantes `primary`, `outline`, `ghost`, `danger`, `subtle`, `link` para acciones dentro de un texto), `IconButton` con `etiqueta` | `<button>` suelto |
 | Tabla | `Tabla`, `Thead`, `Th`, `Tbody`, `Tr`, `Td`, `FilaVacia` | `<table>` suelto |
 | Modal | `Modal` (+ `Modal.Pie`) | `div fixed inset-0` |
 | Confirmar / pedir un texto | `useConfirmar()`: `confirmar(…)`, `pedirTexto(…)` | `window.confirm`, `window.prompt` |
@@ -85,10 +85,19 @@ Montos, fechas y unidades se formatean **siempre** con `src/lib/formato.ts`
 | Campo con etiqueta | `Input`, `Select`, `Textarea`, `NumeroInput`, `Campo` | `<input>`, `<select>`, `<textarea>` sueltos |
 | Campo dentro de una tabla editable | `InputCompacto`, `SelectCompacto`, `NumeroInput` (siempre con `aria-label`) | |
 | Sí/no | `Interruptor` (ajuste; `label` + `enTarjeta` en grillas) o `Casilla` (selección en lista) | checkbox suelto |
-| Una opción entre pocas | `OpcionesTarjeta` (radio en tarjetas); entre muchas, `Select` | radios sueltos |
+| Una opción entre pocas (formulario) | `OpcionesTarjeta` (radio en tarjetas); entre muchas, `Select` | radios sueltos |
+| Vista o filtro entre pocas opciones | `Segmentado` (con `contador` opcional) | botones de color a mano |
+| Buscar en una lista | `Buscador` | input con lupa a mano |
+| Filtrar un listado por estado o categoría | `FiltroChips` (chips en escritorio, selector en móvil) | chips y selects a mano |
+| Menú desde un botón (saltar a un paso, acciones) | `MenuDesplegable` | popovers a mano |
+| Resultado clicable en un buscador | `BotonFila` | |
+| Subir archivos | `InputArchivo` + un `Button` | `<input type="file">` suelto |
 | Estado de carga / vacío / error | `Cargando`, `EstadoVacio`, `ErrorCarga` | spinners y textos sueltos |
 | Lista de registros con pocos campos | `Lista`, `FilaLista` (dentro de `Seccion sinRelleno`) | tarjetas por fila a mano |
-| Estado de un registro | `Badge` | spans con color |
+| Estado de un registro | `Badge`; si se cambia con un clic, `BadgeBoton` | spans con color |
+| Grupo que se abre y cierra | `BotonColapsar` | |
+| Herramienta activable (Espejar) | `BotonAlternar` | |
+| Texto que se edita en el lugar | `ActivadorEdicion` + su campo | |
 | Indicador numérico | `StatCard` | |
 
 ### Reglas de uso

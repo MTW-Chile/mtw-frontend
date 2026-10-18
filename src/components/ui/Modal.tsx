@@ -2,13 +2,13 @@ import React, { useEffect, useId } from 'react';
 import { X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-const ANCHO = { sm: 'sm:max-w-md', md: 'sm:max-w-lg', lg: 'sm:max-w-2xl', xl: 'sm:max-w-4xl' } as const;
+const ANCHO = { sm: 'sm:max-w-md', md: 'sm:max-w-lg', lg: 'sm:max-w-2xl', xl: 'sm:max-w-4xl', completo: 'sm:max-w-7xl sm:h-[94vh]' } as const;
 
 export interface ModalProps {
   titulo: React.ReactNode;
   subtitulo?: React.ReactNode;
   icono?: LucideIcon;
-  /** sm 448 px, md 512 px, lg 672 px, xl 896 px. */
+  /** sm 448 px, md 512 px, lg 672 px, xl 896 px; completo 1280 px y alto fijo (editores con columnas). */
   ancho?: keyof typeof ANCHO;
   onClose: () => void;
   /** Bloquea cerrar (ej. mientras se guarda). */
@@ -17,6 +17,8 @@ export interface ModalProps {
   pie?: React.ReactNode;
   /** Convierte cuerpo y pie en un <form> (Enter envía; el botón principal es type="submit"). */
   onSubmit?: (e: React.FormEvent<HTMLFormElement>) => void;
+  /** Reemplaza las clases del cuerpo (ej. un editor con columnas y scroll propio). */
+  cuerpoClassName?: string;
   children: React.ReactNode;
 }
 
@@ -26,7 +28,7 @@ export interface ModalProps {
  * cierra con Escape o la X, no al hacer clic fuera (se perderían datos).
  * Se monta solo cuando está abierto: `{abierto && <Modal …/>}`.
  */
-export const Modal: React.FC<ModalProps> & { Pie: typeof Pie } = ({ titulo, subtitulo, icono: Icono, ancho = 'md', onClose, cerrable = true, pie, onSubmit, children }) => {
+export const Modal: React.FC<ModalProps> & { Pie: typeof Pie } = ({ titulo, subtitulo, icono: Icono, ancho = 'md', onClose, cerrable = true, pie, onSubmit, cuerpoClassName, children }) => {
   const idTitulo = useId();
   useEffect(() => {
     const alPresionar = (e: KeyboardEvent) => {
@@ -77,12 +79,12 @@ export const Modal: React.FC<ModalProps> & { Pie: typeof Pie } = ({ titulo, subt
               onSubmit(e);
             }}
           >
-            <div className="p-5 space-y-4 overflow-y-auto flex-1">{children}</div>
+            <div className={cuerpoClassName ?? 'p-5 space-y-4 overflow-y-auto flex-1'}>{children}</div>
             {pie}
           </form>
         ) : (
           <>
-            <div className="p-5 space-y-4 overflow-y-auto flex-1">{children}</div>
+            <div className={cuerpoClassName ?? 'p-5 space-y-4 overflow-y-auto flex-1'}>{children}</div>
             {pie}
           </>
         )}

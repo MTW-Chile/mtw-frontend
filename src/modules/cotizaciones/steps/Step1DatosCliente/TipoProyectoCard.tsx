@@ -5,6 +5,7 @@ import { getTiposProyecto, setTipoProyecto } from '../../../../api/client';
 import { avisarError } from '../../../configuracion/catalogo/comun';
 import { usePermisos } from '../../../../lib/permisos';
 import type { Proyecto } from '../../../../types';
+import { Select } from '../../../../components/ui/Select';
 
 /**
  * Tipo del proyecto (Retail, Obra...): define sus plantillas de textos por
@@ -37,21 +38,15 @@ export const TipoProyectoCard: React.FC<{ proyecto: Proyecto; congelado: boolean
       </div>
       <div className="flex items-center gap-2">
         {cambiar.isPending && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
-        <select
-          aria-label="Tipo de proyecto"
-          value={proyecto.tipoProyecto?.id ?? proyecto.tipoProyectoId ?? ''}
-          disabled={!editable || cambiar.isPending}
-          onChange={(e) => cambiar.mutate(e.target.value)}
-          className="min-w-[180px] py-2 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:border-brand-600 disabled:opacity-70"
-        >
-          {tipos
-            .filter((t) => t.activo || t.id === proyecto.tipoProyecto?.id)
-            .map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.nombre}
-              </option>
-            ))}
-        </select>
+        <div className="min-w-[180px]">
+          <Select
+            aria-label="Tipo de proyecto"
+            value={proyecto.tipoProyecto?.id ?? proyecto.tipoProyectoId ?? ''}
+            disabled={!editable || cambiar.isPending}
+            onChange={(e) => cambiar.mutate(e.target.value)}
+            options={tipos.filter((t) => t.activo || t.id === proyecto.tipoProyecto?.id).map((t) => ({ value: t.id, label: t.nombre }))}
+          />
+        </div>
       </div>
     </section>
   );

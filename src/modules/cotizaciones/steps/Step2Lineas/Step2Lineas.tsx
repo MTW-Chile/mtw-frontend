@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Search, Layers, FileDown, Loader2, Plus, X, ChevronDown } from 'lucide-react';
+import { Layers, FileDown, Loader2, Plus } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
 import { renderPdf, eliminarLineaManual, espejarVentana, invertirOrdenPanelesVentana } from '../../../../api/client';
 import type { Proyecto, ProyectoVersion, Ventana } from '../../../../types';
@@ -11,6 +11,11 @@ import { guardarCorreccionDibujo } from './correccionDibujo';
 import { buildCatalogoHtml, rasterizarDibujos } from './catalogoPdf';
 import { Button } from '../../../../components/ui/Button';
 import { Paginacion, paginar } from '../../../../components/ui/Paginacion';
+import { Buscador } from '../../../../components/ui/Buscador';
+import { Select } from '../../../../components/ui/Select';
+import { Aviso } from '../../../../components/ui/Aviso';
+import { useConfirmar } from '../../../../components/ui/Confirmar';
+import { mostrarToast } from '../../../../lib/toast';
 
 interface Step2LineasProps {
   proyecto: Proyecto;
@@ -21,6 +26,7 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
   proyecto,
   activeVersion,
 }) => {
+  const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'linea' | 'modelo' | 'unidades' | 'superficie'>('linea');
@@ -54,7 +60,8 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
   };
 
   const handleEliminarLineaManual = async (ventana: Ventana) => {
-    if (!window.confirm(`¿Quitar la línea "${ventana.modelo}"? Esta acción no se puede deshacer.`)) return;
+    const ok = await confirmar({ titulo: `¿Quitar la línea "${ventana.modelo}"?`, mensaje: 'Esta acción no se puede deshacer.', confirmar: 'Quitar', peligro: true });
+    if (!ok) return;
     setEliminandoLineaId(ventana.id);
     try {
       await eliminarLineaManual(ventana.id);
@@ -62,7 +69,7 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
         queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyecto.id] });
       }
     } catch (err) {
-      window.alert('No se pudo quitar la línea. Intenta de nuevo.');
+      mostrarToast('No se pudo quitar la línea. Intenta de nuevo.');
     } finally {
       setEliminandoLineaId(null);
     }
@@ -74,7 +81,7 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
       const { data } = await espejarVentana(ventana.id);
       handleVentanaMaterialesUpdated(data);
     } catch (err) {
-      window.alert('No se pudo espejar la ventana. Intenta de nuevo.');
+      mostrarToast('No se pudo espejar la ventana. Intenta de nuevo.');
     } finally {
       setEspejandoLineaId(null);
     }
@@ -86,7 +93,7 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
       const { data } = await invertirOrdenPanelesVentana(ventana.id);
       handleVentanaMaterialesUpdated(data);
     } catch (err) {
-      window.alert('No se pudo invertir el orden de la ventana. Intenta de nuevo.');
+      mostrarToast('No se pudo invertir el orden de la ventana. Intenta de nuevo.');
     } finally {
       setInvirtiendoOrdenLineaId(null);
     }
@@ -100,7 +107,7 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
       });
       handleVentanaMaterialesUpdated(updated);
     } catch (err) {
-      window.alert('No se pudo invertir la mano de la apertura. Intenta de nuevo.');
+      mostrarToast('No se pudo invertir la mano de la apertura. Intenta de nuevo.');
     } finally {
       setInvirtiendoManoLineaId(null);
     }
@@ -224,53 +231,34 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 pt-5 border-t border-slate-100">
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por modelo, acabado o comentario…"
-              className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-brand-600 transition-colors"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-                aria-label="Limpiar búsqueda"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
+          <Buscador valor={searchTerm} onChange={setSearchTerm} placeholder="Buscar por modelo, acabado o comentario…" />
 
-          <div className="relative sm:w-64">
-            <select
+          <div className="sm:w-64">
+            <Select
+              aria-label="Ordenar líneas"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              aria-label="Ordenar líneas"
-              className="w-full pl-3.5 pr-9 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:bg-white focus:border-brand-600 appearance-none cursor-pointer"
-            >
-              <option value="linea">Orden: Nº línea (HETMO)</option>
-              <option value="modelo">Orden: Modelo</option>
-              <option value="unidades">Orden: Cantidad de uds</option>
-              <option value="superficie">Orden: Superficie m²</option>
-            </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              options={[
+                { value: 'linea', label: 'Orden: Nº línea (HETMO)' },
+                { value: 'modelo', label: 'Orden: Modelo' },
+                { value: 'unidades', label: 'Orden: Cantidad de uds' },
+                { value: 'superficie', label: 'Orden: Superficie m²' },
+              ]}
+            />
           </div>
         </div>
       </section>
 
       {catalogoError && (
-        <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">{catalogoError}</div>
+        <Aviso tono="peligro">{catalogoError}</Aviso>
       )}
 
       {filteredVentanas.length === 0 ? (
         <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 space-y-2">
           <p className="text-sm text-slate-500">No se encontraron líneas que coincidan con el criterio de búsqueda.</p>
-          <button onClick={() => setSearchTerm('')} className="text-xs font-bold text-brand-600 hover:underline cursor-pointer">
+          <Button variant="link" size="sm" onClick={() => setSearchTerm('')}>
             Limpiar filtro
-          </button>
+          </Button>
         </div>
       ) : (
         <>

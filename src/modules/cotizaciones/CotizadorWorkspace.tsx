@@ -4,6 +4,8 @@ import { HeaderContexto } from './components/workspace/HeaderContexto';
 import { WorkspaceFooter } from './components/workspace/WorkspaceFooter';
 import { ReimportModal } from './components/workspace/ReimportModal';
 import { Loader } from '../../components/ui/Loader';
+import { ErrorCarga } from '../../components/ui/Estados';
+import { Button } from '../../components/ui/Button';
 
 // Cada paso se carga sólo cuando el usuario lo abre, no en el primer
 // render del cotizador: Step2 arrastra todo el motor de geometría SVG
@@ -80,15 +82,12 @@ export const CotizadorWorkspace: React.FC<CotizadorWorkspaceProps> = ({ proyecto
 
   if (isError || !proyecto) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8 bg-slate-50 text-slate-700">
+      <div className="flex-1 flex items-center justify-center p-8">
         <div className="text-center space-y-4">
-          <div className="text-red-500 font-bold text-sm">Error al cargar la obra.</div>
-          <button
-            onClick={onBack}
-            className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-semibold text-white hover:bg-slate-700 cursor-pointer"
-          >
+          <ErrorCarga que="la obra" />
+          <Button variant="secondary" size="sm" onClick={onBack}>
             Volver al listado
-          </button>
+          </Button>
         </div>
       </div>
     );

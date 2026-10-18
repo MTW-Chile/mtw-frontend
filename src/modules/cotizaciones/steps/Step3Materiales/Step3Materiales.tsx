@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Boxes, Search, FileSpreadsheet, FileDown, CheckCircle2, Check, ChevronDown, ShieldCheck, ArrowRightLeft } from 'lucide-react';
+import { Boxes, Search, FileSpreadsheet, FileDown, CheckCircle2, Check, ShieldCheck, ArrowRightLeft } from 'lucide-react';
 import { Badge } from '../../../../components/ui/Badge';
 import { Button } from '../../../../components/ui/Button';
-import { TABLE_CLASS, TABLE_WRAPPER_CLASS } from '../../../../lib/designSystem';
+import { TABLE_WRAPPER_CLASS } from '../../../../lib/designSystem';
 import { formatNumber } from '../../../../lib/utils';
 import { useMonedas, resolverMoneda, formatMonto } from '../../../../lib/monedas';
 import {
@@ -12,8 +12,7 @@ import {
   setPartidaAprobacion,
   setPartidaDescuento,
   setPartidaHolgura,
-  updateEstadoAprobacion,
-} from '../../../../api/client';
+  updateEstadoAprobacion } from '../../../../api/client';
 import type { MaterialAnalitica, PartidaAnalitica, Proyecto, ProyectoVersion } from '../../../../types';
 import { DivisasForm, DivisasResumen } from '../Step1DatosCliente/DivisasForm';
 import { ReemplazarMaterialModal } from './ReemplazarMaterialModal';
@@ -21,6 +20,12 @@ import { useAnalitica, decimalesCantidad } from '../../lib/useAnalitica';
 import { MTW_NAVY, MTW_GRIS, MTW_BORDE, MTW_HEAD_BG, pdfTableStyle, drawPdfHeader } from '../../lib/pdfTheme';
 import { usePermisos } from '../../../../lib/permisos';
 import { useParametrosGenerales } from '../../../../lib/parametrosGenerales';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../../components/ui/Tabla';
+import { NumeroInput } from '../../../../components/ui/Campos';
+import { BadgeBoton } from '../../../../components/ui/BadgeBoton';
+import { IconButton } from '../../../../components/ui/IconButton';
+import { Input } from '../../../../components/ui/Input';
+import { BotonColapsar } from '../../../../components/ui/BotonColapsar';
 
 interface Step3MaterialesProps {
   proyecto: Proyecto;
@@ -63,37 +68,9 @@ const PrecioEditable: React.FC<{
   valor: number;
   disabled: boolean;
   onGuardar: (valor: number) => void;
-}> = ({ valor, disabled, onGuardar }) => {
-  const [texto, setTexto] = useState(String(valor));
-
-  useEffect(() => {
-    setTexto(String(valor));
-  }, [valor]);
-
-  const confirmar = () => {
-    const parsed = Number(texto.replace(',', '.'));
-    if (Number.isFinite(parsed) && parsed !== valor) {
-      onGuardar(parsed);
-    } else {
-      setTexto(String(valor));
-    }
-  };
-
-  return (
-    <input
-      type="text"
-      inputMode="decimal"
-      value={texto}
-      disabled={disabled}
-      onChange={(e) => setTexto(e.target.value)}
-      onBlur={confirmar}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-      }}
-      className="w-24 px-2 py-1 rounded-lg border border-slate-200 bg-white text-right tabular-nums text-xs font-semibold text-slate-800 focus:outline-none focus:border-brand-600 disabled:bg-slate-50 disabled:text-slate-400 disabled:border-transparent"
-    />
-  );
-};
+}> = ({ valor, disabled, onGuardar }) => (
+  <NumeroInput valor={valor} disabled={disabled} onGuardar={(v) => v !== null && onGuardar(v)} aria-label="Valor" className="w-24 font-semibold" />
+);
 
 // Botón de estado Incluido / Excluido (cada material se puede excluir del total).
 const EstadoMaterial: React.FC<{ excluido: boolean; disabled: boolean; onClick: () => void; title: string }> = ({
@@ -102,34 +79,22 @@ const EstadoMaterial: React.FC<{ excluido: boolean; disabled: boolean; onClick: 
   onClick,
   title,
 }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    title={title}
-    className="shrink-0 disabled:cursor-not-allowed cursor-pointer disabled:opacity-50"
-  >
-    <Badge size="sm" variant={excluido ? 'warning' : 'success'}>
-      {excluido ? 'Excluido' : 'Incluido'}
-    </Badge>
-  </button>
+  <BadgeBoton variant={excluido ? 'warning' : 'success'} onClick={onClick} disabled={disabled} title={title}>
+    {excluido ? 'Excluido' : 'Incluido'}
+  </BadgeBoton>
 );
 
 // Reemplazo de este material en todas las líneas de la versión (ver
 // ReemplazarMaterialModal). Solo se muestra si el material está en alguna línea.
 const BotonReemplazar: React.FC<{ disabled: boolean; onClick: () => void }> = ({ disabled, onClick }) => (
-  <button
+  <IconButton
+    icono={ArrowRightLeft}
+    tono="marca"
     onClick={onClick}
     disabled={disabled}
-    title={disabled ? 'Partida aprobada o presupuesto congelado -- no se puede modificar' : 'Reemplazar este material en todas las líneas'}
-    aria-label="Reemplazar material"
-    className={`shrink-0 w-7 h-7 rounded-lg border flex items-center justify-center transition-colors disabled:cursor-not-allowed ${
-      disabled
-        ? 'bg-slate-100 border-slate-200 text-slate-300'
-        : 'bg-white border-slate-200 text-slate-500 hover:text-brand-600 hover:border-brand-600/40 cursor-pointer'
-    }`}
-  >
-    <ArrowRightLeft className="w-3.5 h-3.5" />
-  </button>
+    etiqueta={disabled ? 'Partida aprobada o presupuesto congelado -- no se puede modificar' : 'Reemplazar este material en todas las líneas'}
+    className="border border-slate-200 bg-white"
+  />
 );
 
 // Dato con etiqueta encima (mismo patrón que la tarjeta de línea).
@@ -616,15 +581,8 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
         </div>
 
         {/* Buscador */}
-        <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar SKU o descripción…"
-            className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-brand-600 transition-colors"
-          />
+        <div>
+          <Input type="search" aria-label="Buscar material" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar SKU o descripción…" leftIcon={<Search className="w-4 h-4" />} />
         </div>
 
         {/* Partidas */}
@@ -645,11 +603,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
             return (
               <div key={codigo} className="rounded-2xl border border-slate-200 overflow-hidden">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 px-4 py-3 bg-slate-50/70 border-b border-slate-100">
-                  <button
-                    onClick={() => setPartidaColapsada((prev) => ({ ...prev, [codigo]: !colapsada }))}
-                    className="flex flex-wrap items-center gap-x-2.5 gap-y-1 min-w-0 text-left cursor-pointer"
-                  >
-                    <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${colapsada ? '-rotate-90' : ''}`} />
+                  <BotonColapsar abierto={!colapsada} onClick={() => setPartidaColapsada((prev) => ({ ...prev, [codigo]: !colapsada }))}>
                     <span className="font-bold text-sm text-slate-900">{partida.nombre}</span>
                     <Badge size="sm" variant="default">{materiales.length} {materiales.length === 1 ? 'ítem' : 'ítems'}</Badge>
                     <span className="text-xs text-slate-600 tabular-nums">
@@ -657,7 +611,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                       {descuentoActual > 0 && ` (desc. ${descuentoActual}%)`}
                       {partida.holgura > 0 && ` · incluye holgura ${holguraActual}% ($ ${formatNumber(partida.holgura, 0)})`}
                     </span>
-                  </button>
+                  </BotonColapsar>
 
                   <div className="flex flex-wrap items-center gap-2">
                     <label className="flex items-center gap-1.5 text-[11px] text-slate-500" title="Descuento negociado con el proveedor: baja el precio de compra de los materiales de la partida (y el de la OC)">
@@ -700,35 +654,35 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                   // @container: la tabla exige ancho real; en tablet y móvil cada material va en tarjeta.
                   <div className="@container">
                     <div className={`hidden @4xl:block ${TABLE_WRAPPER_CLASS}`}>
-                      <table className={`${TABLE_CLASS} text-left text-slate-700`}>
-                        <thead className="bg-white text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-100">
-                          <tr>
-                            <th className="px-4 py-2.5 font-semibold">SKU</th>
-                            <th className="px-4 py-2.5 font-semibold">Material</th>
-                            <th className="px-4 py-2.5 font-semibold text-right">Precio origen</th>
-                            <th className="px-4 py-2.5 font-semibold text-right">Precio CLP</th>
-                            <th className="px-4 py-2.5 font-semibold text-right">Cantidad</th>
-                            <th className="px-4 py-2.5 font-semibold text-right">Total CLP</th>
-                            <th className="px-4 py-2.5 font-semibold text-center">Estado</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
+                      <Tabla>
+                        <Thead>
+                          <Tr>
+                            <Th className="font-semibold">SKU</Th>
+                            <Th className="font-semibold">Material</Th>
+                            <Th alinear="derecha" className="font-semibold">Precio origen</Th>
+                            <Th alinear="derecha" className="font-semibold">Precio CLP</Th>
+                            <Th alinear="derecha" className="font-semibold">Cantidad</Th>
+                            <Th alinear="derecha" className="font-semibold">Total CLP</Th>
+                            <Th alinear="centro" className="font-semibold">Estado</Th>
+                          </Tr>
+                        </Thead>
+                        <Tbody>
                           {materiales.map((m) => (
-                            <tr
+                            <Tr
                               key={m.id}
                               title={m.precioModificado ? 'Precio modificado a mano -- distinto al original de HETMO' : undefined}
                               className={`transition-colors hover:bg-slate-50 ${m.excluido ? 'opacity-40' : m.reemplazado ? 'bg-violet-50/60' : m.precioModificado ? 'bg-sky-50/60' : ''}`}
                             >
-                              <td className="px-4 py-2.5 align-top font-semibold text-slate-900 whitespace-nowrap">{m.skuInterno}</td>
-                              <td className="px-4 py-2.5 align-top min-w-0">
+                              <Td className="align-top font-semibold text-slate-900 whitespace-nowrap">{m.skuInterno}</Td>
+                              <Td className="align-top min-w-0">
                                 <div className="font-medium text-slate-800">{m.descripcion}</div>
                                 <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                                   <span className="text-[11px] text-slate-500">{m.proveedorNombre}</span>
                                   {m.precioModificado && <Badge size="sm" variant="info">Precio editado</Badge>}
                                   {m.reemplazado && <Badge size="sm" variant="violet">Reemplazado</Badge>}
                                 </div>
-                              </td>
-                              <td className="px-4 py-2.5 align-top text-right">
+                              </Td>
+                              <Td alinear="derecha" className="align-top">
                                 <div className="flex items-center justify-end gap-1">
                                   <span className="text-slate-400 text-[10px]">{resolverMoneda(m.monedaOrigen, monedas).simbolo}</span>
                                   <PrecioEditable
@@ -737,8 +691,8 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                     onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo, monedaOrigen: m.monedaOrigen })}
                                   />
                                 </div>
-                              </td>
-                              <td className="px-4 py-2.5 align-top text-right">
+                              </Td>
+                              <Td alinear="derecha" className="align-top">
                                 <div className="flex items-center justify-end gap-1">
                                   <span className="text-slate-400 text-[10px]">$</span>
                                   <PrecioEditable
@@ -747,14 +701,14 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                     onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo / m.factorPrecio, monedaOrigen: 'CLP' })}
                                   />
                                 </div>
-                              </td>
-                              <td className="px-4 py-2.5 align-top text-right tabular-nums text-slate-800 whitespace-nowrap">
+                              </Td>
+                              <Td numero className="align-top text-slate-800">
                                 {formatNumber(m.cantidadTotal, decimalesCantidad(m.cantidadTotal))} <span className="text-slate-400">{m.unidad.simbolo}</span>
-                              </td>
-                              <td className="px-4 py-2.5 align-top text-right tabular-nums font-bold text-slate-900 whitespace-nowrap">
+                              </Td>
+                              <Td numero className="align-top font-bold text-slate-900">
                                 $ {formatNumber(m.precioCompraNeto * m.cantidadTotal, 0)}
-                              </td>
-                              <td className="px-4 py-2.5 align-top text-center">
+                              </Td>
+                              <Td alinear="centro" className="align-top">
                                 <div className="flex items-center justify-center gap-2">
                                   {lineasPorMaterial.get(m.materialId) ? (
                                     <BotonReemplazar
@@ -778,11 +732,11 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                     }
                                   />
                                 </div>
-                              </td>
-                            </tr>
+                              </Td>
+                            </Tr>
                           ))}
-                        </tbody>
-                      </table>
+                        </Tbody>
+                      </Tabla>
                     </div>
 
                     <ul className="@4xl:hidden divide-y divide-slate-100">

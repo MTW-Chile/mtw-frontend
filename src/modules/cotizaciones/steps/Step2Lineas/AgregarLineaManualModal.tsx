@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, PanelTop, DoorClosed, AlertCircle, Loader2 } from 'lucide-react';
+import { PanelTop, DoorClosed, Loader2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../../../components/ui/Button';
 import { Input } from '../../../../components/ui/Input';
@@ -7,6 +7,9 @@ import { Select } from '../../../../components/ui/Select';
 import { getPlantillasLinea, crearLineaManual } from '../../../../api/client';
 import { MaterialPicker } from './MaterialPicker';
 import type { Material } from '../../../../types';
+import { Modal } from '../../../../components/ui/Modal';
+import { Aviso } from '../../../../components/ui/Aviso';
+import { OpcionesTarjeta } from '../../../../components/ui/Campos';
 
 interface AgregarLineaManualModalProps {
   versionId: string;
@@ -116,157 +119,111 @@ export const AgregarLineaManualModal: React.FC<AgregarLineaManualModalProps> = (
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
-      <div
-        className="w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[94vh] sm:max-h-[88vh] animate-slide-up sm:animate-none"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-brand-600/10 border border-brand-600/20 flex items-center justify-center text-brand-600 shrink-0">
-              <PanelTop className="w-5 h-5" />
+    <Modal
+      titulo="Agregar Línea Manual"
+      subtitulo="Una línea que no viene de HETMO"
+      icono={PanelTop}
+      onClose={onClose}
+      onSubmit={handleSubmit}
+      pie={
+        <Modal.Pie>
+          <Button type="button" variant="outline" onClick={onClose} disabled={mutation.isPending}>
+            Cancelar
+          </Button>
+          <Button type="submit" variant="primary" isLoading={mutation.isPending}>
+            {mutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            Agregar Línea
+          </Button>
+        </Modal.Pie>
+      }
+    >
+      {generalError && <Aviso tono="peligro">{generalError}</Aviso>}
+
+      {/* Tipo de línea */}
+      <OpcionesTarjeta
+        columnas={2}
+        valor={tipo}
+        onChange={setTipo}
+        opciones={[
+          { value: 'DVH_FIJO', label: 'Vidrio DVH fijo', ayuda: 'Paño de vidrio sin marco', icono: <PanelTop className="w-4 h-4 text-brand-600" /> },
+          { value: 'PROTEX', label: 'Puerta Protex', ayuda: 'Vidrio + herrajes por hoja', icono: <DoorClosed className="w-4 h-4 text-brand-600" /> },
+        ]}
+      />
+
+      <div className="grid grid-cols-3 gap-3">
+        <Input
+          label="Ancho (mm)"
+          type="number"
+          min={0}
+          value={anchoMm}
+          onChange={(e) => setAnchoMm(e.target.value)}
+          required
+        />
+        <Input label="Alto (mm)" type="number" min={0} value={altoMm} onChange={(e) => setAltoMm(e.target.value)} required />
+        <Input label="Unidades" type="number" min={1} value={unidades} onChange={(e) => setUnidades(e.target.value)} required />
+      </div>
+      {tipo === 'PROTEX' && (
+        <p className="text-[11px] text-slate-500 -mt-2.5">
+          El ancho es el de una hoja individual -- si son 2 hojas, el ancho total de la puerta y el vidrio se calculan solos.
+        </p>
+      )}
+
+      {/* Vidrio */}
+      <div className="space-y-2">
+        <span className="text-[10px] font-bold uppercase text-slate-500">Vidrio</span>
+        {vidrio ? (
+          <div className="flex items-center justify-between gap-2 bg-white rounded-lg border border-slate-200 px-3 py-2">
+            <div className="min-w-0">
+              <div className="font-mono font-semibold text-[11px] text-slate-900">{vidrio.skuInterno}</div>
+              <div className="text-[11px] text-slate-600 leading-tight truncate">{vidrio.descripcion}</div>
             </div>
-            <div>
-              <h2 className="text-sm font-black tracking-tight text-slate-900">Agregar Línea Manual</h2>
-              <p className="text-[11px] text-slate-500">Una línea que no viene de HETMO</p>
-            </div>
+            <Button variant="link" size="sm" className="shrink-0" onClick={() => setVidrio(null)}>
+              Cambiar
+            </Button>
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto flex-1">
-          {generalError && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{generalError}</span>
-            </div>
-          )}
-
-          {/* Tipo de línea */}
-          <div className="grid grid-cols-2 gap-2.5">
-            <button
-              type="button"
-              onClick={() => setTipo('DVH_FIJO')}
-              className={`p-3 rounded-xl border text-left transition-colors cursor-pointer ${
-                tipo === 'DVH_FIJO' ? 'border-brand-600 bg-brand-50' : 'border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <PanelTop className={`w-5 h-5 mb-1.5 ${tipo === 'DVH_FIJO' ? 'text-brand-600' : 'text-slate-400'}`} />
-              <div className="text-xs font-bold text-slate-900">Vidrio DVH Fijo</div>
-              <div className="text-[10px] text-slate-500">Paño de vidrio sin marco</div>
-            </button>
-            <button
-              type="button"
-              onClick={() => setTipo('PROTEX')}
-              className={`p-3 rounded-xl border text-left transition-colors cursor-pointer ${
-                tipo === 'PROTEX' ? 'border-brand-600 bg-brand-50' : 'border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <DoorClosed className={`w-5 h-5 mb-1.5 ${tipo === 'PROTEX' ? 'text-brand-600' : 'text-slate-400'}`} />
-              <div className="text-xs font-bold text-slate-900">Puerta Protex</div>
-              <div className="text-[10px] text-slate-500">Vidrio + herrajes por hoja</div>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <Input
-              label="Ancho (mm)"
-              type="number"
-              min={0}
-              value={anchoMm}
-              onChange={(e) => setAnchoMm(e.target.value)}
-              required
+        ) : (
+          <div className="rounded-xl border border-brand-200 bg-brand-50/40 p-3">
+            <MaterialPicker
+              placeholder="Buscar vidrio por SKU o descripción…"
+              onSelect={(m) => setVidrio(m)}
             />
-            <Input label="Alto (mm)" type="number" min={0} value={altoMm} onChange={(e) => setAltoMm(e.target.value)} required />
-            <Input label="Unidades" type="number" min={1} value={unidades} onChange={(e) => setUnidades(e.target.value)} required />
           </div>
-          {tipo === 'PROTEX' && (
-            <p className="text-[11px] text-slate-500 -mt-2.5">
-              El ancho es el de una hoja individual -- si son 2 hojas, el ancho total de la puerta y el vidrio se calculan solos.
+        )}
+      </div>
+
+      {/* Cantidad de hojas + plantilla de herrajes (solo Protex) */}
+      {tipo === 'PROTEX' && (
+        <div className="space-y-2">
+          <OpcionesTarjeta
+            legend="Cantidad de hojas"
+            columnas={2}
+            disabled={plantillasQuery.isLoading}
+            valor={hojasElegidas ? (String(hojasElegidas) as '1' | '2') : null}
+            onChange={(v) => setHojasElegidas(v === '1' ? 1 : 2)}
+            opciones={[
+              { value: '1', label: '1 hoja' },
+              { value: '2', label: '2 hojas' },
+            ]}
+          />
+
+          {hojasElegidas && !plantillasQuery.isLoading && plantillasParaHojas.length === 0 && (
+            <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+              No hay ninguna plantilla activa de {hojasElegidas} {hojasElegidas === 1 ? 'hoja' : 'hojas'} -- se arman desde Configuración → Plantillas de Puertas.
             </p>
           )}
 
-          {/* Vidrio */}
-          <div className="space-y-2">
-            <span className="text-[10px] font-bold uppercase text-slate-500">Vidrio</span>
-            {vidrio ? (
-              <div className="flex items-center justify-between gap-2 bg-white rounded-lg border border-slate-200 px-3 py-2">
-                <div className="min-w-0">
-                  <div className="font-mono font-semibold text-[11px] text-slate-900">{vidrio.skuInterno}</div>
-                  <div className="text-[11px] text-slate-600 leading-tight truncate">{vidrio.descripcion}</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setVidrio(null)}
-                  className="text-[10px] font-semibold text-brand-600 hover:underline shrink-0 cursor-pointer"
-                >
-                  Cambiar
-                </button>
-              </div>
-            ) : (
-              <div className="rounded-xl border border-brand-200 bg-brand-50/40 p-3">
-                <MaterialPicker
-                  placeholder="Buscar vidrio por SKU o descripción…"
-                  onSelect={(m) => setVidrio(m)}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Cantidad de hojas + plantilla de herrajes (solo Protex) */}
-          {tipo === 'PROTEX' && (
-            <div className="space-y-2">
-              <span className="text-[10px] font-bold uppercase text-slate-500">Cantidad de Hojas</span>
-              <div className="grid grid-cols-2 gap-2.5">
-                {([1, 2] as const).map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setHojasElegidas(n)}
-                    disabled={plantillasQuery.isLoading}
-                    className={`py-2 rounded-xl border text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 ${
-                      hojasElegidas === n ? 'border-brand-600 bg-brand-50 text-brand-600' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    {n} {n === 1 ? 'Hoja' : 'Hojas'}
-                  </button>
-                ))}
-              </div>
-
-              {hojasElegidas && !plantillasQuery.isLoading && plantillasParaHojas.length === 0 && (
-                <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
-                  No hay ninguna plantilla activa de {hojasElegidas} {hojasElegidas === 1 ? 'hoja' : 'hojas'} -- se arman desde Configuración → Plantillas de Puertas.
-                </p>
-              )}
-
-              {/* Solo se pide elegir si hay más de un kit activo para esa cantidad de hojas */}
-              {hojasElegidas && plantillasParaHojas.length > 1 && (
-                <Select
-                  label="Plantilla de Herrajes"
-                  options={plantillaOptions}
-                  value={plantillaId}
-                  onChange={(e) => setPlantillaId(e.target.value)}
-                />
-              )}
-            </div>
+          {/* Solo se pide elegir si hay más de un kit activo para esa cantidad de hojas */}
+          {hojasElegidas && plantillasParaHojas.length > 1 && (
+            <Select
+              label="Plantilla de Herrajes"
+              options={plantillaOptions}
+              value={plantillaId}
+              onChange={(e) => setPlantillaId(e.target.value)}
+            />
           )}
+        </div>
+      )}
 
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
-            <Button type="button" variant="outline" onClick={onClose} disabled={mutation.isPending}>
-              Cancelar
-            </Button>
-            <Button type="submit" variant="primary" isLoading={mutation.isPending}>
-              {mutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              Agregar Línea
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+    </Modal>
   );
 };

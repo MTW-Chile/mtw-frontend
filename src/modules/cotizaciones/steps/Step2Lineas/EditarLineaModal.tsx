@@ -1,22 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import {
-  X,
-  ChevronDown,
-  Maximize2,
-  DoorClosed,
-  Paintbrush,
-  Boxes,
-  Plus,
-  Repeat,
-  Trash2,
-  Loader2,
-  FlipHorizontal2,
-  FlipHorizontal,
-  ArrowUpDown,
-  Sliders,
-  Rows3,
-  Sparkles,
-} from 'lucide-react';
+import { Maximize2, DoorClosed, Paintbrush, Boxes, Plus, Repeat, Trash2, FlipHorizontal2, FlipHorizontal, ArrowUpDown, Sliders, Rows3, Sparkles } from 'lucide-react';
 import type { CorreccionTravesano, MaterialVentana, Ventana } from '../../../../types';
 import { formatNumber } from '../../../../lib/utils';
 import { WindowRendererSvg } from '../../components/drawing/WindowRendererSvg';
@@ -28,6 +11,12 @@ import { MaterialLineaForm, type MaterialLineaFormPayload } from './MaterialLine
 import { CorrederaEditor, type CorrederaDraft } from './CorrederaEditor';
 import { TravesanosEditor } from './TravesanosEditor';
 import { correccionConCambios } from './correccionDibujo';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../../components/ui/Tabla';
+import { Modal } from '../../../../components/ui/Modal';
+import { Button } from '../../../../components/ui/Button';
+import { BotonAlternar } from '../../../../components/ui/BotonAlternar';
+import { BotonColapsar } from '../../../../components/ui/BotonColapsar';
+import { useConfirmar } from '../../../../components/ui/Confirmar';
 
 interface EditarLineaModalProps {
   ventana: Ventana;
@@ -80,6 +69,7 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
   onInvertirOrden,
   isInvirtiendoOrden,
 }) => {
+  const { confirmar } = useConfirmar();
   const [editMode, setEditMode] = useState<EditMode>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
@@ -137,8 +127,8 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
   })();
   const sinGuardar = Boolean(corrDraft || travDraft);
 
-  const handleClose = () => {
-    if (sinGuardar && !window.confirm('Hay cambios del dibujo sin guardar. ¿Cerrar y descartarlos?')) return;
+  const handleClose = async () => {
+    if (sinGuardar && !(await confirmar({ titulo: 'Hay cambios del dibujo sin guardar', mensaje: '¿Cerrar y descartarlos?', confirmar: 'Descartar', peligro: true }))) return;
     onClose();
   };
 
@@ -182,7 +172,7 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
     const mensaje = row.reemplazaMaterialId
       ? '¿Deshacer este reemplazo? Vuelve a mostrarse el material HETMO original de esta línea.'
       : '¿Quitar este material de la línea?';
-    if (!window.confirm(mensaje)) return;
+    if (!(await confirmar({ titulo: mensaje, confirmar: row.reemplazaMaterialId ? 'Deshacer' : 'Quitar', peligro: true }))) return;
     setRemoveError(null);
     setRemovingId(row.id);
     try {
@@ -201,11 +191,6 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
 
   const toggle = (id: string) => setOpenId((cur) => (cur === id ? null : id));
 
-  const toolBtn =
-    'text-[11px] font-semibold flex items-center gap-1 transition-all px-2.5 py-1 rounded-lg border cursor-pointer disabled:opacity-50';
-  const toolOn = 'bg-brand-600/10 text-brand-600 border-brand-600/30 font-bold';
-  const toolOff = 'bg-white text-slate-700 border-slate-200 hover:text-slate-900 hover:bg-slate-100/80 shadow-2xs';
-
   // La sección abierta pasa a ser la primera (order -1). Con keepMounted los
   // editores siguen montados al cerrarse para no perder su borrador.
   const sectionShell = (id: string, header: React.ReactNode, body: React.ReactNode, keepMounted = false) => {
@@ -216,14 +201,9 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
         style={{ order: open ? -1 : 0 }}
         className="rounded-2xl bg-white border border-slate-200/90 shadow-xs overflow-hidden shrink-0"
       >
-        <button
-          type="button"
-          onClick={() => toggle(id)}
-          className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-slate-50/80 hover:bg-slate-100/80 select-none transition-colors cursor-pointer text-left"
-        >
+        <BotonColapsar abierto={open} onClick={() => toggle(id)} className="w-full flex-nowrap! px-4 py-3 bg-slate-50/80 hover:bg-slate-100/80 select-none transition-colors">
           {header}
-          <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
-        </button>
+        </BotonColapsar>
         {(open || keepMounted) && (
           <div className={`p-3 border-t border-slate-100 bg-white ${open ? '' : 'hidden'}`}>{body}</div>
         )}
@@ -232,30 +212,25 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs animate-fade-in">
-      <div className="w-full max-w-7xl h-[94vh] rounded-3xl bg-white shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
-        {/* Header del Modal */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/70 shrink-0">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <span>Editar Línea:</span>
-              <span className="text-brand-600">{v.modelo}</span>
-            </h3>
-            <span className="text-xs text-slate-500">
-              Línea #{v.lineaHetmo} · {v.unidades} {v.unidades === 1 ? 'unidad' : 'unidades'} ({formatNumber(v.anchoMm, 0)} × {formatNumber(v.altoMm, 0)} mm)
-            </span>
-          </div>
-          <button
-            onClick={handleClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-slate-200/70 transition-colors cursor-pointer"
-            aria-label="Cerrar edición de línea"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
+    <Modal
+      ancho="completo"
+      titulo={
+        <>
+          Editar línea: <span className="text-brand-600">{v.modelo}</span>
+        </>
+      }
+      subtitulo={`Línea #${v.lineaHetmo} · ${v.unidades} ${v.unidades === 1 ? 'unidad' : 'unidades'} (${formatNumber(v.anchoMm, 0)} × ${formatNumber(v.altoMm, 0)} mm)`}
+      onClose={handleClose}
+      cuerpoClassName="flex-1 min-h-0 overflow-y-auto lg:overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 bg-slate-50/30"
+      pie={
+        <Modal.Pie inicio={`Total ${mats.length} materiales en ${sortedFamilyKeys.length} partidas`}>
+          <Button variant="outline" onClick={handleClose}>
+            Cerrar
+          </Button>
+        </Modal.Pie>
+      }
+    >
         {/* Cuerpo: izquierda fija, derecha con scroll propio */}
-        <div className="flex-1 min-h-0 overflow-y-auto lg:overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 bg-slate-50/30">
           {/* COLUMNA IZQUIERDA: dibujo en vivo y ficha técnica (no corre con el scroll) */}
           <div className="lg:col-span-5 lg:h-full lg:min-h-0 flex flex-col">
             <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs flex flex-col gap-4 lg:h-full lg:min-h-0">
@@ -309,45 +284,23 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
           <div className="lg:col-span-7 lg:h-full lg:min-h-0 flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2 flex-wrap shrink-0">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <button
-                  onClick={() => onEspejar(v)}
-                  disabled={isEspejando}
-                  className={`${toolBtn} ${v.espejado ? toolOn : toolOff}`}
-                  title="Espejar el dibujo horizontalmente (para ventanas que salen al revés en HETMO)"
-                >
-                  {isEspejando ? <Loader2 className="w-3 h-3 animate-spin" /> : <FlipHorizontal2 className="w-3 h-3" />}
-                  <span>{v.espejado ? 'Espejada' : 'Espejar'}</span>
-                </button>
+                <BotonAlternar activo={!!(v.espejado)} onClick={() => onEspejar(v)} cargando={isEspejando} icono={FlipHorizontal2} title="Espejar el dibujo horizontalmente (para ventanas que salen al revés en HETMO)">
+                   {v.espejado ? 'Espejada' : 'Espejar'}
+                 </BotonAlternar>
                 {puedeInvertirMano && (
-                  <button
-                    onClick={() => onInvertirMano(v)}
-                    disabled={isInvirtiendoMano}
-                    className={`${toolBtn} ${v.correccionGeometria?.invertirMano ? toolOn : toolOff}`}
-                    title="Invertir la mano de la apertura (bisagras y manilla al lado contrario); no espeja el resto del dibujo"
-                  >
-                    {isInvirtiendoMano ? <Loader2 className="w-3 h-3 animate-spin" /> : <FlipHorizontal className="w-3 h-3" />}
-                    <span>{v.correccionGeometria?.invertirMano ? 'Mano invertida' : 'Invertir mano'}</span>
-                  </button>
+                  <BotonAlternar activo={!!(v.correccionGeometria?.invertirMano)} onClick={() => onInvertirMano(v)} cargando={isInvirtiendoMano} icono={FlipHorizontal} title="Invertir la mano de la apertura (bisagras y manilla al lado contrario); no espeja el resto del dibujo">
+                     {v.correccionGeometria?.invertirMano ? 'Mano invertida' : 'Invertir mano'}
+                   </BotonAlternar>
                 )}
                 {isComposite && (
-                  <button
-                    onClick={() => onInvertirOrden(v)}
-                    disabled={isInvirtiendoOrden}
-                    className={`${toolBtn} ${v.ordenPanelesInvertido ? toolOn : toolOff}`}
-                    title="Invertir qué paño va arriba y cuál abajo en el dibujo"
-                  >
-                    {isInvirtiendoOrden ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowUpDown className="w-3 h-3" />}
-                    <span>{v.ordenPanelesInvertido ? 'Orden invertido' : 'Invertir orden'}</span>
-                  </button>
+                  <BotonAlternar activo={!!(v.ordenPanelesInvertido)} onClick={() => onInvertirOrden(v)} cargando={isInvirtiendoOrden} icono={ArrowUpDown} title="Invertir qué paño va arriba y cuál abajo en el dibujo">
+                     {v.ordenPanelesInvertido ? 'Orden invertido' : 'Invertir orden'}
+                   </BotonAlternar>
                 )}
               </div>
-              <button
-                onClick={() => setEditMode(editMode?.type === 'add' ? null : { type: 'add' })}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-brand-600 bg-brand-50 hover:bg-brand-100 border border-brand-200 transition-colors cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Agregar material</span>
-              </button>
+              <Button size="sm" variant="outline" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setEditMode(editMode?.type === 'add' ? null : { type: 'add' })}>
+                Agregar material
+              </Button>
             </div>
 
             {editMode?.type === 'add' && (
@@ -417,103 +370,86 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
                       </span>
                       <span className="text-[11px] font-medium text-slate-500">{formatNumber(totalUds, 0)} uds</span>
                     </div>,
-                    <div className="overflow-x-auto">
-                          <table className="w-full text-left text-xs">
-                            <thead>
-                              <tr className="text-[10px] font-bold uppercase text-slate-400 border-b border-slate-100">
-                                <th className="pb-2 px-2">SKU / Insumo</th>
-                                <th className="pb-2 px-2 text-right">Cant. / Longitud</th>
-                                <th className="pb-2 px-2 text-center">Acabado</th>
-                                <th className="pb-2 px-2 text-right">Acciones</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 text-slate-700">
-                              {items.map((m, idx) => (
-                                <React.Fragment key={m.id || idx}>
-                                  <tr className="hover:bg-slate-50/80 transition-colors">
-                                    <td className="py-2 px-2 align-top">
-                                      <div className="flex items-center gap-1.5">
-                                        <span className="font-semibold text-slate-900 font-mono text-[11px]">
-                                          {m.material?.skuInterno || '—'}
-                                        </span>
-                                        {m.origen === 'PERSONALIZADO' && (
-                                          <span
-                                            className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-sky-50 text-sky-700 border border-sky-200"
-                                            title={m.reemplazaMaterialId ? 'Reemplaza un material HETMO de esta línea' : 'Agregado manualmente a esta línea'}
-                                          >
-                                            Manual
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="text-slate-600 text-[11px] leading-tight">
-                                        {m.material?.descripcion || 'Material de fabricación'}
-                                      </div>
-                                    </td>
-                                    <td className="py-2 px-2 align-top text-right whitespace-nowrap">
-                                      <div className="font-bold text-slate-800">
-                                        {Number(m.cantidad || 1).toLocaleString('es-CL')} un
-                                      </div>
-                                      {m.longitudMm && (
-                                        <div className="text-[10px] text-slate-400">
-                                          {Number(m.longitudMm).toLocaleString('es-CL')} mm
-                                        </div>
-                                      )}
-                                    </td>
-                                    <td className="py-2 px-2 align-top text-center text-[11px] whitespace-nowrap">
-                                      {m.acabado ? (
-                                        <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px]">
-                                          {m.acabado}
-                                        </span>
-                                      ) : (
-                                        '—'
-                                      )}
-                                    </td>
-                                    <td className="py-2 px-2 align-top text-right whitespace-nowrap">
-                                      {m.origen === 'HETMO' ? (
-                                        <button
-                                          onClick={() => setEditMode(editMode?.type === 'replace' && editMode.row.id === m.id ? null : { type: 'replace', row: m })}
-                                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold text-slate-600 hover:text-brand-600 hover:bg-brand-50 transition-colors cursor-pointer"
-                                          title="Reemplazar por otro material del maestro"
+                    <Tabla>
+                          <Thead>
+                            <Tr className="text-[10px] font-bold uppercase text-slate-400 border-b border-slate-100">
+                              <Th className="pb-2 px-2">SKU / Insumo</Th>
+                              <Th alinear="derecha" className="pb-2 px-2">Cant. / Longitud</Th>
+                              <Th alinear="centro" className="pb-2 px-2">Acabado</Th>
+                              <Th alinear="derecha" className="pb-2 px-2">Acciones</Th>
+                            </Tr>
+                          </Thead>
+                          <Tbody>
+                            {items.map((m, idx) => (
+                              <React.Fragment key={m.id || idx}>
+                                <Tr className="hover:bg-slate-50/80 transition-colors">
+                                  <Td className="px-2 align-top">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="font-semibold text-slate-900 font-mono text-[11px]">
+                                        {m.material?.skuInterno || '—'}
+                                      </span>
+                                      {m.origen === 'PERSONALIZADO' && (
+                                        <span
+                                          className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-sky-50 text-sky-700 border border-sky-200"
+                                          title={m.reemplazaMaterialId ? 'Reemplaza un material HETMO de esta línea' : 'Agregado manualmente a esta línea'}
                                         >
-                                          <Repeat className="w-3 h-3" />
-                                          <span>Reemplazar</span>
-                                        </button>
-                                      ) : (
-                                        <button
-                                          onClick={() => handleRemove(m)}
-                                          disabled={removingId === m.id}
-                                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold text-slate-600 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer disabled:opacity-50"
-                                          title={m.reemplazaMaterialId ? 'Deshacer reemplazo' : 'Quitar de la línea'}
-                                        >
-                                          {removingId === m.id ? (
-                                            <Loader2 className="w-3 h-3 animate-spin" />
-                                          ) : (
-                                            <Trash2 className="w-3 h-3" />
-                                          )}
-                                          <span>Quitar</span>
-                                        </button>
+                                          Manual
+                                        </span>
                                       )}
-                                    </td>
-                                  </tr>
-                                  {editMode?.type === 'replace' && editMode.row.id === m.id && (
-                                    <tr>
-                                      <td colSpan={4} className="py-2 px-2">
-                                        <MaterialLineaForm
-                                          title={`Reemplazar "${m.material?.descripcion || m.material?.skuInterno}"`}
-                                          initialCantidad={Number.isFinite(Number(m.cantidad)) ? Number(m.cantidad) : undefined}
-                                          initialPiezas={m.piezas}
-                                          initialAcabado={m.acabado}
-                                          onCancel={() => setEditMode(null)}
-                                          onConfirm={(payload) => handleReplace(m, payload)}
-                                        />
-                                      </td>
-                                    </tr>
-                                  )}
-                                </React.Fragment>
-                              ))}
-                            </tbody>
-                          </table>
-                    </div>
+                                    </div>
+                                    <div className="text-slate-600 text-[11px] leading-tight">
+                                      {m.material?.descripcion || 'Material de fabricación'}
+                                    </div>
+                                  </Td>
+                                  <Td alinear="derecha" className="px-2 align-top whitespace-nowrap">
+                                    <div className="font-bold text-slate-800">
+                                      {Number(m.cantidad || 1).toLocaleString('es-CL')} un
+                                    </div>
+                                    {m.longitudMm && (
+                                      <div className="text-[10px] text-slate-400">
+                                        {Number(m.longitudMm).toLocaleString('es-CL')} mm
+                                      </div>
+                                    )}
+                                  </Td>
+                                  <Td alinear="centro" className="px-2 align-top text-[11px] whitespace-nowrap">
+                                    {m.acabado ? (
+                                      <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px]">
+                                        {m.acabado}
+                                      </span>
+                                    ) : (
+                                      '—'
+                                    )}
+                                  </Td>
+                                  <Td alinear="derecha" className="px-2 align-top whitespace-nowrap">
+                                    {m.origen === 'HETMO' ? (
+                                      <Button size="sm" variant="ghost" leftIcon={<Repeat className="w-3 h-3" />} title="Reemplazar por otro material del maestro" onClick={() => setEditMode(editMode?.type === 'replace' && editMode.row.id === m.id ? null : { type: 'replace', row: m })}>
+                                         Reemplazar
+                                       </Button>
+                                    ) : (
+                                      <Button size="sm" variant="ghost" className="hover:text-rose-700! hover:bg-rose-50!" leftIcon={<Trash2 className="w-3 h-3" />} isLoading={removingId === m.id} title={m.reemplazaMaterialId ? 'Deshacer reemplazo' : 'Quitar de la línea'} onClick={() => handleRemove(m)}>
+                                         Quitar
+                                       </Button>
+                                    )}
+                                  </Td>
+                                </Tr>
+                                {editMode?.type === 'replace' && editMode.row.id === m.id && (
+                                  <Tr>
+                                    <Td colSpan={4} className="px-2">
+                                      <MaterialLineaForm
+                                        title={`Reemplazar "${m.material?.descripcion || m.material?.skuInterno}"`}
+                                        initialCantidad={Number.isFinite(Number(m.cantidad)) ? Number(m.cantidad) : undefined}
+                                        initialPiezas={m.piezas}
+                                        initialAcabado={m.acabado}
+                                        onCancel={() => setEditMode(null)}
+                                        onConfirm={(payload) => handleReplace(m, payload)}
+                                      />
+                                    </Td>
+                                  </Tr>
+                                )}
+                              </React.Fragment>
+                            ))}
+                          </Tbody>
+                        </Tabla>
                   );
                 })
               ) : (
@@ -527,21 +463,6 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
               )}
             </div>
           </div>
-        </div>
-
-        {/* Footer del Modal */}
-        <div className="flex justify-between items-center px-6 py-3.5 border-t border-slate-100 bg-slate-50/70 shrink-0">
-          <span className="text-xs text-slate-500 font-medium">
-            Total {mats.length} materiales en {sortedFamilyKeys.length} partidas
-          </span>
-          <button
-            onClick={handleClose}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs transition-colors cursor-pointer shadow-xs"
-          >
-            Cerrar
-          </button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 };

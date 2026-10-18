@@ -1,24 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  RotateCcw,
-  Calculator,
-  Eye,
-  Clock,
-  Search,
-  Building2,
-  Plus,
-  Loader2,
-  Trash2,
-  X,
-  ChevronDown,
-} from 'lucide-react';
+import { RotateCcw, Calculator, Eye, Clock, Building2, Plus, Trash2 } from 'lucide-react';
 import { getSyncLogs, triggerManualSync, createProyectoManual, eliminarProyecto } from '../../api/client';
 import { formatNumber } from '../../lib/utils';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilters';
 import { ColumnFilterHeader } from '../../components/ui/ColumnFilterHeader';
-import { PAGE_CONTAINER_CLASS, BREAKPOINT_DESKTOP, TABLE_CLASS, TABLE_WRAPPER_CLASS, STICKY_ACTIONS_CLASS } from '../../lib/designSystem';
+import { PAGE_CONTAINER_CLASS, BREAKPOINT_DESKTOP, STICKY_ACTIONS_CLASS } from '../../lib/designSystem';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { TableSkeleton } from '../../components/ui/Skeleton';
@@ -30,6 +18,13 @@ import { useUrlParam, actualizarParams } from '../../lib/navigation';
 import { HeaderSlot } from '../../components/layout/HeaderSlot';
 import { esPresupuestoPrincipal, etiquetaEstadoProyecto, varianteEstadoProyecto } from '../../lib/estadosHetmo';
 import { clavePresupuestos, consultarPresupuestos } from './presupuestosQuery';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
+import { Buscador } from '../../components/ui/Buscador';
+import { FiltroChips } from '../../components/ui/FiltroChips';
+import { Modal } from '../../components/ui/Modal';
+import { Input } from '../../components/ui/Input';
+import { Aviso } from '../../components/ui/Aviso';
+import { useConfirmar } from '../../components/ui/Confirmar';
 
 // PRINCIPAL = presupuestos cerrados en HETMO (estado 2) + presupuestos
 // manuales; TODOS = cualquier estado de HETMO. Ver esPresupuestoPrincipal.
@@ -49,6 +44,7 @@ export const CotizacionesPage: React.FC<{
   searchTerm?: string;
   onSearchChange?: (val: string) => void;
 }> = ({ searchTerm: externalSearch = '', onSearchChange }) => {
+  const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
   const [internalSearch, setInternalSearch] = useState(externalSearch);
   // Por defecto: presupuestos cerrados (estado 2 de HETMO) y manuales.
@@ -89,10 +85,9 @@ export const CotizacionesPage: React.FC<{
       queryClient.invalidateQueries({ queryKey: ['proyectos'] });
     },
   });
-  const handleEliminar = (id: string, obra: string) => {
-    if (window.confirm(`¿Eliminar "${obra}" y todo su presupuesto? Esta acción no se puede deshacer.`)) {
-      eliminarMutation.mutate(id);
-    }
+  const handleEliminar = async (id: string, obra: string) => {
+    const ok = await confirmar({ titulo: `¿Eliminar "${obra}" y todo su presupuesto?`, mensaje: 'Esta acción no se puede deshacer.', confirmar: 'Eliminar', peligro: true });
+    if (ok) eliminarMutation.mutate(id);
   };
   // Monta sólo la vista de escritorio o la de mobile, nunca las dos -- ver
   // useMediaQuery.ts.
@@ -241,72 +236,21 @@ export const CotizacionesPage: React.FC<{
           {/* BARRA DE BÚSQUEDA Y FILTROS */}
           <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
             <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-              {/* Buscador */}
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="text"
-                  value={internalSearch}
-                  onChange={(e) => {
-                    setInternalSearch(e.target.value);
-                    onSearchChange?.(e.target.value);
-                  }}
-                  placeholder="Buscar obra, cliente, RUT o código..."
-                  className="w-full pl-10 pr-9 py-2.5 sm:py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-brand-600 transition-all"
-                />
-                {internalSearch && (
-                  <button
-                    onClick={() => {
-                      setInternalSearch('');
-                      onSearchChange?.('');
-                    }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-                    aria-label="Limpiar búsqueda"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-
-              {/* FILTRO EN FORMATO DESPLEGABLE PARA MÓVILES (System-Wide) */}
-              <div className="block md:hidden relative w-full sm:w-64">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as EstadoFiltro)}
-                  className="w-full py-2.5 pl-3.5 pr-10 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:border-brand-600 appearance-none cursor-pointer"
-                >
-                  {ESTADOS_FILTRO.map((est) => (
-                    <option key={est.id} value={est.id}>
-                      {est.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
+              <Buscador
+                className="flex-1"
+                valor={internalSearch}
+                onChange={(v) => {
+                  setInternalSearch(v);
+                  onSearchChange?.(v);
+                }}
+                placeholder="Buscar obra, cliente, RUT o código…"
+              />
             </div>
 
             {/* FILA INFERIOR: filtros de estado a la izquierda, acción principal a la derecha */}
             <div className="flex items-center justify-between gap-3 pt-1">
-              <div className="hidden md:flex items-center gap-2 overflow-x-auto pb-1 pt-1 -mx-1 px-1 scrollbar-none min-w-0">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
-                  Estado:
-                </span>
-                {ESTADOS_FILTRO.map((pill) => {
-                  const isActive = statusFilter === pill.id;
-                  return (
-                    <button
-                      key={pill.id}
-                      onClick={() => setStatusFilter(pill.id)}
-                      className={`px-3 py-1 rounded-full text-xs font-medium shrink-0 whitespace-nowrap transition-all cursor-pointer ${
-                        isActive
-                          ? 'bg-slate-900 text-white font-bold shadow-xs'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/60'
-                      }`}
-                    >
-                      {pill.label}
-                    </button>
-                  );
-                })}
+              <div className="min-w-0 flex-1">
+                <FiltroChips etiqueta="Filtrar por estado" opciones={ESTADOS_FILTRO} valor={statusFilter} onChange={setStatusFilter} />
               </div>
 
               <div className="ml-auto shrink-0">
@@ -376,125 +320,123 @@ export const CotizacionesPage: React.FC<{
               {/* 1. VISTA TABLA AUTOMÁTICA EN DESKTOP/TABLET (System-Wide) */}
               {isDesktop && (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-                <div className={TABLE_WRAPPER_CLASS}>
-                  <table className={TABLE_CLASS + ' text-left text-slate-700'}>
-                    <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
-                      <tr>
-                        <th className="px-5 py-3.5 w-32">Código</th>
-                        <th className="px-5 py-3.5">Obra / Proyecto</th>
-                        <th className="px-5 py-3.5">Cliente</th>
-                        <th className="px-5 py-3.5 text-center w-24 hidden 2xl:table-cell">Versión</th>
-                        <th className="px-5 py-3.5 text-right w-28">Superficie</th>
-                        <th className="px-5 py-3.5 text-center w-24 hidden 2xl:table-cell">Ventanas</th>
-                        <th className="px-5 py-3.5 text-center w-36">Estado</th>
-                        <th className={`px-5 py-3.5 text-center w-36 ${STICKY_ACTIONS_CLASS} bg-slate-50`}>Acciones</th>
-                      </tr>
-                      <tr className="bg-white border-b border-slate-100">
-                        {columnas.map((c) => (
-                          <th key={c.key} className="px-5 py-2.5">
-                            <ColumnFilterHeader columna={c} valor={valores[c.key] || ''} onChange={(v) => setValor(c.key, v)} />
-                          </th>
-                        ))}
-                        <th className="px-5 py-2.5 hidden 2xl:table-cell" colSpan={4} />
-                        <th className="px-5 py-2.5 2xl:hidden" colSpan={2} />
-                        <th className={`px-5 py-2.5 ${STICKY_ACTIONS_CLASS} bg-white`} />
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {proyectosVisibles.map((p) => {
-                        const activeVersion = p.versiones[0];
+                <Tabla>
+                  <Thead>
+                    <Tr>
+                      <Th className="px-5 py-3.5 w-32">Código</Th>
+                      <Th className="px-5 py-3.5">Obra / Proyecto</Th>
+                      <Th className="px-5 py-3.5">Cliente</Th>
+                      <Th alinear="centro" className="px-5 py-3.5 w-24 hidden 2xl:table-cell">Versión</Th>
+                      <Th alinear="derecha" className="px-5 py-3.5 w-28">Superficie</Th>
+                      <Th alinear="centro" className="px-5 py-3.5 w-24 hidden 2xl:table-cell">Ventanas</Th>
+                      <Th alinear="centro" className="px-5 py-3.5 w-36">Estado</Th>
+                      <Th className={`px-5 py-3.5 text-center w-36 ${STICKY_ACTIONS_CLASS} bg-slate-50`}>Acciones</Th>
+                    </Tr>
+                    <Tr className="bg-white border-b border-slate-100">
+                      {columnas.map((c) => (
+                        <Th key={c.key} className="px-5">
+                          <ColumnFilterHeader columna={c} valor={valores[c.key] || ''} onChange={(v) => setValor(c.key, v)} />
+                        </Th>
+                      ))}
+                      <Th className="px-5 hidden 2xl:table-cell" colSpan={4} />
+                      <Th className="px-5 2xl:hidden" colSpan={2} />
+                      <Th className={`px-5 py-2.5 ${STICKY_ACTIONS_CLASS} bg-white`} />
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {proyectosVisibles.map((p) => {
+                      const activeVersion = p.versiones[0];
 
-                        return (
-                          <tr
-                            key={p.id}
-                            className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
-                            onClick={() => setCotizarProyectoId(p.id)}
-                          >
-                            <td className="px-5 py-4 font-mono font-bold text-slate-500 whitespace-nowrap">
-                              <span className="inline-block px-2.5 py-1 rounded-md bg-slate-100 text-[11px] whitespace-nowrap">
-                                {p.codigoInterno || `PRJ-${p.numeroPresupuesto}`}
-                              </span>
-                            </td>
-                            <td className="px-5 py-4 min-w-[15rem]">
-                              <div
-                                className="font-bold text-[13px] leading-snug text-slate-900 group-hover:text-brand-600 transition-colors line-clamp-2"
-                                title={p.obra}
-                              >
-                                {p.obra}
-                              </div>
-                              {p.clienteDireccionRaw && (
-                                <div className="text-[11px] text-slate-500 truncate max-w-xs">
-                                  {p.clienteDireccionRaw}
-                                </div>
-                              )}
-                            </td>
-                            <td className="px-5 py-4 min-w-[11rem]">
-                              <div className="font-semibold text-slate-800 line-clamp-2" title={p.clienteNombreRaw}>
-                                {p.clienteNombreRaw}
-                              </div>
-                              {p.clienteRutRaw && (
-                                <div className="text-[10px] font-mono text-slate-400 whitespace-nowrap">
-                                  {p.clienteRutRaw}
-                                </div>
-                              )}
-                            </td>
-                            <td className="px-5 py-4 text-center whitespace-nowrap hidden 2xl:table-cell">
-                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 whitespace-nowrap">
-                                v{activeVersion?.versionNumero || 1}
-                              </span>
-                            </td>
-                            <td className="px-5 py-4 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
-                              {formatNumber(activeVersion?.totalM2Ventanas, 2)}{' '}
-                              <span className="text-[10px] font-normal text-slate-500">
-                                m²
-                              </span>
-                            </td>
-                            <td className="px-5 py-4 text-center font-bold text-slate-900 whitespace-nowrap hidden 2xl:table-cell">
-                              {activeVersion?.totalVentanas || 0}
-                            </td>
-                            <td className="px-5 py-4 text-center whitespace-nowrap">
-                              <Badge variant={varianteEstadoProyecto(p)} size="sm" dot>
-                                {etiquetaEstadoProyecto(p)}
-                              </Badge>
-                            </td>
-                            <td
-                              className={`px-5 py-4 text-center whitespace-nowrap ${STICKY_ACTIONS_CLASS} bg-white`}
-                              onClick={(e) => e.stopPropagation()}
+                      return (
+                        <Tr
+                          key={p.id}
+                          className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
+                          onClick={() => setCotizarProyectoId(p.id)}
+                        >
+                          <Td className="px-5 py-4 font-mono font-bold text-slate-500 whitespace-nowrap">
+                            <span className="inline-block px-2.5 py-1 rounded-md bg-slate-100 text-[11px] whitespace-nowrap">
+                              {p.codigoInterno || `PRJ-${p.numeroPresupuesto}`}
+                            </span>
+                          </Td>
+                          <Td className="px-5 py-4 min-w-[15rem]">
+                            <div
+                              className="font-bold text-[13px] leading-snug text-slate-900 group-hover:text-brand-600 transition-colors line-clamp-2"
+                              title={p.obra}
                             >
-                              <div className="flex items-center justify-center gap-1.5">
-                                <Button
-                                  variant="primary"
-                                  size="sm"
-                                  leftIcon={<Calculator className="w-3.5 h-3.5" />}
-                                  onClick={() => setCotizarProyectoId(p.id)}
-                                >
-                                  Cotizar
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => setSelectedProyectoId(p.id)}
-                                  title="Ver Ficha Técnica"
-                                >
-                                  <Eye className="w-3.5 h-3.5 text-slate-600" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => handleEliminar(p.id, p.obra)}
-                                  disabled={eliminarMutation.isPending}
-                                  title="Eliminar proyecto"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                                </Button>
+                              {p.obra}
+                            </div>
+                            {p.clienteDireccionRaw && (
+                              <div className="text-[11px] text-slate-500 truncate max-w-xs">
+                                {p.clienteDireccionRaw}
                               </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                            )}
+                          </Td>
+                          <Td className="px-5 py-4 min-w-[11rem]">
+                            <div className="font-semibold text-slate-800 line-clamp-2" title={p.clienteNombreRaw}>
+                              {p.clienteNombreRaw}
+                            </div>
+                            {p.clienteRutRaw && (
+                              <div className="text-[10px] font-mono text-slate-400 whitespace-nowrap">
+                                {p.clienteRutRaw}
+                              </div>
+                            )}
+                          </Td>
+                          <Td alinear="centro" className="px-5 py-4 whitespace-nowrap hidden 2xl:table-cell">
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 whitespace-nowrap">
+                              v{activeVersion?.versionNumero || 1}
+                            </span>
+                          </Td>
+                          <Td alinear="derecha" className="px-5 py-4 font-mono font-bold text-slate-900 whitespace-nowrap">
+                            {formatNumber(activeVersion?.totalM2Ventanas, 2)}{' '}
+                            <span className="text-[10px] font-normal text-slate-500">
+                              m²
+                            </span>
+                          </Td>
+                          <Td alinear="centro" className="px-5 py-4 font-bold text-slate-900 whitespace-nowrap hidden 2xl:table-cell">
+                            {activeVersion?.totalVentanas || 0}
+                          </Td>
+                          <Td alinear="centro" className="px-5 py-4 whitespace-nowrap">
+                            <Badge variant={varianteEstadoProyecto(p)} size="sm" dot>
+                              {etiquetaEstadoProyecto(p)}
+                            </Badge>
+                          </Td>
+                          <Td
+                            className={`px-5 py-4 text-center whitespace-nowrap ${STICKY_ACTIONS_CLASS} bg-white`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex items-center justify-center gap-1.5">
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                leftIcon={<Calculator className="w-3.5 h-3.5" />}
+                                onClick={() => setCotizarProyectoId(p.id)}
+                              >
+                                Cotizar
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setSelectedProyectoId(p.id)}
+                                title="Ver Ficha Técnica"
+                              >
+                                <Eye className="w-3.5 h-3.5 text-slate-600" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => handleEliminar(p.id, p.obra)}
+                                disabled={eliminarMutation.isPending}
+                                title="Eliminar proyecto"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                              </Button>
+                            </div>
+                          </Td>
+                        </Tr>
+                      );
+                    })}
+                  </Tbody>
+                </Tabla>
               </div>
               )}
 
@@ -606,61 +548,28 @@ export const CotizacionesPage: React.FC<{
           DVH, Puerta Protex), sin pasar por HETMO. Crea el proyecto y salta
           directo al cotizador para agregar lineas de inmediato. */}
       {mostrarModalManual && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[92vh] overflow-y-auto p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black text-slate-900">Nuevo Presupuesto Manual</h3>
-              <button
-                onClick={() => setMostrarModalManual(false)}
-                className="text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <p className="text-xs text-slate-500">
-              Crea un presupuesto vacío para cotizar solo con líneas manuales (Vidrio DVH, Puerta Protex), sin obra sincronizada de HETMO.
-            </p>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Obra</label>
-                <input
-                  autoFocus
-                  value={obraManual}
-                  onChange={(e) => setObraManual(e.target.value)}
-                  placeholder="Nombre de la obra"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600"
-                />
-              </div>
-              <ClientePicker value={clienteManual} onChange={setClienteManual} />
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Dirección de la obra (opcional)</label>
-                <input
-                  value={direccionManual}
-                  onChange={(e) => setDireccionManual(e.target.value)}
-                  placeholder="Si se deja vacía, se usa la del cliente"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600"
-                />
-              </div>
-            </div>
-            {crearManualMutation.isError && (
-              <p className="text-xs text-rose-600 font-semibold">No se pudo crear el presupuesto. Intenta de nuevo.</p>
-            )}
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <Button variant="outline" size="sm" onClick={() => setMostrarModalManual(false)}>
+        <Modal
+          ancho="sm"
+          titulo="Nuevo presupuesto manual"
+          subtitulo="Solo líneas manuales (vidrio DVH, puerta Protex), sin obra sincronizada de HETMO"
+          onClose={() => setMostrarModalManual(false)}
+          cerrable={!crearManualMutation.isPending}
+          pie={
+            <Modal.Pie>
+              <Button variant="outline" onClick={() => setMostrarModalManual(false)}>
                 Cancelar
               </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                disabled={!obraManual.trim() || !clienteManual || crearManualMutation.isPending}
-                onClick={() => crearManualMutation.mutate()}
-                leftIcon={crearManualMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : undefined}
-              >
+              <Button disabled={!obraManual.trim() || !clienteManual} isLoading={crearManualMutation.isPending} onClick={() => crearManualMutation.mutate()}>
                 Crear y cotizar
               </Button>
-            </div>
-          </div>
-        </div>
+            </Modal.Pie>
+          }
+        >
+          <Input label="Obra" autoFocus value={obraManual} onChange={(e) => setObraManual(e.target.value)} placeholder="Nombre de la obra" />
+          <ClientePicker value={clienteManual} onChange={setClienteManual} />
+          <Input label="Dirección de la obra (opcional)" value={direccionManual} onChange={(e) => setDireccionManual(e.target.value)} placeholder="Si se deja vacía, se usa la del cliente" />
+          {crearManualMutation.isError && <Aviso tono="peligro">No se pudo crear el presupuesto. Intenta de nuevo.</Aviso>}
+        </Modal>
       )}
     </div>
   );

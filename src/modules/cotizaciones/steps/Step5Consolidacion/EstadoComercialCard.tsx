@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { Lock, Unlock, ArrowRight, ArrowLeft, GitFork, Loader2 } from 'lucide-react';
+import { Lock, Unlock, ArrowRight, ArrowLeft, GitFork } from 'lucide-react';
 import type { ProyectoVersion } from '../../../../types';
+import { Button } from '../../../../components/ui/Button';
+import { InputCompacto } from '../../../../components/ui/Campos';
+import { useConfirmar } from '../../../../components/ui/Confirmar';
 
 type Estado = 'EN_COTIZACION' | 'ESPERANDO_APROBACION_COMERCIAL' | 'APROBADO_GERENCIA' | 'ACEPTADO_CLIENTE';
 
@@ -31,6 +34,7 @@ export const EstadoComercialCard: React.FC<EstadoComercialCardProps> = ({
   onCrearVersionInterna,
   isCreandoVersion,
 }) => {
+  const { confirmar } = useConfirmar();
   const [hetmoIdInput, setHetmoIdInput] = useState('');
 
   if (!activeVersion) return null;
@@ -85,22 +89,12 @@ export const EstadoComercialCard: React.FC<EstadoComercialCardProps> = ({
 
         {estado === 'APROBADO_GERENCIA' && (
           <>
-            <button
-              onClick={() => onCambiarEstado('ACEPTADO_CLIENTE')}
-              disabled={isCambiandoEstado}
-              className="px-3.5 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold flex items-center gap-1.5 hover:bg-blue-700 transition-colors disabled:opacity-50"
-            >
-              {isCambiandoEstado ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
-              Marcar Aceptado por Cliente
-            </button>
-            <button
-              onClick={() => onCambiarEstado('ESPERANDO_APROBACION_COMERCIAL')}
-              disabled={isCambiandoEstado}
-              className="px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-slate-600 text-xs font-semibold flex items-center gap-1.5 hover:bg-slate-50 transition-colors disabled:opacity-50"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Volver a Esperando Aprobación
-            </button>
+            <Button size="sm" onClick={() => onCambiarEstado('ACEPTADO_CLIENTE')} isLoading={isCambiandoEstado} leftIcon={<ArrowRight className="w-3.5 h-3.5" />}>
+              Marcar aceptado por cliente
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => onCambiarEstado('ESPERANDO_APROBACION_COMERCIAL')} disabled={isCambiandoEstado} leftIcon={<ArrowLeft className="w-3.5 h-3.5" />}>
+              Volver a esperando aprobación
+            </Button>
           </>
         )}
 
@@ -110,23 +104,24 @@ export const EstadoComercialCard: React.FC<EstadoComercialCardProps> = ({
               Proyecto aceptado por el cliente. Queda bloqueado para edición y pasa al
               módulo de Obras para su ejecución (presupuesto, OC, documentos y bodega).
             </p>
-            <button
-              onClick={() => {
-                if (
-                  window.confirm(
-                    'Este proyecto vuelve a "Aprobado Gerencia", a la espera de ser aceptado por el cliente de nuevo. ' +
-                      'Sale de "Obras en curso", pero lo ya obrado en el proyecto (bodega, órdenes de compra, etc.) no se elimina automáticamente. ¿Continuar?'
-                  )
-                ) {
-                  onCambiarEstado('APROBADO_GERENCIA');
-                }
+            <Button
+              variant="outline"
+              size="sm"
+              isLoading={isCambiandoEstado}
+              leftIcon={<ArrowLeft className="w-3.5 h-3.5" />}
+              onClick={async () => {
+                const ok = await confirmar({
+                  titulo: '¿Revertir la aceptación del cliente?',
+                  mensaje:
+                    'El proyecto vuelve a "Aprobado Gerencia", a la espera de ser aceptado de nuevo. Sale de "Obras en curso", pero lo ya obrado (bodega, órdenes de compra, etc.) no se elimina automáticamente.',
+                  confirmar: 'Revertir',
+                  peligro: true,
+                });
+                if (ok) onCambiarEstado('APROBADO_GERENCIA');
               }}
-              disabled={isCambiandoEstado}
-              className="px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-slate-600 text-xs font-semibold flex items-center gap-1.5 hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
-              {isCambiandoEstado ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowLeft className="w-3.5 h-3.5" />}
-              Revertir Aceptación de Cliente
-            </button>
+              Revertir aceptación de cliente
+            </Button>
           </>
         )}
       </div>
@@ -146,22 +141,18 @@ export const EstadoComercialCard: React.FC<EstadoComercialCardProps> = ({
             Útil si el cliente pide modificaciones después de emitido.
           </p>
           <div className="flex items-center gap-2">
-            <input
+            <InputCompacto
+              aria-label="ID de versión HETMO"
               type="number"
               min={1}
               value={hetmoIdInput}
               onChange={(e) => setHetmoIdInput(e.target.value)}
               placeholder="ID de versión HETMO"
-              className="w-40 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600"
+              className="w-40"
             />
-            <button
-              onClick={handleCrearVersion}
-              disabled={isCreandoVersion || !hetmoIdInput}
-              className="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold flex items-center gap-1.5 hover:bg-slate-700 transition-colors disabled:opacity-50"
-            >
-              {isCreandoVersion && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            <Button variant="secondary" size="sm" onClick={handleCrearVersion} disabled={!hetmoIdInput} isLoading={isCreandoVersion}>
               Crear
-            </button>
+            </Button>
           </div>
         </div>
       )}

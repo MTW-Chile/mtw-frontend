@@ -2,6 +2,7 @@ import React from 'react';
 import { Coins, Lock, Pencil } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
 import { Button } from '../../../../components/ui/Button';
+import { Input } from '../../../../components/ui/Input';
 
 type CampoDivisa = 'dolar' | 'uf' | 'euro';
 
@@ -43,19 +44,16 @@ export const DivisasForm: React.FC<DivisasFormProps> = ({ dolar, setDolar, uf, s
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {CAMPOS.map((c) => (
-          <label key={c.key} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-1.5 block">
-            <span className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-slate-700">{c.label}</span>
-              <span className="text-[10px] font-bold text-brand-600">CLP</span>
-            </span>
-            <input
-              type="number"
-              value={valores[c.key]}
-              onChange={(e) => setters[c.key](e.target.value)}
-              placeholder={c.placeholder}
-              className="w-full px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-900 tabular-nums focus:outline-none focus:border-brand-600 transition-colors"
-            />
-          </label>
+          <Input
+            key={c.key}
+            label={c.label}
+            sufijo="CLP"
+            type="number"
+            value={valores[c.key]}
+            onChange={(e) => setters[c.key](e.target.value)}
+            placeholder={c.placeholder}
+            className="text-right font-bold tabular-nums"
+          />
         ))}
       </div>
 

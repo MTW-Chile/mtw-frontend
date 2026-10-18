@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileDown, Loader2, Pencil, Check } from 'lucide-react';
+import { FileDown, Pencil, Check } from 'lucide-react';
 import type { Proyecto, ProyectoVersion, Ventana } from '../../../../types';
 import { formatNumber } from '../../../../lib/utils';
 import {
@@ -20,6 +20,13 @@ import * as core from '../../components/drawing/geometryCore';
 import { useAnalitica } from '../../lib/useAnalitica';
 import { loadImageDataUrl } from '../../lib/pdfTheme';
 import { ufLabel, rasterizarDibujos, buildDocumentoHtml, buildHeaderFooterTemplates } from './presupuestoPdf';
+import { Button } from '../../../../components/ui/Button';
+import { IconButton } from '../../../../components/ui/IconButton';
+import { Select } from '../../../../components/ui/Select';
+import { InputCompacto, Textarea } from '../../../../components/ui/Campos';
+import { ActivadorEdicion } from '../../../../components/ui/ActivadorEdicion';
+import { mostrarToast } from '../../../../lib/toast';
+import { useConfirmar } from '../../../../components/ui/Confirmar';
 
 interface PresupuestoOfertaProps {
   proyecto: Proyecto;
@@ -50,35 +57,24 @@ const NombreEditable: React.FC<{ ventana: Ventana; onGuardado: (v: Partial<Venta
 
   if (!editando) {
     return (
-      <button
-        type="button"
-        disabled={congelado}
-        onClick={() => setEditando(true)}
-        className="flex items-center gap-1.5 text-left group/edit disabled:cursor-default"
-      >
+      <ActivadorEdicion disabled={congelado} onClick={() => setEditando(true)} etiqueta="Editar el nombre">
         <h4 className="text-sm font-black text-slate-900">{ventana.modelo}</h4>
-        {!congelado && <Pencil className="w-3 h-3 text-slate-300 group-hover/edit:text-brand-600 shrink-0" />}
-      </button>
+      </ActivadorEdicion>
     );
   }
 
   return (
     <div className="flex items-center gap-1.5">
-      <input
+      <InputCompacto
+        aria-label="Nombre de la ventana"
         autoFocus
         value={valor}
         onChange={(e) => setValor(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && mutation.mutate()}
         maxLength={220}
-        className="text-sm font-black text-slate-900 border-b border-brand-600 outline-none bg-transparent min-w-0"
+        className="text-sm! font-black min-w-0"
       />
-      <button
-        type="button"
-        onClick={() => mutation.mutate()}
-        disabled={mutation.isPending}
-        className="shrink-0 w-5 h-5 rounded bg-brand-600 text-white flex items-center justify-center"
-      >
-        {mutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-      </button>
+      <IconButton icono={Check} tono="marca" etiqueta="Guardar nombre" onClick={() => mutation.mutate()} cargando={mutation.isPending} />
     </div>
   );
 };
@@ -100,48 +96,35 @@ const ObservacionEditable: React.FC<{ ventana: Ventana; onGuardado: (v: Partial<
 
   if (!editando && !ventana.comentarioPresupuesto) {
     return congelado ? null : (
-      <button type="button" onClick={() => setEditando(true)} className="text-[11px] text-slate-400 hover:text-brand-600">
+      <Button variant="link" size="sm" className="text-[11px]! font-semibold!" onClick={() => setEditando(true)}>
         + Agregar observación
-      </button>
+      </Button>
     );
   }
 
   if (!editando) {
     return (
-      <button type="button" disabled={congelado} onClick={() => setEditando(true)} className="text-left group/edit w-full">
+      <div className="w-full">
         <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Observación</span>
-        <p className="text-xs text-slate-700 flex items-start gap-1">
-          {ventana.comentarioPresupuesto}
-          {!congelado && <Pencil className="w-3 h-3 text-slate-300 group-hover/edit:text-brand-600 shrink-0 mt-0.5" />}
-        </p>
-      </button>
+        <ActivadorEdicion disabled={congelado} onClick={() => setEditando(true)} etiqueta="Editar la observación" className="w-full">
+          <p className="text-xs text-slate-700">{ventana.comentarioPresupuesto}</p>
+        </ActivadorEdicion>
+      </div>
     );
   }
 
   return (
     <div className="space-y-1">
-      <textarea
-        autoFocus
-        value={valor}
-        onChange={(e) => setValor(e.target.value)}
-        rows={2}
-        maxLength={2000}
-        className="w-full text-xs border border-slate-200 rounded-lg p-1.5 outline-none focus:border-brand-600"
-      />
-      <button
-        type="button"
-        onClick={() => mutation.mutate()}
-        disabled={mutation.isPending}
-        className="px-2 py-1 rounded-md bg-brand-600 text-white text-[11px] font-bold flex items-center gap-1"
-      >
-        {mutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+      <Textarea aria-label="Observación" autoFocus value={valor} onChange={(e) => setValor(e.target.value)} rows={2} maxLength={2000} />
+      <Button size="sm" onClick={() => mutation.mutate()} isLoading={mutation.isPending} leftIcon={<Check className="w-3 h-3" />}>
         Guardar
-      </button>
+      </Button>
     </div>
   );
 };
 
 export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, activeVersion, dolar, uf, euro }) => {
+  const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
   const parametros = useParametrosGenerales();
   const tasaDolar = Number(dolar) || parametros?.tasasRespaldo.dolar || 0;
@@ -280,7 +263,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
     } catch (error: any) {
       // Antes fallaba en silencio: el usuario se llevaba un PDF en blanco
       // sin ninguna pista de qué pasó. Mejor un error visible que adivinar.
-      window.alert(`No se pudo generar el PDF: ${error?.message || error}`);
+      mostrarToast('No se pudo generar el PDF.', { detalle: String(error?.message || error) });
     } finally {
       setExportando(false);
     }
@@ -298,38 +281,27 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
           </h3>
           <p className="text-xs text-slate-500">{proyecto.obra} · {proyecto.cliente?.nombre || proyecto.clienteNombreRaw}</p>
         </div>
-        <button
-          type="button"
-          onClick={exportarPDF}
-          disabled={exportando}
-          className="px-4 py-2.5 rounded-xl bg-brand-600 text-white text-xs font-bold flex items-center gap-2 hover:bg-brand-700 transition-colors disabled:opacity-50"
-        >
-          {exportando ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+        <Button onClick={exportarPDF} isLoading={exportando} leftIcon={<FileDown className="w-4 h-4" />}>
           Exportar PDF
-        </button>
+        </Button>
       </div>
 
       {plantillasDisponibles.length > 1 && (
         <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-          <label htmlFor="plantilla-oferta" className="text-xs font-bold uppercase tracking-wider text-slate-800 shrink-0">
-            Plantilla de textos
-          </label>
-          <select
-            id="plantilla-oferta"
-            value={plantillaActual}
-            disabled={congelado || plantillaMutation.isPending}
-            onChange={(e) => {
-              if (window.confirm('¿Reemplazar el texto de presentación y las condiciones por los de esta plantilla?')) plantillaMutation.mutate(e.target.value);
-            }}
-            className="flex-1 text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:border-brand-600"
-          >
-            {plantillasDisponibles.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nombre}
-                {p.tipoProyecto ? ` (${p.tipoProyecto.nombre})` : ' (general)'}
-              </option>
-            ))}
-          </select>
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-800 shrink-0">Plantilla de textos</span>
+          <div className="flex-1">
+            <Select
+              aria-label="Plantilla de textos"
+              value={plantillaActual}
+              disabled={congelado || plantillaMutation.isPending}
+              onChange={async (e) => {
+                const id = e.target.value;
+                const ok = await confirmar({ titulo: '¿Cambiar la plantilla?', mensaje: 'Se reemplazan el texto de presentación y las condiciones por los de esta plantilla.', confirmar: 'Reemplazar' });
+                if (ok) plantillaMutation.mutate(id);
+              }}
+              options={plantillasDisponibles.map((p) => ({ value: p.id, label: `${p.nombre}${p.tipoProyecto ? ` (${p.tipoProyecto.nombre})` : ' (general)'}` }))}
+            />
+          </div>
         </div>
       )}
 
@@ -337,28 +309,17 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         <div className="flex items-center justify-between">
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">Texto de presentación</h4>
           {!congelado && !editandoTexto && (
-            <button type="button" onClick={() => setEditandoTexto(true)} className="text-[11px] text-slate-400 hover:text-brand-600 flex items-center gap-1">
-              <Pencil className="w-3 h-3" /> Editar
-            </button>
+            <Button variant="ghost" size="sm" leftIcon={<Pencil className="w-3 h-3" />} onClick={() => setEditandoTexto(true)}>
+              Editar
+            </Button>
           )}
         </div>
         {editandoTexto ? (
           <div className="space-y-2">
-            <textarea
-              value={texto}
-              onChange={(e) => setTexto(e.target.value)}
-              rows={4}
-              className="w-full text-xs border border-slate-200 rounded-lg p-2 outline-none focus:border-brand-600"
-            />
-            <button
-              type="button"
-              onClick={() => guardarTextoMutation.mutate()}
-              disabled={guardarTextoMutation.isPending}
-              className="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-bold flex items-center gap-1.5"
-            >
-              {guardarTextoMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            <Textarea aria-label="Texto de presentación" value={texto} onChange={(e) => setTexto(e.target.value)} rows={4} />
+            <Button size="sm" onClick={() => guardarTextoMutation.mutate()} isLoading={guardarTextoMutation.isPending}>
               Guardar
-            </button>
+            </Button>
           </div>
         ) : (
           <p className="text-xs text-slate-600 whitespace-pre-line">{texto}</p>
@@ -479,29 +440,17 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         <div className="flex items-center justify-between">
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">Condiciones comerciales</h4>
           {!congelado && !editandoCondiciones && (
-            <button type="button" onClick={() => setEditandoCondiciones(true)} className="text-[11px] text-slate-400 hover:text-brand-600 flex items-center gap-1">
-              <Pencil className="w-3 h-3" /> Editar
-            </button>
+            <Button variant="ghost" size="sm" leftIcon={<Pencil className="w-3 h-3" />} onClick={() => setEditandoCondiciones(true)}>
+              Editar
+            </Button>
           )}
         </div>
         {editandoCondiciones ? (
           <div className="space-y-2">
-            <textarea
-              value={condiciones}
-              onChange={(e) => setCondiciones(e.target.value)}
-              rows={8}
-              className="w-full text-xs border border-slate-200 rounded-lg p-2 outline-none focus:border-brand-600 font-mono"
-            />
-            <p className="text-[10px] text-slate-400">Una condición por línea.</p>
-            <button
-              type="button"
-              onClick={() => guardarCondicionesMutation.mutate()}
-              disabled={guardarCondicionesMutation.isPending}
-              className="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-bold flex items-center gap-1.5"
-            >
-              {guardarCondicionesMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            <Textarea aria-label="Condiciones comerciales" value={condiciones} onChange={(e) => setCondiciones(e.target.value)} rows={8} className="font-mono" helperText="Una condición por línea." />
+            <Button size="sm" onClick={() => guardarCondicionesMutation.mutate()} isLoading={guardarCondicionesMutation.isPending}>
               Guardar
-            </button>
+            </Button>
           </div>
         ) : (
           <ul className="text-xs text-slate-600 space-y-1 list-disc list-inside">
