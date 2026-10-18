@@ -1,25 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Loader2,
-  FileCheck2,
-  AlertCircle,
-  Search,
-  RefreshCw,
-  CheckCircle2,
-  X as XIcon,
-  Plus,
-  KeyRound,
-  Scale,
-  ChevronDown,
-  ChevronRight,
-} from 'lucide-react';
+import { Loader2, FileCheck2, AlertCircle, Search, RefreshCw, CheckCircle2, X as XIcon, Plus, KeyRound, Scale, ChevronDown, ChevronRight } from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { getOrdenesCompra, getFacturasSugeridas, refrescarConciliacion, getMisPermisos, ajustarOCAFacturado } from '../../api/client';
 import { netoConciliacion, type EstadoConciliacionFactura, type EstadoOC, type FiltrosFacturas } from '../../types';
 import { ESTADO_OC_LABEL, ESTADO_OC_VARIANT, DetalleItemsOC } from '../abastecimiento/OrdenesCompraList';
 import { CheckoutFacturaModal } from './CheckoutFacturaModal';
+import { IconButton } from '../../components/ui/IconButton';
 
 const ESTADO_CUADRE_VARIANT: Record<EstadoConciliacionFactura, BadgeVariant> = {
   PENDIENTE: 'subtle',
@@ -47,24 +35,10 @@ const ChipFiltro: React.FC<{ activo: boolean; label: string; onToggle: () => voi
   activo ? (
     <span className="inline-flex items-center gap-1 pl-2.5 pr-1 py-0.5 rounded-full bg-brand-600/10 border border-brand-600/25 text-[11px] font-semibold text-[#B8391B]">
       {label}
-      <button
-        onClick={onToggle}
-        disabled={disabled}
-        title="Quitar filtro"
-        className="w-4 h-4 rounded-full hover:bg-brand-600/20 flex items-center justify-center disabled:opacity-50"
-      >
-        <XIcon className="w-3 h-3" />
-      </button>
+      <IconButton icono={XIcon} etiqueta="Quitar filtro" onClick={onToggle} disabled={disabled} />
     </span>
   ) : (
-    <button
-      onClick={onToggle}
-      disabled={disabled}
-      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-dashed border-slate-300 text-[11px] font-semibold text-slate-400 hover:text-slate-700 hover:border-slate-400 disabled:opacity-50"
-    >
-      <Plus className="w-3 h-3" />
-      {label}
-    </button>
+    <Button variant="ghost" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={onToggle} disabled={disabled}>{label}</Button>
   );
 
 // "Control de documentos": concilia cada OC ya recibida con su factura
@@ -180,13 +154,7 @@ export const ControlDocumentosTab: React.FC = () => {
             className="w-full pl-10 pr-9 py-2.5 sm:py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-brand-600 transition-all"
           />
           {searchTerm && (
-            <button
-              onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
-              aria-label="Limpiar búsqueda"
-            >
-              <XIcon className="w-3.5 h-3.5" />
-            </button>
+            <IconButton icono={XIcon} etiqueta="Limpiar búsqueda" onClick={() => setSearchTerm('')} />
           )}
         </div>
       </div>
@@ -301,18 +269,13 @@ export const ControlDocumentosTab: React.FC = () => {
                               <span className="text-slate-400 font-normal"> · pagado {formatCLP(Number(c.montoPagado))}</span>
                             )}
                           </span>
-                          <button
-                            title="Refrescar estado de pago desde Clay"
-                            onClick={() => refrescarMutation.mutate(c.id)}
-                            disabled={refrescarMutation.isPending || sinTokenClay}
-                            className="w-6 h-6 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center shrink-0 disabled:opacity-50"
-                          >
-                            {refrescarMutation.isPending && refrescarMutation.variables === c.id ? (
+                          <Button variant="ghost" size="sm" title="Refrescar estado de pago desde Clay" onClick={() => refrescarMutation.mutate(c.id)} disabled={refrescarMutation.isPending || sinTokenClay} className="shrink-0">
+{refrescarMutation.isPending && refrescarMutation.variables === c.id ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             ) : (
                               <RefreshCw className="w-3.5 h-3.5" />
                             )}
-                          </button>
+</Button>
                         </div>
                       </div>
                     ))}

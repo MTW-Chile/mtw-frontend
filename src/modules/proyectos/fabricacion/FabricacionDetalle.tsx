@@ -7,6 +7,7 @@ import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import type { FabricacionVentana, MaterialFabricacion, MaterialesFabricacion } from '../../../types';
 import { formatoMm, resumenCuadros } from './utils';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
 
 interface Props {
   proyectoId: string;
@@ -188,14 +189,7 @@ export const FabricacionDetalle: React.FC<Props> = ({ proyectoId, fabricacionId 
   const totalUnidades = vigentes.reduce((s, v) => s + v.unidades, 0);
 
   const pestana = (id: Vista, texto: string) => (
-    <button
-      onClick={() => setVista(id)}
-      className={`px-3 py-1.5 text-xs font-bold rounded-lg cursor-pointer transition-colors ${
-        vista === id ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
-      }`}
-    >
-      {texto}
-    </button>
+    <Button variant="ghost" size="sm" onClick={() => setVista(id)}>{texto}</Button>
   );
 
   if (detalle.isLoading) {
@@ -220,42 +214,42 @@ export const FabricacionDetalle: React.FC<Props> = ({ proyectoId, fabricacionId 
       </div>
 
       {vista === 'ventanas' && (
-        <div className="rounded-xl border border-slate-200 bg-white overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
-                <th className="px-3 py-2 font-bold">Pos</th>
-                <th className="px-3 py-2 font-bold">Modelo</th>
-                <th className="px-3 py-2 font-bold text-right">Medida (mm)</th>
-                <th className="px-3 py-2 font-bold text-right">Uds</th>
-                <th className="px-3 py-2 font-bold">Cuadros</th>
-                <th className="px-3 py-2 font-bold">Cubicación</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+          <Tabla>
+            <Thead>
+              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                <Th className="font-bold">Pos</Th>
+                <Th className="font-bold">Modelo</Th>
+                <Th alinear="derecha" className="font-bold">Medida (mm)</Th>
+                <Th alinear="derecha" className="font-bold">Uds</Th>
+                <Th className="font-bold">Cuadros</Th>
+                <Th className="font-bold">Cubicación</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
               {ventanas.map((v) => (
-                <tr key={v.id} className={`border-b border-slate-50 ${v.retirada ? 'opacity-50' : ''}`}>
-                  <td className="px-3 py-2 font-mono text-slate-600">{v.orden}</td>
-                  <td className="px-3 py-2 font-bold text-slate-900">
+                <Tr key={v.id} className={`border-b border-slate-50 ${v.retirada ? 'opacity-50' : ''}`}>
+                  <Td className="font-mono text-slate-600">{v.orden}</Td>
+                  <Td className="font-bold text-slate-900">
                     {v.modelo || '—'}
                     {v.retirada && (
                       <Badge size="sm" variant="outline" className="ml-2">
                         retirada
                       </Badge>
                     )}
-                  </td>
-                  <td className="px-3 py-2 text-right font-mono text-slate-700 whitespace-nowrap">
+                  </Td>
+                  <Td alinear="derecha" className="font-mono text-slate-700 whitespace-nowrap">
                     {formatoMm(v.anchoMm)} × {formatoMm(v.altoMm)}
-                  </td>
-                  <td className="px-3 py-2 text-right font-mono text-slate-700">{v.unidades}</td>
-                  <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{resumenCuadros(v.cuadros)}</td>
-                  <td className="px-3 py-2 whitespace-nowrap">
+                  </Td>
+                  <Td alinear="derecha" className="font-mono text-slate-700">{v.unidades}</Td>
+                  <Td className="text-slate-500 whitespace-nowrap">{resumenCuadros(v.cuadros)}</Td>
+                  <Td className="whitespace-nowrap">
                     {!v.retirada && <CeldaVinculoCubicacion fabricacionId={fabricacionId} ventana={v} proyectoId={proyectoId} />}
-                  </td>
-                </tr>
+                  </Td>
+                </Tr>
               ))}
-            </tbody>
-          </table>
+            </Tbody>
+          </Tabla>
           {ventanas.length === 0 && <p className="p-4 text-center text-xs text-slate-400">El documento no trae ventanas.</p>}
         </div>
       )}

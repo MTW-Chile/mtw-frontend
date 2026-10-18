@@ -16,6 +16,7 @@ import { FasesTab } from '../FasesTab';
 import { BuscarFabricacionModal } from './BuscarFabricacionModal';
 import { FabricacionDetalle } from './FabricacionDetalle';
 import { formatoFechaHora, textoEstadoFabricacion, textoVinculacionCubicacion, varianteEstadoFabricacion } from './utils';
+import { useConfirmar } from '../../../components/ui/Confirmar';
 
 interface Props {
   proyecto: Proyecto;
@@ -56,6 +57,7 @@ export const FabricacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => 
 };
 
 const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }) => {
+  const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
   const [buscando, setBuscando] = useState(false);
   const [abierto, setAbierto] = useState<string | null>(null);
@@ -113,8 +115,8 @@ const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyect
     },
   });
 
-  const confirmarDesvincular = (f: FabricacionHetmo) => {
-    if (window.confirm(`¿Desvincular "${f.descripcion || `documento ${f.hetmoId}`}" de esta obra? Solo se borra la copia local; HETMO no se modifica.`)) {
+  const confirmarDesvincular = async (f: FabricacionHetmo) => {
+    if (await confirmar({ titulo: `¿Desvincular "${f.descripcion || `documento ${f.hetmoId}`}" de esta obra?`, mensaje: `Solo se borra la copia local; HETMO no se modifica.`, confirmar: 'Desvincular', peligro: true })) {
       desvincular.mutate(f.id);
     }
   };

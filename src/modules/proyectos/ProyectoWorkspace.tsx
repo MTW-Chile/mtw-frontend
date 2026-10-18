@@ -18,6 +18,7 @@ import { AdicionalesTab } from './adicionales/AdicionalesTab';
 import { ClayCentroCostoEditor } from './ClayCentroCostoEditor';
 import { seccionDisponible, seccionEfectiva, type SeccionObra } from './seccionesObra';
 import { usePermisos } from '../../lib/permisos';
+import { SubTabs } from '../../components/ui/PageHeader';
 
 // "Control de documentos" (conciliacion de OC contra facturas de Clay) se
 // saco de aca -- vive solo en Compras (ComprasPage > sub-tab
@@ -25,15 +26,15 @@ import { usePermisos } from '../../lib/permisos';
 // juntas, en vez de repetido obra por obra.
 type Seccion = SeccionObra;
 
-const SECCIONES: { id: Seccion; label: string; hint: string; icon: React.ReactNode }[] = [
-  { id: 'presupuesto', label: 'Control de presupuesto', hint: 'Revisión por partida de gastos', icon: <Wallet className="w-4 h-4" /> },
-  { id: 'documentos', label: 'Documentos', hint: 'Carpeta de OneDrive de la obra', icon: <FolderOpen className="w-4 h-4" /> },
-  { id: 'cubicacion', label: 'Cubicación', hint: 'Reparto por piso y departamento, rectificación y nomenclatura (opcional)', icon: <Ruler className="w-4 h-4" /> },
-  { id: 'abastecimiento', label: 'Abastecimiento', hint: 'Generación y gestión de OC', icon: <ShoppingCart className="w-4 h-4" /> },
-  { id: 'fabricacion', label: 'Fabricación', hint: 'Documentos de fabricación de HETMO', icon: <Factory className="w-4 h-4" /> },
-  { id: 'pendientes', label: 'Control de pendientes', hint: 'Lo que falta o falló en la obra', icon: <ClipboardList className="w-4 h-4" /> },
-  { id: 'adicionales', label: 'Adicionales', hint: 'Ventas o cargos fuera del presupuesto aceptado', icon: <FilePlus2 className="w-4 h-4" /> },
-  { id: 'bodega', label: 'Bodega', hint: 'Requisiciones, stock y movimientos', icon: <Warehouse className="w-4 h-4" /> },
+const SECCIONES: { id: Seccion; label: string; hint: string; icon: React.ElementType }[] = [
+  { id: 'presupuesto', label: 'Control de presupuesto', hint: 'Revisión por partida de gastos', icon: Wallet },
+  { id: 'documentos', label: 'Documentos', hint: 'Carpeta de OneDrive de la obra', icon: FolderOpen },
+  { id: 'cubicacion', label: 'Cubicación', hint: 'Reparto por piso y departamento, rectificación y nomenclatura (opcional)', icon: Ruler },
+  { id: 'abastecimiento', label: 'Abastecimiento', hint: 'Generación y gestión de OC', icon: ShoppingCart },
+  { id: 'fabricacion', label: 'Fabricación', hint: 'Documentos de fabricación de HETMO', icon: Factory },
+  { id: 'pendientes', label: 'Control de pendientes', hint: 'Lo que falta o falló en la obra', icon: ClipboardList },
+  { id: 'adicionales', label: 'Adicionales', hint: 'Ventas o cargos fuera del presupuesto aceptado', icon: FilePlus2 },
+  { id: 'bodega', label: 'Bodega', hint: 'Requisiciones, stock y movimientos', icon: Warehouse },
 ];
 
 export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: string; onVolver: () => void }> = ({
@@ -89,29 +90,15 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
             mobile; reemplazado por pedido explicito). overflow-x-auto
             cubre el caso de que no entren todos los tabs en una pantalla
             angosta. */}
-        <div className="border-b border-slate-200 bg-white overflow-x-auto flex shrink-0 px-2 sm:px-5">
-          {SECCIONES.filter((s) => s.id !== 'adicionales' || tiene('adicionales.ver')).map((s) => {
-            const disponible = seccionDisponible(s.id, proyecto?.origen);
-            return (
-              <button
-                key={s.id}
-                onClick={() => disponible && setSeccion(s.id)}
-                disabled={!disponible}
-                aria-disabled={!disponible}
-                title={disponible ? s.hint : 'No disponible: esta obra se creó a mano y no fue cotizada'}
-                className={`flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-colors ${
-                  !disponible
-                    ? 'border-transparent text-slate-300 cursor-not-allowed'
-                    : seccion === s.id
-                      ? 'border-brand-600 text-brand-600 cursor-pointer'
-                      : 'border-transparent text-slate-500 hover:text-slate-800 cursor-pointer'
-                }`}
-              >
-                {s.icon}
-                {s.label}
-              </button>
-            );
-          })}
+        <div className="bg-white shrink-0 px-2 sm:px-5">
+          <SubTabs
+            active={seccion}
+            onChange={(id) => setSeccion(id)}
+            tabs={SECCIONES.filter((s) => s.id !== 'adicionales' || tiene('adicionales.ver')).map((s) => {
+              const disponible = seccionDisponible(s.id, proyecto?.origen);
+              return { id: s.id, label: s.label, icon: s.icon, disabled: !disponible, title: disponible ? s.hint : 'No disponible: esta obra se creó a mano y no fue cotizada' };
+            })}
+          />
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 sm:p-6">

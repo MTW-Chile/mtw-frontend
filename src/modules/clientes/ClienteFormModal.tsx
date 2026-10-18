@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { createCliente, updateCliente } from '../../api/client';
 import type { Cliente } from '../../types';
+import { SubTabs } from '../../components/ui/PageHeader';
 
 interface ClienteFormModalProps {
   // null = crear uno nuevo; un Cliente = editar ese.
@@ -113,19 +114,15 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({ cliente, onC
           </button>
         </div>
 
-        <div className="px-5 pt-3 flex items-center gap-1.5 border-b border-slate-100 shrink-0">
-          {(['general', 'cobranza'] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTab(t)}
-              className={`px-3 py-2 rounded-t-lg text-xs font-bold transition-colors cursor-pointer ${
-                tab === t ? 'text-brand-600 border-b-2 border-brand-600' : 'text-slate-400 hover:text-slate-700 border-b-2 border-transparent'
-              }`}
-            >
-              {t === 'general' ? 'Datos Generales' : 'Cobranza'}
-            </button>
-          ))}
+        <div className="px-5 pt-2 shrink-0">
+          <SubTabs
+            active={tab}
+            onChange={setTab}
+            tabs={[
+              { id: 'general', label: 'Datos generales' },
+              { id: 'cobranza', label: 'Cobranza' },
+            ]}
+          />
         </div>
 
         <form

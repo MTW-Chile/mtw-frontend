@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, FileDown, Loader2, Package, PenLine, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import {
@@ -18,7 +18,6 @@ import {
 } from '../../../api/client';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
-import { TABLE_CLASS, TABLE_WRAPPER_CLASS } from '../../../lib/designSystem';
 import { usePermisos } from '../../../lib/permisos';
 import { loadImageDataUrl } from '../../cotizaciones/lib/pdfTheme';
 import { MaterialPicker } from '../../cotizaciones/steps/Step2Lineas/MaterialPicker';
@@ -29,30 +28,15 @@ import { buildAdicionalHtml } from './adicionalPdf';
 import { VentanasAdicional } from './VentanasAdicional';
 import { buildDocumentoHtml, buildHeaderFooterTemplates, rasterizarDibujos } from '../../cotizaciones/steps/Step5Consolidacion/presupuestoPdf';
 import { VARIANTE_ESTADO, clp, codigoAdicional, uf, useTasasVigentes } from './comun';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
+import { useConfirmar } from '../../../components/ui/Confirmar';
+import { Campo, InputCompacto, NumeroInput, SelectCompacto, Textarea } from '../../../components/ui/Campos';
+import { IconButton } from '../../../components/ui/IconButton';
 
-const campo = 'text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-brand-600 bg-white disabled:bg-slate-50 disabled:text-slate-500';
-
-// Numero editable que guarda al salir del campo (no en cada tecla).
-const NumeroEditable: React.FC<{ valor: number; disabled: boolean; onGuardar: (v: number) => void; className?: string }> = ({ valor, disabled, onGuardar, className }) => {
-  const [texto, setTexto] = useState(String(valor));
-  useEffect(() => setTexto(String(valor)), [valor]);
-  return (
-    <input
-      type="number"
-      step="any"
-      min={0}
-      disabled={disabled}
-      value={texto}
-      onChange={(e) => setTexto(e.target.value)}
-      onBlur={() => {
-        const n = Number(texto);
-        if (Number.isFinite(n) && n !== valor) onGuardar(n);
-        else setTexto(String(valor));
-      }}
-      className={`${campo} text-right ${className ?? 'w-24'}`}
-    />
-  );
-};
+// Número editable que guarda al salir del campo (no en cada tecla).
+const NumeroEditable: React.FC<{ valor: number; disabled: boolean; onGuardar: (v: number) => void; className?: string }> = ({ valor, disabled, onGuardar, className }) => (
+  <NumeroInput valor={valor} disabled={disabled} min={0} onGuardar={(v) => v !== null && onGuardar(v)} className={className ?? 'w-24'} aria-label="Valor" />
+);
 
 /**
  * Un adicional: ítems (material del catálogo con su precio vigente, o ítem
@@ -61,6 +45,7 @@ const NumeroEditable: React.FC<{ valor: number; disabled: boolean; onGuardar: (v
  * edita; la partida de un ítem libre se puede reclasificar siempre.
  */
 export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: string; onVolver: () => void }> = ({ proyecto, adicionalId, onVolver }) => {
+  const { confirmar, pedirTexto } = useConfirmar();
   const queryClient = useQueryClient();
   const { tiene } = usePermisos();
   const puedeEditar = tiene('adicionales.editar');
@@ -79,13 +64,13 @@ export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: strin
     queryClient.setQueryData(claveAdicional, actualizado);
     queryClient.invalidateQueries({ queryKey: ['adicionales', proyecto.id] });
   };
-  const mutacion = <T,>(fn: (v: T) => Promise<Adicional>) => useMutation({ mutationFn: fn, onSuccess: aplicar, onError: avisarError });
-  const editar = mutacion((p: Parameters<typeof updateAdicional>[1]) => updateAdicional(adicionalId, p));
-  const editarItem = mutacion((v: { itemId: string; payload: Parameters<typeof updateAdicionalItem>[2] }) => updateAdicionalItem(adicionalId, v.itemId, v.payload));
-  const quitarItem = mutacion((itemId: string) => deleteAdicionalItem(adicionalId, itemId));
-  const agregar = mutacion((p: Parameters<typeof addAdicionalItem>[1]) => addAdicionalItem(adicionalId, p));
-  const actualizarPrecios = mutacion(() => actualizarPreciosAdicional(adicionalId, tasasDelDia ?? undefined));
-  const estado = mutacion((v: { estado: EstadoAdicional; motivo?: string }) => cambiarEstadoAdicional(adicionalId, v.estado, v.motivo));
+  const useMutacion = <T,>(fn: (v: T) => Promise<Adicional>) => useMutation({ mutationFn: fn, onSuccess: aplicar, onError: avisarError });
+  const editar = useMutacion((p: Parameters<typeof updateAdicional>[1]) => updateAdicional(adicionalId, p));
+  const editarItem = useMutacion((v: { itemId: string; payload: Parameters<typeof updateAdicionalItem>[2] }) => updateAdicionalItem(adicionalId, v.itemId, v.payload));
+  const quitarItem = useMutacion((itemId: string) => deleteAdicionalItem(adicionalId, itemId));
+  const agregar = useMutacion((p: Parameters<typeof addAdicionalItem>[1]) => addAdicionalItem(adicionalId, p));
+  const actualizarPrecios = useMutacion(() => actualizarPreciosAdicional(adicionalId, tasasDelDia ?? undefined));
+  const estado = useMutacion((v: { estado: EstadoAdicional; motivo?: string }) => cambiarEstadoAdicional(adicionalId, v.estado, v.motivo));
 
   if (isLoading || !a) {
     return (
@@ -135,9 +120,9 @@ export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: strin
 
   return (
     <div className="space-y-4">
-      <button onClick={onVolver} className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 cursor-pointer">
-        <ArrowLeft className="w-3.5 h-3.5" /> Adicionales de la obra
-      </button>
+      <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="w-3.5 h-3.5" />} onClick={onVolver}>
+        Adicionales de la obra
+      </Button>
 
       {/* Encabezado */}
       <section className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5 space-y-3">
@@ -151,7 +136,7 @@ export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: strin
               {a.estado === 'BORRADOR' && a.requiereAprobacion && <Badge size="sm" variant="warning">Requiere aprobación</Badge>}
             </div>
             {borrador ? (
-              <input defaultValue={a.titulo} onBlur={(e) => e.target.value.trim() && e.target.value !== a.titulo && editar.mutate({ titulo: e.target.value.trim() })} className={`${campo} w-full text-sm font-bold`} />
+              <InputCompacto aria-label="Título del adicional" defaultValue={a.titulo} onBlur={(e) => e.target.value.trim() && e.target.value !== a.titulo && editar.mutate({ titulo: e.target.value.trim() })} className="w-full text-sm! font-bold" />
             ) : (
               <h2 className="text-base font-extrabold text-slate-900">{a.titulo}</h2>
             )}
@@ -172,13 +157,13 @@ export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: strin
                   size="sm"
                   variant={x.variante ?? 'primary'}
                   disabled={estado.isPending}
-                  onClick={() => {
+                  onClick={async () => {
                     if (x.motivo) {
-                      const motivo = window.prompt('Motivo del rechazo');
+                      const motivo = await pedirTexto({ titulo: 'Rechazar el adicional', etiqueta: 'Motivo del rechazo', requerido: true, confirmar: 'Rechazar', peligro: true });
                       if (motivo?.trim()) estado.mutate({ estado: x.hacia, motivo: motivo.trim() });
                       return;
                     }
-                    if (x.hacia === 'ANULADO' && !window.confirm('¿Anular este adicional? No se puede deshacer.')) return;
+                    if (x.hacia === 'ANULADO' && !(await confirmar({ titulo: '¿Anular este adicional?', mensaje: 'No se puede deshacer.', confirmar: 'Anular', peligro: true }))) return;
                     estado.mutate({ estado: x.hacia });
                   }}
                 >
@@ -264,82 +249,79 @@ export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: strin
             pendiente={agregar.isPending}
           />
         )}
-        <div className={TABLE_WRAPPER_CLASS}>
-          <table className={`${TABLE_CLASS} text-left text-slate-700`}>
-            <thead className="bg-slate-50/80 border-b border-slate-200 uppercase">
-              <tr>
-                <th className="py-2.5">Descripción</th>
-                <th className="py-2.5">Partida</th>
-                <th className="py-2.5 text-right">Cantidad</th>
-                <th className="py-2.5 text-right">Costo unit.</th>
-                <th className="py-2.5 text-right">Precio unit.</th>
-                <th className="py-2.5 text-right">Total</th>
-                {borrador && <th className="py-2.5" />}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {a.items.map((i) => (
-                <tr key={i.id} className={i.porClasificar ? 'bg-amber-50/50' : ''}>
-                  <td className="py-2">
-                    <div className="font-semibold text-slate-800">{i.descripcion}</div>
-                    <div className="text-[10px] text-slate-400">{i.materialId ? 'Catálogo · precio vigente' : 'Ítem libre'}</div>
-                  </td>
-                  <td className="py-2">
-                    {!i.materialId && puedeEditar ? (
-                      <select
-                        value={i.partidaId}
-                        onChange={(e) => editarItem.mutate({ itemId: i.id, payload: { partidaId: e.target.value } })}
-                        className={`${campo} ${i.porClasificar ? 'border-amber-300 bg-amber-50 text-amber-800' : ''}`}
-                        title={i.porClasificar ? 'Por clasificar: no se contabiliza hasta asignarle partida' : undefined}
-                      >
-                        {partidas
-                          .filter((p) => p.activa || p.id === i.partidaId)
-                          .map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.porDefecto ? `⚠ ${p.nombre}` : p.nombre}
-                            </option>
-                          ))}
-                      </select>
-                    ) : (
-                      <span className="text-[11px]">{i.partida.nombre}</span>
-                    )}
-                  </td>
-                  <td className="py-2 text-right whitespace-nowrap">
-                    {borrador ? (
-                      <NumeroEditable valor={Number(i.cantidad)} disabled={false} onGuardar={(v) => v > 0 && editarItem.mutate({ itemId: i.id, payload: { cantidad: v } })} className="w-20" />
-                    ) : (
-                      Number(i.cantidad).toLocaleString('es-CL')
-                    )}{' '}
-                    <span className="text-slate-400">{i.unidad}</span>
-                  </td>
-                  <td className="py-2 text-right font-mono">
-                    {borrador && !i.materialId ? (
-                      <NumeroEditable valor={Number(i.costoUnitario)} disabled={false} onGuardar={(v) => editarItem.mutate({ itemId: i.id, payload: { costoUnitario: v } })} />
-                    ) : (
-                      clp(Number(i.costoUnitario))
-                    )}
-                  </td>
-                  <td className="py-2 text-right font-mono">{clp(i.precioUnitario)}</td>
-                  <td className="py-2 text-right font-mono font-bold">{clp(i.precioTotal)}</td>
-                  {borrador && (
-                    <td className="py-2 text-right">
-                      <button onClick={() => quitarItem.mutate(i.id)} className="p-1.5 text-slate-400 hover:text-rose-600 cursor-pointer" aria-label={`Quitar ${i.descripcion}`}>
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
+        <Tabla>
+          <Thead>
+            <Tr>
+              <Th>Descripción</Th>
+              <Th>Partida</Th>
+              <Th alinear="derecha">Cantidad</Th>
+              <Th alinear="derecha">Costo unit.</Th>
+              <Th alinear="derecha">Precio unit.</Th>
+              <Th alinear="derecha">Total</Th>
+              {borrador && <Th />}
+            </Tr>
+          </Thead>
+          <Tbody>
+            {a.items.map((i) => (
+              <Tr key={i.id} className={i.porClasificar ? 'bg-amber-50/50' : ''}>
+                <Td>
+                  <div className="font-semibold text-slate-800">{i.descripcion}</div>
+                  <div className="text-[10px] text-slate-400">{i.materialId ? 'Catálogo · precio vigente' : 'Ítem libre'}</div>
+                </Td>
+                <Td>
+                  {!i.materialId && puedeEditar ? (
+                    <SelectCompacto
+                      aria-label={`Partida de ${i.descripcion}`}
+                      value={i.partidaId}
+                      onChange={(e) => editarItem.mutate({ itemId: i.id, payload: { partidaId: e.target.value } })}
+                      tono={i.porClasificar ? 'advertencia' : undefined}
+                      title={i.porClasificar ? 'Por clasificar: no se contabiliza hasta asignarle partida' : undefined}
+                    >
+                      {partidas
+                        .filter((p) => p.activa || p.id === i.partidaId)
+                        .map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.porDefecto ? `⚠ ${p.nombre}` : p.nombre}
+                          </option>
+                        ))}
+                    </SelectCompacto>
+                  ) : (
+                    <span className="text-[11px]">{i.partida.nombre}</span>
                   )}
-                </tr>
-              ))}
-              {a.items.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400">
-                    Sin ítems todavía.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                </Td>
+                <Td alinear="derecha" className="whitespace-nowrap">
+                  {borrador ? (
+                    <NumeroEditable valor={Number(i.cantidad)} disabled={false} onGuardar={(v) => v > 0 && editarItem.mutate({ itemId: i.id, payload: { cantidad: v } })} className="w-20" />
+                  ) : (
+                    Number(i.cantidad).toLocaleString('es-CL')
+                  )}{' '}
+                  <span className="text-slate-400">{i.unidad}</span>
+                </Td>
+                <Td alinear="derecha" className="font-mono">
+                  {borrador && !i.materialId ? (
+                    <NumeroEditable valor={Number(i.costoUnitario)} disabled={false} onGuardar={(v) => editarItem.mutate({ itemId: i.id, payload: { costoUnitario: v } })} />
+                  ) : (
+                    clp(Number(i.costoUnitario))
+                  )}
+                </Td>
+                <Td alinear="derecha" className="font-mono">{clp(i.precioUnitario)}</Td>
+                <Td alinear="derecha" className="font-mono font-bold">{clp(i.precioTotal)}</Td>
+                {borrador && (
+                  <Td alinear="derecha">
+                    <IconButton icono={Trash2} tono="peligro" etiqueta={`Quitar ${i.descripcion}`} onClick={() => quitarItem.mutate(i.id)} />
+                  </Td>
+                )}
+              </Tr>
+            ))}
+            {a.items.length === 0 && (
+              <Tr>
+                <Td colSpan={7} alinear="centro" className="py-8 text-slate-400">
+                  Sin ítems todavía.
+                </Td>
+              </Tr>
+            )}
+          </Tbody>
+        </Tabla>
       </section>
 
         </>
@@ -352,10 +334,13 @@ export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: strin
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">Textos del documento</h3>
           {borrador && plantillas.length > 1 && (
-            <select
+            <SelectCompacto
+              aria-label="Plantilla de textos"
               value={a.plantillaOfertaId ?? ''}
-              onChange={(e) => window.confirm('¿Reemplazar los textos por los de esta plantilla?') && editar.mutate({ plantillaOfertaId: e.target.value })}
-              className={campo}
+              onChange={async (e) => {
+                const id = e.target.value;
+                if (await confirmar({ titulo: '¿Reemplazar los textos por los de esta plantilla?', confirmar: 'Reemplazar' })) editar.mutate({ plantillaOfertaId: id });
+              }}
             >
               {plantillas
                 .filter((p) => p.activa)
@@ -364,24 +349,24 @@ export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: strin
                     {p.nombre}
                   </option>
                 ))}
-            </select>
+            </SelectCompacto>
           )}
         </div>
-        <textarea
+        <Textarea
+          aria-label="Texto de presentación"
           key={`t-${a.plantillaOfertaId}`}
           defaultValue={a.textoPresentacion}
           disabled={!borrador}
           rows={2}
           onBlur={(e) => e.target.value !== a.textoPresentacion && editar.mutate({ textoPresentacion: e.target.value })}
-          className={`${campo} w-full`}
         />
-        <textarea
+        <Textarea
+          aria-label="Condiciones comerciales"
           key={`c-${a.plantillaOfertaId}`}
           defaultValue={a.condicionesComerciales}
           disabled={!borrador}
           rows={5}
           onBlur={(e) => e.target.value !== a.condicionesComerciales && editar.mutate({ condicionesComerciales: e.target.value })}
-          className={`${campo} w-full`}
         />
       </section>
 
@@ -413,24 +398,21 @@ const AgregarMaterial: React.FC<{ onAgregar: (p: Parameters<typeof addAdicionalI
             <div className="font-semibold text-slate-800">
               {material.skuInterno} · {material.descripcion}
             </div>
-            <button onClick={() => setMaterial(null)} className="text-[11px] text-brand-600 hover:underline cursor-pointer">
+            <Button variant="link" size="sm" onClick={() => setMaterial(null)}>
               Cambiar
-            </button>
+            </Button>
           </div>
-          <label className="space-y-1">
-            <span className="block text-[11px] text-slate-500">Cantidad</span>
-            <input type="number" min={0} step="any" value={cantidad} onChange={(e) => setCantidad(e.target.value)} className={`${campo} w-24 text-right`} />
-          </label>
+          <Campo label="Cantidad" className="shrink-0">
+            <InputCompacto aria-label="Cantidad" type="number" min={0} step="any" value={cantidad} onChange={(e) => setCantidad(e.target.value)} className="w-24 text-right" />
+          </Campo>
           {pieza && (
             <>
-              <label className="space-y-1">
-                <span className="block text-[11px] text-slate-500">Ancho (mm)</span>
-                <input type="number" min={1} value={ancho} onChange={(e) => setAncho(e.target.value)} className={`${campo} w-24 text-right`} />
-              </label>
-              <label className="space-y-1">
-                <span className="block text-[11px] text-slate-500">Alto (mm)</span>
-                <input type="number" min={1} value={alto} onChange={(e) => setAlto(e.target.value)} className={`${campo} w-24 text-right`} />
-              </label>
+              <Campo label="Ancho (mm)" className="shrink-0">
+                <InputCompacto aria-label="Ancho (mm)" type="number" min={1} value={ancho} onChange={(e) => setAncho(e.target.value)} className="w-24 text-right" />
+              </Campo>
+              <Campo label="Alto (mm)" className="shrink-0">
+                <InputCompacto aria-label="Alto (mm)" type="number" min={1} value={alto} onChange={(e) => setAlto(e.target.value)} className="w-24 text-right" />
+              </Campo>
             </>
           )}
           <Button
@@ -450,9 +432,9 @@ const AgregarMaterial: React.FC<{ onAgregar: (p: Parameters<typeof addAdicionalI
           </Button>
         </div>
       )}
-      <button onClick={onCancelar} className="text-[11px] text-slate-500 hover:text-slate-800 cursor-pointer">
+      <Button variant="ghost" size="sm" onClick={onCancelar}>
         Cancelar
-      </button>
+      </Button>
     </div>
   );
 };
@@ -469,36 +451,30 @@ const AgregarLibre: React.FC<{
   return (
     <div className="p-4 border-b border-slate-100 bg-brand-50/30 space-y-2">
       <div className="flex flex-wrap items-end gap-3 text-xs">
-        <label className="space-y-1 flex-1 min-w-[200px]">
-          <span className="block text-[11px] text-slate-500">Descripción</span>
-          <input value={d.descripcion} onChange={(e) => setD({ ...d, descripcion: e.target.value })} className={`${campo} w-full`} />
-        </label>
-        <label className="space-y-1">
-          <span className="block text-[11px] text-slate-500">Unidad</span>
-          <input value={d.unidad} onChange={(e) => setD({ ...d, unidad: e.target.value })} className={`${campo} w-20`} />
-        </label>
-        <label className="space-y-1">
-          <span className="block text-[11px] text-slate-500">Cantidad</span>
-          <input type="number" min={0} step="any" value={d.cantidad} onChange={(e) => setD({ ...d, cantidad: e.target.value })} className={`${campo} w-20 text-right`} />
-        </label>
-        <label className="space-y-1">
-          <span className="block text-[11px] text-slate-500">Costo unit. (CLP)</span>
-          <input type="number" min={0} step="any" value={d.costo} onChange={(e) => setD({ ...d, costo: e.target.value })} className={`${campo} w-28 text-right`} />
-        </label>
-        <label className="space-y-1">
-          <span className="block text-[11px] text-slate-500">Partida</span>
-          <select
+        <Campo label="Descripción" className="flex-1 min-w-[200px]">
+          <InputCompacto aria-label="Descripción" value={d.descripcion} onChange={(e) => setD({ ...d, descripcion: e.target.value })} className="w-full" />
+        </Campo>
+        <Campo label="Unidad" className="shrink-0">
+          <InputCompacto aria-label="Unidad" value={d.unidad} onChange={(e) => setD({ ...d, unidad: e.target.value })} className="w-20" />
+        </Campo>
+        <Campo label="Cantidad" className="shrink-0">
+          <InputCompacto aria-label="Cantidad" type="number" min={0} step="any" value={d.cantidad} onChange={(e) => setD({ ...d, cantidad: e.target.value })} className="w-20 text-right" />
+        </Campo>
+        <Campo label="Costo unit. (CLP)" className="shrink-0">
+          <InputCompacto aria-label="Costo unit. (CLP)" type="number" min={0} step="any" value={d.costo} onChange={(e) => setD({ ...d, costo: e.target.value })} className="w-28 text-right" />
+        </Campo>
+        <Campo label="Partida" className="shrink-0">
+          <SelectCompacto aria-label="Partida"
             value={d.partidaId}
             onChange={(e) => setD({ ...d, partidaId: e.target.value })}
-            className={`${campo} ${d.partidaId === sinAsignar ? 'border-amber-300 bg-amber-50 text-amber-800' : ''}`}
-          >
+            className={`${d.partidaId === sinAsignar ? 'border-amber-300 bg-amber-50 text-amber-800' : ''}`}>
             {partidas.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.porDefecto ? `⚠ ${p.nombre}` : p.nombre}
               </option>
             ))}
-          </select>
-        </label>
+          </SelectCompacto>
+        </Campo>
         <Button
           size="sm"
           leftIcon={<Plus className="w-3.5 h-3.5" />}
@@ -514,9 +490,9 @@ const AgregarLibre: React.FC<{
       {d.partidaId === sinAsignar && (
         <p className="text-[11px] text-amber-700">Sin partida queda “por clasificar”: cuenta en el adicional, pero no se contabiliza hasta asignársela.</p>
       )}
-      <button onClick={onCancelar} className="text-[11px] text-slate-500 hover:text-slate-800 cursor-pointer">
+      <Button variant="ghost" size="sm" onClick={onCancelar}>
         Cancelar
-      </button>
+      </Button>
     </div>
   );
 };

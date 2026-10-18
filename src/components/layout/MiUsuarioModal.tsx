@@ -119,17 +119,10 @@ export const MiUsuarioModal: React.FC<{ permisos: MisPermisos; onClose: () => vo
                 <span className="flex items-center gap-1 text-emerald-700 font-semibold">
                   <CheckCircle2 className="w-3.5 h-3.5" /> Configurado
                 </span>
-                <button
-                  type="button"
-                  onClick={() => {
+                <Button variant="ghost" size="sm" onClick={() => {
                     setError(null);
                     quitarToken.mutate();
-                  }}
-                  disabled={ocupado}
-                  className="text-rose-600 hover:text-rose-700 font-semibold disabled:opacity-50"
-                >
-                  {quitarToken.isPending ? 'Quitando...' : 'Quitar token'}
-                </button>
+                  }} disabled={ocupado} className="text-rose-600! hover:bg-rose-50!">{quitarToken.isPending ? 'Quitando...' : 'Quitar token'}</Button>
               </div>
             ) : (
               <p className="text-[11px] text-amber-600 font-semibold">Sin configurar -- necesario para conciliar facturas con Clay.</p>

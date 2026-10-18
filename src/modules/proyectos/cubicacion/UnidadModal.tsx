@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { X } from 'lucide-react';
 import { crearUnidadCubicacion, editarUnidadCubicacion } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import type { ConfigCubicacion, TipoCubicacion, UnidadCubicacion } from '../../../types';
 import { formatoMm } from '../fabricacion/utils';
 import { leerMilimetros } from '../pendientes/utils';
-import { cajaModal, campo, etiqueta, fondoModal } from './estilos';
+import { campo } from './estilos';
 import { generarNomenclatura, mmATexto } from './utils';
+import { Modal } from '../../../components/ui/Modal';
+import { Input } from '../../../components/ui/Input';
+import { Select } from '../../../components/ui/Select';
 
 interface Props {
   proyectoId: string;
@@ -83,98 +85,72 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
   });
 
   return (
-    <div className={fondoModal} role="dialog" aria-modal="true" aria-label={editando ? 'Editar ventana' : 'Nueva ventana'}>
-      <div className={`${cajaModal} max-w-lg`}>
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-black text-slate-900">{editando ? `Ventana ${unidad!.nomenclatura ?? unidad!.codigo}` : 'Nueva ventana'}</h3>
-          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer" aria-label="Cerrar">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div>
-          <label htmlFor="uni-tipo" className={etiqueta}>
-            Tipo
-          </label>
-          <select id="uni-tipo" value={tipoId} onChange={(e) => setTipoId(e.target.value)} className={campo}>
-            <option value="">— elegir tipo —</option>
-            {tiposVentana.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.codigo} · {t.sistema}
-                {t.anchoPlanoMm != null ? ` · ${formatoMm(t.anchoPlanoMm)} × ${formatoMm(t.altoPlanoMm)} mm` : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label htmlFor="uni-torre" className={etiqueta}>
-              Torre
-            </label>
-            <input id="uni-torre" value={torre} onChange={(e) => setTorre(e.target.value.toUpperCase())} maxLength={10} placeholder="A" className={campo} />
-          </div>
-          <div>
-            <label htmlFor="uni-piso" className={etiqueta}>
-              Piso
-            </label>
-            <input id="uni-piso" inputMode="numeric" value={piso} onChange={(e) => setPiso(e.target.value)} className={`${campo} ${piso.trim() !== '' && pisoNum === null ? 'border-rose-300' : ''}`} />
-          </div>
-          <div>
-            <label htmlFor="uni-dpto" className={etiqueta}>
-              Depto
-            </label>
-            <input id="uni-dpto" value={nombreUnidad} onChange={(e) => setNombreUnidad(e.target.value)} maxLength={40} placeholder="204" className={campo} />
-          </div>
-        </div>
-        <p className="text-[11px] text-slate-500 -mt-2">
-          Nomenclatura:{' '}
-          <b className="font-mono text-slate-800" data-testid="nomenclatura-vista">
-            {nomenclatura ?? (tipo ? `${tipo.codigo} (sin posición: falta el depto)` : '—')}
-          </b>
-        </p>
-
-        <div>
-          <label htmlFor="uni-ubicacion" className={etiqueta}>
-            Ubicación
-          </label>
-          <input id="uni-ubicacion" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} maxLength={100} placeholder="DORM 1, ESTAR, BAÑO 1…" className={campo} />
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-2">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Rectificación (lo medido en obra)</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="uni-rasgo-ancho" className={etiqueta}>
-                Rasgo ancho (mm)
-              </label>
-              <input id="uni-rasgo-ancho" inputMode="decimal" value={rasgoAncho} onChange={(e) => setRasgoAncho(e.target.value)} className={`${campo} ${hayRasgo && anchoNum === null ? 'border-rose-300' : ''}`} />
-            </div>
-            <div>
-              <label htmlFor="uni-rasgo-alto" className={etiqueta}>
-                Rasgo alto (mm)
-              </label>
-              <input id="uni-rasgo-alto" inputMode="decimal" value={rasgoAlto} onChange={(e) => setRasgoAlto(e.target.value)} className={`${campo} ${hayRasgo && altoNum === null ? 'border-rose-300' : ''}`} />
-            </div>
-          </div>
-          <p className="text-[11px] text-slate-500">
-            {tipo?.anchoPlanoMm != null && <>Plano: {formatoMm(tipo.anchoPlanoMm)} × {formatoMm(tipo.altoPlanoMm)} mm. </>}
-            Fabricación = rasgo − {formatoMm(holgura)} mm:{' '}
-            <b className="font-mono text-slate-800" data-testid="fabricacion-vista">
-              {fab ? `${formatoMm(fab.ancho)} × ${formatoMm(fab.alto)} mm` : '—'}
-            </b>
-          </p>
-        </div>
-
-        <div className="flex justify-end gap-2 pt-1">
+    <Modal
+      titulo={editando ? `Ventana ${unidad!.nomenclatura ?? unidad!.codigo}` : 'Nueva ventana'}
+      onClose={onClose}
+      pie={
+        <Modal.Pie>
           <Button type="button" variant="outline" size="sm" onClick={onClose}>
             Cancelar
           </Button>
           <Button type="button" variant="primary" size="sm" disabled={!valido} isLoading={guardar.isPending} onClick={() => guardar.mutate()}>
             {editando ? 'Guardar' : 'Agregar ventana'}
           </Button>
+        </Modal.Pie>
+      }
+    >
+      <div>
+        <Select label="Tipo" id="uni-tipo" value={tipoId} onChange={(e) => setTipoId(e.target.value)} className={campo}>
+          <option value="">— elegir tipo —</option>
+          {tiposVentana.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.codigo} · {t.sistema}
+              {t.anchoPlanoMm != null ? ` · ${formatoMm(t.anchoPlanoMm)} × ${formatoMm(t.altoPlanoMm)} mm` : ''}
+            </option>
+          ))}
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <Input label="Torre" id="uni-torre" value={torre} onChange={(e) => setTorre(e.target.value.toUpperCase())} maxLength={10} placeholder="A" />
+        </div>
+        <div>
+          <Input label="Piso" id="uni-piso" inputMode="numeric" value={piso} onChange={(e) => setPiso(e.target.value)} className={`${piso.trim() !== '' && pisoNum === null ? 'border-rose-300' : ''}`} />
+        </div>
+        <div>
+          <Input label="Depto" id="uni-dpto" value={nombreUnidad} onChange={(e) => setNombreUnidad(e.target.value)} maxLength={40} placeholder="204" />
         </div>
       </div>
-    </div>
+      <p className="text-[11px] text-slate-500 -mt-2">
+        Nomenclatura:{' '}
+        <b className="font-mono text-slate-800" data-testid="nomenclatura-vista">
+          {nomenclatura ?? (tipo ? `${tipo.codigo} (sin posición: falta el depto)` : '—')}
+        </b>
+      </p>
+
+      <div>
+        <Input label="Ubicación" id="uni-ubicacion" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} maxLength={100} placeholder="DORM 1, ESTAR, BAÑO 1…" />
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Rectificación (lo medido en obra)</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Input label="Rasgo ancho (mm)" id="uni-rasgo-ancho" inputMode="decimal" value={rasgoAncho} onChange={(e) => setRasgoAncho(e.target.value)} className={`${hayRasgo && anchoNum === null ? 'border-rose-300' : ''}`} />
+          </div>
+          <div>
+            <Input label="Rasgo alto (mm)" id="uni-rasgo-alto" inputMode="decimal" value={rasgoAlto} onChange={(e) => setRasgoAlto(e.target.value)} className={`${hayRasgo && altoNum === null ? 'border-rose-300' : ''}`} />
+          </div>
+        </div>
+        <p className="text-[11px] text-slate-500">
+          {tipo?.anchoPlanoMm != null && <>Plano: {formatoMm(tipo.anchoPlanoMm)} × {formatoMm(tipo.altoPlanoMm)} mm. </>}
+          Fabricación = rasgo − {formatoMm(holgura)} mm:{' '}
+          <b className="font-mono text-slate-800" data-testid="fabricacion-vista">
+            {fab ? `${formatoMm(fab.ancho)} × ${formatoMm(fab.alto)} mm` : '—'}
+          </b>
+        </p>
+      </div>
+    </Modal>
   );
 };

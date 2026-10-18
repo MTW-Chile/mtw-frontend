@@ -25,6 +25,8 @@ import {
   textoRectificacion,
   varianteEstadoPendiente,
 } from './utils';
+import { useConfirmar } from '../../../components/ui/Confirmar';
+import { IconButton } from '../../../components/ui/IconButton';
 
 interface Props {
   proyectoId: string;
@@ -46,6 +48,7 @@ const Dato: React.FC<{ etiqueta: string; children: React.ReactNode }> = ({ etiqu
 //    debe recibir en obra) o de un administrador -- el servidor lo exige; aca
 //    solo se muestra o se deshabilita segun `puedeResolver`.
 export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId, onClose }) => {
+  const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
   const [etapaElegida, setEtapaElegida] = useState('');
   const [comentario, setComentario] = useState('');
@@ -111,9 +114,7 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
                 </div>
                 <p className="text-sm font-bold text-slate-900 mt-1 break-words">{p.descripcion}</p>
               </div>
-              <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer shrink-0" aria-label="Cerrar">
-                <X className="w-4 h-4" />
-              </button>
+              <IconButton icono={X} etiqueta="Cerrar" onClick={onClose} className="shrink-0" />
             </div>
 
             <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3 rounded-xl bg-slate-50 border border-slate-200 p-3">
@@ -275,8 +276,8 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
                         variant="ghost"
                         leftIcon={<Trash2 className="w-3.5 h-3.5" />}
                         disabled={ocupado}
-                        onClick={() => {
-                          if (window.confirm(`¿Eliminar el pendiente ${codigoPendiente(p.numero)}? No se puede deshacer.`)) eliminar.mutate();
+                        onClick={async () => {
+                          if (await confirmar({ titulo: `¿Eliminar el pendiente ${codigoPendiente(p.numero)}?`, mensaje: `No se puede deshacer.`, confirmar: 'Eliminar', peligro: true })) eliminar.mutate();
                         }}
                       >
                         Eliminar

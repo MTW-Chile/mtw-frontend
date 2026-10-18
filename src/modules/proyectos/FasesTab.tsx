@@ -1,21 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Loader2,
-  Layers,
-  Plus,
-  Pencil,
-  Trash2,
-  AlertCircle,
-  X as XIcon,
-  Search,
-  Sparkles,
-  ChevronDown,
-  ChevronRight,
-  ShoppingCart,
-  Package,
-  FileSpreadsheet,
-} from 'lucide-react';
+import { Loader2, Layers, Plus, Pencil, Trash2, AlertCircle, X as XIcon, Search, Sparkles, ShoppingCart, Package, FileSpreadsheet } from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -28,6 +13,10 @@ import { NuevaOrdenCompraModal } from '../abastecimiento/NuevaOrdenCompraModal';
 import { SelectorFaseDesdeCubicacion } from './cubicacion/SelectorFaseDesdeCubicacion';
 import { descargarBlob } from './cubicacion/utils';
 import type { Fase, Proyecto, ProyectoVersion, SeleccionFaseCubicacion } from '../../types';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
+import { useConfirmar } from '../../components/ui/Confirmar';
+import { BotonColapsar } from '../../components/ui/BotonColapsar';
+import { Segmentado } from '../../components/ui/Segmentado';
 
 const formatoMoneda = (valor: number) => valor.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
@@ -61,6 +50,7 @@ interface FilaVentana {
 // ventana nunca puede superar el total de esa linea (el backend lo valida
 // igual, esto es feedback antes de mandar el request).
 export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVersion }> = ({ proyecto, activeVersion }) => {
+  const { confirmar } = useConfirmar();
   // Quien puede emitir OC genera la OC completa; si no, la solicita a Compras.
   const puedeEmitirOC = usePermisos().tiene('compras.oc.emitir');
   const queryClient = useQueryClient();
@@ -376,22 +366,16 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
             </div>
 
             {esNueva && (
-              <div className="flex items-center gap-2 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setModoCreacion('cubicacion')}
-                  className={`px-2.5 py-1 rounded-lg font-bold cursor-pointer ${modoCreacion === 'cubicacion' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                >
-                  Desde la cubicación
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setModoCreacion('manual')}
-                  className={`px-2.5 py-1 rounded-lg font-bold cursor-pointer ${modoCreacion === 'manual' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                >
-                  Ventanas individuales (sin cubicar)
-                </button>
-              </div>
+              <Segmentado
+                tamano="xs"
+                etiqueta="Cómo elegir las ventanas"
+                valor={modoCreacion}
+                onChange={setModoCreacion}
+                opciones={[
+                  { value: 'cubicacion', label: 'Desde la cubicación' },
+                  { value: 'manual', label: 'Ventanas individuales (sin cubicar)' },
+                ]}
+              />
             )}
           </div>
 
@@ -417,35 +401,35 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                 />
               </div>
 
-              <div className="max-h-96 overflow-auto">
-                <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-slate-50/95 backdrop-blur">
-                    <tr className="border-b border-slate-100 text-left text-slate-500 uppercase tracking-wider text-[10px]">
-                      <th className="px-4 py-2.5 font-bold">Línea</th>
-                      <th className="px-4 py-2.5 font-bold text-right">Total</th>
-                      <th className="px-4 py-2.5 font-bold text-right">En otras fases</th>
-                      <th className="px-4 py-2.5 font-bold text-right">Restante</th>
-                      <th className="px-4 py-2.5 font-bold text-right w-28">En esta fase</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <div className="max-h-96 overflow-hidden">
+                <Tabla>
+                  <Thead>
+                    <Tr className="border-b border-slate-100 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                      <Th className="font-bold">Línea</Th>
+                      <Th alinear="derecha" className="font-bold">Total</Th>
+                      <Th alinear="derecha" className="font-bold">En otras fases</Th>
+                      <Th alinear="derecha" className="font-bold">Restante</Th>
+                      <Th alinear="derecha" className="font-bold w-28">En esta fase</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
                     {filasFiltradas.map((f) => {
                       const asignadaAqui = Number(cantidades[f.ventanaId]) || 0;
                       const restante = f.unidadesTotal - f.asignadoOtrasFases;
                       const excedida = asignadaAqui > restante;
                       return (
-                        <tr key={f.ventanaId} className="border-b border-slate-50 hover:bg-slate-50/50">
-                          <td className="px-4 py-2 text-slate-700">
+                        <Tr key={f.ventanaId} className="border-b border-slate-50 hover:bg-slate-50/50">
+                          <Td className="text-slate-700">
                             <span className="font-mono text-slate-400 mr-1.5">#{f.lineaHetmo}</span>
                             {f.modelo}
                             {f.descripcionCorta && <span className="text-slate-400"> · {f.descripcionCorta}</span>}
-                          </td>
-                          <td className="px-4 py-2 text-right font-mono text-slate-600">{f.unidadesTotal}</td>
-                          <td className="px-4 py-2 text-right font-mono text-slate-500">{f.asignadoOtrasFases}</td>
-                          <td className={`px-4 py-2 text-right font-mono font-semibold ${restante <= 0 ? 'text-slate-300' : 'text-slate-700'}`}>
+                          </Td>
+                          <Td alinear="derecha" className="font-mono text-slate-600">{f.unidadesTotal}</Td>
+                          <Td alinear="derecha" className="font-mono text-slate-500">{f.asignadoOtrasFases}</Td>
+                          <Td className={`px-4 py-2 text-right font-mono font-semibold ${restante <= 0 ? 'text-slate-300' : 'text-slate-700'}`}>
                             {restante}
-                          </td>
-                          <td className="px-4 py-2 text-right">
+                          </Td>
+                          <Td alinear="derecha">
                             <input
                               type="number"
                               min={0}
@@ -455,19 +439,19 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                                 excedida ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-slate-200 focus:border-brand-600'
                               }`}
                             />
-                          </td>
-                        </tr>
+                          </Td>
+                        </Tr>
                       );
                     })}
                     {filasFiltradas.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+                      <Tr>
+                        <Td colSpan={5} alinear="centro" className="py-8 text-slate-400">
                           Sin líneas que calcen con la búsqueda.
-                        </td>
-                      </tr>
+                        </Td>
+                      </Tr>
                     )}
-                  </tbody>
-                </table>
+                  </Tbody>
+                </Tabla>
               </div>
             </>
           )}
@@ -556,8 +540,8 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                       size="sm"
                       variant="ghost"
                       leftIcon={eliminarMutation.isPending && eliminarMutation.variables === fase.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                      onClick={() => {
-                        if (window.confirm(`¿Eliminar la fase "${fase.nombre}"?`)) eliminarMutation.mutate(fase.id);
+                      onClick={async () => {
+                        if (await confirmar({ titulo: `¿Eliminar la fase "${fase.nombre}"?`, confirmar: 'Eliminar', peligro: true })) eliminarMutation.mutate(fase.id);
                       }}
                       className="text-rose-500 hover:text-rose-700 hover:bg-rose-50"
                     >
@@ -591,17 +575,12 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                           return (
                             <div key={c.codigo} className="bg-white">
                               <div className="flex items-center justify-between gap-2 px-3 py-2 flex-wrap">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleExpandida(key)}
-                                  className="flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-brand-600 transition-colors cursor-pointer"
-                                >
-                                  {expandidaCat ? <ChevronDown className="w-3.5 h-3.5 text-slate-400" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400" />}
+                                <BotonColapsar abierto={expandidaCat} onClick={() => toggleExpandida(key)} className="text-xs font-bold text-slate-700 hover:text-brand-600">
                                   {c.nombre}
                                   <span className="font-mono font-normal text-slate-400">
                                     · {c.items.length} item{c.items.length === 1 ? '' : 's'}
                                   </span>
-                                </button>
+</BotonColapsar>
                                 <div className="flex items-center gap-2">
                                   <span className="font-mono font-bold text-slate-800 text-[11px]">{formatoMoneda(c.monto)}</span>
                                   <Button
@@ -616,45 +595,45 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                               </div>
 
                               {expandidaCat && (
-                                <div className="overflow-x-auto border-t border-slate-100">
-                                  <table className="w-full text-[11px]">
-                                    <thead className="bg-slate-50/80">
-                                      <tr className="text-left text-slate-400 uppercase tracking-wider">
-                                        <th className="px-3 py-1.5 font-bold">Item</th>
-                                        <th className="px-3 py-1.5 font-bold">Proveedor</th>
-                                        <th className="px-3 py-1.5 font-bold text-right">Cantidad</th>
-                                        <th className="px-3 py-1.5 font-bold text-right">Precio unit.</th>
-                                        <th className="px-3 py-1.5 font-bold text-right">Subtotal</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
+                                <div className="border-t border-slate-100 overflow-hidden">
+                                  <Tabla>
+                                    <Thead>
+                                      <Tr className="text-left text-slate-400 uppercase tracking-wider">
+                                        <Th className="font-bold">Item</Th>
+                                        <Th className="font-bold">Proveedor</Th>
+                                        <Th alinear="derecha" className="font-bold">Cantidad</Th>
+                                        <Th alinear="derecha" className="font-bold">Precio unit.</Th>
+                                        <Th alinear="derecha" className="font-bold">Subtotal</Th>
+                                      </Tr>
+                                    </Thead>
+                                    <Tbody>
                                       {c.items.map((it, i) => (
-                                        <tr key={i} className="border-t border-slate-100/80">
-                                          <td className="px-3 py-1.5 text-slate-700">
+                                        <Tr key={i} className="border-t border-slate-100/80">
+                                          <Td className="text-slate-700">
                                             <span className="flex items-center gap-1.5">
                                               <Package className="w-3 h-3 text-sky-500 shrink-0" />
                                               {it.descripcion}
                                             </span>
                                             {it.referenciaVentana && <span className="block pl-[18px] text-[10px] text-slate-400">{it.referenciaVentana}</span>}
                                             {it.sinMedidas && <span className="block pl-[18px] text-[10px] text-amber-700">Sin medidas de HETMO todavía: va por m²</span>}
-                                          </td>
-                                          <td className="px-3 py-1.5 text-slate-500">{it.proveedorNombre}</td>
-                                          <td className="px-3 py-1.5 text-right font-mono text-slate-700">
+                                          </Td>
+                                          <Td className="text-slate-500">{it.proveedorNombre}</Td>
+                                          <Td alinear="derecha" className="font-mono text-slate-700">
                                             {it.cantidad.toLocaleString('es-CL', { maximumFractionDigits: 2 })} {it.unidad}
                                             {it.stockDisponible > 0 && (
                                               <span className="block text-[10px] text-emerald-600 font-normal">
                                                 ya tenías {it.stockDisponible.toLocaleString('es-CL', { maximumFractionDigits: 2 })} en stock
                                               </span>
                                             )}
-                                          </td>
-                                          <td className="px-3 py-1.5 text-right font-mono text-slate-700">{formatoMoneda(it.precioUnitario)}</td>
-                                          <td className="px-3 py-1.5 text-right font-mono font-semibold text-slate-900">
+                                          </Td>
+                                          <Td alinear="derecha" className="font-mono text-slate-700">{formatoMoneda(it.precioUnitario)}</Td>
+                                          <Td alinear="derecha" className="font-mono font-semibold text-slate-900">
                                             {formatoMoneda(it.cantidad * it.precioUnitario)}
-                                          </td>
-                                        </tr>
+                                          </Td>
+                                        </Tr>
                                       ))}
-                                    </tbody>
-                                  </table>
+                                    </Tbody>
+                                  </Tabla>
                                 </div>
                               )}
                             </div>

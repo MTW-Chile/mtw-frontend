@@ -11,6 +11,9 @@ import { leerMilimetros } from '../pendientes/utils';
 import { campoChico } from './estilos';
 import { UnidadModal } from './UnidadModal';
 import { formatoMonto, mmATexto, textoTorre } from './utils';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
+import { useConfirmar } from '../../../components/ui/Confirmar';
+import { IconButton } from '../../../components/ui/IconButton';
 
 export interface FiltroVentanas {
   pisoId: string;
@@ -71,8 +74,8 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
   };
 
   return (
-    <tr className="border-b border-slate-50 hover:bg-slate-50/60 align-middle">
-      <td className="px-3 py-2 whitespace-nowrap">
+    <Tr className="border-b border-slate-50 hover:bg-slate-50/60 align-middle">
+      <Td className="whitespace-nowrap">
         {unidad.nomenclatura ? (
           <span className="font-mono font-bold text-xs text-slate-800">{unidad.nomenclatura}</span>
         ) : (
@@ -80,15 +83,15 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
             {unidad.codigo} <Badge size="sm" variant="outline">sin posición</Badge>
           </span>
         )}
-      </td>
-      <td className="px-3 py-2 text-xs text-slate-600 whitespace-nowrap">{unidad.ubicacion || '—'}</td>
-      <td className="px-3 py-2 text-[11px] text-slate-500 max-w-[14rem] truncate" title={unidad.sistema}>
+      </Td>
+      <Td className="text-xs text-slate-600 whitespace-nowrap">{unidad.ubicacion || '—'}</Td>
+      <Td className="text-[11px] text-slate-500 max-w-[14rem] truncate" title={unidad.sistema}>
         {unidad.sistema}
-      </td>
-      <td className="px-3 py-2 text-xs font-mono text-slate-500 whitespace-nowrap">
+      </Td>
+      <Td className="text-xs font-mono text-slate-500 whitespace-nowrap">
         {formatoMm(unidad.anchoPlanoMm)} × {formatoMm(unidad.altoPlanoMm)}
-      </td>
-      <td className="px-3 py-2" onBlur={alSalir}>
+      </Td>
+      <Td onBlur={alSalir}>
         <div className="flex items-center gap-1 min-w-[10rem]">
           <input
             aria-label={`Rasgo ancho de ${unidad.nomenclatura ?? unidad.codigo}`}
@@ -111,8 +114,8 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
           />
           {guardar.isPending && <Loader2 className="w-3 h-3 animate-spin text-slate-400 shrink-0" />}
         </div>
-      </td>
-      <td className="px-3 py-2 text-xs font-mono whitespace-nowrap">
+      </Td>
+      <Td className="text-xs font-mono whitespace-nowrap">
         {unidad.rectificada ? (
           <span className="font-bold text-emerald-700" title={`Rasgo − ${unidad.holguraMm} mm${unidad.rectificadoPor ? ` · ${unidad.rectificadoPor}` : ''}`}>
             {formatoMm(unidad.anchoFabricacionMm)} × {formatoMm(unidad.altoFabricacionMm)}
@@ -120,22 +123,19 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
         ) : (
           <span className="text-slate-300">—</span>
         )}
-      </td>
-      <td className="px-3 py-2 text-right text-xs font-mono text-slate-500 whitespace-nowrap">{unidad.m2 != null ? unidad.m2.toLocaleString('es-CL', { maximumFractionDigits: 2 }) : '—'}</td>
-      <td className="px-3 py-2 whitespace-nowrap text-right">
-        <button type="button" onClick={onEditar} className="p-1.5 text-slate-400 hover:text-brand-600 cursor-pointer" aria-label={`Editar ${unidad.nomenclatura ?? unidad.codigo}`} title="Editar posición y datos">
-          <Pencil className="w-3.5 h-3.5" />
-        </button>
-        <button type="button" onClick={onEliminar} className="p-1.5 text-slate-400 hover:text-rose-600 cursor-pointer" aria-label={`Eliminar ${unidad.nomenclatura ?? unidad.codigo}`} title="Eliminar">
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      </td>
-    </tr>
+      </Td>
+      <Td alinear="derecha" className="text-xs font-mono text-slate-500 whitespace-nowrap">{unidad.m2 != null ? unidad.m2.toLocaleString('es-CL', { maximumFractionDigits: 2 }) : '—'}</Td>
+      <Td alinear="derecha" className="whitespace-nowrap">
+        <IconButton icono={Pencil} etiqueta={`Editar ${unidad.nomenclatura ?? unidad.codigo}`} tono="marca" onClick={onEditar} />
+        <IconButton icono={Trash2} etiqueta={`Eliminar ${unidad.nomenclatura ?? unidad.codigo}`} tono="peligro" onClick={onEliminar} />
+      </Td>
+    </Tr>
   );
 };
 
 // Ventanas fisicas de la cubicacion (por torre / piso / depto) y sus areas comunes.
 export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, moneda, tipos, filtro, onFiltro }) => {
+  const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
   const [texto, setTexto] = useState('');
   const [tipoId, setTipoId] = useState('');
@@ -240,34 +240,34 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
             : 'Ninguna ventana coincide con los filtros.'}
         </div>
       ) : (
-        <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
-                <th className="px-3 py-2.5 font-bold">Nomenclatura</th>
-                <th className="px-3 py-2.5 font-bold">Ubicación</th>
-                <th className="px-3 py-2.5 font-bold">Apertura</th>
-                <th className="px-3 py-2.5 font-bold">Plano (mm)</th>
-                <th className="px-3 py-2.5 font-bold">Rasgo medido (mm)</th>
-                <th className="px-3 py-2.5 font-bold">Fabricación (mm)</th>
-                <th className="px-3 py-2.5 font-bold text-right">M2</th>
-                <th className="px-3 py-2.5 font-bold w-20"></th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+          <Tabla>
+            <Thead>
+              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                <Th className="font-bold">Nomenclatura</Th>
+                <Th className="font-bold">Ubicación</Th>
+                <Th className="font-bold">Apertura</Th>
+                <Th className="font-bold">Plano (mm)</Th>
+                <Th className="font-bold">Rasgo medido (mm)</Th>
+                <Th className="font-bold">Fabricación (mm)</Th>
+                <Th alinear="derecha" className="font-bold">M2</Th>
+                <Th className="font-bold w-20"></Th>
+              </Tr>
+            </Thead>
+            <Tbody>
               {unidades.map((u) => (
                 <FilaVentana
                   key={`${u.id}-${u.rasgoAnchoMm}-${u.rasgoAltoMm}-${u.holguraMm}`}
                   unidad={u}
                   proyectoId={proyectoId}
                   onEditar={() => setModal({ unidad: u })}
-                  onEliminar={() => {
-                    if (window.confirm(`¿Eliminar la ventana ${u.nomenclatura ?? u.codigo}?`)) eliminar.mutate(u.id);
+                  onEliminar={async () => {
+                    if (await confirmar({ titulo: `¿Eliminar la ventana ${u.nomenclatura ?? u.codigo}?`, confirmar: 'Eliminar', peligro: true })) eliminar.mutate(u.id);
                   }}
                 />
               ))}
-            </tbody>
-          </table>
+            </Tbody>
+          </Tabla>
           {data && data.total > unidades.length && (
             <p className="px-3 py-2 text-[11px] text-slate-500 border-t border-slate-100">
               Mostrando {unidades.length} de {data.total} ventanas: filtra por torre o piso para ver el resto.
@@ -279,27 +279,27 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
       {(comunes.data?.unidades.length ?? 0) > 0 && (
         <div className="space-y-2">
           <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Áreas comunes y fachada ({comunes.data!.unidades.length})</h3>
-          <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
-                  <th className="px-3 py-2.5 font-bold">Código</th>
-                  <th className="px-3 py-2.5 font-bold">Descripción</th>
-                  <th className="px-3 py-2.5 font-bold text-right">Cantidad</th>
-                  <th className="px-3 py-2.5 font-bold text-right">Precio total</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+            <Tabla>
+              <Thead>
+                <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                  <Th className="font-bold">Código</Th>
+                  <Th className="font-bold">Descripción</Th>
+                  <Th alinear="derecha" className="font-bold">Cantidad</Th>
+                  <Th alinear="derecha" className="font-bold">Precio total</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
                 {comunes.data!.unidades.map((u) => (
-                  <tr key={u.id} className="border-b border-slate-50">
-                    <td className="px-3 py-2 font-mono font-bold text-slate-700">{u.codigo}</td>
-                    <td className="px-3 py-2 text-slate-600">{u.sistema}</td>
-                    <td className="px-3 py-2 text-right font-mono text-slate-600">{u.cantidad}</td>
-                    <td className="px-3 py-2 text-right font-mono text-slate-600">{precios.get(u.tipoId) != null ? formatoMonto((precios.get(u.tipoId) as number) * u.cantidad, moneda ?? 'UF') : '—'}</td>
-                  </tr>
+                  <Tr key={u.id} className="border-b border-slate-50">
+                    <Td className="font-mono font-bold text-slate-700">{u.codigo}</Td>
+                    <Td className="text-slate-600">{u.sistema}</Td>
+                    <Td alinear="derecha" className="font-mono text-slate-600">{u.cantidad}</Td>
+                    <Td alinear="derecha" className="font-mono text-slate-600">{precios.get(u.tipoId) != null ? formatoMonto((precios.get(u.tipoId) as number) * u.cantidad, moneda ?? 'UF') : '—'}</Td>
+                  </Tr>
                 ))}
-              </tbody>
-            </table>
+              </Tbody>
+            </Tabla>
           </div>
           <p className="text-[11px] text-slate-400">Por ahora cada ítem cuenta como una sola unidad; tendrán sus propias etapas y estado de pago.</p>
         </div>

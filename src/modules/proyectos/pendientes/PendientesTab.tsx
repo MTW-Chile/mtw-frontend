@@ -24,6 +24,7 @@ import {
   textoRectificacion,
   varianteEstadoPendiente,
 } from './utils';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
 
 interface Props {
   proyecto: Proyecto;
@@ -139,25 +140,25 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
       ) : visibles.length === 0 ? (
         <div className="p-8 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">Ningún pendiente coincide con los filtros.</div>
       ) : isDesktop ? (
-        <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
-                <th className="px-3 py-2.5 font-bold">N°</th>
-                <th className="px-3 py-2.5 font-bold">Pendiente</th>
-                <th className="px-3 py-2.5 font-bold">Motivo</th>
-                <th className="px-3 py-2.5 font-bold">Área</th>
-                <th className="px-3 py-2.5 font-bold">Estado</th>
-                <th className="px-3 py-2.5 font-bold">Solicitante</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+          <Tabla>
+            <Thead>
+              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                <Th className="font-bold">N°</Th>
+                <Th className="font-bold">Pendiente</Th>
+                <Th className="font-bold">Motivo</Th>
+                <Th className="font-bold">Área</Th>
+                <Th className="font-bold">Estado</Th>
+                <Th className="font-bold">Solicitante</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
               {visibles.map((p) => {
                 const f = filas(p);
                 return (
-                  <tr key={p.id} onClick={() => setAbierto(p.id)} className="border-b border-slate-50 hover:bg-slate-50/70 cursor-pointer">
-                    <td className="px-3 py-2.5 font-mono font-bold text-slate-600 whitespace-nowrap">{f.codigo}</td>
-                    <td className="px-3 py-2.5 min-w-0 max-w-[26rem]">
+                  <Tr key={p.id} onClick={() => setAbierto(p.id)} className="border-b border-slate-50 hover:bg-slate-50/70 cursor-pointer">
+                    <Td className="font-mono font-bold text-slate-600 whitespace-nowrap">{f.codigo}</Td>
+                    <Td className="min-w-0 max-w-[26rem]">
                       <div className="font-bold text-slate-900 truncate" title={p.descripcion}>
                         <Badge size="sm" variant="outline" className="mr-1.5 align-middle">
                           {ETIQUETA_TIPO[p.tipo]}
@@ -172,23 +173,23 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
                       </div>
                       {f.referencia && <div className="text-[11px] text-slate-500 truncate">{f.referencia}</div>}
                       {textoRectificacion(p) && <div className="text-[11px] font-bold text-brand-700 truncate">{textoRectificacion(p)}</div>}
-                    </td>
-                    <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{ETIQUETA_MOTIVO[p.motivo]}</td>
-                    <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{ETIQUETA_DESTINO[p.destino]}</td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
+                    </Td>
+                    <Td className="text-slate-600 whitespace-nowrap">{ETIQUETA_MOTIVO[p.motivo]}</Td>
+                    <Td className="text-slate-600 whitespace-nowrap">{ETIQUETA_DESTINO[p.destino]}</Td>
+                    <Td className="whitespace-nowrap">
                       <Badge size="sm" variant={varianteEstadoPendiente(p.estado)}>
                         {textoEstadoPendiente(p)}
                       </Badge>
-                    </td>
-                    <td className="px-3 py-2.5 text-[11px] text-slate-500 whitespace-nowrap">
+                    </Td>
+                    <Td className="text-[11px] text-slate-500 whitespace-nowrap">
                       {p.reportadoPor?.nombre || '—'}
                       <div>{formatoFechaHora(p.fechaReporte)}</div>
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 );
               })}
-            </tbody>
-          </table>
+            </Tbody>
+          </Tabla>
         </div>
       ) : (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm divide-y divide-slate-100">

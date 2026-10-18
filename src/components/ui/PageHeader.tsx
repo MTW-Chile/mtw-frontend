@@ -41,6 +41,9 @@ export interface SubTab<T extends string> {
   id: T;
   label: string;
   icon?: React.ElementType;
+  /** Explicación al pasar el mouse. */
+  title?: string;
+  disabled?: boolean;
 }
 
 /**
@@ -65,10 +68,13 @@ export function SubTabs<T extends string>({
         return (
           <button
             key={tab.id}
+            type="button"
             role="tab"
             aria-selected={isActive}
+            disabled={tab.disabled}
+            title={tab.title}
             onClick={() => onChange(tab.id)}
-            className={`relative inline-flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer -mb-px border-b-2 ${
+            className={`relative inline-flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer -mb-px border-b-2 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:border-transparent ${
               isActive
                 ? 'border-brand-600 text-brand-700'
                 : 'border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300'

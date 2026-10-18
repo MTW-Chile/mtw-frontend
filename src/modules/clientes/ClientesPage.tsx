@@ -10,9 +10,13 @@ import { ClienteFormModal } from './ClienteFormModal';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilters';
 import { ColumnFilterHeader } from '../../components/ui/ColumnFilterHeader';
-import { PAGE_CONTAINER_CLASS, BREAKPOINT_DESKTOP, TABLE_CLASS, TABLE_WRAPPER_CLASS, STICKY_ACTIONS_CLASS } from '../../lib/designSystem';
+import { PAGE_CONTAINER_CLASS, BREAKPOINT_DESKTOP, STICKY_ACTIONS_CLASS } from '../../lib/designSystem';
 import { HeaderSeccion } from '../../components/layout/HeaderSeccion';
 import { usePermisos } from '../../lib/permisos';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
+import { mostrarToast } from '../../lib/toast';
+import { useConfirmar } from '../../components/ui/Confirmar';
+import { IconButton } from '../../components/ui/IconButton';
 
 /**
  * Maestro de Clientes: quién es cada cliente y sus datos de contacto/
@@ -23,6 +27,7 @@ import { usePermisos } from '../../lib/permisos';
  * Finanzas -- ver ClienteFormModal.
  */
 export const ClientesPage: React.FC = () => {
+  const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [editando, setEditando] = useState<Cliente | null>(null);
@@ -45,7 +50,7 @@ export const ClientesPage: React.FC = () => {
   const eliminarMutation = useMutation({
     mutationFn: (id: string) => eliminarCliente(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['clientes'] }),
-    onError: (err: any) => window.alert(err?.response?.data?.error || 'No se pudo eliminar el cliente.'),
+    onError: (err: any) => mostrarToast(err?.response?.data?.error || 'No se pudo eliminar el cliente.'),
   });
 
   const clientes = useMemo(() => data || [], [data]);
@@ -104,13 +109,7 @@ export const ClientesPage: React.FC = () => {
             className="w-full pl-10 pr-9 py-2.5 sm:py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-brand-600 transition-all"
           />
           {searchTerm && (
-            <button
-              onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
-              aria-label="Limpiar búsqueda"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+            <IconButton icono={X} etiqueta="Limpiar búsqueda" onClick={() => setSearchTerm('')} />
           )}
         </div>
       </div>
@@ -122,9 +121,7 @@ export const ClientesPage: React.FC = () => {
       ) : isError ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-3 shadow-xs">
           <p className="text-sm font-bold text-rose-600">Error al consultar el maestro de clientes.</p>
-          <button onClick={() => refetch()} className="text-xs font-bold text-brand-600 hover:underline cursor-pointer">
-            Reintentar
-          </button>
+          <Button variant="link" size="sm" onClick={() => refetch()}>Reintentar</Button>
         </div>
       ) : filtrados.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-10 sm:p-14 text-center space-y-3 shadow-xs">
@@ -141,97 +138,84 @@ export const ClientesPage: React.FC = () => {
         <>
           {isDesktop && (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-              <div className={TABLE_WRAPPER_CLASS}>
-                <table className={TABLE_CLASS + ' text-left text-slate-700'}>
-                  <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
-                    <tr>
-                      <th className="px-5 py-3.5">Razón Social</th>
-                      <th className="px-5 py-3.5">RUT</th>
-                      <th className="px-5 py-3.5">Giro</th>
-                      <th className="px-5 py-3.5">Contacto</th>
-                      <th className="px-5 py-3.5">Proyectos</th>
-                      <th className="px-5 py-3.5 hidden 2xl:table-cell">Cobranza</th>
-                      <th className={`px-5 py-3.5 text-right ${STICKY_ACTIONS_CLASS} bg-slate-50`}>Acciones</th>
-                    </tr>
-                    <tr className="bg-white border-b border-slate-100">
-                      {columnas.map((c) => (
-                        <th key={c.key} className="px-5 py-2.5">
-                          <ColumnFilterHeader columna={c} valor={valores[c.key] || ''} onChange={(v) => setValor(c.key, v)} />
-                        </th>
-                      ))}
-                      <th className="px-5 py-2.5" />
-                      <th className="px-5 py-2.5 hidden 2xl:table-cell" />
-                      <th className={`px-5 py-2.5 ${STICKY_ACTIONS_CLASS} bg-white`} />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {visibles.map((c) => {
-                      const sinUso = !!c._count && c._count.proyectos === 0;
-                      return (
-                        <tr key={c.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="px-5 py-3.5 font-semibold text-slate-900 min-w-[14rem]">
-                            <div className="line-clamp-2 leading-snug" title={c.nombre}>{c.nombre}</div>
-                            {/* Solo si dice algo distinto al nombre -- antes se repetia
-                                tal cual en gris debajo en casi todas las filas. */}
-                            {c.razonSocial && c.razonSocial !== c.nombre && (
-                              <span className="block text-[11px] text-slate-400 font-normal truncate max-w-[18rem]" title={c.razonSocial}>
-                                {c.razonSocial}
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-5 py-3.5 text-slate-600 font-mono whitespace-nowrap">{c.rut || <span className="text-slate-300">—</span>}</td>
-                          <td className="px-5 py-3.5 text-slate-600 min-w-[9rem]"><div className="line-clamp-2">{c.giro || <span className="text-slate-300">—</span>}</div></td>
-                          <td className="px-5 py-3.5 text-slate-600 min-w-[9rem]"><div className="line-clamp-2">{c.contacto || <span className="text-slate-300">—</span>}</div></td>
-                          <td className="px-5 py-3.5 whitespace-nowrap">
-                            {c._count ? (
-                              sinUso ? (
-                                <Badge variant="warning" size="sm">Sin uso</Badge>
-                              ) : (
-                                <span className="text-[11px] text-slate-500 font-mono">{c._count.proyectos} proy.</span>
-                              )
+              <Tabla>
+                <Thead>
+                  <Tr>
+                    <Th className="px-5 py-3.5">Razón Social</Th>
+                    <Th className="px-5 py-3.5">RUT</Th>
+                    <Th className="px-5 py-3.5">Giro</Th>
+                    <Th className="px-5 py-3.5">Contacto</Th>
+                    <Th className="px-5 py-3.5">Proyectos</Th>
+                    <Th className="px-5 py-3.5 hidden 2xl:table-cell">Cobranza</Th>
+                    <Th className={`px-5 py-3.5 text-right ${STICKY_ACTIONS_CLASS} bg-slate-50`}>Acciones</Th>
+                  </Tr>
+                  <Tr className="bg-white border-b border-slate-100">
+                    {columnas.map((c) => (
+                      <Th key={c.key} className="px-5">
+                        <ColumnFilterHeader columna={c} valor={valores[c.key] || ''} onChange={(v) => setValor(c.key, v)} />
+                      </Th>
+                    ))}
+                    <Th className="px-5" />
+                    <Th className="px-5 hidden 2xl:table-cell" />
+                    <Th className={`px-5 py-2.5 ${STICKY_ACTIONS_CLASS} bg-white`} />
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {visibles.map((c) => {
+                    const sinUso = !!c._count && c._count.proyectos === 0;
+                    return (
+                      <Tr key={c.id} className="hover:bg-slate-50/80 transition-colors">
+                        <Td className="px-5 py-3.5 font-semibold text-slate-900 min-w-[14rem]">
+                          <div className="line-clamp-2 leading-snug" title={c.nombre}>{c.nombre}</div>
+                          {/* Solo si dice algo distinto al nombre -- antes se repetia
+                              tal cual en gris debajo en casi todas las filas. */}
+                          {c.razonSocial && c.razonSocial !== c.nombre && (
+                            <span className="block text-[11px] text-slate-400 font-normal truncate max-w-[18rem]" title={c.razonSocial}>
+                              {c.razonSocial}
+                            </span>
+                          )}
+                        </Td>
+                        <Td className="px-5 py-3.5 text-slate-600 font-mono whitespace-nowrap">{c.rut || <span className="text-slate-300">—</span>}</Td>
+                        <Td className="px-5 py-3.5 text-slate-600 min-w-[9rem]"><div className="line-clamp-2">{c.giro || <span className="text-slate-300">—</span>}</div></Td>
+                        <Td className="px-5 py-3.5 text-slate-600 min-w-[9rem]"><div className="line-clamp-2">{c.contacto || <span className="text-slate-300">—</span>}</div></Td>
+                        <Td className="px-5 py-3.5 whitespace-nowrap">
+                          {c._count ? (
+                            sinUso ? (
+                              <Badge variant="warning" size="sm">Sin uso</Badge>
                             ) : (
-                              <span className="text-slate-300">—</span>
+                              <span className="text-[11px] text-slate-500 font-mono">{c._count.proyectos} proy.</span>
+                            )
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </Td>
+                        <Td className="px-5 py-3.5 whitespace-nowrap hidden 2xl:table-cell">
+                          <CobranzaBadge />
+                        </Td>
+                        <Td className={`px-5 py-3.5 text-right whitespace-nowrap ${STICKY_ACTIONS_CLASS} bg-white`}>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="sm" leftIcon={<Pencil className="w-3.5 h-3.5" />} onClick={() => setEditando(c)}>Editar</Button>
+                            {puedeEliminar && (
+                              <Button variant="ghost" size="sm" onClick={async () => {
+                                  if (await confirmar({ titulo: `¿Eliminar el cliente "${c.nombre}"?`, mensaje: `Esta acción no se puede deshacer.`, confirmar: 'Eliminar', peligro: true })) {
+                                    eliminarMutation.mutate(c.id);
+                                  }
+                                }} disabled={!sinUso || (eliminarMutation.isPending && eliminarMutation.variables === c.id)} title={sinUso ? undefined : 'Tiene proyectos enlazados -- desvincúlalos primero'} className="text-rose-600! hover:bg-rose-50!">
+{eliminarMutation.isPending && eliminarMutation.variables === c.id ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-3 h-3" />
+                                )}
+                                <span>Eliminar</span>
+</Button>
                             )}
-                          </td>
-                          <td className="px-5 py-3.5 whitespace-nowrap hidden 2xl:table-cell">
-                            <CobranzaBadge />
-                          </td>
-                          <td className={`px-5 py-3.5 text-right whitespace-nowrap ${STICKY_ACTIONS_CLASS} bg-white`}>
-                            <div className="flex items-center justify-end gap-1">
-                              <button
-                                onClick={() => setEditando(c)}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:text-brand-600 hover:bg-brand-50 transition-colors cursor-pointer"
-                              >
-                                <Pencil className="w-3 h-3" />
-                                <span>Editar</span>
-                              </button>
-                              {puedeEliminar && (
-                                <button
-                                  onClick={() => {
-                                    if (window.confirm(`¿Eliminar el cliente "${c.nombre}"? Esta acción no se puede deshacer.`)) {
-                                      eliminarMutation.mutate(c.id);
-                                    }
-                                  }}
-                                  disabled={!sinUso || (eliminarMutation.isPending && eliminarMutation.variables === c.id)}
-                                  title={sinUso ? undefined : 'Tiene proyectos enlazados -- desvincúlalos primero'}
-                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
-                                >
-                                  {eliminarMutation.isPending && eliminarMutation.variables === c.id ? (
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    <Trash2 className="w-3 h-3" />
-                                  )}
-                                  <span>Eliminar</span>
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                          </div>
+                        </Td>
+                      </Tr>
+                    );
+                  })}
+                </Tbody>
+              </Tabla>
             </div>
           )}
 
@@ -272,30 +256,20 @@ export const ClientesPage: React.FC = () => {
                     </div>
 
                     <div className="pt-2.5 border-t border-slate-100 flex justify-end gap-1 flex-wrap">
-                      <button
-                        onClick={() => setEditando(c)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-brand-600 hover:bg-brand-50 transition-colors cursor-pointer"
-                      >
-                        <Pencil className="w-3 h-3" />
-                        <span>Editar</span>
-                      </button>
+                      <Button variant="ghost" size="sm" leftIcon={<Pencil className="w-3.5 h-3.5" />} onClick={() => setEditando(c)}>Editar</Button>
                       {puedeEliminar && (
-                        <button
-                          onClick={() => {
-                            if (window.confirm(`¿Eliminar el cliente "${c.nombre}"? Esta acción no se puede deshacer.`)) {
+                        <Button variant="ghost" size="sm" onClick={async () => {
+                            if (await confirmar({ titulo: `¿Eliminar el cliente "${c.nombre}"?`, mensaje: `Esta acción no se puede deshacer.`, confirmar: 'Eliminar', peligro: true })) {
                               eliminarMutation.mutate(c.id);
                             }
-                          }}
-                          disabled={!sinUso || (eliminarMutation.isPending && eliminarMutation.variables === c.id)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
-                        >
-                          {eliminarMutation.isPending && eliminarMutation.variables === c.id ? (
+                          }} disabled={!sinUso || (eliminarMutation.isPending && eliminarMutation.variables === c.id)} className="text-rose-600! hover:bg-rose-50!">
+{eliminarMutation.isPending && eliminarMutation.variables === c.id ? (
                             <Loader2 className="w-3 h-3 animate-spin" />
                           ) : (
                             <Trash2 className="w-3 h-3" />
                           )}
                           <span>Eliminar</span>
-                        </button>
+</Button>
                       )}
                     </div>
                   </div>

@@ -5,6 +5,7 @@ import { StatCard } from '../../components/ui/StatCard';
 import { getControlPresupuesto } from '../../api/client';
 import { useAnalitica } from '../cotizaciones/lib/useAnalitica';
 import type { Proyecto, ProyectoVersion } from '../../types';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
 
 const formatCLP = (v: number) => v.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
@@ -133,57 +134,57 @@ export const ControlPresupuestoTab: React.FC<{ proyecto: Proyecto; activeVersion
         />
       </div>
 
-      <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
-              <th className="px-4 py-3 font-bold">Partida</th>
-              <th className="px-4 py-3 font-bold text-right">Presupuestado</th>
-              <th className="px-4 py-3 font-bold text-right">En OC</th>
-              <th className="px-4 py-3 font-bold text-right">Facturado</th>
-              <th className="px-4 py-3 font-bold text-right">% usado</th>
-              <th className="px-4 py-3 font-bold text-right" title="Reposiciones (quiebre, falla, daño) contra la holgura de la partida">
+      <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+        <Tabla>
+          <Thead>
+            <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+              <Th className="font-bold">Partida</Th>
+              <Th alinear="derecha" className="font-bold">Presupuestado</Th>
+              <Th alinear="derecha" className="font-bold">En OC</Th>
+              <Th alinear="derecha" className="font-bold">Facturado</Th>
+              <Th alinear="derecha" className="font-bold">% usado</Th>
+              <Th alinear="derecha" className="font-bold" title="Reposiciones (quiebre, falla, daño) contra la holgura de la partida">
                 Reposición / holgura
-              </th>
-              <th className="px-4 py-3 font-bold text-right" title="Compras fuera del presupuesto: se cobran al cliente">
+              </Th>
+              <Th alinear="derecha" className="font-bold" title="Compras fuera del presupuesto: se cobran al cliente">
                 Adicionales
-              </th>
-              <th className="px-4 py-3 font-bold text-right">Recibido</th>
-            </tr>
-          </thead>
-          <tbody>
+              </Th>
+              <Th alinear="derecha" className="font-bold">Recibido</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
             {filas.map((f) => {
               const usadoFila = usadoDe(f);
               const pct = f.presupuestado > 0 ? (usadoFila / f.presupuestado) * 100 : usadoFila > 0 ? Infinity : 0;
               return (
-                <tr key={f.codigo} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                  <td className="px-4 py-3 font-semibold text-slate-800">{f.nombre}</td>
-                  <td className="px-4 py-3 text-right font-mono text-slate-700">{formatCLP(f.presupuestado)}</td>
-                  <td className="px-4 py-3 text-right font-mono text-slate-700">{formatCLP(f.enOC)}</td>
-                  <td className="px-4 py-3 text-right font-mono text-violet-700">{formatCLP(f.facturado)}</td>
-                  <td className={`px-4 py-3 text-right font-mono font-bold ${pct > 100 ? 'text-rose-600' : 'text-slate-700'}`}>
+                <Tr key={f.codigo} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                  <Td className="font-semibold text-slate-800">{f.nombre}</Td>
+                  <Td alinear="derecha" className="font-mono text-slate-700">{formatCLP(f.presupuestado)}</Td>
+                  <Td alinear="derecha" className="font-mono text-slate-700">{formatCLP(f.enOC)}</Td>
+                  <Td alinear="derecha" className="font-mono text-violet-700">{formatCLP(f.facturado)}</Td>
+                  <Td className={`px-4 py-3 text-right font-mono font-bold ${pct > 100 ? 'text-rose-600' : 'text-slate-700'}`}>
                     {Number.isFinite(pct) ? `${pct.toFixed(0)}%` : '—'}
-                  </td>
-                  <td
+                  </Td>
+                  <Td
                     className={`px-4 py-3 text-right font-mono ${f.reposicion > f.holgura + 0.5 ? 'text-rose-600 font-bold' : 'text-slate-700'}`}
                     title={f.reposicion > f.holgura + 0.5 ? 'Las reposiciones superan la holgura de la partida' : undefined}
                   >
                     {f.reposicion || f.holgura ? `${formatCLP(f.reposicion)} / ${formatCLP(f.holgura)}` : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono text-violet-700">{f.adicional ? formatCLP(f.adicional) : '—'}</td>
-                  <td className="px-4 py-3 text-right font-mono text-emerald-700">{formatCLP(f.recibido)}</td>
-                </tr>
+                  </Td>
+                  <Td alinear="derecha" className="font-mono text-violet-700">{f.adicional ? formatCLP(f.adicional) : '—'}</Td>
+                  <Td alinear="derecha" className="font-mono text-emerald-700">{formatCLP(f.recibido)}</Td>
+                </Tr>
               );
             })}
             {filas.length === 0 && (
-              <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
+              <Tr>
+                <Td colSpan={8} alinear="centro" className="py-8 text-slate-400">
                   Sin materiales ni Órdenes de Compra todavía para esta versión.
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             )}
-          </tbody>
-        </table>
+          </Tbody>
+        </Tabla>
       </div>
     </div>
   );

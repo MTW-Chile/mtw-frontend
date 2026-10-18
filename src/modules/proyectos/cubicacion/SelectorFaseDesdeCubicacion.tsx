@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { getEstructuraCubicacion } from '../../../api/client';
 import type { NodoDeptoCubicacion, SeleccionFaseCubicacion } from '../../../types';
 import { textoTorre } from './utils';
+import { IconButton } from '../../../components/ui/IconButton';
 
 interface Props {
   proyectoId: string;
@@ -65,9 +66,7 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
   const filaUnidad = (nodo: NodoDeptoCubicacion) => (
     <div key={nodo.id} className="pl-4 border-l border-slate-100">
       <div className="flex items-center gap-1.5 py-1">
-        <button type="button" onClick={() => expandir(nodo.id)} className="text-slate-400 hover:text-slate-700 cursor-pointer" aria-label="Expandir">
-          {expandidas.has(nodo.id) ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-        </button>
+        <IconButton icono={expandidas.has(nodo.id) ? ChevronDown : ChevronRight} etiqueta="Expandir" onClick={() => expandir(nodo.id)} />
         <label className="flex items-center gap-1.5 text-xs cursor-pointer">
           <input type="checkbox" checked={unidadIds.has(nodo.id)} onChange={() => alternar(unidadIds, setUnidadIds, nodo.id)} />
           <span className="font-mono font-bold text-slate-800">{nodo.nombre}</span>
@@ -94,9 +93,7 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
       {data.torres.map((torre) => (
         <div key={torre.id}>
           <div className="flex items-center gap-1.5 py-1">
-            <button type="button" onClick={() => expandir(torre.id)} className="text-slate-400 hover:text-slate-700 cursor-pointer" aria-label="Expandir torre">
-              {expandidas.has(torre.id) ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-            </button>
+            <IconButton icono={expandidas.has(torre.id) ? ChevronDown : ChevronRight} etiqueta="Expandir torre" onClick={() => expandir(torre.id)} />
             <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer">
               <input type="checkbox" checked={torreIds.has(torre.id)} onChange={() => alternar(torreIds, setTorreIds, torre.id)} />
               {textoTorre(torre.nombre)}
@@ -107,9 +104,7 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
               {torre.pisos.map((piso) => (
                 <div key={piso.id}>
                   <div className="flex items-center gap-1.5 py-1">
-                    <button type="button" onClick={() => expandir(piso.id)} className="text-slate-400 hover:text-slate-700 cursor-pointer" aria-label="Expandir piso">
-                      {expandidas.has(piso.id) ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                    </button>
+                    <IconButton icono={expandidas.has(piso.id) ? ChevronDown : ChevronRight} etiqueta="Expandir piso" onClick={() => expandir(piso.id)} />
                     <label className="flex items-center gap-1.5 text-xs cursor-pointer">
                       <input type="checkbox" checked={pisoIds.has(piso.id)} onChange={() => alternar(pisoIds, setPisoIds, piso.id)} />
                       <span className="font-bold text-slate-800">Piso {piso.numero}</span>

@@ -8,8 +8,9 @@ import type { TipoMovimientoBodega, EstadoUnidadMaterial, Bodega, StockMaterial,
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilters';
 import { ColumnFilterHeader } from '../../components/ui/ColumnFilterHeader';
-import { BREAKPOINT_DESKTOP, TABLE_CLASS } from '../../lib/designSystem';
+import { BREAKPOINT_DESKTOP } from '../../lib/designSystem';
 import { usePermisos } from '../../lib/permisos';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
 
 const TIPO_MOVIMIENTO: Record<TipoMovimientoBodega, { label: string; icon: React.ReactNode; color: string }> = {
   INGRESO_OC: { label: 'Ingreso (OC)', icon: <ArrowDownToLine className="w-3.5 h-3.5" />, color: 'text-emerald-600' },
@@ -201,83 +202,81 @@ export const BodegaProyectoTab: React.FC<{ proyectoId?: string }> = ({ proyectoI
           <div className="p-8 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">Ningún ítem coincide con los filtros.</div>
         ) : isDesktop ? (
           <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className={TABLE_CLASS}>
-                <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
-                    <th className="px-4 py-3 font-bold">SKU</th>
-                    <th className="px-4 py-3 font-bold">Material</th>
-                    {!proyectoId && <th className="px-4 py-3 font-bold">Obra</th>}
-                    <th className="px-4 py-3 font-bold">Partida</th>
-                    <th className="px-4 py-3 font-bold text-right">Cantidad</th>
-                    {mostrarAcciones && <th className="px-4 py-3 font-bold text-right">Acciones</th>}
-                  </tr>
-                  <tr className="border-b border-slate-100 bg-white">
-                    {columnas.map((c) => (
-                      <th key={c.key} className="px-4 py-2">
-                        <ColumnFilterHeader columna={c} valor={valores[c.key] || ''} onChange={(v) => setValor(c.key, v)} />
-                      </th>
-                    ))}
-                    <th className="px-4 py-2" colSpan={colSpanDetalle - columnas.length} />
-                  </tr>
-                </thead>
-                <tbody>
-                  {stockVisible.map((s) => {
-                    const abierto = expandido.has(s.materialId);
-                    return (
-                      <React.Fragment key={s.id}>
-                        <tr
-                          className={`border-b border-slate-50 transition-colors ${s.material.individualizado ? 'cursor-pointer hover:bg-slate-50' : 'hover:bg-slate-50/50'}`}
-                          onClick={() => s.material.individualizado && toggleExpandido(s.materialId)}
-                        >
-                          <td className="px-4 py-3 font-mono text-slate-500">
-                            <div className="flex items-center gap-1.5">
-                              {s.material.individualizado &&
-                                (abierto ? (
-                                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                ) : (
-                                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                ))}
-                              {s.material.skuInterno}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-slate-800 font-semibold truncate max-w-0" title={s.material.descripcion}>
-                            <div className="flex items-center gap-1.5">
-                              {s.material.descripcion}
-                              {s.material.individualizado && (
-                                <span
-                                  title="Se controla por unidad individual"
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-600 text-[9px] font-bold uppercase tracking-wide shrink-0"
-                                >
-                                  <Tags className="w-2.5 h-2.5" /> Individualizado
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          {!proyectoId && <td className="px-4 py-3 text-slate-600 truncate max-w-0">{labelBodega(s.bodega)}</td>}
-                          <td className="px-4 py-3 text-slate-500">{s.material.tipoProducto?.partida?.nombre ?? s.material.familia}</td>
-                          <td className="px-4 py-3 text-right font-bold text-slate-900 whitespace-nowrap">
-                            {Number(s.cantidad).toLocaleString('es-CL')} {s.material.unidadMedida}
-                          </td>
-                          {mostrarAcciones && (
-                            <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                              <AccionesStock s={s} />
-                            </td>
-                          )}
-                        </tr>
-                        {abierto && s.material.individualizado && (
-                          <tr className="bg-slate-50/60">
-                            <td colSpan={colSpanDetalle} className="p-0">
-                              <UnidadesMaterialDetalle bodegaId={s.bodegaId} materialId={s.materialId} />
-                            </td>
-                          </tr>
+            <Tabla>
+              <Thead>
+                <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                  <Th className="font-bold">SKU</Th>
+                  <Th className="font-bold">Material</Th>
+                  {!proyectoId && <Th className="font-bold">Obra</Th>}
+                  <Th className="font-bold">Partida</Th>
+                  <Th alinear="derecha" className="font-bold">Cantidad</Th>
+                  {mostrarAcciones && <Th alinear="derecha" className="font-bold">Acciones</Th>}
+                </Tr>
+                <Tr className="border-b border-slate-100 bg-white">
+                  {columnas.map((c) => (
+                    <Th key={c.key}>
+                      <ColumnFilterHeader columna={c} valor={valores[c.key] || ''} onChange={(v) => setValor(c.key, v)} />
+                    </Th>
+                  ))}
+                  <Th colSpan={colSpanDetalle - columnas.length} />
+                </Tr>
+              </Thead>
+              <Tbody>
+                {stockVisible.map((s) => {
+                  const abierto = expandido.has(s.materialId);
+                  return (
+                    <React.Fragment key={s.id}>
+                      <Tr
+                        className={`border-b border-slate-50 transition-colors ${s.material.individualizado ? 'cursor-pointer hover:bg-slate-50' : 'hover:bg-slate-50/50'}`}
+                        onClick={() => s.material.individualizado && toggleExpandido(s.materialId)}
+                      >
+                        <Td className="font-mono text-slate-500">
+                          <div className="flex items-center gap-1.5">
+                            {s.material.individualizado &&
+                              (abierto ? (
+                                <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              ) : (
+                                <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              ))}
+                            {s.material.skuInterno}
+                          </div>
+                        </Td>
+                        <Td className="text-slate-800 font-semibold truncate max-w-0" title={s.material.descripcion}>
+                          <div className="flex items-center gap-1.5">
+                            {s.material.descripcion}
+                            {s.material.individualizado && (
+                              <span
+                                title="Se controla por unidad individual"
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-600 text-[9px] font-bold uppercase tracking-wide shrink-0"
+                              >
+                                <Tags className="w-2.5 h-2.5" /> Individualizado
+                              </span>
+                            )}
+                          </div>
+                        </Td>
+                        {!proyectoId && <Td className="text-slate-600 truncate max-w-0">{labelBodega(s.bodega)}</Td>}
+                        <Td className="text-slate-500">{s.material.tipoProducto?.partida?.nombre ?? s.material.familia}</Td>
+                        <Td alinear="derecha" className="font-bold text-slate-900 whitespace-nowrap">
+                          {Number(s.cantidad).toLocaleString('es-CL')} {s.material.unidadMedida}
+                        </Td>
+                        {mostrarAcciones && (
+                          <Td alinear="derecha" onClick={(e) => e.stopPropagation()}>
+                            <AccionesStock s={s} />
+                          </Td>
                         )}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                      </Tr>
+                      {abierto && s.material.individualizado && (
+                        <Tr className="bg-slate-50/60">
+                          <Td colSpan={colSpanDetalle} className="p-0">
+                            <UnidadesMaterialDetalle bodegaId={s.bodegaId} materialId={s.materialId} />
+                          </Td>
+                        </Tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </Tbody>
+            </Tabla>
           </div>
         ) : (
           <div className="space-y-3">

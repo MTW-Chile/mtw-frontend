@@ -4,6 +4,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { useIndicadoresChile } from '../../lib/useIndicadoresChile';
 import { formatNumber } from '../../lib/utils';
+import { IconButton } from '../../components/ui/IconButton';
 
 interface InicioPageProps {
   onNavigate: (tabId: string, search?: string) => void;
@@ -41,20 +42,8 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
         />
         {searchQuery ? (
           <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
-              aria-label="Limpiar búsqueda"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="submit"
-              className="px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-[#c93d1b] text-white text-xs font-bold transition-colors cursor-pointer shadow-xs"
-            >
-              Buscar
-            </button>
+            <IconButton icono={X} etiqueta="Limpiar búsqueda" onClick={() => setSearchQuery('')} />
+            <Button size="sm" type="submit">Buscar</Button>
           </div>
         ) : (
           <span className="hidden sm:block absolute right-4 top-1/2 -translate-y-1/2 text-[11px] font-mono text-slate-400">

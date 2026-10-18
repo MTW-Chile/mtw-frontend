@@ -11,6 +11,8 @@ import { ETIQUETA_ESTADO_ADICIONAL } from '../../../types';
 import { AdicionalDetalle } from './AdicionalDetalle';
 import { NuevoAdicionalModal } from './NuevoAdicionalModal';
 import { VARIANTE_ESTADO, clp, uf } from './comun';
+import { BotonFila } from '../../../components/ui/Lista';
+import { EstadoVacio } from '../../../components/ui/Estados';
 
 /**
  * Adicionales de la obra: ventas o cargos fuera del presupuesto aceptado,
@@ -47,12 +49,12 @@ export const AdicionalesTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }) =
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
       ) : adicionales.length === 0 ? (
-        <div className="p-10 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">Esta obra no tiene adicionales.</div>
+        <EstadoVacio titulo="Esta obra no tiene adicionales" />
       ) : (
         <ul className="rounded-2xl bg-white border border-slate-200 shadow-sm divide-y divide-slate-100">
           {adicionales.map((a) => (
             <li key={a.id}>
-              <button onClick={() => setAbierto(a.id)} className="w-full flex items-center justify-between gap-3 px-5 py-3.5 text-left hover:bg-slate-50 cursor-pointer">
+              <BotonFila onClick={() => setAbierto(a.id)} className="flex items-center justify-between gap-3 px-5! py-3.5!">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[11px] font-mono font-bold text-slate-500">A{a.numero}</span>
@@ -85,7 +87,7 @@ export const AdicionalesTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }) =
                   </div>
                   <ChevronRight className="w-4 h-4 text-slate-300" />
                 </div>
-              </button>
+              </BotonFila>
             </li>
           ))}
         </ul>

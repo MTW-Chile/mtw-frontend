@@ -35,18 +35,21 @@ export const FilaLista: React.FC<{
  * Fila clicable de una lista de resultados (buscadores de material, cliente,
  * fabricación): ocupa todo el ancho y resalta al pasar.
  */
-export const BotonFila: React.FC<{ onClick: () => void; activa?: boolean; disabled?: boolean; children: React.ReactNode; className?: string }> = ({
+export const BotonFila: React.FC<{ onClick: () => void; activa?: boolean; disabled?: boolean; children: React.ReactNode; className?: string; title?: string; sinRelleno?: boolean }> = ({
   onClick,
   activa,
   disabled,
   children,
   className = '',
+  title,
+  sinRelleno,
 }) => (
   <button
     type="button"
     onClick={onClick}
     disabled={disabled}
-    className={`w-full text-left px-3 py-2 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${activa ? 'bg-brand-50' : 'hover:bg-slate-50'} ${className}`}
+    title={title}
+    className={`w-full text-left transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${sinRelleno ? '' : 'px-3 py-2'} ${activa ? 'bg-brand-50' : sinRelleno ? '' : 'hover:bg-slate-50'} ${className}`}
   >
     {children}
   </button>

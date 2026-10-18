@@ -2,9 +2,9 @@ import React from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 import { getPartidas, getPorClasificar, reclasificarItemOC, updateAdicionalItem } from '../../api/client';
-import { TABLE_CLASS, TABLE_WRAPPER_CLASS } from '../../lib/designSystem';
 import { avisarError } from '../configuracion/catalogo/comun';
 import type { Partida } from '../../types';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
 
 const clp = (v: number) => v.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
@@ -72,73 +72,69 @@ export const PorClasificarTab: React.FC = () => {
       {data.ordenesCompra.length > 0 && (
         <section className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
           <h3 className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-800 border-b border-slate-100">Órdenes de compra</h3>
-          <div className={TABLE_WRAPPER_CLASS}>
-            <table className={`${TABLE_CLASS} text-left text-slate-700`}>
-              <thead className="bg-slate-50/80 border-b border-slate-200 uppercase">
-                <tr>
-                  <th className="py-2.5">OC</th>
-                  <th className="py-2.5">Ítem</th>
-                  <th className="py-2.5">Obra</th>
-                  <th className="py-2.5 text-right">Monto</th>
-                  <th className="py-2.5">Partida</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {data.ordenesCompra.map((i) => (
-                  <tr key={i.id}>
-                    <td className="py-2 font-mono text-[11px]">{i.ordenCompra.numero}</td>
-                    <td className="py-2">
-                      <div className="font-semibold text-slate-800">{i.descripcion}</div>
-                      <div className="text-[10px] text-slate-400">{i.ordenCompra.proveedor?.nombre ?? 'Sin proveedor'}</div>
-                    </td>
-                    <td className="py-2 text-[11px]">{i.ordenCompra.proyecto?.obra ?? 'Obras Mayores'}</td>
-                    <td className="py-2 text-right font-mono">{clp(Number(i.cantidad) * Number(i.precioUnitario ?? 0))}</td>
-                    <td className="py-2">
-                      <SelectorPartida partidas={partidas} disabled={oc.isPending} onElegir={(partidaId) => oc.mutate({ itemId: i.id, partidaId })} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Tabla>
+            <Thead>
+              <Tr>
+                <Th>OC</Th>
+                <Th>Ítem</Th>
+                <Th>Obra</Th>
+                <Th alinear="derecha">Monto</Th>
+                <Th>Partida</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {data.ordenesCompra.map((i) => (
+                <Tr key={i.id}>
+                  <Td className="font-mono text-[11px]">{i.ordenCompra.numero}</Td>
+                  <Td>
+                    <div className="font-semibold text-slate-800">{i.descripcion}</div>
+                    <div className="text-[10px] text-slate-400">{i.ordenCompra.proveedor?.nombre ?? 'Sin proveedor'}</div>
+                  </Td>
+                  <Td className="text-[11px]">{i.ordenCompra.proyecto?.obra ?? 'Obras Mayores'}</Td>
+                  <Td alinear="derecha" className="font-mono">{clp(Number(i.cantidad) * Number(i.precioUnitario ?? 0))}</Td>
+                  <Td>
+                    <SelectorPartida partidas={partidas} disabled={oc.isPending} onElegir={(partidaId) => oc.mutate({ itemId: i.id, partidaId })} />
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Tabla>
         </section>
       )}
       {data.adicionales.length > 0 && (
         <section className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
           <h3 className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-800 border-b border-slate-100">Adicionales</h3>
-          <div className={TABLE_WRAPPER_CLASS}>
-            <table className={`${TABLE_CLASS} text-left text-slate-700`}>
-              <thead className="bg-slate-50/80 border-b border-slate-200 uppercase">
-                <tr>
-                  <th className="py-2.5">Adicional</th>
-                  <th className="py-2.5">Ítem</th>
-                  <th className="py-2.5">Obra</th>
-                  <th className="py-2.5 text-right">Costo</th>
-                  <th className="py-2.5">Partida</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {data.adicionales.map((i) => (
-                  <tr key={i.id}>
-                    <td className="py-2 font-mono text-[11px]">A{i.adicional.numero}</td>
-                    <td className="py-2">
-                      <div className="font-semibold text-slate-800">{i.descripcion}</div>
-                      <div className="text-[10px] text-slate-400">{i.adicional.titulo}</div>
-                    </td>
-                    <td className="py-2 text-[11px]">{i.adicional.proyecto.obra}</td>
-                    <td className="py-2 text-right font-mono">{clp(Number(i.cantidad) * Number(i.costoUnitario))}</td>
-                    <td className="py-2">
-                      <SelectorPartida
-                        partidas={partidas}
-                        disabled={adicional.isPending}
-                        onElegir={(partidaId) => adicional.mutate({ adicionalId: i.adicional.id, itemId: i.id, partidaId })}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Tabla>
+            <Thead>
+              <Tr>
+                <Th>Adicional</Th>
+                <Th>Ítem</Th>
+                <Th>Obra</Th>
+                <Th alinear="derecha">Costo</Th>
+                <Th>Partida</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {data.adicionales.map((i) => (
+                <Tr key={i.id}>
+                  <Td className="font-mono text-[11px]">A{i.adicional.numero}</Td>
+                  <Td>
+                    <div className="font-semibold text-slate-800">{i.descripcion}</div>
+                    <div className="text-[10px] text-slate-400">{i.adicional.titulo}</div>
+                  </Td>
+                  <Td className="text-[11px]">{i.adicional.proyecto.obra}</Td>
+                  <Td alinear="derecha" className="font-mono">{clp(Number(i.cantidad) * Number(i.costoUnitario))}</Td>
+                  <Td>
+                    <SelectorPartida
+                      partidas={partidas}
+                      disabled={adicional.isPending}
+                      onElegir={(partidaId) => adicional.mutate({ adicionalId: i.adicional.id, itemId: i.id, partidaId })}
+                    />
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Tabla>
         </section>
       )}
     </div>

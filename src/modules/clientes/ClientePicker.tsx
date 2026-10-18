@@ -5,6 +5,7 @@ import { Check, Loader2, Plus, Search, User } from 'lucide-react';
 import { getClientes } from '../../api/client';
 import type { Cliente } from '../../types';
 import { ClienteFormModal } from './ClienteFormModal';
+import { Button } from '../../components/ui/Button';
 
 interface Props {
   value: Cliente | null;
@@ -46,9 +47,7 @@ export const ClientePicker: React.FC<Props> = ({ value, onChange }) => {
             <p className="text-sm font-bold text-slate-900 truncate">{value.nombre}</p>
             <p className="text-[11px] text-slate-500 truncate">{value.rut || 'Sin RUT'}</p>
           </div>
-          <button type="button" onClick={() => onChange(null)} className="text-xs font-semibold text-brand-700 hover:underline cursor-pointer shrink-0">
-            Cambiar
-          </button>
+          <Button variant="link" size="sm" onClick={() => onChange(null)} className="shrink-0">Cambiar</Button>
         </div>
       </div>
     );
@@ -91,14 +90,7 @@ export const ClientePicker: React.FC<Props> = ({ value, onChange }) => {
           ))
         )}
       </div>
-      <button
-        type="button"
-        onClick={() => setCreando(true)}
-        className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 hover:underline cursor-pointer"
-      >
-        <Plus className="w-3.5 h-3.5" />
-        Crear cliente nuevo
-      </button>
+      <Button variant="link" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setCreando(true)} className="mt-2">Crear cliente nuevo</Button>
 
       {/* Portal: el formulario de cliente es un <form>; montado aparte para no
           quedar anidado (ni burbujear su envio) dentro del formulario de la

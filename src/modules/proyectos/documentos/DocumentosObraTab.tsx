@@ -95,24 +95,11 @@ export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <nav className="flex items-center gap-1 text-xs font-bold text-slate-500 flex-wrap" aria-label="Ruta de carpetas">
-          <button
-            type="button"
-            onClick={() => setMigas([])}
-            className={`flex items-center gap-1 px-1.5 py-1 rounded-lg hover:bg-slate-100 cursor-pointer ${migas.length === 0 ? 'text-slate-900' : ''}`}
-          >
-            <Home className="w-3.5 h-3.5" /> {proyecto.onedriveCarpetaNombre || 'Carpeta de la obra'}
-          </button>
+          <Button variant="ghost" size="sm" leftIcon={<Home className="w-3.5 h-3.5" />} onClick={() => setMigas([])}>{proyecto.onedriveCarpetaNombre || 'Carpeta de la obra'}</Button>
           {migas.map((m, i) => (
             <React.Fragment key={m.id}>
               <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />
-              <button
-                type="button"
-                onClick={() => setMigas(migas.slice(0, i + 1))}
-                className={`px-1.5 py-1 rounded-lg hover:bg-slate-100 cursor-pointer truncate max-w-[12rem] ${i === migas.length - 1 ? 'text-slate-900' : ''}`}
-                title={m.nombre}
-              >
-                {m.nombre}
-              </button>
+              <Button variant="ghost" size="sm" onClick={() => setMigas(migas.slice(0, i + 1))} title={m.nombre}>{m.nombre}</Button>
             </React.Fragment>
           ))}
         </nav>
@@ -166,12 +153,8 @@ export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }
         <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white overflow-hidden">
           {data.items.map((item) => (
             <li key={item.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
-              <button
-                type="button"
-                onClick={() => (item.tipo === 'carpeta' ? setMigas([...migas, { id: item.id, nombre: item.nombre }]) : abrirArchivo(proyecto.id, item))}
-                className="flex items-center gap-3 flex-1 min-w-0 text-left cursor-pointer"
-              >
-                {item.tipo === 'carpeta' ? (
+              <Button variant="ghost" size="sm" onClick={() => (item.tipo === 'carpeta' ? setMigas([...migas, { id: item.id, nombre: item.nombre }]) : abrirArchivo(proyecto.id, item))} className="flex-1 min-w-0">
+{item.tipo === 'carpeta' ? (
                   <Folder className="w-4.5 h-4.5 text-brand-500 shrink-0" />
                 ) : item.mime?.startsWith('image/') ? (
                   <FileText className="w-4.5 h-4.5 text-slate-400 shrink-0" />
@@ -181,7 +164,7 @@ export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }
                 <span className="flex-1 min-w-0 text-xs font-bold text-slate-800 truncate" title={item.nombre}>
                   {item.nombre}
                 </span>
-              </button>
+</Button>
               <span className="text-[11px] text-slate-400 shrink-0 hidden sm:inline">{item.tamano != null ? formatoTamano(item.tamano) : ''}</span>
               <span className="text-[11px] text-slate-400 shrink-0 hidden md:inline">{formatoFechaHora(item.modificadoEn)}</span>
               {item.webUrl && (

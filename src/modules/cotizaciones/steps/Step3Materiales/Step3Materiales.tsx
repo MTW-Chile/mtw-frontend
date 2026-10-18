@@ -12,7 +12,8 @@ import {
   setPartidaAprobacion,
   setPartidaDescuento,
   setPartidaHolgura,
-  updateEstadoAprobacion } from '../../../../api/client';
+  updateEstadoAprobacion,
+} from '../../../../api/client';
 import type { MaterialAnalitica, PartidaAnalitica, Proyecto, ProyectoVersion } from '../../../../types';
 import { DivisasForm, DivisasResumen } from '../Step1DatosCliente/DivisasForm';
 import { ReemplazarMaterialModal } from './ReemplazarMaterialModal';

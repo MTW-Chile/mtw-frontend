@@ -9,6 +9,9 @@ import type { TipoCubicacion } from '../../../types';
 import { formatoMm } from '../fabricacion/utils';
 import { TipoModal } from './TipoModal';
 import { estadoSaldo, formatoMonto } from './utils';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
+import { useConfirmar } from '../../../components/ui/Confirmar';
+import { IconButton } from '../../../components/ui/IconButton';
 
 interface Props {
   proyectoId: string;
@@ -19,6 +22,7 @@ interface Props {
 // Tipos de ventana de la cubicacion (la hoja BASE): contratadas vs cubicadas. La cubicacion puede quedar
 // incompleta: el saldo es lo que falta cubicar.
 export const TiposCubicacion: React.FC<Props> = ({ proyectoId, moneda, tipos }) => {
+  const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
   const [modal, setModal] = useState<{ tipo?: TipoCubicacion } | null>(null);
 
@@ -45,27 +49,27 @@ export const TiposCubicacion: React.FC<Props> = ({ proyectoId, moneda, tipos }) 
       {tipos.length === 0 ? (
         <div className="p-10 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">Aún no hay tipos. Importa la planilla o crea uno.</div>
       ) : (
-        <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
-                <th className="px-3 py-2.5 font-bold">Código</th>
-                <th className="px-3 py-2.5 font-bold">Apertura</th>
-                <th className="px-3 py-2.5 font-bold">Plano (mm)</th>
-                <th className="px-3 py-2.5 font-bold text-right">Cuadros</th>
-                <th className="px-3 py-2.5 font-bold text-right">Precio unit.</th>
-                <th className="px-3 py-2.5 font-bold text-right">Contratadas</th>
-                <th className="px-3 py-2.5 font-bold text-right">Cubicadas</th>
-                <th className="px-3 py-2.5 font-bold text-right">Saldo</th>
-                <th className="px-3 py-2.5 font-bold w-20"></th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+          <Tabla>
+            <Thead>
+              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                <Th className="font-bold">Código</Th>
+                <Th className="font-bold">Apertura</Th>
+                <Th className="font-bold">Plano (mm)</Th>
+                <Th alinear="derecha" className="font-bold">Cuadros</Th>
+                <Th alinear="derecha" className="font-bold">Precio unit.</Th>
+                <Th alinear="derecha" className="font-bold">Contratadas</Th>
+                <Th alinear="derecha" className="font-bold">Cubicadas</Th>
+                <Th alinear="derecha" className="font-bold">Saldo</Th>
+                <Th className="font-bold w-20"></Th>
+              </Tr>
+            </Thead>
+            <Tbody>
               {tipos.map((t) => {
                 const estado = estadoSaldo(t.saldo);
                 return (
-                  <tr key={t.id} className="border-b border-slate-50 hover:bg-slate-50/60">
-                    <td className="px-3 py-2 font-mono font-bold text-slate-800 whitespace-nowrap">
+                  <Tr key={t.id} className="border-b border-slate-50 hover:bg-slate-50/60">
+                    <Td className="font-mono font-bold text-slate-800 whitespace-nowrap">
                       {t.codigo}
                       {t.esAreaComun && (
                         <Badge size="sm" variant="outline" className="ml-1.5">
@@ -82,42 +86,39 @@ export const TiposCubicacion: React.FC<Props> = ({ proyectoId, moneda, tipos }) 
                           HETMO
                         </Badge>
                       )}
-                    </td>
-                    <td className="px-3 py-2 text-slate-600 max-w-[16rem] truncate" title={t.sistema}>
+                    </Td>
+                    <Td className="text-slate-600 max-w-[16rem] truncate" title={t.sistema}>
                       {t.sistema}
-                    </td>
-                    <td className="px-3 py-2 font-mono text-slate-500 whitespace-nowrap">{t.anchoPlanoMm != null ? `${formatoMm(t.anchoPlanoMm)} × ${formatoMm(t.altoPlanoMm)}` : '—'}</td>
-                    <td className="px-3 py-2 text-right font-mono text-slate-500">{t.cuadros ?? '—'}</td>
-                    <td className="px-3 py-2 text-right font-mono text-slate-600 whitespace-nowrap">{formatoMonto(t.precioUnitario, moneda)}</td>
-                    <td className="px-3 py-2 text-right font-mono text-slate-700">{t.cantidadContratada}</td>
-                    <td className="px-3 py-2 text-right font-mono text-slate-700">{t.cubicadas}</td>
-                    <td className="px-3 py-2 text-right">
+                    </Td>
+                    <Td className="font-mono text-slate-500 whitespace-nowrap">{t.anchoPlanoMm != null ? `${formatoMm(t.anchoPlanoMm)} × ${formatoMm(t.altoPlanoMm)}` : '—'}</Td>
+                    <Td alinear="derecha" className="font-mono text-slate-500">{t.cuadros ?? '—'}</Td>
+                    <Td alinear="derecha" className="font-mono text-slate-600 whitespace-nowrap">{formatoMonto(t.precioUnitario, moneda)}</Td>
+                    <Td alinear="derecha" className="font-mono text-slate-700">{t.cantidadContratada}</Td>
+                    <Td alinear="derecha" className="font-mono text-slate-700">{t.cubicadas}</Td>
+                    <Td alinear="derecha">
                       <Badge size="sm" variant={estado === 'completo' ? 'success' : estado === 'excedido' ? 'danger' : 'warning'}>
                         {estado === 'completo' ? 'Completo' : t.saldo}
                       </Badge>
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-right">
-                      <button type="button" onClick={() => setModal({ tipo: t })} className="p-1.5 text-slate-400 hover:text-brand-600 cursor-pointer" aria-label={`Editar tipo ${t.codigo}`}>
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!t.esAreaComun && t.cubicadas > 0}
-                        onClick={() => {
-                          if (window.confirm(`¿Eliminar el tipo ${t.codigo}?`)) eliminar.mutate(t.id);
+                    </Td>
+                    <Td alinear="derecha" className="whitespace-nowrap">
+                      <IconButton icono={Pencil} etiqueta={`Editar tipo ${t.codigo}`} tono="marca" onClick={() => setModal({ tipo: t })} />
+                      <Button variant="ghost" size="sm" disabled={!t.esAreaComun && t.cubicadas >
+0}
+                        onClick={async () => {
+                          if (await confirmar({ titulo: `¿Eliminar el tipo ${t.codigo}?`, confirmar: 'Eliminar', peligro: true })) eliminar.mutate(t.id);
                         }}
                         className="p-1.5 text-slate-400 hover:text-rose-600 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                         aria-label={`Eliminar tipo ${t.codigo}`}
                         title={!t.esAreaComun && t.cubicadas > 0 ? 'Tiene ventanas con posición: elimínalas primero' : 'Eliminar'}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
+</Button>
+                    </Td>
+                  </Tr>
                 );
               })}
-            </tbody>
-          </table>
+            </Tbody>
+          </Tabla>
         </div>
       )}
       {modal && <TipoModal proyectoId={proyectoId} moneda={moneda} tipo={modal.tipo} onClose={() => setModal(null)} />}

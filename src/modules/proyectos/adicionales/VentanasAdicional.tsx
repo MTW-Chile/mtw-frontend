@@ -9,6 +9,7 @@ import { Step3Materiales } from '../../cotizaciones/steps/Step3Materiales/Step3M
 import { Step4Fijaciones } from '../../cotizaciones/steps/Step4Fijaciones/Step4Fijaciones';
 import type { Adicional, Proyecto } from '../../../types';
 import { ElegirVentanasModal } from './ElegirVentanasModal';
+import { InputCompacto } from '../../../components/ui/Campos';
 
 /** Clave de la version de un adicional: cuelga del detalle del proyecto (los Pasos lo invalidan). */
 export const versionAdicionalKey = (proyectoId: string, versionId: string | null) => ['proyectoDetail', proyectoId, 'versionAdicional', versionId];
@@ -76,14 +77,15 @@ export const VentanasAdicional: React.FC<{ proyecto: Proyecto; adicional: Adicio
               trae ahora. HETMO no verifica que sus líneas correspondan a las de la cotización.
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <input
+              <InputCompacto
+                aria-label="Código interno HETMO"
                 type="number"
                 min={1}
                 value={codigoHetmo}
                 disabled={!editable}
                 onChange={(e) => setCodigoHetmo(e.target.value)}
                 placeholder="Código interno HETMO"
-                className="w-48 text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-brand-600"
+                className="w-48"
               />
               <Button size="sm" leftIcon={<Link2 className="w-3.5 h-3.5" />} disabled={!editable || !(Number(codigoHetmo) > 0)} isLoading={vincular.isPending} onClick={() => vincular.mutate()}>
                 Vincular

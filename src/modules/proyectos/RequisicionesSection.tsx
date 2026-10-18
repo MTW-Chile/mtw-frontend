@@ -13,6 +13,7 @@ import {
   getMateriales,
 } from '../../api/client';
 import type { EstadoSolicitudMaterial, Proyecto, ProyectoVersion } from '../../types';
+import { BotonFila } from '../../components/ui/Lista';
 
 const ESTADO_LABEL: Record<EstadoSolicitudMaterial, string> = {
   GENERADA: 'Generada',
@@ -136,17 +137,16 @@ export const RequisicionesSection: React.FC<{ proyecto?: Proyecto; activeVersion
               {sugerencias.length > 0 && (
                 <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-52 overflow-y-auto">
                   {sugerencias.map((m) => (
-                    <button
+                    <BotonFila
                       key={m.id}
-                      type="button"
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 border-b border-slate-50 last:border-0"
+                      className="text-xs border-b border-slate-50 last:border-0"
                       onClick={() => {
                         setItems((prev) => [...prev, { materialId: m.id, descripcion: `${m.skuInterno} · ${m.descripcion}`, cantidadSolicitada: '' }]);
                         setBusqueda('');
                       }}
                     >
                       <span className="font-mono font-bold text-slate-700">{m.skuInterno}</span> — {m.descripcion}
-                    </button>
+                    </BotonFila>
                   ))}
                 </div>
               )}

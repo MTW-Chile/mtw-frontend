@@ -8,14 +8,15 @@ export interface SelectOption {
 
 export interface SelectProps
   extends React.SelectHTMLAttributes<HTMLSelectElement> {
-  label?: string;
+  label?: React.ReactNode;
   error?: string;
   helperText?: string;
-  options: SelectOption[];
+  /** Opciones simples; para grupos u opciones deshabilitadas, pasar <option> como children. */
+  options?: SelectOption[];
 }
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, error, helperText, options, className = '', id, ...props }, ref) => {
+  ({ label, error, helperText, options, className = '', id, children, ...props }, ref) => {
     const generado = useId();
     const selectId = id || generado;
 
@@ -38,11 +39,13 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             } ${className}`}
             {...props}
           >
-            {options.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
+            {options
+              ? options.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))
+              : children}
           </select>
           <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>

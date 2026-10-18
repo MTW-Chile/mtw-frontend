@@ -11,6 +11,7 @@ import { EstructuraVisual } from './EstructuraVisual';
 import { TiposCubicacion } from './TiposCubicacion';
 import { VentanasCubicacion, type FiltroVentanas } from './VentanasCubicacion';
 import { descargarBlob, formatoMonto, lineaReporteSincronizacion, lineasReporteImportacion } from './utils';
+import { IconButton } from '../../../components/ui/IconButton';
 
 interface Props {
   proyecto: Proyecto;
@@ -146,9 +147,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900 space-y-1" role="status" data-testid="reporte-importacion">
           <div className="flex items-start justify-between gap-2">
             <p className="font-bold">{panel.titulo}</p>
-            <button type="button" onClick={() => setPanel(null)} className="text-emerald-700 hover:text-emerald-900 cursor-pointer" aria-label="Cerrar el resultado">
-              <X className="w-3.5 h-3.5" />
-            </button>
+            <IconButton icono={X} etiqueta="Cerrar el resultado" onClick={() => setPanel(null)} />
           </div>
           {panel.lineas.map((l, i) => (
             <p key={i}>{l}</p>
@@ -185,9 +184,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
               </div>
               <p className="text-[11px] text-slate-400">
                 ¿Ya tienes una planilla de cubicación (la de siempre)?{' '}
-                <button type="button" className="text-brand-700 hover:underline cursor-pointer" onClick={() => entrada.current?.click()}>
-                  Súbela
-                </button>
+                <Button variant="link" size="sm" onClick={() => entrada.current?.click()}>Súbela</Button>
                 .
               </p>
             </>

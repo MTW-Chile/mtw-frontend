@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, Loader2, Pencil, X } from 'lucide-react';
 import { updateClayCentroCosto } from '../../api/client';
+import { IconButton } from '../../components/ui/IconButton';
 
 // Centro de costo de la obra en Clay (Proyecto.clayCentroCosto) -- el
 // gasto de las facturas de sus OC se contabiliza con este centro. Clay los
@@ -63,14 +64,7 @@ export const ClayCentroCostoEditor: React.FC<{ proyectoId: string; valor: string
         >
           {mutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
         </button>
-        <button
-          onClick={() => setEditando(false)}
-          disabled={mutation.isPending}
-          title="Cancelar"
-          className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center"
-        >
-          <X className="w-3 h-3" />
-        </button>
+        <IconButton icono={X} etiqueta="Cancelar" onClick={() => setEditando(false)} disabled={mutation.isPending} />
       </div>
       {error && <span className="text-[10px] text-rose-600">{error}</span>}
     </div>

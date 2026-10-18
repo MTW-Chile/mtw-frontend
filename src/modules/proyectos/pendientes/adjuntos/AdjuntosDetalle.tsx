@@ -8,6 +8,9 @@ import { formatoFechaHora } from '../../fabricacion/utils';
 import { BotonesAdjuntar } from './BotonesAdjuntar';
 import { subirArchivos } from './subirArchivos';
 import { esImagen, formatoTamano } from './utils';
+import { useConfirmar } from '../../../../components/ui/Confirmar';
+import { Button } from '../../../../components/ui/Button';
+import { IconButton } from '../../../../components/ui/IconButton';
 
 // Miniatura: la API sirve el archivo (el navegador no tiene sesion de OneDrive),
 // asi que se pide y se muestra como data URL (sin URLs temporales que liberar).
@@ -57,6 +60,7 @@ interface Props {
 
 // Adjuntos de un pendiente (detalle): miniaturas, abrir, quitar y agregar mas.
 export const AdjuntosDetalle: React.FC<Props> = ({ proyectoId, pendienteId, adjuntos, puedeAgregar }) => {
+  const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
   const [subiendo, setSubiendo] = useState<{ hechos: number; total: number } | null>(null);
   const { data: onedrive } = useQuery({ queryKey: ['onedrive', proyectoId], queryFn: () => getOneDriveObra(proyectoId), staleTime: 1000 * 60 });
@@ -94,14 +98,7 @@ export const AdjuntosDetalle: React.FC<Props> = ({ proyectoId, pendienteId, adju
         <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2" aria-label="Adjuntos">
           {adjuntos.map((a) => (
             <li key={a.id} className="rounded-xl border border-slate-200 bg-white overflow-hidden flex flex-col">
-              <button
-                type="button"
-                onClick={() => abrirArchivo(pendienteId, a)}
-                className="h-24 bg-slate-50 flex items-center justify-center overflow-hidden cursor-pointer"
-                aria-label={`Abrir ${a.nombre}`}
-              >
-                <Miniatura pendienteId={pendienteId} adjunto={a} />
-              </button>
+              <Button variant="ghost" size="sm" onClick={() => abrirArchivo(pendienteId, a)} aria-label={`Abrir ${a.nombre}`}><Miniatura pendienteId={pendienteId} adjunto={a} /></Button>
               <div className="p-2 space-y-0.5 min-w-0">
                 <p className="text-[11px] font-bold text-slate-800 truncate" title={a.nombre}>
                   {a.nombre}
@@ -116,18 +113,9 @@ export const AdjuntosDetalle: React.FC<Props> = ({ proyectoId, pendienteId, adju
                     </a>
                   )}
                   {a.puedeQuitar && (
-                    <button
-                      type="button"
-                      disabled={quitar.isPending}
-                      onClick={() => {
-                        if (window.confirm(`¿Quitar "${a.nombre}" del pendiente? El archivo se queda en OneDrive.`)) quitar.mutate(a);
-                      }}
-                      className="text-slate-400 hover:text-rose-600 cursor-pointer"
-                      aria-label={`Quitar ${a.nombre}`}
-                      title="Quitar del pendiente"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <IconButton icono={Trash2} etiqueta={`Quitar ${a.nombre}`} tono="peligro" disabled={quitar.isPending} onClick={async () => {
+                        if (await confirmar({ titulo: `¿Quitar "${a.nombre}" del pendiente?`, mensaje: `El archivo se queda en OneDrive.`, confirmar: 'Quitar', peligro: true })) quitar.mutate(a);
+                      }} />
                   )}
                 </div>
               </div>

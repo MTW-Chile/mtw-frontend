@@ -10,9 +10,11 @@ import { useUrlParam, actualizarParams } from '../../lib/navigation';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilters';
 import { ColumnFilterHeader } from '../../components/ui/ColumnFilterHeader';
-import { PAGE_CONTAINER_CLASS, BREAKPOINT_DESKTOP, TABLE_CLASS, TABLE_WRAPPER_CLASS } from '../../lib/designSystem';
+import { PAGE_CONTAINER_CLASS, BREAKPOINT_DESKTOP } from '../../lib/designSystem';
 import type { Proyecto } from '../../types';
 import { HeaderSeccion } from '../../components/layout/HeaderSeccion';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
+import { BotonFila } from '../../components/ui/Lista';
 
 
 // Barra de avance compacta para la columna Fases (antes un texto largo
@@ -120,77 +122,75 @@ export const ProyectosPage: React.FC = () => {
         </div>
       ) : isDesktop ? (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-          <div className={TABLE_WRAPPER_CLASS}>
-            <table className={TABLE_CLASS}>
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
-                  <th className="px-4 py-3 font-bold">Obra</th>
-                  <th className="px-4 py-3 font-bold">Cliente</th>
-                  <th className="px-4 py-3 font-bold text-right">Presupuesto</th>
-                  <th className="px-4 py-3 font-bold text-right">Comprometido en OC</th>
-                  <th className="px-4 py-3 font-bold">Fases en producción</th>
-                  <th className="px-4 py-3 font-bold">OneDrive</th>
-                  <th className="px-4 py-3 font-bold w-10"></th>
-                </tr>
-                <tr className="border-b border-slate-100 bg-white">
-                  <th className="px-4 py-2">
-                    <ColumnFilterHeader columna={columnas[0]} valor={valores.obra || ''} onChange={(v) => setValor('obra', v)} />
-                  </th>
-                  <th className="px-4 py-2">
-                    <ColumnFilterHeader columna={columnas[1]} valor={valores.cliente || ''} onChange={(v) => setValor('cliente', v)} />
-                  </th>
-                  <th className="px-4 py-2" colSpan={5} />
-                </tr>
-              </thead>
-              <tbody>
-                {filtrados.map((p) => (
-                  <tr
-                    key={p.id}
-                    onClick={() => abrir(p)}
-                    className="border-b border-slate-50 hover:bg-slate-50/70 transition-colors cursor-pointer"
-                  >
-                    <td className="px-4 py-3 min-w-[15rem]">
-                      <div className="text-xs font-bold text-slate-900 line-clamp-2 leading-snug" title={p.obra}>
-                        {p.obra}
-                      </div>
-                      <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono font-semibold">
-                        {p.codigoInterno || `PRJ-${p.numeroPresupuesto}`}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-600 min-w-[10rem] max-w-[16rem]" title={p.clienteNombreRaw}>
-                      <div className="line-clamp-2 leading-snug">{p.clienteNombreRaw}</div>
-                    </td>
-                    <td className="px-4 py-3 text-right text-xs font-mono text-slate-700 whitespace-nowrap">
-                      {p.versiones[0]?.importeTotal != null
-                        ? formatoMonto(p.versiones[0].importeTotal, p.versiones[0].monedaSimbolo)
-                        : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right text-xs font-mono text-slate-700 whitespace-nowrap">
-                      {p.montoComprometidoOC ? formatoMonto(p.montoComprometidoOC, '$') : '—'}
-                      {!!p.otrasMonedasOC?.length && (
-                        <span className="block text-[10px] text-slate-400 font-normal">+ {p.otrasMonedasOC.join(', ')}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-[11px] text-slate-500 whitespace-nowrap" title={filaFases(p)}>
-                      <AvanceFases resumen={p.fasesResumen} />
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <CarpetaObraBoton proyecto={p} />
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <ChevronRight className="w-4 h-4 text-slate-300 inline-block" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Tabla>
+            <Thead>
+              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                <Th className="font-bold">Obra</Th>
+                <Th className="font-bold">Cliente</Th>
+                <Th alinear="derecha" className="font-bold">Presupuesto</Th>
+                <Th alinear="derecha" className="font-bold">Comprometido en OC</Th>
+                <Th className="font-bold">Fases en producción</Th>
+                <Th className="font-bold">OneDrive</Th>
+                <Th className="font-bold w-10"></Th>
+              </Tr>
+              <Tr className="border-b border-slate-100 bg-white">
+                <Th>
+                  <ColumnFilterHeader columna={columnas[0]} valor={valores.obra || ''} onChange={(v) => setValor('obra', v)} />
+                </Th>
+                <Th>
+                  <ColumnFilterHeader columna={columnas[1]} valor={valores.cliente || ''} onChange={(v) => setValor('cliente', v)} />
+                </Th>
+                <Th colSpan={5} />
+              </Tr>
+            </Thead>
+            <Tbody>
+              {filtrados.map((p) => (
+                <Tr
+                  key={p.id}
+                  onClick={() => abrir(p)}
+                  className="border-b border-slate-50 hover:bg-slate-50/70 transition-colors cursor-pointer"
+                >
+                  <Td className="min-w-[15rem]">
+                    <div className="text-xs font-bold text-slate-900 line-clamp-2 leading-snug" title={p.obra}>
+                      {p.obra}
+                    </div>
+                    <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono font-semibold">
+                      {p.codigoInterno || `PRJ-${p.numeroPresupuesto}`}
+                    </span>
+                  </Td>
+                  <Td className="text-xs text-slate-600 min-w-[10rem] max-w-[16rem]" title={p.clienteNombreRaw}>
+                    <div className="line-clamp-2 leading-snug">{p.clienteNombreRaw}</div>
+                  </Td>
+                  <Td alinear="derecha" className="text-xs font-mono text-slate-700 whitespace-nowrap">
+                    {p.versiones[0]?.importeTotal != null
+                      ? formatoMonto(p.versiones[0].importeTotal, p.versiones[0].monedaSimbolo)
+                      : '—'}
+                  </Td>
+                  <Td alinear="derecha" className="text-xs font-mono text-slate-700 whitespace-nowrap">
+                    {p.montoComprometidoOC ? formatoMonto(p.montoComprometidoOC, '$') : '—'}
+                    {!!p.otrasMonedasOC?.length && (
+                      <span className="block text-[10px] text-slate-400 font-normal">+ {p.otrasMonedasOC.join(', ')}</span>
+                    )}
+                  </Td>
+                  <Td className="text-[11px] text-slate-500 whitespace-nowrap" title={filaFases(p)}>
+                    <AvanceFases resumen={p.fasesResumen} />
+                  </Td>
+                  <Td className="whitespace-nowrap">
+                    <CarpetaObraBoton proyecto={p} />
+                  </Td>
+                  <Td alinear="derecha">
+                    <ChevronRight className="w-4 h-4 text-slate-300 inline-block" />
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Tabla>
         </div>
       ) : (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm divide-y divide-slate-50">
           {filtrados.map((p) => (
             <div key={p.id} className="px-5 py-4 space-y-2 hover:bg-slate-50/70 transition-colors">
-            <button onClick={() => abrir(p)} className="w-full flex items-center justify-between gap-3 text-left cursor-pointer">
+            <BotonFila sinRelleno onClick={() => abrir(p)} className="flex items-center justify-between gap-3">
               <div className="min-w-0 space-y-1">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-slate-900 truncate">{p.obra}</h3>
@@ -208,7 +208,7 @@ export const ProyectosPage: React.FC = () => {
                 <p className="text-[11px] text-slate-400">{filaFases(p)}</p>
               </div>
               <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
-            </button>
+            </BotonFila>
             <CarpetaObraBoton proyecto={p} />
             </div>
           ))}

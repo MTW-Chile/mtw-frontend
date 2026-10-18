@@ -12,14 +12,15 @@ export const CAMPO_COMPACTO =
   'text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-brand-600 bg-white disabled:bg-slate-50 disabled:text-slate-500';
 
 /** Envoltorio de un campo: etiqueta, control, ayuda y error. */
-export const Campo: React.FC<{ label?: React.ReactNode; htmlFor?: string; helperText?: React.ReactNode; error?: string; children: React.ReactNode }> = ({
+export const Campo: React.FC<{ label?: React.ReactNode; htmlFor?: string; helperText?: React.ReactNode; error?: string; className?: string; children: React.ReactNode }> = ({
   label,
   htmlFor,
   helperText,
   error,
+  className = 'w-full',
   children,
 }) => (
-  <div className="space-y-1.5 w-full">
+  <div className={`space-y-1.5 ${className}`}>
     {label && (
       <label htmlFor={htmlFor} className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
         {label}

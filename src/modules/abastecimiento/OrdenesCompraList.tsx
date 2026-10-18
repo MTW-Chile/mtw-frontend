@@ -12,8 +12,12 @@ import { buildOrdenCompraHtml } from './ordenCompraPdf';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilters';
 import { ColumnFilterHeader } from '../../components/ui/ColumnFilterHeader';
-import { BREAKPOINT_DESKTOP, TABLE_CLASS, TABLE_WRAPPER_CLASS, STICKY_ACTIONS_CLASS } from '../../lib/designSystem';
+import { BREAKPOINT_DESKTOP, STICKY_ACTIONS_CLASS } from '../../lib/designSystem';
 import { usePermisos } from '../../lib/permisos';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
+import { mostrarToast } from '../../lib/toast';
+import { useConfirmar } from '../../components/ui/Confirmar';
+import { FiltroChips } from '../../components/ui/FiltroChips';
 
 export const ESTADO_OC_LABEL: Record<EstadoOC, string> = {
   BORRADOR: 'Borrador',
@@ -63,65 +67,63 @@ export const DetalleItemsOC: React.FC<{ oc: OrdenCompra; mostrarConciliacion?: b
     {oc.items.length === 0 ? (
       <p className="text-[11px] text-slate-400">Esta OC no tiene items.</p>
     ) : (
-      <div className="overflow-x-auto">
-      <table className="w-full text-[11px]">
-        <thead>
-          <tr className="text-left text-slate-400 uppercase tracking-wider">
-            <th className="pb-1.5 font-bold">Item</th>
-            <th className="pb-1.5 font-bold">Categoría</th>
-            <th className="pb-1.5 font-bold text-right">Cantidad</th>
-            <th className="pb-1.5 font-bold text-right">Precio unit.</th>
-            <th className="pb-1.5 font-bold text-right">Subtotal</th>
-            {mostrarConciliacion && <th className="pb-1.5 font-bold text-right">Conciliación</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {oc.items.map((item) => {
-            const pendienteConciliar = mostrarConciliacion ? pendienteConciliarItem(item) : 0;
-            const pendienteRecepcionar = mostrarConciliacion ? pendienteRecepcionarItem(item) : 0;
-            return (
-              <tr key={item.id} className="border-t border-slate-100/80">
-                <td className="py-1.5 pr-2 text-slate-700">
-                  <span className="flex items-center gap-1.5">
-                    {item.materialId && <Package className="w-3 h-3 text-sky-500 shrink-0" />}
-                    {item.descripcion}
-                  </span>
-                </td>
-                <td className="py-1.5 pr-2 text-slate-500">{item.partida?.nombre ?? '—'}</td>
-                <td className="py-1.5 text-right font-mono text-slate-700">
-                  {Number(item.cantidad).toLocaleString('es-CL', { maximumFractionDigits: 2 })} {item.unidadMedida}
-                </td>
-                <td className="py-1.5 text-right font-mono text-slate-700">{formatoMoneda(Number(item.precioUnitario), oc.moneda)}</td>
-                <td className="py-1.5 text-right font-mono font-semibold text-slate-900">
-                  {formatoMoneda(Number(item.cantidad) * Number(item.precioUnitario), oc.moneda)}
-                </td>
-                {mostrarConciliacion && (
-                  <td className="py-1.5 text-right">
-                    {pendienteConciliar <= 0 ? (
-                      <Badge variant="success" size="sm">
-                        Conciliado
+      <Tabla>
+      <Thead>
+        <Tr className="text-left text-slate-400 uppercase tracking-wider">
+          <Th className="pb-1.5 font-bold">Item</Th>
+          <Th className="pb-1.5 font-bold">Categoría</Th>
+          <Th alinear="derecha" className="pb-1.5 font-bold">Cantidad</Th>
+          <Th alinear="derecha" className="pb-1.5 font-bold">Precio unit.</Th>
+          <Th alinear="derecha" className="pb-1.5 font-bold">Subtotal</Th>
+          {mostrarConciliacion && <Th alinear="derecha" className="pb-1.5 font-bold">Conciliación</Th>}
+        </Tr>
+      </Thead>
+      <Tbody>
+        {oc.items.map((item) => {
+          const pendienteConciliar = mostrarConciliacion ? pendienteConciliarItem(item) : 0;
+          const pendienteRecepcionar = mostrarConciliacion ? pendienteRecepcionarItem(item) : 0;
+          return (
+            <Tr key={item.id} className="border-t border-slate-100/80">
+              <Td className="pr-2 text-slate-700">
+                <span className="flex items-center gap-1.5">
+                  {item.materialId && <Package className="w-3 h-3 text-sky-500 shrink-0" />}
+                  {item.descripcion}
+                </span>
+              </Td>
+              <Td className="pr-2 text-slate-500">{item.partida?.nombre ?? '—'}</Td>
+              <Td alinear="derecha" className="font-mono text-slate-700">
+                {Number(item.cantidad).toLocaleString('es-CL', { maximumFractionDigits: 2 })} {item.unidadMedida}
+              </Td>
+              <Td alinear="derecha" className="font-mono text-slate-700">{formatoMoneda(Number(item.precioUnitario), oc.moneda)}</Td>
+              <Td alinear="derecha" className="font-mono font-semibold text-slate-900">
+                {formatoMoneda(Number(item.cantidad) * Number(item.precioUnitario), oc.moneda)}
+              </Td>
+              {mostrarConciliacion && (
+                <Td alinear="derecha">
+                  {pendienteConciliar <= 0 ? (
+                    <Badge variant="success" size="sm">
+                      Conciliado
+                    </Badge>
+                  ) : (
+                    <div className="flex flex-col items-end gap-0.5">
+                      <Badge variant={pendienteConciliar < Number(item.cantidad) ? 'warning' : 'subtle'} size="sm">
+                        {pendienteConciliar < Number(item.cantidad) ? 'Parcial' : 'Pendiente'} ·{' '}
+                        {pendienteConciliar.toLocaleString('es-CL', { maximumFractionDigits: 2 })} {item.unidadMedida}
                       </Badge>
-                    ) : (
-                      <div className="flex flex-col items-end gap-0.5">
-                        <Badge variant={pendienteConciliar < Number(item.cantidad) ? 'warning' : 'subtle'} size="sm">
-                          {pendienteConciliar < Number(item.cantidad) ? 'Parcial' : 'Pendiente'} ·{' '}
-                          {pendienteConciliar.toLocaleString('es-CL', { maximumFractionDigits: 2 })} {item.unidadMedida}
-                        </Badge>
-                        {pendienteRecepcionar > 0 && (
-                          <span className="text-[10px] text-slate-400">
-                            También pendiente de recepcionar ({pendienteRecepcionar.toLocaleString('es-CL', { maximumFractionDigits: 2 })})
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </td>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      </div>
+                      {pendienteRecepcionar > 0 && (
+                        <span className="text-[10px] text-slate-400">
+                          También pendiente de recepcionar ({pendienteRecepcionar.toLocaleString('es-CL', { maximumFractionDigits: 2 })})
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </Td>
+              )}
+            </Tr>
+          );
+        })}
+      </Tbody>
+    </Tabla>
     )}
   </>
 );
@@ -135,6 +137,7 @@ interface OrdenesCompraListProps {
 }
 
 export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId, proyectoLabel }) => {
+  const { confirmar } = useConfirmar();
   // Aprobar y enviar una OC es trabajo centralizado del módulo Compras --
   // desde la ficha de un proyecto puntual (proyectoId fijo) solo se puede
   // crear/ver/cancelar, no resolver la aprobación ni mandarla al
@@ -183,7 +186,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error: any) {
-      window.alert(`No se pudo generar el PDF: ${error?.message || error}`);
+      mostrarToast(`No se pudo generar el PDF: ${error?.message || error}`);
     } finally {
       setGenerandoPdfId(null);
     }
@@ -226,7 +229,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
       queryClient.invalidateQueries({ queryKey: ['misAprobacionesPendientes'] });
     },
     onError: (error: any) => {
-      window.alert(error?.response?.data?.error || 'No se pudo eliminar la OC.');
+      mostrarToast(error?.response?.data?.error || 'No se pudo eliminar la OC.');
     },
   });
 
@@ -336,8 +339,8 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
           aria-label="Revertir envío"
           leftIcon={<Undo2 className="w-3.5 h-3.5" />}
           isLoading={transicion.isPending && transicion.variables?.id === oc.id}
-          onClick={() => {
-            if (window.confirm(`¿Revertir el envío de la OC ${oc.numero}? Vuelve a Borrador para poder editarla y reenviarla.`)) {
+          onClick={async () => {
+            if (await confirmar({ titulo: `¿Revertir el envío de la OC ${oc.numero}?`, mensaje: `Vuelve a Borrador para poder editarla y reenviarla.`, confirmar: 'Revertir', peligro: true })) {
               transicion.mutate({ id: oc.id, estado: 'BORRADOR' });
             }
           }}
@@ -367,8 +370,8 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
           aria-label="Eliminar OC"
           leftIcon={<Trash2 className="w-3.5 h-3.5" />}
           isLoading={eliminarMutation.isPending && eliminarMutation.variables?.id === oc.id}
-          onClick={() => {
-            if (window.confirm(`¿Eliminar definitivamente la OC ${oc.numero}? Esta acción no se puede deshacer y libera su número.`)) {
+          onClick={async () => {
+            if (await confirmar({ titulo: `¿Eliminar definitivamente la OC ${oc.numero}?`, mensaje: `Esta acción no se puede deshacer y libera su número.`, confirmar: 'Eliminar', peligro: true })) {
               eliminarMutation.mutate({ id: oc.id });
             }
           }}
@@ -414,26 +417,13 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => setFiltroEstado('')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-              filtroEstado === '' ? 'bg-brand-600/10 text-brand-600 border-brand-600/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            Todas
-          </button>
-          {(Object.keys(ESTADO_OC_LABEL) as EstadoOC[]).map((estado) => (
-            <button
-              key={estado}
-              onClick={() => setFiltroEstado(estado)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-                filtroEstado === estado ? 'bg-brand-600/10 text-brand-600 border-brand-600/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {ESTADO_OC_LABEL[estado]}
-            </button>
-          ))}
+        <div className="min-w-0 flex-1">
+          <FiltroChips
+            etiqueta="Filtrar por estado"
+            valor={filtroEstado}
+            onChange={setFiltroEstado}
+            opciones={[{ id: '' as const, label: 'Todas' }, ...(Object.keys(ESTADO_OC_LABEL) as EstadoOC[]).map((estado) => ({ id: estado, label: ESTADO_OC_LABEL[estado] }))]}
+          />
         </div>
         <Button leftIcon={<Plus className="w-4 h-4" />} onClick={() => setModalAbierto(true)}>
           {puedeEmitir ? 'Nueva OC' : 'Solicitar materiales'}
@@ -455,92 +445,90 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
         </div>
       ) : isDesktop ? (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-          <div className={TABLE_WRAPPER_CLASS}>
-            <table className={TABLE_CLASS}>
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
-                  <th className="px-4 py-3 font-bold">Número</th>
-                  {!proyectoId && <th className="px-4 py-3 font-bold">Obra</th>}
-                  <th className="px-4 py-3 font-bold">Proveedor</th>
-                  <th className="px-4 py-3 font-bold">Estado</th>
-                  <th className="px-4 py-3 font-bold text-right">Total</th>
-                  <th className="px-4 py-3 font-bold hidden 2xl:table-cell">Creada</th>
-                  <th className={`px-4 py-3 font-bold text-right ${STICKY_ACTIONS_CLASS} bg-slate-50`}>Acciones</th>
-                </tr>
-                <tr className="border-b border-slate-100 bg-white">
-                  {columnas.map((c) => (
-                    <th key={c.key} className="px-4 py-2">
-                      <ColumnFilterHeader columna={c} valor={valores[c.key] || ''} onChange={(v) => setValor(c.key, v)} />
-                    </th>
-                  ))}
-                  <th className="px-4 py-2" colSpan={colSpan - columnas.length} />
-                </tr>
-              </thead>
-              <tbody>
-                {ordenesFiltradas.map((oc) => (
-                  <React.Fragment key={oc.id}>
-                    <tr className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                      <td className="px-4 py-3">
-                        <button
-                          type="button"
-                          onClick={() => toggleExpandida(oc.id)}
-                          className="flex items-center gap-1.5 font-mono font-bold text-slate-900 hover:text-brand-600 transition-colors cursor-pointer whitespace-nowrap"
-                        >
-                          {expandidas.has(oc.id) ? (
-                            <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          ) : (
-                            <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          )}
-                          {oc.numero}
-                          {oc.naturaleza && oc.naturaleza !== 'PRESUPUESTO' && (
-                            <Badge size="sm" variant={oc.naturaleza === 'REPOSICION' ? 'warning' : 'violet'}>
-                              {ETIQUETA_NATURALEZA[oc.naturaleza]}
-                            </Badge>
-                          )}
-                        </button>
-                      </td>
-                      {!proyectoId && (
-                        <td className="px-4 py-3 text-slate-700 min-w-[8rem] max-w-[20rem]" title={oc.proyecto?.obra || oc.centroCosto?.nombre || ''}>
-                          <div className="line-clamp-2 leading-snug">{oc.proyecto?.obra || oc.centroCosto?.nombre || '—'}</div>
-                        </td>
-                      )}
-                      <td className="px-4 py-3 text-slate-700 min-w-[7rem] max-w-[16rem]" title={oc.proveedor?.nombre}>
-                        {oc.proveedor?.nombre ? <div className="line-clamp-2 leading-snug">{oc.proveedor.nombre}</div> : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold uppercase tracking-wide">
-                            Solicitud
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant={ESTADO_OC_VARIANT[oc.estado]} size="sm">
-                          {ESTADO_OC_LABEL[oc.estado]}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-right font-semibold text-slate-900 whitespace-nowrap">{formatoMoneda(totalOC(oc), oc.moneda)}</td>
-                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap hidden 2xl:table-cell">{new Date(oc.creadoEn).toLocaleDateString('es-CL')}</td>
-                      <td className={`px-4 py-3 w-px ${STICKY_ACTIONS_CLASS} bg-white`}>
-                        <AccionesOC oc={oc} compacto />
-                      </td>
-                    </tr>
-                    {expandidas.has(oc.id) && (
-                      <tr className="bg-slate-50/60 border-b border-slate-100">
-                        <td colSpan={colSpan} className="px-4 py-3">
-                          <DetalleItemsOC oc={oc} />
-                        </td>
-                      </tr>
-                    )}
-                    {rechazandoId === oc.id && (
-                      <tr className="bg-rose-50/50 border-b border-rose-100">
-                        <td colSpan={colSpan} className="px-4 py-3">
-                          <RechazoInline oc={oc} />
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
+          <Tabla>
+            <Thead>
+              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                <Th className="font-bold">Número</Th>
+                {!proyectoId && <Th className="font-bold">Obra</Th>}
+                <Th className="font-bold">Proveedor</Th>
+                <Th className="font-bold">Estado</Th>
+                <Th alinear="derecha" className="font-bold">Total</Th>
+                <Th className="font-bold hidden 2xl:table-cell">Creada</Th>
+                <Th className={`px-4 py-3 font-bold text-right ${STICKY_ACTIONS_CLASS} bg-slate-50`}>Acciones</Th>
+              </Tr>
+              <Tr className="border-b border-slate-100 bg-white">
+                {columnas.map((c) => (
+                  <Th key={c.key}>
+                    <ColumnFilterHeader columna={c} valor={valores[c.key] || ''} onChange={(v) => setValor(c.key, v)} />
+                  </Th>
                 ))}
-              </tbody>
-            </table>
-          </div>
+                <Th colSpan={colSpan - columnas.length} />
+              </Tr>
+            </Thead>
+            <Tbody>
+              {ordenesFiltradas.map((oc) => (
+                <React.Fragment key={oc.id}>
+                  <Tr className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                    <Td>
+                      <button
+                        type="button"
+                        onClick={() => toggleExpandida(oc.id)}
+                        className="flex items-center gap-1.5 font-mono font-bold text-slate-900 hover:text-brand-600 transition-colors cursor-pointer whitespace-nowrap"
+                      >
+                        {expandidas.has(oc.id) ? (
+                          <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        ) : (
+                          <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        )}
+                        {oc.numero}
+                        {oc.naturaleza && oc.naturaleza !== 'PRESUPUESTO' && (
+                          <Badge size="sm" variant={oc.naturaleza === 'REPOSICION' ? 'warning' : 'violet'}>
+                            {ETIQUETA_NATURALEZA[oc.naturaleza]}
+                          </Badge>
+                        )}
+                      </button>
+                    </Td>
+                    {!proyectoId && (
+                      <Td className="text-slate-700 min-w-[8rem] max-w-[20rem]" title={oc.proyecto?.obra || oc.centroCosto?.nombre || ''}>
+                        <div className="line-clamp-2 leading-snug">{oc.proyecto?.obra || oc.centroCosto?.nombre || '—'}</div>
+                      </Td>
+                    )}
+                    <Td className="text-slate-700 min-w-[7rem] max-w-[16rem]" title={oc.proveedor?.nombre}>
+                      {oc.proveedor?.nombre ? <div className="line-clamp-2 leading-snug">{oc.proveedor.nombre}</div> : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold uppercase tracking-wide">
+                          Solicitud
+                        </span>
+                      )}
+                    </Td>
+                    <Td>
+                      <Badge variant={ESTADO_OC_VARIANT[oc.estado]} size="sm">
+                        {ESTADO_OC_LABEL[oc.estado]}
+                      </Badge>
+                    </Td>
+                    <Td alinear="derecha" className="font-semibold text-slate-900 whitespace-nowrap">{formatoMoneda(totalOC(oc), oc.moneda)}</Td>
+                    <Td className="text-slate-500 whitespace-nowrap hidden 2xl:table-cell">{new Date(oc.creadoEn).toLocaleDateString('es-CL')}</Td>
+                    <Td className={`px-4 py-3 w-px ${STICKY_ACTIONS_CLASS} bg-white`}>
+                      <AccionesOC oc={oc} compacto />
+                    </Td>
+                  </Tr>
+                  {expandidas.has(oc.id) && (
+                    <Tr className="bg-slate-50/60 border-b border-slate-100">
+                      <Td colSpan={colSpan}>
+                        <DetalleItemsOC oc={oc} />
+                      </Td>
+                    </Tr>
+                  )}
+                  {rechazandoId === oc.id && (
+                    <Tr className="bg-rose-50/50 border-b border-rose-100">
+                      <Td colSpan={colSpan}>
+                        <RechazoInline oc={oc} />
+                      </Td>
+                    </Tr>
+                  )}
+                </React.Fragment>
+              ))}
+            </Tbody>
+          </Tabla>
         </div>
       ) : (
         <div className="space-y-3">

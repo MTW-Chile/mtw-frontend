@@ -11,6 +11,10 @@ import { CrearFaseDesdeCubicacionModal } from './CrearFaseDesdeCubicacionModal';
 import { AsignarModal, ArmarEdificioModal, CopiarPisoModal, DeptosModal, PisosModal, RenombrarTorreModal, TorreModal, UnidadEspecialModal } from './EstructuraModales';
 import { UnidadModal } from './UnidadModal';
 import { mensajeAsignacion, textoTorre } from './utils';
+import { useConfirmar } from '../../../components/ui/Confirmar';
+import { IconButton } from '../../../components/ui/IconButton';
+import { ActivadorEdicion } from '../../../components/ui/ActivadorEdicion';
+import { Buscador } from '../../../components/ui/Buscador';
 
 interface Props {
   proyectoId: string;
@@ -76,21 +80,10 @@ const TarjetaUnidad: React.FC<{
       <span className="text-xs font-black text-slate-800 font-mono">{nodo.nombre}</span>
       <div className="flex items-center gap-0.5">
         {tipoActivo && (
-          <button
-            type="button"
-            onClick={onAgregarUna}
-            className="px-1.5 py-0.5 rounded-md bg-brand-600 text-white text-[10px] font-bold cursor-pointer hover:bg-brand-700"
-            title={`Agregar una ${tipoActivo.codigo} a este departamento`}
-          >
-            + 1 {tipoActivo.codigo}
-          </button>
+          <Button size="sm" onClick={onAgregarUna} title={`Agregar una ${tipoActivo.codigo} a este departamento`}>+ 1 {tipoActivo.codigo}</Button>
         )}
-        <button type="button" onClick={onAbrirAsignar} className="p-1 text-slate-400 hover:text-brand-600 cursor-pointer" aria-label={`Agregar ventanas a ${nodo.nombre} (${textoTorre(torre)})`} title="Agregar ventanas…">
-          <Plus className="w-3.5 h-3.5" />
-        </button>
-        <button type="button" onClick={onQuitar} className="p-1 text-slate-300 hover:text-rose-600 cursor-pointer" aria-label={`Quitar ${nodo.nombre} (${textoTorre(torre)})`} title="Quitar">
-          <X className="w-3.5 h-3.5" />
-        </button>
+        <IconButton icono={Plus} etiqueta={`Agregar ventanas a ${nodo.nombre} (${textoTorre(torre)})`} tono="marca" onClick={onAbrirAsignar} />
+        <IconButton icono={X} etiqueta={`Quitar ${nodo.nombre} (${textoTorre(torre)})`} tono="peligro" onClick={onQuitar} />
       </div>
     </div>
     <div className="flex flex-wrap gap-1">
@@ -106,13 +99,11 @@ const TarjetaUnidad: React.FC<{
             v.rectificada ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-slate-200 bg-white text-slate-700'
           }`}
         >
-          <button type="button" onClick={() => onEditarVentana(v)} className="inline-flex items-baseline gap-1 cursor-pointer" aria-label={`Editar ${v.nomenclatura ?? v.codigo}`}>
+          <ActivadorEdicion onClick={() => onEditarVentana(v)} etiqueta={`Editar ${v.nomenclatura ?? v.codigo}`} className="items-baseline!">
             <b className="font-mono">{v.nomenclatura ?? v.codigo}</b>
-            {v.ubicacion && <span className="text-slate-500 max-w-[5.5rem] truncate">{v.ubicacion}</span>}
-          </button>
-          <button type="button" onClick={() => onQuitarVentana(v.id)} className="p-0.5 text-slate-300 hover:text-rose-600 cursor-pointer" aria-label={`Sacar ${v.nomenclatura ?? v.codigo}`} title="Sacar de esta unidad">
-            <X className="w-3 h-3" />
-          </button>
+            {v.ubicacion && <span className="text-slate-500 max-w-[5.5rem] truncate ml-1">{v.ubicacion}</span>}
+          </ActivadorEdicion>
+          <IconButton icono={X} etiqueta={`Sacar ${v.nomenclatura ?? v.codigo}`} tono="peligro" onClick={() => onQuitarVentana(v.id)} />
         </div>
       ))}
     </div>
@@ -123,6 +114,7 @@ const TarjetaUnidad: React.FC<{
 // del presupuesto. Escribe las mismas unidades que la planilla Excel (torre, piso, depto, ubicacion), asi que
 // la planilla, la lista de ventanas y el informe para HETMO salen identicos.
 export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipos, versionId }) => {
+  const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
   const [modal, setModal] = useState<ModalAbierto | null>(null);
   const [activo, setActivo] = useState<string | null>(null);
@@ -165,9 +157,9 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
     onError: aviso,
   });
 
-  const agregarUna = (destino: Destino, tipo: TipoCubicacion) => {
+  const agregarUna = async (destino: Destino, tipo: TipoCubicacion) => {
     const exceder = tipo.saldo <= 0;
-    if (exceder && !window.confirm(`Ya están ubicadas todas las ${tipo.codigo} contratadas (${tipo.cantidadContratada}). ¿Agregar una de más igualmente?`)) return;
+    if (exceder && !(await confirmar({ titulo: `¿Agregar una ${tipo.codigo} de más?`, mensaje: `Ya están ubicadas todas las contratadas (${tipo.cantidadContratada}).`, confirmar: 'Agregar' }))) return;
     asignarUna.mutate({ destino, tipo, exceder });
   };
 
@@ -189,8 +181,8 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
     if (dato.startsWith('ventana:')) quitar.mutate(dato.slice(8));
   };
 
-  const confirmarEliminar = (texto: string, p: Objetivo) => {
-    if (window.confirm(`${texto}\n\nSus ventanas no se borran: vuelven a "por ubicar".`)) eliminar.mutate(p);
+  const confirmarEliminar = async (texto: string, p: Objetivo) => {
+    if (await confirmar({ titulo: texto, mensaje: 'Sus ventanas no se borran: vuelven a "por ubicar".', confirmar: 'Eliminar', peligro: true })) eliminar.mutate(p);
   };
 
   if (isLoading) {
@@ -253,7 +245,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
               {data.sinPosicion > 0 ? `${data.sinPosicion} ventanas` : 'todas ubicadas'}
             </Badge>
           </div>
-          <input value={buscar} onChange={(e) => setBuscar(e.target.value)} placeholder="Buscar V01, corredera…" aria-label="Buscar tipo de ventana" className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs" />
+          <Buscador compacto valor={buscar} onChange={setBuscar} placeholder="Buscar V01, corredera…" etiqueta="Buscar tipo de ventana" />
           <div className="max-h-[60vh] overflow-y-auto space-y-1.5 pr-0.5">
             {visibles.length === 0 && <p className="text-xs text-slate-400 py-3 text-center">No hay tipos.</p>}
             {visibles.map((t) => {
@@ -324,27 +316,11 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                       </span>
                     </div>
                     <div className="flex flex-wrap items-center gap-1 text-xs">
-                      <button type="button" onClick={() => setModal({ tipo: 'pisos', torreId: torre.id, nombreTorre: torre.nombre, sugerido: ultimo + 1 })} className="px-2 py-1 rounded-lg text-brand-700 hover:bg-brand-50 cursor-pointer">
-                        + Pisos
-                      </button>
-                      <button type="button" onClick={() => setModal({ tipo: 'deptos', torreId: torre.id, nombreTorre: torre.nombre })} className="px-2 py-1 rounded-lg text-brand-700 hover:bg-brand-50 cursor-pointer">
-                        + Deptos en todos los pisos
-                      </button>
-                      <button type="button" onClick={() => setModal({ tipo: 'especial', torreId: torre.id })} className="px-2 py-1 rounded-lg text-brand-700 hover:bg-brand-50 cursor-pointer">
-                        + Unidad especial
-                      </button>
-                      <button type="button" onClick={() => setModal({ tipo: 'renombrar', torreId: torre.id, nombreActual: torre.nombre })} className="p-1.5 text-slate-400 hover:text-brand-600 cursor-pointer" aria-label={`Cambiar nombre de ${textoTorre(torre.nombre)}`} title="Cambiar nombre">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => confirmarEliminar(`¿Quitar ${textoTorre(torre.nombre).toLowerCase()} con todos sus pisos y departamentos?`, { torreId: torre.id })}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 cursor-pointer"
-                        aria-label={`Quitar ${textoTorre(torre.nombre)}`}
-                        title="Quitar la torre"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <Button variant="ghost" size="sm" onClick={() => setModal({ tipo: 'pisos', torreId: torre.id, nombreTorre: torre.nombre, sugerido: ultimo + 1 })}>+ Pisos</Button>
+                      <Button variant="ghost" size="sm" onClick={() => setModal({ tipo: 'deptos', torreId: torre.id, nombreTorre: torre.nombre })}>+ Deptos en todos los pisos</Button>
+                      <Button variant="ghost" size="sm" onClick={() => setModal({ tipo: 'especial', torreId: torre.id })}>+ Unidad especial</Button>
+                      <IconButton icono={Pencil} etiqueta={`Cambiar nombre de ${textoTorre(torre.nombre)}`} tono="marca" onClick={() => setModal({ tipo: 'renombrar', torreId: torre.id, nombreActual: torre.nombre })} />
+                      <IconButton icono={Trash2} etiqueta={`Quitar ${textoTorre(torre.nombre)}`} tono="peligro" onClick={() => confirmarEliminar(`¿Quitar ${textoTorre(torre.nombre).toLowerCase()} con todos sus pisos y departamentos?`, { torreId: torre.id })} />
                     </div>
                   </header>
 
@@ -379,27 +355,11 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                           <div className="sm:w-28 shrink-0">
                             <p className="text-sm font-black text-slate-800">Piso {piso.numero}</p>
                             <div className="flex flex-wrap gap-x-2 text-[11px]">
-                              <button type="button" onClick={() => setModal({ tipo: 'deptos', torreId: torre.id, nombreTorre: torre.nombre, pisoNumero: piso.numero })} className="text-brand-700 hover:underline cursor-pointer">
-                                + depto
-                              </button>
+                              <Button variant="link" size="sm" onClick={() => setModal({ tipo: 'deptos', torreId: torre.id, nombreTorre: torre.nombre, pisoNumero: piso.numero })}>+ depto</Button>
                               {piso.deptos.length > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => setModal({ tipo: 'copiar', torre, pisoNumero: piso.numero })}
-                                  className="inline-flex items-center gap-0.5 text-brand-700 hover:underline cursor-pointer"
-                                  title="Copiar este piso a otros"
-                                >
-                                  <Copy className="w-3 h-3" /> copiar
-                                </button>
+                                <Button variant="link" size="sm" leftIcon={<Copy className="w-3.5 h-3.5" />} onClick={() => setModal({ tipo: 'copiar', torre, pisoNumero: piso.numero })} title="Copiar este piso a otros">copiar</Button>
                               )}
-                              <button
-                                type="button"
-                                onClick={() => confirmarEliminar(`¿Quitar el piso ${piso.numero} de la ${textoTorre(torre.nombre).toLowerCase()}?`, { torreId: torre.id, pisoId: piso.id })}
-                                className="text-slate-400 hover:text-rose-600 cursor-pointer"
-                                aria-label={`Quitar el piso ${piso.numero} (${textoTorre(torre.nombre)})`}
-                              >
-                                quitar
-                              </button>
+                              <Button variant="ghost" size="sm" onClick={() => confirmarEliminar(`¿Quitar el piso ${piso.numero} de la ${textoTorre(torre.nombre).toLowerCase()}?`, { torreId: torre.id, pisoId: piso.id })} aria-label={`Quitar el piso ${piso.numero} (${textoTorre(torre.nombre)})`} className="text-rose-600! hover:bg-rose-50!">quitar</Button>
                             </div>
                           </div>
 
