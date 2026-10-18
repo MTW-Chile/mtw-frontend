@@ -3,7 +3,6 @@ import { actualizarParams } from '../../lib/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Wallet, ShoppingCart, Warehouse, Factory, ClipboardList, Ruler, FolderOpen, FilePlus2 } from 'lucide-react';
 import { HeaderSlot } from '../../components/layout/HeaderSlot';
-import { Badge } from '../../components/ui/Badge';
 import { getProyectoById } from '../../api/client';
 import { OrdenesCompraList } from '../abastecimiento/OrdenesCompraList';
 import { BodegaProyectoTab } from '../abastecimiento/BodegaProyectoTab';
@@ -70,13 +69,10 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
 
   return (
     <div className="flex flex-col h-full">
-      {/* Código, cliente y centro de costo viven en el Header del sitio (portal), igual que Presupuestos. */}
+      {/* Cliente y centro de costo van en el Header del sitio (portal); el código va en las migas, junto al nombre. */}
       <HeaderSlot>
         {proyecto && (
           <>
-            <Badge size="sm" className="hidden sm:inline-flex font-mono font-bold text-slate-600" title="Código de la obra">
-              {proyecto.codigoInterno || `PRJ-${proyecto.numeroPresupuesto}`}
-            </Badge>
             {proyecto.clienteNombreRaw && proyecto.clienteNombreRaw.trim().toLowerCase() !== proyecto.obra.trim().toLowerCase() && (
               <span className="hidden @3xl:inline text-xs text-slate-500 truncate max-w-[220px]" title="Cliente">
                 {proyecto.clienteNombreRaw}

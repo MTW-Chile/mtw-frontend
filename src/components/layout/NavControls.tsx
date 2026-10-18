@@ -67,7 +67,7 @@ export const MigasDePan: React.FC<{ seccion: string; titulo: string }> = ({ secc
 
   const migas: Miga[] = [
     { label: titulo, alHacerClic: () => navegar(`/${seccion}`) },
-    ...(proyectoId ? [{ label: proyecto?.obra || 'Cargando…' }] : []),
+    ...(proyectoId ? [{ label: proyecto?.obra || 'Cargando…', codigo: proyecto ? proyecto.codigoInterno || `PRJ-${proyecto.numeroPresupuesto}` : undefined }] : []),
     ...extra,
   ];
 
@@ -86,6 +86,11 @@ export const MigasDePan: React.FC<{ seccion: string; titulo: string }> = ({ secc
               <button onClick={m.alHacerClic} className="font-semibold text-slate-500 hover:text-brand-700 transition-colors cursor-pointer truncate max-w-[16rem]" title={m.label}>
                 {m.label}
               </button>
+            )}
+            {m.codigo && (
+              <span className="hidden sm:inline-flex shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 font-mono font-bold text-slate-600" title="Código">
+                {m.codigo}
+              </span>
             )}
           </React.Fragment>
         );

@@ -9,6 +9,8 @@ import { useEffect, useSyncExternalStore } from 'react';
 export interface Miga {
   label: string;
   alHacerClic?: () => void;
+  /** Código que va pegado al nombre (ej. el de la obra o presupuesto). */
+  codigo?: string;
 }
 
 let actuales: { id: number; nivel: number; migas: Miga[] }[] = [];
