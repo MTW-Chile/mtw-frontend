@@ -35,7 +35,7 @@ const ChipFiltro: React.FC<{ activo: boolean; label: string; onToggle: () => voi
   disabled,
 }) =>
   activo ? (
-    <span className="inline-flex items-center gap-1 pl-2.5 pr-1 py-0.5 rounded-full bg-brand-600/10 border border-brand-600/25 text-[11px] font-semibold text-[#B8391B]">
+    <span className="inline-flex items-center gap-1 pl-2.5 pr-1 py-0.5 rounded-full bg-brand-600/10 border border-brand-600/25 text-[11px] font-semibold text-brand-700">
       {label}
       <IconButton icono={XIcon} etiqueta="Quitar filtro" onClick={onToggle} disabled={disabled} />
     </span>

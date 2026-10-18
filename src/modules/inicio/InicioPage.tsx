@@ -125,7 +125,7 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
               {/* UF */}
               <div className="min-w-0 px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2">
                 <span className="text-[11px] font-bold text-slate-400 shrink-0">UF</span>
-                <span className="font-mono font-bold text-xs sm:text-sm text-[#00F2FE] whitespace-nowrap truncate">
+                <span className="font-mono font-bold text-xs sm:text-sm text-cyan-300 whitespace-nowrap truncate">
                   {indicadores ? `$${formatNumber(indicadores.uf, 2)}` : '—'}
                 </span>
               </div>

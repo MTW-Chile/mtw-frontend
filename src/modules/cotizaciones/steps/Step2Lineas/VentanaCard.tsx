@@ -91,7 +91,7 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({ ventana, onEditar, onD
       </header>
 
       {/* Dibujo técnico (o esquema propio para puertas Protex) */}
-      <div className="relative bg-[#f8fafc] p-4 flex flex-col items-center justify-center border-b border-slate-100 min-h-[180px]">
+      <div className="relative bg-slate-50 p-4 flex flex-col items-center justify-center border-b border-slate-100 min-h-[180px]">
         {esProtex ? (
           <div className="flex flex-col items-center gap-1.5">
             <div

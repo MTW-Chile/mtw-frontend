@@ -364,7 +364,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
               <div className="p-4 grid grid-cols-1 sm:grid-cols-[180px_1fr] gap-4 flex-1">
                 {/* Dibujo con sus medidas */}
                 <div className="space-y-2">
-                  <div className="w-full h-40 rounded-xl bg-[#f8fafc] border border-slate-100 flex items-center justify-center overflow-hidden p-2">
+                  <div className="w-full h-40 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden p-2">
                     {v.tipoLineaManual === 'PROTEX' ? (
                       <div
                         className="w-full h-full"
