@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, PanelLeftClose, PanelLeftOpen, ChevronDown } from 'lucide-react';
 import { MENU_LATERAL, SECCIONES_FRONTEND } from '../../lib/accessControl';
 
@@ -12,21 +12,21 @@ const leerFijado = () => {
     return true;
   }
 };
-// Grupos del menú que la persona dejó desplegados.
-const CLAVE_GRUPOS = 'mtw-sidebar-grupos';
-const leerGrupos = (): string[] | null => {
+// Grupo del menú desplegado (uno a la vez, para que el menú no se alargue).
+const CLAVE_GRUPO = 'mtw-sidebar-grupo';
+const leerGrupo = (): string | null | undefined => {
   try {
-    const v = localStorage.getItem(CLAVE_GRUPOS);
-    return v ? (JSON.parse(v) as string[]) : null;
+    const v = localStorage.getItem(CLAVE_GRUPO);
+    return v === null ? undefined : v || null;
   } catch {
-    return null;
+    return undefined;
   }
 };
-const guardarGrupos = (ids: string[]) => {
+const guardarGrupo = (id: string | null) => {
   try {
-    localStorage.setItem(CLAVE_GRUPOS, JSON.stringify(ids));
+    localStorage.setItem(CLAVE_GRUPO, id ?? '');
   } catch {
-    // Sin storage: los grupos se despliegan igual, sin recordarlo.
+    // Sin storage: el grupo se despliega igual, sin recordarlo.
   }
 };
 const guardarFijado = (valor: boolean) => {
@@ -77,16 +77,26 @@ export const Sidebar: React.FC<{
   }));
   const item = (id: string) => menuItems.find((m) => m.id === id);
 
-  // Grupos desplegados: los que la persona dejó abiertos; la primera vez, el de la sección activa.
-  const [abiertos, setAbiertos] = useState<string[]>(
-    () => leerGrupos() ?? MENU_LATERAL.filter((e) => e.tipo === 'grupo' && e.secciones.includes(activeTab)).map((e) => e.id)
-  );
-  const alternarGrupo = (id: string) =>
-    setAbiertos((prev) => {
-      const siguiente = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-      guardarGrupos(siguiente);
-      return siguiente;
-    });
+  // Un solo grupo desplegado: abrir uno cierra el otro. Por defecto, el de la sección activa.
+  const grupoDeActiva = MENU_LATERAL.find((e) => e.tipo === 'grupo' && e.secciones.includes(activeTab))?.id ?? null;
+  const [abierto, setAbierto] = useState<string | null>(() => {
+    const guardado = leerGrupo();
+    return guardado === undefined ? grupoDeActiva : guardado;
+  });
+  // Al llegar a una sección de otro grupo (ej. un enlace), se despliega ese grupo.
+  useEffect(() => {
+    if (grupoDeActiva && abierto !== grupoDeActiva && !MENU_LATERAL.some((e) => e.tipo === 'grupo' && e.id === abierto && e.secciones.includes(activeTab))) {
+      setAbierto(grupoDeActiva);
+      guardarGrupo(grupoDeActiva);
+    }
+    // Solo cuando cambia la sección activa.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+  const alternarGrupo = (id: string) => {
+    const siguiente = abierto === id ? null : id;
+    setAbierto(siguiente);
+    guardarGrupo(siguiente);
+  };
 
   // Botón de una sección del Sidebar (usado por el menú principal y por el pie).
   const renderItem = (item: (typeof menuItems)[number], anidado = false, clave: string = item.id) => {
@@ -155,7 +165,7 @@ export const Sidebar: React.FC<{
           isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
         } ${expandido ? 'md:w-64' : 'md:w-16 md:px-2.5'}`}
       >
-        <div className="space-y-6 min-w-0">
+        <div className="flex flex-col gap-6 min-w-0 min-h-0 flex-1">
           {/* Marca pequeña (sin texto ni versión) y botón para contraer / expandir */}
           <div
             className={`flex items-center justify-between gap-2 px-1.5 pb-4 border-b border-white/8 ${
@@ -200,8 +210,8 @@ export const Sidebar: React.FC<{
             </button>
           </div>
 
-          {/* Navegación */}
-          <div className="space-y-1.5">
+          {/* Navegación: si no cabe (pantalla baja, móvil), hace scroll sin mover la marca ni Configuración. */}
+          <div className="space-y-1.5 min-h-0 flex-1 overflow-y-auto overscroll-contain -mx-1 px-1 [scrollbar-width:thin]">
             <div className={`text-[10px] font-bold uppercase tracking-[0.14em] px-3 py-1 text-slate-500 ${ocultarEnRiel}`}>
               Menú Principal
             </div>
@@ -214,7 +224,6 @@ export const Sidebar: React.FC<{
                 const hijos = entrada.secciones.map(item).filter((x): x is NonNullable<typeof x> => !!x);
                 if (hijos.length === 0) return null;
                 const GrupoIcon = entrada.icon;
-                const abierto = abiertos.includes(entrada.id);
                 const contieneActiva = hijos.some((h) => h.id === activeTab);
                 return (
                   <div key={entrada.id} className="space-y-1">
@@ -222,18 +231,18 @@ export const Sidebar: React.FC<{
                     <div className={`hidden ${expandido ? '' : 'md:block'} mx-2 my-2 border-t border-white/8`} />
                     <button
                       onClick={() => alternarGrupo(entrada.id)}
-                      aria-expanded={abierto}
+                      aria-expanded={abierto === entrada.id}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors cursor-pointer hover:bg-white/5 ${
-                        contieneActiva && !abierto ? 'text-white' : 'text-slate-400 hover:text-white'
+                        contieneActiva && abierto !== entrada.id ? 'text-white' : 'text-slate-400 hover:text-white'
                       } ${expandido ? '' : 'md:hidden'}`}
                     >
                       <span className="flex items-center gap-3 min-w-0">
                         <GrupoIcon className={`w-4 h-4 shrink-0 ${contieneActiva ? 'text-brand-300' : 'text-slate-500'}`} />
                         <span className="truncate">{entrada.titulo}</span>
                       </span>
-                      <ChevronDown className={`w-3.5 h-3.5 shrink-0 text-slate-500 transition-transform ${abierto ? 'rotate-180' : ''}`} />
+                      <ChevronDown className={`w-3.5 h-3.5 shrink-0 text-slate-500 transition-transform ${abierto === entrada.id ? 'rotate-180' : ''}`} />
                     </button>
-                    <div className={`space-y-1 ${abierto ? '' : 'hidden'} ${expandido ? '' : 'md:block'}`}>
+                    <div className={`space-y-1 ${abierto === entrada.id ? '' : 'hidden'} ${expandido ? '' : 'md:block'}`}>
                       {hijos.map((h) => renderItem(h, true, `${entrada.id}-${h.id}`))}
                     </div>
                   </div>
