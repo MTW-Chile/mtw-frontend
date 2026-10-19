@@ -807,6 +807,36 @@
     return { millimeters: height / 2, reason: 'center-default', reportedMillimeters: 0 };
   }
 
+  // Corredera cuya hoja fija declara HETMO en el despiece: la hoja que trae
+  // SUPLEMENTO FIJO (fila 40003) no se mueve y las otras se deslizan hacia
+  // ella; si alguna trae GUIA ADICIONAL (40004) hay un riel por hoja. La
+  // apertura sola no alcanza: las 109 correderas de 3 hojas de producción
+  // llegan como 36, y Car Wash V10 (móvil-fija-móvil, 2 rieles) y La Aurora
+  // V03B (móvil-móvil-fija, 3 rieles) son distintas. Las hojas se cuentan de
+  // izquierda a derecha por numero_hoja. Sin esas filas devuelve null.
+  export function slidingPiecesFromFixedLeaf(source, layout, realLeaves, totalWidth, base) {
+    const raw = geometryItemsOf(source.raw);
+    const hojasCon = tipo => new Set(raw.filter(item => number(item && item.tipo_elemento) === tipo).map(item => number(item.numero_hoja)).filter(n => n > 0));
+    const fijas = hojasCon(40003);
+    if (!fijas.size || fijas.size >= layout.length) return null;
+    const tresRieles = hojasCon(40004).size > 0;
+    const n = layout.length;
+    const posFijas = [...fijas].filter(h => h <= n);
+    if (!posFijas.length) return null;
+    const widths = realLeaves.length === n ? realLeaves.map(leaf => firstPositive(leaf.ancho, leaf.ancho_mm)) : null;
+    return layout.map((_, index) => {
+      const hoja = index + 1;
+      const width = widths ? widths[index] : totalWidth / n;
+      if (fijas.has(hoja)) return { ...base, kind: 'fijo', width, carril: tresRieles ? n : 2, carrilFuente: 'hetmo-suplemento-fijo' };
+      // Se desliza hacia la fija más cercana; con tres rieles, la vecina de la
+      // fija va en el riel del medio y la más lejana en el primero.
+      const fija = posFijas.reduce((a, b) => (Math.abs(b - hoja) < Math.abs(a - hoja) ? b : a));
+      const distancia = Math.abs(fija - hoja);
+      const carril = tresRieles ? Math.max(1, n - distancia) : 1;
+      return { ...base, kind: `${carril === 1 ? 'int' : 'ext'}:${fija > hoja ? 'right' : 'left'}`, width, carril, carrilFuente: 'hetmo-suplemento-fijo' };
+    });
+  }
+
   export function slidingPieces(source) {
     const layout = sliderLayouts[source.apertura];
     if (!layout) return null;
@@ -826,6 +856,8 @@
     const mobileWidth = firstPositive(source.movilAncho);
     const mobileSlot = number(source.movilLado);
     const base = { apertura: source.apertura, exacta: true };
+    const porSuplemento = slidingPiecesFromFixedLeaf(source, layout, realLeaves, totalWidth, base);
+    if (porSuplemento) return porSuplemento;
     if (mobileSlot >= 1 && mobileSlot <= layout.length && mobileWidth > 0) {
       const widths = realLeaves.length === layout.length
         ? realLeaves.map(leaf => firstPositive(leaf.ancho, leaf.ancho_mm))
