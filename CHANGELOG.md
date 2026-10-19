@@ -24,6 +24,9 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - Anuncio para todos los usuarios sobre el buscador de Inicio, en verde, amarillo o rojo según su urgencia (Configuración › Anuncio).
 - Configuración de Empresa (antes "Empresa"), con logo propio para los documentos.
 
+**Dibujo de ventanas**
+- Las ventanas compuestas se arman con las uniones que declara HETMO (qué paño va arriba, abajo, a la izquierda o a la derecha) en vez de adivinar por medidas: se leen bien las 318 que fallaban (2 paños lado a lado + uno de ancho completo, entre otras).
+
 **Agente HETMO**
 - Medidas de cada vidrio y código estable del proveedor (corrige el error de la consulta de materiales por línea).
 
