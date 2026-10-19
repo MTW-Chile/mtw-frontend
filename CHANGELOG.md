@@ -8,6 +8,13 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - **Versión menor** (2.0 → 2.1): un conjunto grande de funciones nuevas.
 - **Parche** (2.0.0 → 2.0.1): ajustes y mejoras acotadas, cada despliegue.
 
+## Alpha v2.0.3 — 2026-10-19
+
+**Dibujo de ventanas**
+- Cada ventana con su propio acabado (color), según sus perfiles: una obra con ventanas de dos colores ya no sale entera de uno.
+- Correderas de 3 hojas con la hoja fija y los rieles que declara HETMO en el despiece (requiere el agente HETMO nuevo y volver a sincronizar el presupuesto).
+- Limpieza del dibujador: fuera el armado de compuestas por medidas, la regla "la puerta siempre abajo" y el botón "Invertir orden" (las uniones de HETMO los reemplazan). Comprobado con las 7.826 ventanas de producción: ningún dibujo cambia.
+
 ## Alpha v2.0.2 — 2026-10-19
 
 **Dibujo de ventanas**

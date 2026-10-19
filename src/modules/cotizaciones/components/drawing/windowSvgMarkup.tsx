@@ -175,25 +175,6 @@ export function sashMarkup(
   );
 }
 
-export function fixedGlazingMarkup(
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  finish: FinishColors,
-  inset = 1.45
-): string {
-  const color = profileColors(finish);
-  const bx = x + inset;
-  const by = y + inset;
-  const bw = Math.max(1, width - inset * 2);
-  const bh = Math.max(1, height - inset * 2);
-  return `<g class="window-fixed-glazing" data-profile-layer="frame-glazing">`
-    + `<rect class="window-glazing-bead" x="${bx}" y="${by}" width="${bw}" height="${bh}" rx=".15" style="fill:none;stroke:${color.dark};stroke-width:.48;opacity:.68"/>`
-    + `<path d="M ${bx + 0.35} ${by + bh - 0.35} V ${by + 0.35} H ${bx + bw - 0.35}" style="${lineStyle(color.light, 0.35, 'opacity:.52')}"/>`
-    + `</g>`;
-}
-
 export function dividerMarkup(
   x: number,
   y1: number,

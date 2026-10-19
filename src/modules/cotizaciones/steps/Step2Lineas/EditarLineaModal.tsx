@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Maximize2, DoorClosed, Paintbrush, Boxes, Plus, Repeat, Trash2, FlipHorizontal2, FlipHorizontal, ArrowUpDown, Sliders, Rows3, Sparkles } from 'lucide-react';
+import { Maximize2, DoorClosed, Paintbrush, Boxes, Plus, Repeat, Trash2, FlipHorizontal2, FlipHorizontal, Sliders, Rows3, Sparkles } from 'lucide-react';
 import type { CorreccionTravesano, MaterialVentana, Ventana } from '../../../../types';
 import { formatNumber } from '../../../../lib/utils';
 import { WindowRendererSvg } from '../../components/drawing/WindowRendererSvg';
@@ -27,8 +27,6 @@ interface EditarLineaModalProps {
   isEspejando: boolean;
   onInvertirMano: (ventana: Ventana) => void;
   isInvirtiendoMano: boolean;
-  onInvertirOrden: (ventana: Ventana) => void;
-  isInvirtiendoOrden: boolean;
 }
 
 type EditMode = { type: 'add' } | { type: 'replace'; row: MaterialVentana } | null;
@@ -66,8 +64,6 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
   isEspejando,
   onInvertirMano,
   isInvirtiendoMano,
-  onInvertirOrden,
-  isInvirtiendoOrden,
 }) => {
   const { confirmar } = useConfirmar();
   const [editMode, setEditMode] = useState<EditMode>(null);
@@ -88,11 +84,6 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
   const esProtex = v.tipoLineaManual === 'PROTEX';
   const isFrameless = Boolean(wLine?.dibujoSinMarco);
   const isSliding = wLine ? core.isSlidingLine(wLine) : false;
-  const isComposite = useMemo(() => {
-    if (!wLine) return false;
-    const composite = core.compositePanels(wLine) as { tiles: unknown[] } | null;
-    return Boolean(composite && composite.tiles.length > 1);
-  }, [wLine]);
   // Solo si alguna apertura original de HETMO tiene código espejo (practicables,
   // puertas...); se mira la original, no la ya invertida, para poder volver atrás.
   const puedeInvertirMano = useMemo(() => {
@@ -290,11 +281,6 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
                 {puedeInvertirMano && (
                   <BotonAlternar activo={!!(v.correccionGeometria?.invertirMano)} onClick={() => onInvertirMano(v)} cargando={isInvirtiendoMano} icono={FlipHorizontal} title="Invertir la mano de la apertura (bisagras y manilla al lado contrario); no espeja el resto del dibujo">
                      {v.correccionGeometria?.invertirMano ? 'Mano invertida' : 'Invertir mano'}
-                   </BotonAlternar>
-                )}
-                {isComposite && (
-                  <BotonAlternar activo={!!(v.ordenPanelesInvertido)} onClick={() => onInvertirOrden(v)} cargando={isInvirtiendoOrden} icono={ArrowUpDown} title="Invertir qué paño va arriba y cuál abajo en el dibujo">
-                     {v.ordenPanelesInvertido ? 'Orden invertido' : 'Invertir orden'}
                    </BotonAlternar>
                 )}
               </div>

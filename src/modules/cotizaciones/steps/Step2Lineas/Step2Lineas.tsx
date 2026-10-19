@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Layers, FileDown, Loader2, Plus } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
-import { renderPdf, eliminarLineaManual, espejarVentana, invertirOrdenPanelesVentana } from '../../../../api/client';
+import { renderPdf, eliminarLineaManual, espejarVentana } from '../../../../api/client';
 import type { Proyecto, ProyectoVersion, Ventana } from '../../../../types';
 import { VentanaCard } from './VentanaCard';
 import { EditarLineaModal } from './EditarLineaModal';
@@ -35,7 +35,6 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
   const [showAgregarLinea, setShowAgregarLinea] = useState(false);
   const [eliminandoLineaId, setEliminandoLineaId] = useState<string | null>(null);
   const [espejandoLineaId, setEspejandoLineaId] = useState<string | null>(null);
-  const [invirtiendoOrdenLineaId, setInvirtiendoOrdenLineaId] = useState<string | null>(null);
   const [invirtiendoManoLineaId, setInvirtiendoManoLineaId] = useState<string | null>(null);
 
   const ventanas = useMemo<Ventana[]>(() => {
@@ -84,18 +83,6 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
       mostrarToast('No se pudo espejar la ventana. Intenta de nuevo.');
     } finally {
       setEspejandoLineaId(null);
-    }
-  };
-
-  const handleInvertirOrdenVentana = async (ventana: Ventana) => {
-    setInvirtiendoOrdenLineaId(ventana.id);
-    try {
-      const { data } = await invertirOrdenPanelesVentana(ventana.id);
-      handleVentanaMaterialesUpdated(data);
-    } catch (err) {
-      mostrarToast('No se pudo invertir el orden de la ventana. Intenta de nuevo.');
-    } finally {
-      setInvirtiendoOrdenLineaId(null);
     }
   };
 
@@ -303,8 +290,6 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
           isEspejando={espejandoLineaId === selectedVentanaForEdicion.id}
           onInvertirMano={handleInvertirManoVentana}
           isInvirtiendoMano={invirtiendoManoLineaId === selectedVentanaForEdicion.id}
-          onInvertirOrden={handleInvertirOrdenVentana}
-          isInvirtiendoOrden={invirtiendoOrdenLineaId === selectedVentanaForEdicion.id}
         />
       )}
 

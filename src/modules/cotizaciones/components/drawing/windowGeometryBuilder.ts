@@ -21,7 +21,6 @@ import {
   glassMarkup,
   frameMarkup,
   sashMarkup,
-  fixedGlazingMarkup,
   dividerMarkup,
   transomMarkup,
   glassSplitMarkup,
@@ -423,26 +422,6 @@ function buildCompositePanel(
             right.depth - left.depth || left.index - right.index
           )
           .map((item: { markup: string }) => item.markup)
-          .join('');
-      } else if (!panel.apertura && composite.verticalCuts?.length > 0 && composite.direction === 'vertical') {
-        let fixedX = px;
-        const cutWidths = [...composite.verticalCuts, composite.width].map(
-          (cut: number, cutIndex: number, values: number[]) =>
-            cut - (cutIndex ? values[cutIndex - 1] : 0)
-        );
-        const fixedTotal = cutWidths.reduce((sum: number, value: number) => sum + value, 0) || 1;
-        sash = '';
-        mark = cutWidths
-          .map((cutWidth: number, fixedIndex: number) => {
-            const fixedWidth = pw * cutWidth / fixedTotal;
-            const fixedSash = glassOnly ? '' : fixedGlazingMarkup(fixedX, py, fixedWidth, ph, finish);
-            const fixedIndicator = fixedMark(fixedX, py, fixedWidth, ph, '#2452d6');
-            const fixedDivider = fixedIndex < cutWidths.length - 1
-              ? dividerMarkup(fixedX + fixedWidth, py + 2, py + ph - 2, finish, 2.5)
-              : '';
-            fixedX += fixedWidth;
-            return `${fixedSash}${fixedIndicator}${fixedDivider}`;
-          })
           .join('');
       }
 

@@ -251,78 +251,23 @@ describe('normalizeGeometryItem — numero_ventana crudo tiene prioridad sobre p
   });
 });
 
-describe('compositePanels — una PUERTA siempre va abajo en su columna', () => {
-  // Confirmado con V05A (Franklin Sánchez, HETMO 12611, 1300x2600):
-  // HETMO define primero el paño de la puerta (numero_ventana=1) y
-  // después el fijo superior (numero_ventana=2) -- pero la puerta llega
-  // hasta el piso, así que tiene que dibujarse SIEMPRE abajo, sin importar
-  // en qué orden HETMO haya definido los paños (a diferencia de un
-  // 'hinged' -- ventana practicable, que no llega al piso y sí puede ir
-  // arriba de un fijo). El propio configurador de HETMO la muestra con el
-  // fijo arriba y la puerta abajo.
-  it('puerta definida ANTES que el fijo en numero_ventana queda igual abajo (tile.y mayor)', () => {
+// La puerta abajo y el orden de los paños los da HETMO con sus uniones (5100):
+// antes se adivinaba con "una puerta siempre va abajo" y un botón para
+// invertir el orden; con las uniones ninguna de las dos hace falta.
+describe('compositePanels — puerta con fijo encima, según la unión', () => {
+  it('el fijo unido arriba de la puerta (N1=0) queda arriba aunque HETMO defina primero la puerta', () => {
     const line = {
-      dibujoAncho: 1300,
-      dibujoAlto: 2600,
+      ancho: 900,
+      alto: 2700,
       geometria: [
-        { tipo_elemento: 10000, ancho: 1300, alto: 1880, parametrosJson: { numero_ventana: 1 } },
-        { tipo_elemento: 3, tipo_apertura: 17, parametrosJson: { numero_ventana: 1 } },
-        { tipo_elemento: 10000, ancho: 1300, alto: 720, parametrosJson: { numero_ventana: 2 } },
+        { tipo_elemento: 10000, numero_ventana: 1, ancho: 900, alto: 2200 },
+        { tipo_elemento: 3, numero_ventana: 1, tipo_apertura: 18 },
+        { tipo_elemento: 10000, numero_ventana: 2, ancho: 900, alto: 500 },
+        { tipo_elemento: 5100, numero_ventana: 0, unido_inicio: 1, unido_fin: 2, geometria_n1: 0 },
       ],
     };
-    const composite = core.compositePanels(line) as { tiles: { panel: { number: number }; y: number; height: number }[] } | null;
-    expect(composite).not.toBeNull();
-    const puerta = composite!.tiles.find(t => t.panel.number === 1)!;
-    const fijo = composite!.tiles.find(t => t.panel.number === 2)!;
-    expect(fijo.y).toBe(0);
-    expect(puerta.y).toBe(fijo.height);
-  });
-
-  // A diferencia de una puerta, una PROYECTANTE ('projecting', código 23)
-  // no llega al piso -- no hay una regla física que diga si un fijo va
-  // arriba o abajo de ella, así que no se puede forzar un orden fijo por
-  // familia (a diferencia de 'door'). Confirmado con V07A (Franklin
-  // Sánchez, HETMO 12629): salía con la proyectante arriba y el fijo
-  // abajo, al revés del plano real -- Ventana.ordenPanelesInvertido (botón
-  // "Invertir orden" en VentanaCard) es la corrección manual para este
-  // caso, sin tocar el orden por defecto de ninguna otra línea.
-  it('ordenPanelesInvertido invierte una proyectante+fijo sin tocar la regla de la puerta', () => {
-    const line = {
-      dibujoAncho: 1250,
-      dibujoAlto: 1800,
-      ordenPanelesInvertido: true,
-      geometria: [
-        { tipo_elemento: 10000, ancho: 1250, alto: 1400, parametrosJson: { numero_ventana: 1 } },
-        { tipo_elemento: 3, tipo_apertura: 23, parametrosJson: { numero_ventana: 1 } },
-        { tipo_elemento: 10000, ancho: 1250, alto: 400, parametrosJson: { numero_ventana: 2 } },
-      ],
-    };
-    const composite = core.compositePanels(line) as { tiles: { panel: { number: number }; y: number; height: number }[] } | null;
-    expect(composite).not.toBeNull();
-    const proyectante = composite!.tiles.find(t => t.panel.number === 1)!;
-    const fijo = composite!.tiles.find(t => t.panel.number === 2)!;
-    // Sin el flag, la proyectante (number=1) iría arriba (y=0) -- invertido,
-    // el fijo (number=2) pasa a estar arriba.
-    expect(fijo.y).toBe(0);
-    expect(proyectante.y).toBe(fijo.height);
-  });
-
-  it('ordenPanelesInvertido no saca a una puerta de abajo', () => {
-    const line = {
-      dibujoAncho: 1300,
-      dibujoAlto: 2600,
-      ordenPanelesInvertido: true,
-      geometria: [
-        { tipo_elemento: 10000, ancho: 1300, alto: 1880, parametrosJson: { numero_ventana: 1 } },
-        { tipo_elemento: 3, tipo_apertura: 17, parametrosJson: { numero_ventana: 1 } },
-        { tipo_elemento: 10000, ancho: 1300, alto: 720, parametrosJson: { numero_ventana: 2 } },
-      ],
-    };
-    const composite = core.compositePanels(line) as { tiles: { panel: { number: number }; y: number; height: number }[] } | null;
-    const puerta = composite!.tiles.find(t => t.panel.number === 1)!;
-    const fijo = composite!.tiles.find(t => t.panel.number === 2)!;
-    expect(fijo.y).toBe(0);
-    expect(puerta.y).toBe(fijo.height);
+    const tiles = core.compositePanels(line)!.tiles.map((t: any) => [t.panel.number, t.y]);
+    expect(tiles).toEqual([[1, 500], [2, 0]]);
   });
 });
 

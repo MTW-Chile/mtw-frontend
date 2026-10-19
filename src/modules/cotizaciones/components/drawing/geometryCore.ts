@@ -397,122 +397,32 @@
         tiles: porUniones.tiles,
         width: porUniones.width,
         height: porUniones.height,
-        direction: porUniones.width / Math.max(1, lineWidthU || porUniones.width) >= porUniones.height / Math.max(1, lineHeightU || porUniones.height) ? 'horizontal' : 'vertical',
-        verticalCuts: []
+        direction: porUniones.width / Math.max(1, lineWidthU || porUniones.width) >= porUniones.height / Math.max(1, lineHeightU || porUniones.height) ? 'horizontal' : 'vertical'
       };
     }
-    // La orientación se determina contra la medida total de la línea: un
-    // conjunto de N paños puede apilarse en horizontal o en vertical según
-    // cuál combinación efectivamente suma el ancho/alto declarado.
+    // Sin uniones -- no pasa con los datos de producción (2026-10-19: las
+    // 2.019 compuestas las traen); queda de respaldo simple: paños lado a lado
+    // en orden de numero_ventana si sus anchos suman el de la línea, o
+    // apilados si suman el alto. Si no calza, la línea se dibuja simple.
     const lineWidth = firstPositive(line && line.dibujoAncho, line && line.ancho);
     const lineHeight = firstPositive(line && line.dibujoAlto, line && line.alto);
-    const widthError = lineWidth ? Math.abs(panels.reduce((sum, panel) => sum + panel.width, 0) - lineWidth) : Number.POSITIVE_INFINITY;
-    const heightError = lineHeight ? Math.abs(panels.reduce((sum, panel) => sum + panel.height, 0) - lineHeight) : Number.POSITIVE_INFINITY;
-    // Sólo cuenta como corte vertical de la LÍNEA cuando POSICION lo dice --
-    // ver isVerticalCutRow. Sin ese filtro, un travesaño horizontal de un
-    // paño con cota < lineWidth (cualquier ventana más ancha que alta) se
-    // confundía con un corte vertical entre paños fijos.
-    const verticalCuts = [...new Set(raw
-      .filter(item => number(item && item.tipo_elemento) === 6 && isVerticalCutRow(item, lineWidth, lineHeight))
-      .map(item => firstPositive(item.cota, item.cota_fija))
-      .filter(cut => cut > 0 && cut < lineWidth))].sort((a, b) => a - b);
     const tolerance = value => Math.max(3, value * .006);
-    const unused = new Set(panels.map(panel => panel.number));
-    const columns = [];
-    for (const panel of panels) {
-      if (!unused.has(panel.number)) continue;
-      const column = [panel]; unused.delete(panel.number);
-      let columnHeight = panel.height;
-      if (lineHeight && Math.abs(columnHeight - lineHeight) > tolerance(lineHeight)) {
-        for (const candidate of panels) {
-          if (!unused.has(candidate.number) || Math.abs(candidate.width - panel.width) > tolerance(panel.width)) continue;
-          if (columnHeight + candidate.height <= lineHeight + tolerance(lineHeight)) {
-            column.push(candidate); unused.delete(candidate.number); columnHeight += candidate.height;
-          }
-          if (Math.abs(columnHeight - lineHeight) <= tolerance(lineHeight)) break;
-        }
-      }
-      columns.push(column);
-    }
-    // Una columna puede quedar mas corta que el alto de la linea sin que
-    // HETMO declare ningun paño real para el resto -- confirmado con datos
-    // reales de Edificio Matta Esmax (PV09, HETMO 7160x4800mm): la columna
-    // del medio (numero_ventana=2, 1940mm de ancho) solo trae un paño de
-    // 2400mm de alto, sin ningun paño hermano que complete los 4800mm
-    // totales -- el resto es un tramo ciego (probablemente el pilar
-    // estructural que pide la propia observacion de la linea), no vidrio.
-    // Antes esto hacia fallar packedHeightValid y compositePanels()
-    // devolvia null para TODA la linea (ninguna de las 5 columnas se
-    // dibujaba bien, ni siquiera las que si calzaban) -- ahora se rellena
-    // el faltante con un paño sintetico sin vidrio (mismo tratamiento que
-    // un paño ciego real, ver panelHasGlass en windowGeometryBuilder.ts:
-    // panel.raw vacio hace que ese chequeo de vidrio real de false solo).
-    // Una columna que se PASA del alto declarado (mas larga que lineHeight)
-    // sigue sin aceptarse -- ese es un desajuste real de datos, no un hueco
-    // legitimo, y no hay forma segura de adivinar donde recortarla.
-    columns.forEach(column => {
-      if (!lineHeight) return;
-      const columnWidth = Math.max(...column.map(panel => panel.width));
-      const columnHeight = column.reduce((sum, panel) => sum + panel.height, 0);
-      const shortfall = lineHeight - columnHeight;
-      if (shortfall > tolerance(lineHeight)) {
-        column.push({
-          number: Math.max(...column.map(panel => panel.number)) + .5,
-          order: Math.max(...column.map(panel => panel.order)) + 1,
-          width: columnWidth,
-          height: shortfall,
-          apertura: 0,
-          aperturaCount: 0,
-          raw: []
-        });
-      }
-    });
-    const packedWidth = columns.reduce((sum, column) => sum + Math.max(...column.map(panel => panel.width)), 0);
-    const packedHeightValid = columns.every(column => !lineHeight || Math.abs(column.reduce((sum, panel) => sum + panel.height, 0) - lineHeight) <= tolerance(lineHeight));
-    if (!packedHeightValid || (lineWidth && Math.abs(packedWidth - lineWidth) > tolerance(lineWidth))) return null;
-    // Dentro de una columna, el orden por defecto es panel.number (el orden
-    // en que HETMO define los paños) -- confirmado correcto para paños
-    // fijos/practicables entre sí. Pero una PUERTA (familia 'door', código
-    // HETMO 17/18/20/21 -- distinta de 'hinged', que es una ventana
-    // practicable que no llega al piso) siempre tiene que apoyar en el
-    // suelo: si comparte columna con otro paño (típico: puerta + fijo
-    // superior tipo dintel/luz sobre la puerta), la puerta va SIEMPRE
-    // abajo, sin importar en qué orden HETMO haya definido los paños.
-    // Confirmado con un caso real (V05A, Franklin Sánchez) donde HETMO
-    // define primero el paño de la puerta y después el fijo -- sin este
-    // ajuste, la puerta quedaba dibujada arriba y el fijo abajo, al revés
-    // de como HETMO mismo la muestra en su propio configurador.
-    const esPuerta = panel => apertureDefinition(line, panel.apertura).family === 'door';
-    // Fuera de una puerta, no hay una regla física única para decidir qué
-    // paño va arriba en una columna (ej. proyectante+fijo: HETMO no siempre
-    // define sus paños en el mismo orden que el plano real, y a diferencia
-    // de una puerta, un fijo puede ir arriba O abajo de una ventana que no
-    // llega al piso). ordenPanelesInvertido es la corrección manual para
-    // esos casos (ver Ventana.ordenPanelesInvertido, botón "Invertir orden"
-    // en VentanaCard) -- invierte el orden por numero_ventana, pero NUNCA
-    // saca a una puerta de abajo: una puerta llega al piso siempre, así que
-    // ese ajuste manual no tiene sentido aplicárselo a ella.
-    const invertirOrden = Boolean(line && line.ordenPanelesInvertido);
-    let packedX = 0;
-    const tiles = [];
-    columns.forEach(column => {
-      const columnWidth = Math.max(...column.map(panel => panel.width));
-      const puertas = column.filter(esPuerta).sort((a, b) => a.number - b.number);
-      const resto = column.filter(panel => !esPuerta(panel)).sort((a, b) => a.number - b.number);
-      if (invertirOrden) resto.reverse();
-      let packedY = 0;
-      [...resto, ...puertas].forEach(panel => {
-        tiles.push({ panel, x: packedX, y: packedY, width: columnWidth, height: panel.height });
-        packedY += panel.height;
-      });
-      packedX += columnWidth;
+    const horizontal = lineWidth && Math.abs(panels.reduce((sum, panel) => sum + panel.width, 0) - lineWidth) <= tolerance(lineWidth);
+    const vertical = !horizontal && lineHeight && Math.abs(panels.reduce((sum, panel) => sum + panel.height, 0) - lineHeight) <= tolerance(lineHeight);
+    if (!horizontal && !vertical) return null;
+    let offset = 0;
+    const tiles = panels.map(panel => {
+      const tile = horizontal
+        ? { panel, x: offset, y: 0, width: panel.width, height: panel.height }
+        : { panel, x: 0, y: offset, width: panel.width, height: panel.height };
+      offset += horizontal ? panel.width : panel.height;
+      return tile;
     });
     return {
       panels, tiles,
-      width: lineWidth || packedWidth,
-      height: lineHeight || Math.max(...columns.map(column => column.reduce((sum, panel) => sum + panel.height, 0))),
-      direction: widthError <= heightError ? 'horizontal' : 'vertical',
-      verticalCuts
+      width: Math.max(...tiles.map(t => t.x + t.width)),
+      height: Math.max(...tiles.map(t => t.y + t.height)),
+      direction: horizontal ? 'horizontal' : 'vertical'
     };
   }
 
@@ -619,20 +529,6 @@
       : declared;
   }
 
-  // Un código de dos hojas puede fabricarse en la práctica con una sola
-  // hoja móvil real y un paño fijo del lado contrario al que asume el
-  // código HETMO -- confirmado con la ficha de fábrica real de V2H1
-  // (código 32: un solo riel Ext. móvil y un paño Int. fijo más ancho, sin
-  // flecha). Se reconstruye a partir de la única hoja real que sí declaró
-  // el despiece. orden_hoja ordena de izquierda a derecha -- misma
-  // convención que ya usa collectExactLeaves para repartir varias hojas --
-  // y decide de qué lado queda esa hoja real.
-  export function reconcileSingleLeafSlider(rawItems) {
-    const leaves = collectExactLeaves(rawItems);
-    if (leaves.length !== 1) return null;
-    const leaf = leaves[0];
-    return { leaf, side: number(leaf.orden_hoja || leaf.posicion) <= 1 ? 'left' : 'right' };
-  }
 
   // ÚNICA resolución de hojas de una corredera, compartida por la línea
   // simple y por cada paño de una composición. Existían dos caminos de
