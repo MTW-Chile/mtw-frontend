@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ClipboardList, FolderOpen, LayoutGrid, ShoppingCart, TrendingUp } from 'lucide-react';
+import { ClipboardList, Factory, FolderOpen, LayoutGrid, ShoppingCart, TrendingUp } from 'lucide-react';
 import { getOrdenesCompra, getPendientes } from '../../api/client';
 import { StatCard } from '../../components/ui/StatCard';
 import { Seccion } from '../../components/ui/Seccion';
@@ -43,9 +43,16 @@ const MetricasObra: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVersi
 
   const abiertos = pendientes?.filter((p) => p.estado !== 'RESUELTO').length;
   const t = analitica?.totales;
+  // Ventanas producidas: unidades de las fases completadas (fabricadas en
+  // HETMO, ver el estado de cada fase) sobre el total del presupuesto.
+  const totalUnidades = (activeVersion?.ventanas ?? []).reduce((sum, v) => sum + (v.unidades || 0), 0);
+  const producidas = (activeVersion?.fases ?? [])
+    .filter((f) => f.numeroFase > 0 && f.estado === 'COMPLETADA')
+    .reduce((sum, f) => sum + (f.ventanasFase ?? []).reduce((s, vf) => s + (vf.unidades || 0), 0), 0);
+  const pctProducidas = totalUnidades > 0 ? Math.round((producidas / totalUnidades) * 100) : 0;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-3">
       <StatCard title="Venta neta" value={t ? clp(t.venta) : '—'} subtitle={activeVersion ? `Versión v${activeVersion.versionNumero}` : undefined} icon={TrendingUp} />
       <StatCard
         title="Ventanas"
@@ -54,6 +61,14 @@ const MetricasObra: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVersi
         icon={LayoutGrid}
         iconColor="text-sky-600"
         iconBgColor="bg-sky-50 border-sky-200"
+      />
+      <StatCard
+        title="Ventanas producidas"
+        value={totalUnidades ? `${pctProducidas}%` : '—'}
+        subtitle={totalUnidades ? `${producidas} de ${totalUnidades} unidades` : undefined}
+        icon={Factory}
+        iconColor="text-emerald-600"
+        iconBgColor="bg-emerald-50 border-emerald-200"
       />
       <StatCard
         title="Órdenes de compra"

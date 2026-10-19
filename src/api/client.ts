@@ -214,6 +214,14 @@ export async function detectarFabricaciones(proyectoId: string): Promise<Resulta
   return response.data;
 }
 
+/** Pone al día con HETMO la fabricación de la obra (lotes nuevos y estados); el API la limita a una vez cada 2 min por obra. */
+export async function actualizarFabricacionesObra(
+  proyectoId: string
+): Promise<{ omitida: boolean; detectadas: number; refrescadas: number; errores: number }> {
+  const response = await apiClient.post(`/proyectos/${proyectoId}/fabricaciones/actualizar`);
+  return response.data;
+}
+
 export async function refrescarFabricacion(proyectoId: string, fabId: string): Promise<ResultadoVinculoFabricacion> {
   const response = await apiClient.post<ResultadoVinculoFabricacion>(`/proyectos/${proyectoId}/fabricaciones/${fabId}/refrescar`);
   return response.data;
@@ -550,14 +558,15 @@ export async function getLogoEmpresa(): Promise<string | null> {
 }
 
 export async function subirLogoEmpresa(archivo: File): Promise<{ configuracionEmpresa: ConfiguracionEmpresa }> {
-  const response = await apiClient.put<{ configuracionEmpresa: ConfiguracionEmpresa }>('/empresa/logo', archivo, {
+  // POST y no PUT: Cloudflare Access bloquea DELETE/PUT en produccion.
+  const response = await apiClient.post<{ configuracionEmpresa: ConfiguracionEmpresa }>('/empresa/logo', archivo, {
     headers: { 'Content-Type': archivo.type },
   });
   return response.data;
 }
 
 export async function quitarLogoEmpresa(): Promise<{ configuracionEmpresa: ConfiguracionEmpresa }> {
-  const response = await apiClient.delete<{ configuracionEmpresa: ConfiguracionEmpresa }>('/empresa/logo');
+  const response = await apiClient.post<{ configuracionEmpresa: ConfiguracionEmpresa }>('/empresa/logo/quitar');
   return response.data;
 }
 

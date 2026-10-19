@@ -62,10 +62,14 @@ const queryClient = new QueryClient({
     // lo que esta en pantalla. No se refresca todo lo activo de inmediato
     // para no multiplicar peticiones en ediciones seguidas (ej. editar 50
     // precios en el Paso 3) y pisar el rate limit de mtw-api.
-    onSuccess: () => {
+    onSuccess: (_data, _variables, _context, mutation) => {
+      // meta.silencioso: tareas de fondo (ej. poner al día la fabricación al
+      // abrir una obra) que no son un cambio de la persona.
+      if (mutation.meta?.silencioso) return;
       queryClient.invalidateQueries({ refetchType: 'none' });
     },
     onError: (error, _variables, _context, mutation) => {
+      if (mutation.meta?.silencioso) return;
       const { mensaje, detalle } = extraerErrorParaToast(error);
       console.error('[mutationCache]', mutation.options.mutationKey, error);
       mostrarToast(mensaje, { detalle });

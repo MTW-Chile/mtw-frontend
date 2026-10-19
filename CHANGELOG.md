@@ -11,7 +11,15 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 ## Alpha v2.0.4 — 2026-10-19
 
 **Compras**
+- Corregido: "Solicitar materiales" fallaba ("Cannot read properties of undefined (reading 'map')") si antes se había abierto Proveedores.
 - Los vidrios de las líneas agregadas a mano (DVH fijo y puerta Protex) guardan la medida de cada pieza: en la OC salen individualizados como los de HETMO (en una Protex, un vidrio por hoja). Las líneas ya creadas se corrigen al publicar.
+
+**Obras en curso**
+- La fabricación se pone al día con HETMO al abrir la obra (lotes nuevos y estado de cada fase), sin esperar el sync automático; el sync también revisa las obras manuales con fabricación vinculada.
+- Nueva métrica en Información General: Ventanas producidas (unidades de las fases completadas sobre el total).
+
+**Configuración**
+- Subir y quitar el logo funcionan en producción (usaban métodos que Cloudflare bloquea).
 
 ## Alpha v2.0.3 — 2026-10-19
 

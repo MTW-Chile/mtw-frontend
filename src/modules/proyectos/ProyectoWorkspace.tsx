@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { actualizarParams } from '../../lib/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, LayoutDashboard, ShoppingCart, Warehouse, Factory, ClipboardList, Ruler, FilePlus2 } from 'lucide-react';
 import { HeaderSlot } from '../../components/layout/HeaderSlot';
-import { getProyectoById } from '../../api/client';
+import { actualizarFabricacionesObra, getProyectoById } from '../../api/client';
 import { OrdenesCompraList } from '../abastecimiento/OrdenesCompraList';
 import { BodegaProyectoTab } from '../abastecimiento/BodegaProyectoTab';
 import { RecepcionesPendientesSection } from '../abastecimiento/RecepcionesPendientesSection';
@@ -49,6 +49,26 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
     queryKey: ['proyectoDetail', proyectoId],
     queryFn: () => getProyectoById(proyectoId),
   });
+
+  // Al abrir la obra se pone al día su fabricación con HETMO (lotes nuevos y
+  // estados de fase), sin esperar al sync automático. Si algo se leyó, se
+  // refresca lo que lo muestra.
+  const queryClient = useQueryClient();
+  const actualizarFabricacion = useMutation({
+    mutationFn: () => actualizarFabricacionesObra(proyectoId),
+    onSuccess: (r) => {
+      if (r.omitida || (r.detectadas === 0 && r.refrescadas === 0)) return;
+      queryClient.invalidateQueries({ queryKey: ['fabricaciones', proyectoId] });
+      queryClient.invalidateQueries({ queryKey: ['fabricacionDetalle', proyectoId] });
+      queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyectoId] });
+    },
+    // Silencioso: si HETMO no responde, la obra se ve con lo último guardado.
+    meta: { silencioso: true },
+  });
+  const { mutate: pedirActualizacion } = actualizarFabricacion;
+  useEffect(() => {
+    pedirActualizacion();
+  }, [proyectoId, pedirActualizacion]);
 
   // Una obra manual nunca se cotizo: las secciones que dependen del
   // presupuesto se ven en gris (ver seccionesObra.ts) y un enlace a una de
