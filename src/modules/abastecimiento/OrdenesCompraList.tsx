@@ -4,7 +4,7 @@ import { Plus, Loader2, Check, Send, X as XIcon, Ban, ChevronDown, ChevronRight,
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { getOrdenesCompra, updateOrdenCompraEstado, eliminarOrdenCompra, renderPdf, getConfiguracionGeneral } from '../../api/client';
-import { loadImageDataUrl } from '../cotizaciones/lib/pdfTheme';
+import { cargarLogoDocumentos } from '../cotizaciones/lib/pdfTheme';
 import type { EstadoOC, OrdenCompra } from '../../types';
 import { ETIQUETA_NATURALEZA, pendienteConciliarItem, pendienteRecepcionarItem } from '../../types';
 import { NuevaOrdenCompraModal } from './NuevaOrdenCompraModal';
@@ -172,7 +172,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
     try {
       let logoDataUrl: string | null = null;
       try {
-        logoDataUrl = await loadImageDataUrl('/mtw-logo.png');
+        logoDataUrl = await cargarLogoDocumentos();
       } catch {
         // Decorativo -- si falla la carga, el PDF sigue sin el logo.
       }

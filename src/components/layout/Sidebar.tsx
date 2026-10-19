@@ -188,7 +188,7 @@ export const Sidebar: React.FC<{
               />
               <div className={`min-w-0 ${ocultarEnRiel}`}>
                 <h2 className="text-xs font-black tracking-tight uppercase text-white">MTW ERP</h2>
-                <span className="text-[10px] font-mono text-brand-300 tracking-wider uppercase font-medium" title={`Versión ${VERSION}`}>{VERSION_VISIBLE}</span>
+                <span className="text-[10px] font-mono text-brand-300 tracking-wider font-medium" title={`Versión ${VERSION}`}>{VERSION_VISIBLE}</span>
               </div>
             </button>
 

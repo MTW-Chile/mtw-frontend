@@ -1,16 +1,15 @@
 import React from 'react';
 import { actualizarParams } from '../../lib/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Wallet, ShoppingCart, Warehouse, Factory, ClipboardList, Ruler, FolderOpen, FilePlus2 } from 'lucide-react';
+import { Loader2, LayoutDashboard, ShoppingCart, Warehouse, Factory, ClipboardList, Ruler, FilePlus2 } from 'lucide-react';
 import { HeaderSlot } from '../../components/layout/HeaderSlot';
 import { getProyectoById } from '../../api/client';
 import { OrdenesCompraList } from '../abastecimiento/OrdenesCompraList';
 import { BodegaProyectoTab } from '../abastecimiento/BodegaProyectoTab';
 import { RecepcionesPendientesSection } from '../abastecimiento/RecepcionesPendientesSection';
 import { RequisicionesSection } from './RequisicionesSection';
-import { ControlPresupuestoTab } from './ControlPresupuestoTab';
+import { InformacionGeneralTab } from './InformacionGeneralTab';
 import { CubicacionTab } from './cubicacion/CubicacionTab';
-import { DocumentosObraTab } from './documentos/DocumentosObraTab';
 import { FabricacionTab } from './fabricacion/FabricacionTab';
 import { PendientesTab } from './pendientes/PendientesTab';
 import { AdicionalesTab } from './adicionales/AdicionalesTab';
@@ -27,11 +26,10 @@ import { useMigas } from '../../lib/migas';
 type Seccion = SeccionObra;
 
 const SECCIONES: { id: Seccion; label: string; hint: string; icon: React.ElementType }[] = [
-  { id: 'presupuesto', label: 'Control de presupuesto', hint: 'Revisión por partida de gastos', icon: Wallet },
-  { id: 'documentos', label: 'Documentos', hint: 'Carpeta de OneDrive de la obra', icon: FolderOpen },
+  { id: 'general', label: 'Información General', hint: 'Métricas, control de presupuesto por partida y documentos', icon: LayoutDashboard },
   { id: 'cubicacion', label: 'Cubicación', hint: 'Reparto por piso y departamento, rectificación y nomenclatura (opcional)', icon: Ruler },
-  { id: 'abastecimiento', label: 'Abastecimiento', hint: 'Generación y gestión de OC', icon: ShoppingCart },
   { id: 'fabricacion', label: 'Fabricación', hint: 'Documentos de fabricación de HETMO', icon: Factory },
+  { id: 'abastecimiento', label: 'Abastecimiento', hint: 'Generación y gestión de OC', icon: ShoppingCart },
   { id: 'pendientes', label: 'Control de pendientes', hint: 'Lo que falta o falló en la obra', icon: ClipboardList },
   { id: 'adicionales', label: 'Adicionales', hint: 'Ventas o cargos fuera del presupuesto aceptado', icon: FilePlus2 },
   { id: 'bodega', label: 'Bodega', hint: 'Requisiciones, stock y movimientos', icon: Warehouse },
@@ -54,7 +52,7 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
 
   // Una obra manual nunca se cotizo: las secciones que dependen del
   // presupuesto se ven en gris (ver seccionesObra.ts) y un enlace a una de
-  // ellas cae a Fabricacion. Mientras carga la obra no se sabe su origen.
+  // ellas cae a Información General. Mientras carga la obra no se sabe su origen.
   const seccion: Seccion = seccionEfectiva(seccionInicial, proyecto?.origen);
   // Volver a la sección cierra lo abierto dentro de ella (ej. un adicional).
   useMigas(1, [{ label: SECCIONES.find((x) => x.id === seccion)?.label ?? '', alHacerClic: () => actualizarParams({ seccion, adicional: null }) }]);
@@ -109,8 +107,7 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
             <div className="p-12 text-center text-slate-400 text-xs">Proyecto no encontrado.</div>
           ) : (
             <>
-              {seccion === 'presupuesto' && <ControlPresupuestoTab proyecto={proyecto} activeVersion={activeVersion} />}
-              {seccion === 'documentos' && <DocumentosObraTab proyecto={proyecto} />}
+              {seccion === 'general' && <InformacionGeneralTab proyecto={proyecto} activeVersion={activeVersion} />}
               {seccion === 'cubicacion' && <CubicacionTab proyecto={proyecto} activeVersion={activeVersion} />}
               {seccion === 'abastecimiento' && <OrdenesCompraList proyectoId={proyectoId} proyectoLabel={proyecto.obra} />}
               {seccion === 'fabricacion' && <FabricacionTab proyecto={proyecto} activeVersion={activeVersion} />}

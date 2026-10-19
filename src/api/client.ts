@@ -12,6 +12,7 @@ import type {
   FijacionConfig,
   PresupuestoConfig,
   ConfiguracionEmpresa,
+  Anuncio,
   ParametrosGenerales,
   Adicional,
   CargoAdicional,
@@ -520,14 +521,49 @@ export async function getConfiguracionEmpresa(): Promise<{ success: boolean; con
   return response.data;
 }
 
+type CamposEmpresa = 'footerWebUrl' | 'footerWebLabel' | 'footerInstagramUrl' | 'footerInstagramHandle' | 'anuncioTexto' | 'anuncioUrgencia' | 'anuncioActivo';
+
 export async function updateConfiguracionEmpresa(
-  payload: Partial<Omit<ConfiguracionEmpresa, 'id'>>
+  payload: Partial<Pick<ConfiguracionEmpresa, CamposEmpresa>>
 ): Promise<{ success: boolean; configuracionEmpresa: ConfiguracionEmpresa }> {
   const response = await apiClient.patch<{ success: boolean; configuracionEmpresa: ConfiguracionEmpresa }>(
     '/configuracion-empresa',
     payload
   );
   return response.data;
+}
+
+/** Logo propio de la empresa como data URL, o null si no tiene (se usa el de MTW). */
+export async function getLogoEmpresa(): Promise<string | null> {
+  try {
+    const response = await apiClient.get<Blob>('/empresa/logo', { responseType: 'blob' });
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(response.data);
+    });
+  } catch (error: any) {
+    if (error?.response?.status === 404) return null;
+    throw error;
+  }
+}
+
+export async function subirLogoEmpresa(archivo: File): Promise<{ configuracionEmpresa: ConfiguracionEmpresa }> {
+  const response = await apiClient.put<{ configuracionEmpresa: ConfiguracionEmpresa }>('/empresa/logo', archivo, {
+    headers: { 'Content-Type': archivo.type },
+  });
+  return response.data;
+}
+
+export async function quitarLogoEmpresa(): Promise<{ configuracionEmpresa: ConfiguracionEmpresa }> {
+  const response = await apiClient.delete<{ configuracionEmpresa: ConfiguracionEmpresa }>('/empresa/logo');
+  return response.data;
+}
+
+export async function getAnuncio(): Promise<Anuncio | null> {
+  const response = await apiClient.get<{ data: Anuncio | null }>('/anuncio');
+  return response.data.data;
 }
 
 export async function updateVentanaPresupuesto(

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Wallet, ShoppingCart, PackageCheck, Receipt } from 'lucide-react';
 import { StatCard } from '../../components/ui/StatCard';
@@ -6,6 +6,8 @@ import { getControlPresupuesto } from '../../api/client';
 import { useAnalitica } from '../cotizaciones/lib/useAnalitica';
 import type { Proyecto, ProyectoVersion } from '../../types';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
+import { Seccion } from '../../components/ui/Seccion';
+import { BotonColapsar } from '../../components/ui/BotonColapsar';
 
 const formatCLP = (v: number) => v.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
@@ -32,10 +34,13 @@ interface FilaPartida {
 // mtw-api (todo en NETO; lo facturado de una OC se prorratea entre sus items
 // segun su peso en el total, mismo criterio que el asiento en Clay). Esta
 // pantalla solo cruza las dos fuentes, no calcula.
+// En Información General: los totales a la vista y el detalle por partida
+// plegado (se abre con el chevron).
 export const ControlPresupuestoTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVersion }> = ({
   proyecto,
   activeVersion,
 }) => {
+  const [verPartidas, setVerPartidas] = useState(false);
   const { data: analitica, isLoading: cargandoAnalitica } = useAnalitica(proyecto.id, activeVersion?.id);
   const { data: control, isLoading: cargandoControl } = useQuery({
     queryKey: ['controlPresupuesto', proyecto.id],
@@ -90,17 +95,19 @@ export const ControlPresupuestoTab: React.FC<{ proyecto: Proyecto; activeVersion
   }
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h2 className="text-sm font-black text-slate-900">Control de presupuesto por partida</h2>
-        <p className="text-xs text-slate-500">
+    <Seccion
+      sinRelleno
+      icono={Wallet}
+      titulo="Control de presupuesto por partida"
+      descripcion={
+        <>
           Presupuestado = Analítica de Materiales de la versión activa (v{activeVersion?.versionNumero || '—'}). En OC = Órdenes de
           Compra no canceladas que aún no tienen factura. Facturado = neto de las facturas conciliadas (al conciliar, el monto pasa de
           En OC a Facturado). Recibido = lo que realmente ya entró a bodega.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        </>
+      }
+    >
+      <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
           title="Presupuestado"
           value={formatCLP(totales.presupuestado)}
@@ -134,58 +141,65 @@ export const ControlPresupuestoTab: React.FC<{ proyecto: Proyecto; activeVersion
         />
       </div>
 
-      <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-        <Tabla>
-          <Thead>
-            <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
-              <Th className="font-bold">Partida</Th>
-              <Th alinear="derecha" className="font-bold">Presupuestado</Th>
-              <Th alinear="derecha" className="font-bold">En OC</Th>
-              <Th alinear="derecha" className="font-bold">Facturado</Th>
-              <Th alinear="derecha" className="font-bold">% usado</Th>
-              <Th alinear="derecha" className="font-bold" title="Reposiciones (quiebre, falla, daño) contra la holgura de la partida">
-                Reposición / holgura
-              </Th>
-              <Th alinear="derecha" className="font-bold" title="Compras fuera del presupuesto: se cobran al cliente">
-                Adicionales
-              </Th>
-              <Th alinear="derecha" className="font-bold">Recibido</Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            {filas.map((f) => {
-              const usadoFila = usadoDe(f);
-              const pct = f.presupuestado > 0 ? (usadoFila / f.presupuestado) * 100 : usadoFila > 0 ? Infinity : 0;
-              return (
-                <Tr key={f.codigo} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                  <Td className="font-semibold text-slate-800">{f.nombre}</Td>
-                  <Td alinear="derecha" className="font-mono text-slate-700">{formatCLP(f.presupuestado)}</Td>
-                  <Td alinear="derecha" className="font-mono text-slate-700">{formatCLP(f.enOC)}</Td>
-                  <Td alinear="derecha" className="font-mono text-violet-700">{formatCLP(f.facturado)}</Td>
-                  <Td className={`px-4 py-3 text-right font-mono font-bold ${pct > 100 ? 'text-rose-600' : 'text-slate-700'}`}>
-                    {Number.isFinite(pct) ? `${pct.toFixed(0)}%` : '—'}
-                  </Td>
-                  <Td
-                    className={`px-4 py-3 text-right font-mono ${f.reposicion > f.holgura + 0.5 ? 'text-rose-600 font-bold' : 'text-slate-700'}`}
-                    title={f.reposicion > f.holgura + 0.5 ? 'Las reposiciones superan la holgura de la partida' : undefined}
-                  >
-                    {f.reposicion || f.holgura ? `${formatCLP(f.reposicion)} / ${formatCLP(f.holgura)}` : '—'}
-                  </Td>
-                  <Td alinear="derecha" className="font-mono text-violet-700">{f.adicional ? formatCLP(f.adicional) : '—'}</Td>
-                  <Td alinear="derecha" className="font-mono text-emerald-700">{formatCLP(f.recibido)}</Td>
-                </Tr>
-              );
-            })}
-            {filas.length === 0 && (
-              <Tr>
-                <Td colSpan={8} alinear="centro" className="py-8 text-slate-400">
-                  Sin materiales ni Órdenes de Compra todavía para esta versión.
-                </Td>
-              </Tr>
-            )}
-          </Tbody>
-        </Tabla>
+      <div className="px-5 py-3 border-t border-slate-100">
+        <BotonColapsar abierto={verPartidas} onClick={() => setVerPartidas((v) => !v)}>
+          <span className="text-xs font-bold text-slate-700">{verPartidas ? 'Ocultar el detalle por partida' : `Ver el detalle por partida (${filas.length})`}</span>
+        </BotonColapsar>
       </div>
-    </div>
+      {verPartidas && (
+        <div className="border-t border-slate-100">
+          <Tabla>
+            <Thead>
+              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                <Th className="font-bold">Partida</Th>
+                <Th alinear="derecha" className="font-bold">Presupuestado</Th>
+                <Th alinear="derecha" className="font-bold">En OC</Th>
+                <Th alinear="derecha" className="font-bold">Facturado</Th>
+                <Th alinear="derecha" className="font-bold">% usado</Th>
+                <Th alinear="derecha" className="font-bold" title="Reposiciones (quiebre, falla, daño) contra la holgura de la partida">
+                  Reposición / holgura
+                </Th>
+                <Th alinear="derecha" className="font-bold" title="Compras fuera del presupuesto: se cobran al cliente">
+                  Adicionales
+                </Th>
+                <Th alinear="derecha" className="font-bold">Recibido</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {filas.map((f) => {
+                const usadoFila = usadoDe(f);
+                const pct = f.presupuestado > 0 ? (usadoFila / f.presupuestado) * 100 : usadoFila > 0 ? Infinity : 0;
+                return (
+                  <Tr key={f.codigo} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                    <Td className="font-semibold text-slate-800">{f.nombre}</Td>
+                    <Td alinear="derecha" className="font-mono text-slate-700">{formatCLP(f.presupuestado)}</Td>
+                    <Td alinear="derecha" className="font-mono text-slate-700">{formatCLP(f.enOC)}</Td>
+                    <Td alinear="derecha" className="font-mono text-violet-700">{formatCLP(f.facturado)}</Td>
+                    <Td className={`px-4 py-3 text-right font-mono font-bold ${pct > 100 ? 'text-rose-600' : 'text-slate-700'}`}>
+                      {Number.isFinite(pct) ? `${pct.toFixed(0)}%` : '—'}
+                    </Td>
+                    <Td
+                      className={`px-4 py-3 text-right font-mono ${f.reposicion > f.holgura + 0.5 ? 'text-rose-600 font-bold' : 'text-slate-700'}`}
+                      title={f.reposicion > f.holgura + 0.5 ? 'Las reposiciones superan la holgura de la partida' : undefined}
+                    >
+                      {f.reposicion || f.holgura ? `${formatCLP(f.reposicion)} / ${formatCLP(f.holgura)}` : '—'}
+                    </Td>
+                    <Td alinear="derecha" className="font-mono text-violet-700">{f.adicional ? formatCLP(f.adicional) : '—'}</Td>
+                    <Td alinear="derecha" className="font-mono text-emerald-700">{formatCLP(f.recibido)}</Td>
+                  </Tr>
+                );
+              })}
+              {filas.length === 0 && (
+                <Tr>
+                  <Td colSpan={8} alinear="centro" className="py-8 text-slate-400">
+                    Sin materiales ni Órdenes de Compra todavía para esta versión.
+                  </Td>
+                </Tr>
+              )}
+            </Tbody>
+          </Tabla>
+        </div>
+      )}
+    </Seccion>
   );
 };

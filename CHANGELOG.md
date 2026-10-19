@@ -2,13 +2,32 @@
 
 Una sola versión para la plataforma (mtw-frontend y mtw-api llevan la misma en
 su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
-"Alpha V2.0".
+"Alpha v2.0" (con parche, "Alpha v2.0.1"). La v va siempre en minúscula.
 
-- **Canal y versión mayor** (Alpha → Beta, V2 → V3): los decide Alfredo.
-- **Versión menor** (2.0 → 2.1): cada conjunto de cambios que se despliega.
-- **Parche** (2.1.0 → 2.1.1): correcciones sin funciones nuevas.
+- **Canal y versión mayor** (Alpha → Beta, v2 → v3): los decide Alfredo.
+- **Versión menor** (2.0 → 2.1): un conjunto grande de funciones nuevas.
+- **Parche** (2.0.0 → 2.0.1): ajustes y mejoras acotadas, cada despliegue.
 
-## Alpha V2.0 — 2026-10-19
+## Alpha v2.0.1 — 2026-10-19
+
+**Presupuestos**
+- Hoja de Fijación en dos pestañas: la hoja ordenada como el PDF (la que revisa gerencia) y Asignación de costos (partida de cada costo y presupuesto por partida).
+- Botón "Analizar precio" en vez de "% Ver % venta".
+
+**Obras en curso**
+- Nueva primera pestaña Información General: métricas de la obra, Control de presupuesto por partida (detalle plegado) y Documentos.
+- Fabricación va después de Cubicación.
+- El cubicador ya no ofrece "Actualizar desde el presupuesto": la obra tiene su presupuesto congelado.
+
+**Inicio y configuración**
+- Inicio muestra las últimas pantallas visitadas por el usuario en vez de los accesos a módulos.
+- Anuncio para todos los usuarios sobre el buscador de Inicio, en verde, amarillo o rojo según su urgencia (Configuración › Anuncio).
+- Configuración de Empresa (antes "Empresa"), con logo propio para los documentos.
+
+**Agente HETMO**
+- Medidas de cada vidrio y código estable del proveedor (corrige el error de la consulta de materiales por línea).
+
+## Alpha v2.0 — 2026-10-19
 
 Reforma de arquitectura (auditoría 2026-10). Primera versión numerada.
 

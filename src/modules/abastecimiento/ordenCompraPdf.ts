@@ -37,7 +37,7 @@ export function buildOrdenCompraHtml(oc: OrdenCompra, logoDataUrl: string | null
   const iva = subtotal * (ivaPct / 100);
   const total = subtotal + iva;
   const fechaEmision = new Date(oc.fechaEnvio || oc.creadoEn).toLocaleDateString('es-CL');
-  const logoImg = logoDataUrl ? `<img src="${logoDataUrl}" style="width:101px;height:46px;display:block;" />` : '';
+  const logoImg = logoDataUrl ? `<img src="${logoDataUrl}" style="max-width:101px;max-height:46px;width:auto;height:auto;object-fit:contain;display:block;" />` : '';
   const faseLabel = oc.fase ? (oc.fase.numeroFase === 0 ? `Fase 0 - ${oc.fase.nombre}` : `Fase ${oc.fase.numeroFase} - ${oc.fase.nombre}`) : null;
 
   const filasItems = oc.items

@@ -1,6 +1,13 @@
 import React, { useState } from 'react';
-import { Building2, FolderKanban, Package, ArrowRight, Calendar, TrendingUp, Search, X } from 'lucide-react';
-import { Badge } from '../../components/ui/Badge';
+import { useQuery } from '@tanstack/react-query';
+import { Building2, ArrowRight, Calendar, TrendingUp, Search, X, History } from 'lucide-react';
+import { getAnuncio } from '../../api/client';
+import { usePermisos } from '../../lib/permisos';
+import { useRecientes } from '../../lib/recientes';
+import { navegar } from '../../lib/navigation';
+import { SECCIONES_FRONTEND } from '../../lib/accessControl';
+import { BotonFila } from '../../components/ui/Lista';
+import { AnuncioBanner } from './AnuncioBanner';
 import { Button } from '../../components/ui/Button';
 import { useIndicadoresChile } from '../../lib/useIndicadoresChile';
 import { formatNumber } from '../../lib/utils';
@@ -14,6 +21,7 @@ interface InicioPageProps {
 export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const { indicadores, isErrorIndicadores, feriadoInfo } = useIndicadoresChile();
+  const { data: anuncio } = useQuery({ queryKey: ['anuncio'], queryFn: getAnuncio, staleTime: 60_000 });
 
   const handleSearchSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -30,6 +38,8 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
   }).format(new Date());
 
   return (
+    <>
+    {anuncio && <AnuncioBanner texto={anuncio.texto} urgencia={anuncio.urgencia} />}
     <div className="w-full min-w-0 p-3 sm:p-5 md:p-6 xl:p-8 space-y-4 sm:space-y-6 max-w-7xl mx-auto animate-fade-in">
       {/* BUSCADOR PRINCIPAL EN EL CONTENIDO */}
       <form onSubmit={handleSearchSubmit} className="relative w-full">
@@ -161,100 +171,69 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
         <div className="absolute -right-16 -bottom-16 w-72 h-72 bg-brand-600/15 rounded-full blur-3xl pointer-events-none" />
       </div>
 
-      {/* ACCESOS DIRECTOS A MÓDULOS DE LA PLATAFORMA */}
-      <div>
-        <div className="mb-3 px-1">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Módulos del Sistema MTW ERP
-          </h2>
-        </div>
+      {/* VISITADO RECIENTEMENTE */}
+      <Recientes onNavigate={onNavigate} />
+    </div>
+    </>
+  );
+};
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {/* Tarjeta Presupuestos */}
-          <div
-            onClick={() => onNavigate('cotizaciones')}
-            className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-brand-600/40 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between space-y-4"
-          >
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-brand-600/10 border border-brand-600/20 flex items-center justify-center text-brand-600">
-                  <Building2 className="w-5 h-5" />
-                </div>
-                <Badge variant="brand" size="sm">
-                  Activo
-                </Badge>
-              </div>
-              <h3 className="font-bold text-sm text-slate-900 group-hover:text-brand-600 transition-colors">
-                Presupuestos
-              </h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Importación y presupuestación de obras HETMO, cotizador por fases y catálogo maestro de materiales.
-              </p>
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-brand-600">
-              <span>Ingresar a Presupuestos</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </div>
-
-          {/* Tarjeta Proyectos */}
-          <div
-            onClick={() => onNavigate('proyectos')}
-            className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between space-y-4"
-          >
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700">
-                  <FolderKanban className="w-5 h-5" />
-                </div>
-                <Badge variant="default" size="sm">
-                  Activo
-                </Badge>
-              </div>
-              <h3 className="font-bold text-sm text-slate-900 group-hover:text-brand-600 transition-colors">
-                Obras en curso
-              </h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Obras ya aceptadas por el cliente: presupuesto, órdenes de compra, documentos y bodega.
-              </p>
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-700">
-              <span>Ingresar a Obras en curso</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </div>
-
-          {/* Tarjeta Maestro / Materiales */}
-          <div
-            onClick={() => onNavigate('maestro')}
-            className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between space-y-4"
-          >
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700">
-                  <Package className="w-5 h-5" />
-                </div>
-                <Badge variant="default" size="sm">
-                  En Abastecimiento
-                </Badge>
-              </div>
-              <h3 className="font-bold text-sm text-slate-900 group-hover:text-brand-600 transition-colors">
-                Maestro de Productos
-              </h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Catálogo general de perfiles, termopaneles, sellos y accesorios con precios y divisas de origen.
-              </p>
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-700">
-              <span>Gestionar catálogo</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </div>
-        </div>
+/** Las últimas pantallas que abrió este usuario (lib/recientes.ts). */
+const Recientes: React.FC<{ onNavigate: (tabId: string) => void }> = ({ onNavigate }) => {
+  const { datos } = usePermisos();
+  const recientes = useRecientes(datos?.email);
+  return (
+    <div>
+      <div className="mb-3 px-1 flex items-center gap-2">
+        <History className="w-3.5 h-3.5 text-slate-400" />
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">Visitado recientemente</h2>
       </div>
+      {recientes.length === 0 ? (
+        <div className="p-6 rounded-2xl bg-white border border-dashed border-slate-200 text-center text-xs text-slate-500">
+          Aquí aparecerán las últimas obras, presupuestos y secciones que abras.{' '}
+          <Button variant="link" size="sm" onClick={() => onNavigate('cotizaciones')}>
+            Ir a Presupuestos
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {recientes.map((r) => {
+            const entrada = SECCIONES_FRONTEND.find((x) => x.id === r.seccion);
+            const Icono = entrada?.icon ?? History;
+            const [titulo, ...resto] = r.ruta.length ? r.ruta : [entrada?.label ?? r.seccion];
+            const abrir = () => {
+              const url = new URL(r.href, window.location.origin);
+              navegar(url.pathname, Object.fromEntries(url.searchParams));
+            };
+            return (
+              <BotonFila sinRelleno key={r.href + r.visitadoEn} onClick={abrir} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-brand-600/40 hover:shadow-md transition-all group text-left">
+                <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <Icono className="w-3.5 h-3.5" />
+                  <span className="truncate">{entrada?.label ?? r.seccion}</span>
+                  <span className="ml-auto font-medium normal-case tracking-normal">{haceCuanto(r.visitadoEn)}</span>
+                </span>
+                <span className="mt-2 flex items-center gap-1.5 min-w-0">
+                  <span className="font-bold text-sm text-slate-900 group-hover:text-brand-700 truncate">{titulo}</span>
+                  {r.codigo && r.ruta.length > 0 && (
+                    <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 font-mono font-bold text-slate-600">{r.codigo}</span>
+                  )}
+                </span>
+                {resto.length > 0 && <span className="block mt-0.5 text-xs text-slate-500 truncate">{resto.join(' › ')}</span>}
+              </BotonFila>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
+
+function haceCuanto(ms: number): string {
+  const min = Math.round((Date.now() - ms) / 60_000);
+  if (min < 1) return 'recién';
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `hace ${h} h`;
+  const d = Math.round(h / 24);
+  return d === 1 ? 'ayer' : `hace ${d} días`;
+}

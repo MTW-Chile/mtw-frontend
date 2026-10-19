@@ -64,7 +64,7 @@ export function buildAdicionalHtml({ adicional: a, logoDataUrl }: AdicionalPdfPa
   body { font-family: Helvetica, Arial, sans-serif; color: ${HEX.navy}; margin: 0; }
 </style></head>
 <body>
-  ${logoDataUrl ? `<img src="${logoDataUrl}" style="width:101px;height:46px;display:block;margin-bottom:12px;" />` : ''}
+  ${logoDataUrl ? `<img src="${logoDataUrl}" style="max-width:101px;max-height:46px;width:auto;height:auto;object-fit:contain;display:block;margin-bottom:12px;" />` : ''}
   <div style="font-size:20px;font-weight:bold;color:${HEX.navy};">${escapeHtml(titulo)}</div>
   <div style="border-top:2px solid ${HEX.rojo};margin:8px 0 10px;"></div>
   <table style="width:100%;font-size:9.5px;margin-bottom:12px;">

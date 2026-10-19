@@ -18,7 +18,7 @@ import { toWindowLine } from '../../components/drawing/ventanaAdapter';
 import { createFinish, getAcabadoLabel } from '../../components/drawing/colorSystem';
 import * as core from '../../components/drawing/geometryCore';
 import { useAnalitica } from '../../lib/useAnalitica';
-import { loadImageDataUrl } from '../../lib/pdfTheme';
+import { cargarLogoDocumentos, loadImageDataUrl } from '../../lib/pdfTheme';
 import { ufLabel, rasterizarDibujos, buildDocumentoHtml, buildHeaderFooterTemplates } from './presupuestoPdf';
 import { Button } from '../../../../components/ui/Button';
 import { IconButton } from '../../../../components/ui/IconButton';
@@ -220,7 +220,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
       let logoDataUrl: string | null = null;
       let logoMuchtekDataUrl: string | null = null;
       try {
-        logoDataUrl = await loadImageDataUrl('/mtw-logo.png');
+        logoDataUrl = await cargarLogoDocumentos();
       } catch {
         // El logo es decorativo -- si falla la carga, el PDF sigue sin él.
       }

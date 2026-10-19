@@ -4,6 +4,8 @@ import { ArrowLeft, RotateCw, ChevronRight } from 'lucide-react';
 import { getProyectoById } from '../../api/client';
 import { navegar, useLocationHref, usePuedeVolver } from '../../lib/navigation';
 import { useMigasActuales, type Miga } from '../../lib/migas';
+import { useAnotarReciente } from '../../lib/recientes';
+import { usePermisos } from '../../lib/permisos';
 
 // Controles de navegacion "dentro de la app" del Header -- la app es una
 // sola pagina, asi que F5 recarga TODO (permisos, sesion, listados) solo
@@ -70,6 +72,16 @@ export const MigasDePan: React.FC<{ seccion: string; titulo: string }> = ({ secc
     ...(proyectoId ? [{ label: proyecto?.obra || 'Cargando…', codigo: proyecto ? proyecto.codigoInterno || `PRJ-${proyecto.numeroPresupuesto}` : undefined }] : []),
     ...extra,
   ];
+
+  // Inicio › "Visitado recientemente": esta misma ruta, al asentarse.
+  const { datos } = usePermisos();
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  useAnotarReciente(datos?.email, {
+    href: base && href.startsWith(base) ? href.slice(base.length) || '/' : href,
+    seccion,
+    ruta: migas.slice(1).map((m) => m.label),
+    codigo: migas.find((m) => m.codigo)?.codigo,
+  });
 
   return (
     <nav aria-label="Ruta" className="flex items-center gap-1.5 min-w-0 text-sm">

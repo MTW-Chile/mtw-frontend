@@ -10,4 +10,6 @@ const canal = typeof __APP_CANAL__ === 'string' ? __APP_CANAL__ : 'Dev';
 export const VERSION = version;
 
 /** Como se muestra: canal + major.minor, ej. "Alpha V2.0". El detalle de cada versión está en CHANGELOG.md. */
-export const VERSION_VISIBLE = `${canal} V${version.split('.').slice(0, 2).join('.')}`;
+// "Alpha v2.0" o, con parche, "Alpha v2.0.1" (la v siempre en minúscula).
+const [mayor = '0', menor = '0', parche = '0'] = version.split('.');
+export const VERSION_VISIBLE = `${canal} v${mayor}.${menor}${parche !== '0' ? `.${parche}` : ''}`;

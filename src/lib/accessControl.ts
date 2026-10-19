@@ -1,5 +1,5 @@
 import type { ElementType } from 'react';
-import { LayoutDashboard, Building, Building2, FolderKanban, Settings, FileText, DoorClosed, ShieldCheck, Warehouse, ShoppingCart, Users, ListChecks, Cloud, Boxes, SlidersHorizontal, Tags, Calculator, Ruler, Workflow, ClipboardList, Factory, Briefcase, Hammer, Truck } from 'lucide-react';
+import { LayoutDashboard, Building, Building2, FolderKanban, Settings, FileText, DoorClosed, ShieldCheck, Warehouse, ShoppingCart, Users, ListChecks, Cloud, Boxes, SlidersHorizontal, Tags, Calculator, Ruler, Workflow, ClipboardList, Factory, Briefcase, Hammer, Truck, Megaphone } from 'lucide-react';
 import type { Permiso } from '../types';
 
 export interface EntradaAcceso {
@@ -20,15 +20,16 @@ export interface EntradaAcceso {
 // Secciones de Configuración, agrupadas en su menú lateral (también definen
 // si se ve la sección Configuración). El id va en la URL (?tab=...).
 export interface SeccionConfig extends EntradaAcceso {
-  grupo: 'Comercial' | 'Catálogo' | 'Obras' | 'Sistema';
+  grupo: 'Empresa' | 'Comercial' | 'Catálogo' | 'Obras' | 'Sistema';
   descripcion: string;
 }
 
 export const CONFIG_SECCIONES: SeccionConfig[] = [
+  { grupo: 'Empresa', id: 'empresa', label: 'Configuración de Empresa', icon: Building, permisos: ['config.empresa'], descripcion: 'Datos de la empresa y logo de los documentos.' },
+  { grupo: 'Empresa', id: 'anuncio', label: 'Anuncio', icon: Megaphone, permisos: ['config.empresa'], descripcion: 'Mensaje para todos los usuarios en la página de inicio.' },
   { grupo: 'Comercial', id: 'parametros', label: 'Parámetros', icon: SlidersHorizontal, permisos: ['config.comercial'], descripcion: 'IVA, tasas, Hoja de Fijación por defecto, aprobación de adicionales y conciliación.' },
   { grupo: 'Comercial', id: 'tipos-proyecto', label: 'Tipos de proyecto', icon: FolderKanban, permisos: ['config.comercial'], descripcion: 'Obra, retail y otros: definen las plantillas de textos que usa cada documento.' },
   { grupo: 'Comercial', id: 'plantillas-textos', label: 'Plantillas de textos', icon: FileText, permisos: ['config.comercial'], descripcion: 'Presentación y condiciones comerciales de presupuestos y adicionales.' },
-  { grupo: 'Comercial', id: 'empresa', label: 'Empresa', icon: Building, permisos: ['config.empresa'], descripcion: 'Datos de la empresa que aparecen en los PDF.' },
   { grupo: 'Catálogo', id: 'tipos-producto', label: 'Tipos de producto', icon: Boxes, permisos: ['config.catalogo'], descripcion: 'Cómo se calcula, valoriza y compra cada material.' },
   { grupo: 'Catálogo', id: 'partidas', label: 'Partidas', icon: Tags, permisos: ['config.catalogo'], descripcion: 'Partidas de presupuesto y su correlativo de Clay.' },
   { grupo: 'Catálogo', id: 'hoja-fijacion', label: 'Hoja de Fijación', icon: Calculator, permisos: ['config.catalogo'], descripcion: 'Conceptos de la Hoja de Fijación y su partida por defecto.' },

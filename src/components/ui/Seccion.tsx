@@ -13,8 +13,10 @@ export const Seccion: React.FC<{
   acciones?: React.ReactNode;
   sinRelleno?: boolean;
   className?: string;
+  /** Clases del contenedor del contenido (ej. para que crezca a lo alto). */
+  cuerpoClassName?: string;
   children?: React.ReactNode;
-}> = ({ titulo, descripcion, icono: Icono, acciones, sinRelleno, className = '', children }) => (
+}> = ({ titulo, descripcion, icono: Icono, acciones, sinRelleno, className = '', cuerpoClassName = '', children }) => (
   <section className={`rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden ${className}`}>
     {(titulo || acciones) && (
       <div className={`px-5 py-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3 ${children ? 'border-b border-slate-100' : ''}`}>
@@ -32,6 +34,6 @@ export const Seccion: React.FC<{
         {acciones && <div className="flex flex-wrap items-center gap-2 shrink-0">{acciones}</div>}
       </div>
     )}
-    {children !== undefined && <div className={sinRelleno ? '' : 'p-5'}>{children}</div>}
+    {children !== undefined && <div className={`${sinRelleno ? '' : 'p-5'} ${cuerpoClassName}`}>{children}</div>}
   </section>
 );

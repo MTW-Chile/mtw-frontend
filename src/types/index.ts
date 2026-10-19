@@ -321,6 +321,20 @@ export interface ConfiguracionEmpresa {
   footerWebLabel: string | null;
   footerInstagramUrl: string | null;
   footerInstagramHandle: string | null;
+  tieneLogo: boolean;
+  logoActualizadoEn: string | null;
+  anuncioTexto: string | null;
+  anuncioUrgencia: UrgenciaAnuncio;
+  anuncioActivo: boolean;
+  anuncioActualizadoEn: string | null;
+}
+
+export type UrgenciaAnuncio = 'INFORMATIVO' | 'ADVERTENCIA' | 'URGENTE';
+
+export interface Anuncio {
+  texto: string;
+  urgencia: UrgenciaAnuncio;
+  actualizadoEn: string | null;
 }
 
 // ---- Configuracion comercial (Configuracion > Comercial) ----

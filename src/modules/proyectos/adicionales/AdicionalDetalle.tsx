@@ -19,7 +19,7 @@ import {
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { usePermisos } from '../../../lib/permisos';
-import { loadImageDataUrl } from '../../cotizaciones/lib/pdfTheme';
+import { cargarLogoDocumentos } from '../../cotizaciones/lib/pdfTheme';
 import { MaterialPicker } from '../../cotizaciones/steps/Step2Lineas/MaterialPicker';
 import { avisarError } from '../../configuracion/catalogo/comun';
 import type { Adicional, EstadoAdicional, Material, Proyecto } from '../../../types';
@@ -90,7 +90,7 @@ export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: strin
     try {
       let logo: string | null = null;
       try {
-        logo = await loadImageDataUrl('/mtw-logo.png');
+        logo = await cargarLogoDocumentos();
       } catch {
         // decorativo
       }

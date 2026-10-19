@@ -1,6 +1,7 @@
 import React from 'react';
 import { Settings } from 'lucide-react';
-import { PresupuestoConfigPanel } from './PresupuestoConfigPanel';
+import { EmpresaPanel } from './empresa/EmpresaPanel';
+import { AnuncioPanel } from './empresa/AnuncioPanel';
 import { PlantillasPuertasPanel } from './PlantillasPuertasPanel';
 import { RolesUsuarioPanel } from './RolesUsuarioPanel';
 import { EtapasPendientesPanel } from './EtapasPendientesPanel';
@@ -29,7 +30,8 @@ const PANELES: Record<string, { Panel: React.ComponentType<{ puedeEditar: boolea
   parametros: { Panel: ParametrosSection, editar: 'config.comercial' },
   'tipos-proyecto': { Panel: TiposProyectoSection, editar: 'config.comercial' },
   'plantillas-textos': { Panel: PlantillasSection, editar: 'config.comercial' },
-  empresa: { Panel: PresupuestoConfigPanel },
+  empresa: { Panel: EmpresaPanel, editar: 'config.empresa' },
+  anuncio: { Panel: AnuncioPanel, editar: 'config.empresa' },
   'tipos-producto': { Panel: TiposProductoSection, editar: 'config.catalogo' },
   partidas: { Panel: PartidasSection, editar: 'config.catalogo' },
   'hoja-fijacion': { Panel: ConceptosFijacionSection, editar: 'config.catalogo' },

@@ -234,11 +234,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
             <span className="mr-2">
               Holgura: <b>{cubicacion.holguraMm} mm</b> · Nomenclatura: <b className="font-mono">{cubicacion.formatoNomenclatura}</b>
             </span>
-            {presupuesto && (
-              <Button variant="ghost" size="sm" leftIcon={<RefreshCw className="w-3.5 h-3.5" />} isLoading={sincronizar.isPending} onClick={() => sincronizar.mutate()} title="Vuelve a leer el presupuesto de HETMO (no pisa lo ya cargado)">
-                Actualizar desde el presupuesto
-              </Button>
-            )}
+            {/* Sin "Actualizar desde el presupuesto": la obra ya tiene su presupuesto aceptado y congelado; se lee una sola vez al activar. */}
             <Button variant="ghost" size="sm" leftIcon={<Settings2 className="w-3.5 h-3.5" />} onClick={() => setConfig(true)}>
               Configuración
             </Button>

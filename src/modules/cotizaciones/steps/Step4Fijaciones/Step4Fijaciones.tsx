@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Calculator, Check, Plus, Trash2, FileDown, Lock, ShieldCheck, ArrowLeft, Percent } from 'lucide-react';
+import { Calculator, Check, Plus, Trash2, FileDown, Lock, ShieldCheck, ArrowLeft, Tags } from 'lucide-react';
 import { formatNumber } from '../../../../lib/utils';
 import { getConceptosFijacion, getPartidas, updateFijacionConfig, updateEstadoAprobacion } from '../../../../api/client';
 import type { ConceptoFijacionCodigo, Partida, Proyecto, ProyectoVersion, FijacionExtra, FijacionBorrador } from '../../../../types';
@@ -17,6 +17,8 @@ import { IconButton } from '../../../../components/ui/IconButton';
 import { Seccion } from '../../../../components/ui/Seccion';
 import { InputCompacto, NumeroInput, SelectCompacto } from '../../../../components/ui/Campos';
 import { Cargando, EstadoVacio } from '../../../../components/ui/Estados';
+import { SubTabs } from '../../../../components/ui/PageHeader';
+import { useMigas } from '../../../../lib/migas';
 
 interface Step4FijacionesProps {
   proyecto: Proyecto;
@@ -34,6 +36,8 @@ interface Step4FijacionesProps {
 }
 
 type DraftFijacion = Omit<FijacionBorrador, 'extras'>;
+
+type PestanaHoja = 'hoja' | 'asignacion';
 
 type CampoNumerico = Exclude<keyof DraftFijacion, 'asignaciones'>;
 
@@ -153,6 +157,10 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
   const [extras, setExtras] = useState<FijacionExtra[]>([]);
   const [draftDe, setDraftDe] = useState<string | null>(null);
   const [mostrarAnalisis, setMostrarAnalisis] = useState(false);
+  // Hoja de Fijación (vista ordenada como el PDF, la que revisa gerencia) o
+  // Asignación de costos (a qué partida se carga cada costo).
+  const [pestana, setPestana] = useState<PestanaHoja>('hoja');
+  useMigas(2, [pestana === 'asignacion' && { label: 'Asignación de costos' }]);
   const claveDraft = `${versionId}|${config?.id ?? ''}`;
 
   useEffect(() => {
@@ -445,33 +453,11 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
 
   const montoConcepto = (c: ConceptoFijacionCodigo) => vista?.lineasFijacion.find((l) => l.concepto === c)?.monto ?? 0;
   const costoHoja = costosComplementarios + costoFlete + costoInstalacion;
-  const columnas = mostrarAnalisis ? 6 : 5;
-  const pct = (monto: number) => (mostrarAnalisis ? <Td numero className="text-slate-400">{pctLabel(monto, venta).replace(' venta', '')}</Td> : null);
   const setNumero = (campo: CampoNumerico, max?: number) => (v: number | null) =>
     setDraft((prev) => ({ ...prev, [campo]: Math.min(max ?? Infinity, Math.max(0, v ?? 0)) }));
-
-  const filaConcepto = (concepto: ConceptoFijacionCodigo, nombre: string, cantidad: React.ReactNode, campo: CampoNumerico, unidad: string) => {
-    const monto = montoConcepto(concepto);
-    return (
-      <Tr key={concepto}>
-        <Td className="font-semibold text-slate-800">{nombre}</Td>
-        <Td numero className="text-slate-500">{cantidad}</Td>
-        <Td alinear="derecha">
-          <NumeroInput valor={draft[campo] as number} onGuardar={setNumero(campo)} disabled={congelado} sufijo={unidad} aria-label={`${nombre}: valor unitario`} className="w-24" />
-        </Td>
-        <Td>{selectorConcepto(concepto)}</Td>
-        <Td numero fuerte>{clpLabel(monto)}</Td>
-        {pct(monto)}
-      </Tr>
-    );
-  };
-  const grupo = (titulo: string) => (
-    <Tr key={`g-${titulo}`} className="bg-slate-50/70 hover:bg-slate-50/70">
-      <Td colSpan={columnas} className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-        {titulo}
-      </Td>
-    </Tr>
-  );
+  // "(12% venta)" junto a un monto, solo con "Analizar precio".
+  const analisis = (monto: number) => (mostrarAnalisis ? <span className="text-slate-400 font-normal ml-1.5">({pctLabel(monto, venta)})</span> : null);
+  const haySinAsignar = extrasSinPartida > 0 || presupuestoPorPartida.some((p) => p.codigo === codigoSinAsignar);
 
   const estadoBadge = congelado ? (
     <Badge size="sm" variant={estadoActual === 'ESPERANDO_APROBACION_COMERCIAL' && !modoAdicional ? 'warning' : 'default'}>
@@ -486,6 +472,31 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
 
   const tasaUfTexto = new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(tasaUf);
 
+  // Fila de la hoja: etiqueta (y su ayuda) a la izquierda, valor o campo a la derecha.
+  // `alta`: la columna de materiales reparte su alto entre las filas para
+  // quedar pareja con la de costos (que tiene campos y totales).
+  const fila = (label: React.ReactNode, valor: React.ReactNode, ayuda?: React.ReactNode, key?: string, alta?: boolean) => (
+    <div key={key} className={`flex items-center justify-between gap-3 px-5 text-xs ${alta ? 'flex-1 py-2.5' : 'py-1.5'}`}>
+      <div className="min-w-0">
+        <div className="text-slate-600">{label}</div>
+        {ayuda && <div className="text-[10px] text-slate-400">{ayuda}</div>}
+      </div>
+      <div className="shrink-0 font-mono font-bold text-slate-900 tabular-nums">{valor}</div>
+    </div>
+  );
+  const total = (label: React.ReactNode, monto: number) => (
+    <div className="flex items-center justify-between gap-3 px-5 py-2 bg-slate-50/70 text-xs font-bold text-slate-900">
+      <span>
+        {label}
+        {analisis(monto)}
+      </span>
+      <span className="font-mono tabular-nums">{clpLabel(monto)}</span>
+    </div>
+  );
+  const campo = (c: CampoNumerico, nombre: string, sufijo: string) => (
+    <NumeroInput valor={draft[c] as number} onGuardar={setNumero(c)} disabled={congelado} sufijo={sufijo} aria-label={nombre} className="w-28" />
+  );
+
   return (
     <div className="space-y-5 animate-fade-in">
       <Seccion
@@ -498,8 +509,8 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
         descripcion={proyecto.obra}
         acciones={
           <>
-            <Button variant="ghost" size="sm" leftIcon={<Percent className="w-3.5 h-3.5" />} onClick={() => setMostrarAnalisis((v) => !v)}>
-              {mostrarAnalisis ? 'Ocultar % venta' : 'Ver % venta'}
+            <Button variant="ghost" size="sm" onClick={() => setMostrarAnalisis((v) => !v)}>
+              {mostrarAnalisis ? 'Ocultar análisis' : 'Analizar precio'}
             </Button>
             <Button variant="outline" size="sm" onClick={exportarPDF} leftIcon={<FileDown className="w-3.5 h-3.5" />}>
               Exportar PDF
@@ -535,92 +546,174 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
             )}
           </>
         }
-      >
-        {/* Resultado: lo que se decide con esta hoja, arriba. */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <Resultado etiqueta="Costo total NETO" valor={ufLabel(costoTotal, tasaUf)} detalle={clpLabel(costoTotal)} />
-          <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Margen de venta</div>
-            <div className="mt-1.5">
-              <NumeroInput valor={draft.margenVentaPct} onGuardar={setNumero('margenVentaPct', 99)} max={99} disabled={congelado} sufijo="%" aria-label="Margen de venta" className="w-20 text-sm! font-bold" />
-            </div>
-          </div>
-          <Resultado etiqueta="Valor por m²" valor={ufLabel(valorM2, tasaUf)} detalle="por m² de ventana" />
-          <Resultado etiqueta="Valor de venta NETO" valor={ufLabel(venta, tasaUf)} detalle={clpLabel(venta)} destacado />
-        </div>
-        <p className="mt-2 text-[10px] text-slate-400 text-right">UF usada para el presupuesto: $ {tasaUfTexto}</p>
-      </Seccion>
+      />
 
       {congelarMutation.isError && (
         <Aviso tono="peligro">{(congelarMutation.error as any)?.response?.data?.error || 'No se pudo enviar el presupuesto a aprobación.'}</Aviso>
       )}
-      {(extrasSinPartida > 0 || presupuestoPorPartida.some((p) => p.codigo === codigoSinAsignar)) && (
-        <Aviso tono="advertencia" titulo="Hay costos en “Sin asignar”">
-          {extrasSinPartida > 0 && `${extrasSinPartida} ${extrasSinPartida === 1 ? 'extra' : 'extras'} sin partida. `}
-          Cuentan para el costo y la venta, pero no quedan en una partida real del Control de Presupuesto. Elige su partida en cada concepto o extra.
-        </Aviso>
-      )}
-
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
-        <Seccion
-          className="xl:col-span-2"
-          sinRelleno
-          titulo="Costos de la hoja"
-          descripcion="Cantidad × valor unitario, cargado a su partida. Los cambios se calculan al salir de cada campo."
-          acciones={
-            !congelado && (
-              <Button size="sm" variant="outline" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={agregarExtra}>
-                Agregar extra
+      {haySinAsignar && (
+        <Aviso
+          tono="advertencia"
+          titulo="Hay costos en “Sin asignar”"
+          accion={
+            pestana === 'hoja' && (
+              <Button size="sm" variant="outline" leftIcon={<Tags className="w-3.5 h-3.5" />} onClick={() => setPestana('asignacion')}>
+                Ir a Asignación de costos
               </Button>
             )
           }
         >
-          <Tabla>
-            <Thead>
-              <Tr>
-                <Th>Concepto</Th>
-                <Th alinear="derecha">Cantidad</Th>
-                <Th alinear="derecha">Valor unitario</Th>
-                <Th>Partida</Th>
-                <Th alinear="derecha">Costo</Th>
-                {mostrarAnalisis && <Th alinear="derecha">% venta</Th>}
-              </Tr>
-            </Thead>
-            <Tbody>
-              {grupo('Fabricación')}
-              {filaConcepto('MANO_OBRA_FABRICACION', 'Mano de obra fabricación', `${formatNumber(m2Ventanas, 2)} m² vent.`, 'manoObraFabricacion', '$/m²')}
-              {filaConcepto('FILM_PROTECTOR', 'Film protector cristales', `${formatNumber(m2Vidrios, 2)} m² vidrio`, 'filmProtectorCristales', '$/m²')}
-              {filaConcepto('MATERIAL_INSTALACION', 'Material de instalación', `${formatNumber(m2Ventanas, 2)} m² vent.`, 'materialInstalacion', '$/m²')}
-              {grupo('Flete')}
-              {filaConcepto(
-                'FLETE',
-                'Flete',
-                <NumeroInput valor={draft.cantidadViajes} onGuardar={(v) => setNumero('cantidadViajes')(Math.trunc(v ?? 0))} disabled={congelado} sufijo="viajes" aria-label="Cantidad de viajes" className="w-16" />,
-                'valorViaje',
-                '$/viaje'
-              )}
-              {grupo('Instalación')}
-              {filaConcepto('INSTALACION', 'Instalación', `${formatNumber(m2Ventanas, 2)} m² vent.`, 'valorInstalacionM2', '$/m²')}
-              {filaConcepto('INSTALACION_PROTEX', 'Instalación puerta Protex', `${formatNumber(t?.m2Protex ?? 0, 2)} m²`, 'valorInstalacionProtexM2', '$/m²')}
-              {extras.length > 0 && grupo('Extras')}
-              {extras.map((extra, idx) => (
-                <Tr key={idx}>
-                  <Td>
-                    <InputCompacto
-                      aria-label="Glosa del extra"
-                      disabled={congelado}
-                      placeholder="Glosa del extra"
-                      value={extra.glosa}
-                      onChange={(e) => actualizarExtra(idx, { glosa: e.target.value })}
-                      className="w-full min-w-[10rem] font-semibold"
-                    />
-                  </Td>
-                  <Td numero className="text-slate-400">—</Td>
-                  <Td alinear="derecha">
-                    <NumeroInput valor={extra.monto} onGuardar={(v) => actualizarExtra(idx, { monto: Math.max(0, v ?? 0) })} disabled={congelado} sufijo="$" aria-label={`Monto de ${extra.glosa || 'el extra'}`} className="w-24" />
-                  </Td>
-                  <Td>
-                    <span className="flex items-center gap-1">
+          {extrasSinPartida > 0 && `${extrasSinPartida} ${extrasSinPartida === 1 ? 'extra' : 'extras'} sin partida. `}
+          Cuentan para el costo y la venta, pero no quedan en una partida real del Control de Presupuesto. Elige su partida en la pestaña Asignación de costos.
+        </Aviso>
+      )}
+
+      <SubTabs<PestanaHoja>
+        tabs={[
+          { id: 'hoja', label: 'Hoja de Fijación' },
+          { id: 'asignacion', label: 'Asignación de costos' },
+        ]}
+        active={pestana}
+        onChange={setPestana}
+      />
+
+      {pestana === 'hoja' ? (
+        <>
+          {/* Mismo orden que el PDF: materiales y métricas | costos, resumen y resultado. */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
+            <Seccion titulo="Materiales y métricas" sinRelleno className="flex flex-col" cuerpoClassName="flex-1 flex flex-col divide-y divide-slate-100">
+              {totalesPorCategoria.map((c) => fila(<>{c.etiqueta}{analisis(c.monto)}</>, clpLabel(c.monto), undefined, `m-${c.etiqueta}`, true))}
+              {fila('Cantidad de ventanas', String(cantidadVentanas), undefined, 'ventanas', true)}
+              {fila('m² de ventanas', `${formatNumber(m2Ventanas, 2)} m²`, undefined, 'm2v', true)}
+              {fila('Cantidad de cuadros', String(cantidadCuadros), undefined, 'cuadros', true)}
+              {fila('Cantidad de vidrios', String(cantidadVidrios), undefined, 'vidrios', true)}
+              {fila('m² de vidrios', `${formatNumber(m2Vidrios, 2)} m²`, undefined, 'm2vid', true)}
+            </Seccion>
+
+            <div className="space-y-4">
+              <Seccion
+                titulo="Costos complementarios"
+                sinRelleno
+                acciones={
+                  !congelado && (
+                    <Button size="sm" variant="link" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={agregarExtra}>
+                      Agregar extra
+                    </Button>
+                  )
+                }
+              >
+                <div className="divide-y divide-slate-100">
+                  {fila(<>Mano de obra fabricación{analisis(costoManoObra)}</>, campo('manoObraFabricacion', 'Mano de obra fabricación', '$/m²'), `CLP por m² de ventana · ${clpLabel(costoManoObra)}`)}
+                  {fila(<>Film protector cristales{analisis(costoFilm)}</>, campo('filmProtectorCristales', 'Film protector cristales', '$/m²'), `CLP por m² de vidrio · ${clpLabel(costoFilm)}`)}
+                  {fila(<>Material de instalación{analisis(costoMaterialInstalacion)}</>, campo('materialInstalacion', 'Material de instalación', '$/m²'), `CLP por m² de ventana · ${clpLabel(costoMaterialInstalacion)}`)}
+                  {extras.map((extra, idx) => (
+                    <div key={idx} className="flex items-center gap-2 px-5 py-1.5 text-xs">
+                      <InputCompacto
+                        aria-label="Glosa del extra"
+                        disabled={congelado}
+                        placeholder="Glosa del extra"
+                        value={extra.glosa}
+                        onChange={(e) => actualizarExtra(idx, { glosa: e.target.value })}
+                        className="flex-1 min-w-0 font-semibold"
+                      />
+                      <NumeroInput valor={extra.monto} onGuardar={(v) => actualizarExtra(idx, { monto: Math.max(0, v ?? 0) })} disabled={congelado} sufijo="$" aria-label={`Monto de ${extra.glosa || 'el extra'}`} className="w-28" />
+                      {!congelado && <IconButton icono={Trash2} tono="peligro" etiqueta={`Quitar ${extra.glosa || 'el extra'}`} onClick={() => eliminarExtra(idx)} />}
+                    </div>
+                  ))}
+                </div>
+                {total('Costo', costosComplementarios)}
+              </Seccion>
+
+              <Seccion titulo="Flete" sinRelleno>
+                <div className="divide-y divide-slate-100">
+                  {fila(
+                    'Cantidad de viajes',
+                    <NumeroInput valor={draft.cantidadViajes} onGuardar={(v) => setNumero('cantidadViajes')(Math.trunc(v ?? 0))} disabled={congelado} sufijo="viajes" aria-label="Cantidad de viajes" className="w-28" />
+                  )}
+                  {fila('Valor viaje', campo('valorViaje', 'Valor viaje', '$'))}
+                </div>
+                {total('Costo flete', costoFlete)}
+              </Seccion>
+
+              <Seccion titulo="Instalación" sinRelleno>
+                <div className="divide-y divide-slate-100">
+                  {fila('Valor por m²', campo('valorInstalacionM2', 'Instalación: valor por m²', '$/m²'), 'CLP por m² de ventana')}
+                  {fila('Valor por m² (puerta Protex)', campo('valorInstalacionProtexM2', 'Instalación Protex: valor por m²', '$/m²'), `CLP por m² de puerta Protex · ${formatNumber(t?.m2Protex ?? 0, 2)} m²`)}
+                </div>
+                {total('Costo instalación', costoInstalacion)}
+              </Seccion>
+            </div>
+          </div>
+
+          <Seccion titulo="Resumen de costos" sinRelleno>
+            <div className="divide-y divide-slate-100">
+              {(
+                [
+                  ['Materiales', materialesTotal],
+                  ['Costos complementarios', costosComplementarios],
+                  ['Flete', costoFlete],
+                  ['Instalación', costoInstalacion],
+                ] as const
+              ).map(([label, monto]) => fila(<>{label}{analisis(monto)}</>, clpLabel(monto), undefined, label))}
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 bg-slate-50/70 text-sm font-bold text-slate-900">
+              <span>Costo total NETO</span>
+              <span className="font-mono tabular-nums">{clpLabel(costoTotal)}</span>
+            </div>
+          </Seccion>
+
+          {/* Resultado: lo que se aprueba con esta hoja. */}
+          <div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <Resultado etiqueta="Costo total NETO" valor={ufLabel(costoTotal, tasaUf)} detalle={clpLabel(costoTotal)} />
+              <div className="p-3.5 rounded-xl border border-slate-200 bg-white">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Margen de venta</div>
+                <div className="mt-1.5">
+                  <NumeroInput valor={draft.margenVentaPct} onGuardar={setNumero('margenVentaPct', 99)} max={99} disabled={congelado} sufijo="%" aria-label="Margen de venta" className="w-20 text-sm! font-bold" />
+                </div>
+              </div>
+              <Resultado etiqueta="Valor por m²" valor={ufLabel(valorM2, tasaUf)} detalle="por m² de ventana" />
+              <Resultado etiqueta="Valor de venta NETO" valor={ufLabel(venta, tasaUf)} detalle={clpLabel(venta)} destacado />
+            </div>
+            <p className="mt-2 text-[10px] text-slate-400 text-right">UF usada para el presupuesto: $ {tasaUfTexto}</p>
+          </div>
+        </>
+      ) : (
+        <>
+          <Seccion sinRelleno titulo="Costos de la hoja" descripcion="A qué partida del Control de Presupuesto se carga cada costo. Los valores se editan en la pestaña Hoja de Fijación.">
+            <Tabla>
+              <Thead>
+                <Tr>
+                  <Th>Concepto</Th>
+                  <Th alinear="derecha">Cantidad</Th>
+                  <Th alinear="derecha">Costo</Th>
+                  <Th>Partida</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {(
+                  [
+                    ['MANO_OBRA_FABRICACION', 'Mano de obra fabricación', `${formatNumber(m2Ventanas, 2)} m² vent.`],
+                    ['FILM_PROTECTOR', 'Film protector cristales', `${formatNumber(m2Vidrios, 2)} m² vidrio`],
+                    ['MATERIAL_INSTALACION', 'Material de instalación', `${formatNumber(m2Ventanas, 2)} m² vent.`],
+                    ['FLETE', 'Flete', `${draft.cantidadViajes} viajes`],
+                    ['INSTALACION', 'Instalación', `${formatNumber(m2Ventanas, 2)} m² vent.`],
+                    ['INSTALACION_PROTEX', 'Instalación puerta Protex', `${formatNumber(t?.m2Protex ?? 0, 2)} m²`],
+                  ] as const
+                ).map(([concepto, nombre, cantidad]) => (
+                  <Tr key={concepto}>
+                    <Td className="font-semibold text-slate-800">{nombre}</Td>
+                    <Td numero className="text-slate-500">{cantidad}</Td>
+                    <Td numero fuerte>{clpLabel(montoConcepto(concepto))}</Td>
+                    <Td>{selectorConcepto(concepto)}</Td>
+                  </Tr>
+                ))}
+                {extras.map((extra, idx) => (
+                  <Tr key={`e-${idx}`}>
+                    <Td className="font-semibold text-slate-800">{extra.glosa || <span className="text-slate-400 font-normal">Extra sin glosa</span>}</Td>
+                    <Td numero className="text-slate-400">—</Td>
+                    <Td numero fuerte>{clpLabel(extra.monto)}</Td>
+                    <Td>
                       <SelectorPartida
                         partidas={catalogoPartidas}
                         valor={extra.partidaCodigo || codigoSinAsignar}
@@ -628,99 +721,54 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
                         onChange={(codigo) => actualizarExtra(idx, { partidaCodigo: codigo === codigoSinAsignar ? null : codigo })}
                         etiqueta={`Partida de ${extra.glosa || 'este extra'}`}
                       />
-                      {!congelado && <IconButton icono={Trash2} tono="peligro" etiqueta={`Quitar ${extra.glosa || 'el extra'}`} onClick={() => eliminarExtra(idx)} />}
-                    </span>
-                  </Td>
-                  <Td numero fuerte>{clpLabel(extra.monto)}</Td>
-                  {pct(extra.monto)}
+                    </Td>
+                  </Tr>
+                ))}
+                <Tr className="bg-slate-50/70 hover:bg-slate-50/70">
+                  <Td colSpan={2} className="font-bold text-slate-900">Costo de la hoja</Td>
+                  <Td numero fuerte>{clpLabel(costoHoja)}</Td>
+                  <Td />
                 </Tr>
-              ))}
-              <Tr className="bg-slate-50/70 hover:bg-slate-50/70">
-                <Td colSpan={4} className="font-bold text-slate-900">Costo de la hoja</Td>
-                <Td numero fuerte>{clpLabel(costoHoja)}</Td>
-                {pct(costoHoja)}
-              </Tr>
-            </Tbody>
-          </Tabla>
-        </Seccion>
-
-        <div className="space-y-5">
-          <Seccion titulo="Métricas" sinRelleno>
-            <dl className="divide-y divide-slate-100 text-xs">
-              {[
-                ['Ventanas', String(cantidadVentanas)],
-                ['m² de ventanas', `${formatNumber(m2Ventanas, 2)} m²`],
-                ['Cuadros', String(cantidadCuadros)],
-                ['Vidrios', String(cantidadVidrios)],
-                ['m² de vidrios', `${formatNumber(m2Vidrios, 2)} m²`],
-              ].map(([label, value]) => (
-                <div key={label} className="flex items-center justify-between px-5 py-2">
-                  <dt className="text-slate-600">{label}</dt>
-                  <dd className="font-mono font-bold text-slate-900 tabular-nums">{value}</dd>
-                </div>
-              ))}
-            </dl>
+              </Tbody>
+            </Tabla>
           </Seccion>
 
-          <Seccion titulo="Resumen de costos" sinRelleno>
-            <dl className="divide-y divide-slate-100 text-xs">
-              {[
-                ...totalesPorCategoria.map((c) => [`Materiales · ${c.etiqueta}`, c.monto] as const),
-                ['Costos complementarios', costosComplementarios] as const,
-                ['Flete', costoFlete] as const,
-                ['Instalación', costoInstalacion] as const,
-              ].map(([label, monto]) => (
-                <div key={label} className="flex items-center justify-between gap-3 px-5 py-2">
-                  <dt className="text-slate-600">
-                    {label}
-                    {mostrarAnalisis && <span className="text-slate-400 ml-1.5">({pctLabel(monto, venta)})</span>}
-                  </dt>
-                  <dd className="font-mono font-bold text-slate-900 tabular-nums">{clpLabel(monto)}</dd>
-                </div>
-              ))}
-              <div className="flex items-center justify-between px-5 py-3 bg-slate-50/70 text-sm font-bold text-slate-900">
-                <dt>Costo total NETO</dt>
-                <dd className="font-mono tabular-nums">{clpLabel(costoTotal)}</dd>
-              </div>
-            </dl>
+          <Seccion
+            sinRelleno
+            titulo="Presupuesto por partida"
+            descripcion="Materiales (con descuento y holgura) más los costos de esta hoja según su partida. Es lo que el Control de Presupuesto compara contra las OC."
+          >
+            <Tabla>
+              <Thead>
+                <Tr>
+                  <Th>Partida</Th>
+                  <Th alinear="derecha">Materiales</Th>
+                  <Th alinear="derecha">Holgura</Th>
+                  <Th alinear="derecha">Hoja de fijación</Th>
+                  <Th alinear="derecha">Presupuesto</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {presupuestoPorPartida.map((p) => (
+                  <Tr key={p.codigo} tono={p.codigo === codigoSinAsignar ? 'advertencia' : undefined}>
+                    <Td className="text-slate-700">{p.nombre}</Td>
+                    <Td numero mono className="text-slate-600">{p.materiales ? clpLabel(p.materiales) : '—'}</Td>
+                    <Td numero mono className="text-slate-600">{p.holgura ? clpLabel(p.holgura) : '—'}</Td>
+                    <Td numero mono className="text-slate-600">{p.fijacion ? clpLabel(p.fijacion) : '—'}</Td>
+                    <Td numero mono fuerte>{clpLabel(p.total)}</Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Tabla>
           </Seccion>
-        </div>
-      </div>
-
-      <Seccion
-        sinRelleno
-        titulo="Presupuesto por partida"
-        descripcion="Materiales (con descuento y holgura) más los costos de esta hoja según su partida. Es lo que el Control de Presupuesto compara contra las OC."
-      >
-        <Tabla>
-          <Thead>
-            <Tr>
-              <Th>Partida</Th>
-              <Th alinear="derecha">Materiales</Th>
-              <Th alinear="derecha">Holgura</Th>
-              <Th alinear="derecha">Hoja de fijación</Th>
-              <Th alinear="derecha">Presupuesto</Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            {presupuestoPorPartida.map((p) => (
-              <Tr key={p.codigo} tono={p.codigo === codigoSinAsignar ? 'advertencia' : undefined}>
-                <Td className="text-slate-700">{p.nombre}</Td>
-                <Td numero mono className="text-slate-600">{p.materiales ? clpLabel(p.materiales) : '—'}</Td>
-                <Td numero mono className="text-slate-600">{p.holgura ? clpLabel(p.holgura) : '—'}</Td>
-                <Td numero mono className="text-slate-600">{p.fijacion ? clpLabel(p.fijacion) : '—'}</Td>
-                <Td numero mono fuerte>{clpLabel(p.total)}</Td>
-              </Tr>
-            ))}
-          </Tbody>
-        </Tabla>
-      </Seccion>
+        </>
+      )}
     </div>
   );
 };
 
 const Resultado: React.FC<{ etiqueta: string; valor: string; detalle?: string; destacado?: boolean }> = ({ etiqueta, valor, detalle, destacado }) => (
-  <div className={`p-3.5 rounded-xl border ${destacado ? 'border-brand-600/30 bg-brand-50/60' : 'border-slate-200 bg-slate-50/60'}`}>
+  <div className={`p-3.5 rounded-xl border ${destacado ? 'border-brand-600/30 bg-brand-50/60' : 'border-slate-200 bg-white'}`}>
     <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{etiqueta}</div>
     <div className={`mt-1 text-lg font-black tabular-nums ${destacado ? 'text-brand-700' : 'text-slate-900'}`}>{valor}</div>
     {detalle && <div className="text-[11px] font-mono text-slate-500 tabular-nums">{detalle}</div>}

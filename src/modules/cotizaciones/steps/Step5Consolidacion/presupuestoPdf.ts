@@ -579,7 +579,7 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
   const clienteComuna = proyecto.cliente?.localidad || proyecto.clienteLocalidadRaw;
   const clienteContacto = proyecto.cliente?.contacto || null;
 
-  const logoImg = logoDataUrl ? `<img src="${logoDataUrl}" style="width:101px;height:46px;display:block;margin-bottom:12px;" />` : '';
+  const logoImg = logoDataUrl ? `<img src="${logoDataUrl}" style="max-width:101px;max-height:46px;width:auto;height:auto;object-fit:contain;display:block;margin-bottom:12px;" />` : '';
   // En el documento de referencia el logo de Muchtek (Tecnoperfiles Group,
   // el proveedor del perfil) va arriba a la derecha, a la misma altura
   // que el logo de MTW -- solo en la primera página.
