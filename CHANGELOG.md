@@ -8,6 +8,11 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - **Versión menor** (2.0 → 2.1): un conjunto grande de funciones nuevas.
 - **Parche** (2.0.0 → 2.0.1): ajustes y mejoras acotadas, cada despliegue.
 
+## Alpha v2.0.4 — 2026-10-19
+
+**Compras**
+- Los vidrios de las líneas agregadas a mano (DVH fijo y puerta Protex) guardan la medida de cada pieza: en la OC salen individualizados como los de HETMO (en una Protex, un vidrio por hoja). Las líneas ya creadas se corrigen al publicar.
+
 ## Alpha v2.0.3 — 2026-10-19
 
 **Dibujo de ventanas**
