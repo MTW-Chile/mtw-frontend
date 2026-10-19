@@ -80,6 +80,21 @@ export function glassMarkup(
 }
 
 /**
+ * Machimbre en vez de vidrio (ej. el paño superior de la V33 de Edificio
+ * Feel): tablas horizontales del color del acabado, rellenando el vano.
+ * `paso` es la separación entre tablas en unidades del lienzo.
+ */
+export function machimbreMarkup(x: number, y: number, width: number, height: number, finish: FinishColors, paso: number): string {
+  const color = profileColors(finish);
+  const separacion = Math.max(1.4, paso);
+  const tablas: string[] = [];
+  for (let ty = y + separacion; ty < y + height - 0.6; ty += separacion) {
+    tablas.push(`<line x1="${x}" y1="${ty}" x2="${x + width}" y2="${ty}" style="${lineStyle(color.dark, 0.5, 'opacity:.7')}"/>`);
+  }
+  return `<g class="window-machimbre"><rect x="${x}" y="${y}" width="${width}" height="${height}" style="fill:${color.base};stroke:${color.dark};stroke-width:.6"/>${tablas.join('')}</g>`;
+}
+
+/**
  * Grosor de los perfiles, en unidades del lienzo. Un perfil se dibuja SIEMPRE
  * dentro de los límites que recibe (nunca hacia afuera): así dos unidades
  * vecinas de una ventana compuesta quedan pegadas borde con borde en vez de
@@ -87,6 +102,12 @@ export function glassMarkup(
  */
 export const FRAME_THICKNESS = 4.5;
 export const SASH_THICKNESS = 4.6;
+// Grosor real de marco y hoja según la escala del dibujo (ver
+// fijarEscalaHerraje): fijo, en una ventana grande el perfil tapaba media
+// hoja angosta (V17 de Pórtico Vicuña Mackenna, hoja de 414 mm). Nunca baja
+// de 60% para que el perfil se siga viendo.
+export const grosorMarco = () => FRAME_THICKNESS * Math.max(0.6, escalaHerraje);
+export const grosorHoja = () => SASH_THICKNESS * Math.max(0.6, escalaHerraje);
 
 /**
  * Perfil de aluminio/PVC como banda sólida: cuerpo relleno con el color del
@@ -128,7 +149,7 @@ export function frameMarkup(
   width: number,
   height: number,
   finish: FinishColors,
-  thickness = FRAME_THICKNESS
+  thickness = grosorMarco()
 ): string {
   return profileBandMarkup(className, 'window-frame-profile', x, y, width, height, thickness, profileColors(finish));
 }
@@ -139,7 +160,7 @@ export function sashMarkup(
   width: number,
   height: number,
   finish: FinishColors,
-  thickness = SASH_THICKNESS
+  thickness = grosorHoja()
 ): string {
   return profileBandMarkup(
     'window-sash',
@@ -193,7 +214,9 @@ export function transomMarkup(
   y1: number,
   x2: number,
   y2: number,
-  finish: FinishColors
+  finish: FinishColors,
+  /** 2.8 el travesaño; más delgado para el palillaje dentro de una hoja. */
+  grosor = 2.8
 ): string {
   const color = profileColors(finish);
   // Perfil con el mismo bisel luz/sombra que el marco (frameMarkup) y las
@@ -206,7 +229,7 @@ export function transomMarkup(
   const ny = dx / length;
   const offset = 0.55;
   return `<g class="window-transom">`
-    + `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" style="${lineStyle(color.base, 2.8)}"/>`
+    + `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" style="${lineStyle(color.base, grosor)}"/>`
     + `<line x1="${x1 + nx * offset}" y1="${y1 + ny * offset}" x2="${x2 + nx * offset}" y2="${y2 + ny * offset}" style="${lineStyle(color.light, 0.6, 'opacity:.7')}"/>`
     + `<line x1="${x1 - nx * offset}" y1="${y1 - ny * offset}" x2="${x2 - nx * offset}" y2="${y2 - ny * offset}" style="${lineStyle(color.dark, 0.6, 'opacity:.55')}"/>`
     + `</g>`;
@@ -406,6 +429,16 @@ export function openingAxisY(
   return y + height - height * heightInfo.millimeters / Math.max(1, physicalHeight);
 }
 
+// Tamaño del herraje (manillas, bisagras, cerraderos) según la escala real
+// del dibujo: estaba fijo en unidades del lienzo, así que en una ventana de
+// 7,5 m (escala ~3 veces menor que una de 1,5 m) se veía de casi medio metro.
+// 1 = el tamaño de siempre, el de una ventana de ~1,5 m; nunca crece.
+let escalaHerraje = 1;
+const ESCALA_REFERENCIA = 116 / 1500;
+export function fijarEscalaHerraje(unidadesPorMm: number): void {
+  escalaHerraje = clamp(unidadesPorMm / ESCALA_REFERENCIA, 0.45, 1);
+}
+
 export function handleMark(
   spec: HardwareSpec,
   line: WindowLine,
@@ -420,19 +453,20 @@ export function handleMark(
   const metal = metalColors(String(core.hardwareColor(line.materiales, finishFor(line).frame)));
   const heightInfo = core.handleHeightFor(line, leaf, physicalHeight);
   const hy = spec.position === 'bottom'
-    ? y + height - 3
+    ? y + height - 3 * escalaHerraje
     : spec.position === 'top'
-      ? y + 3
+      ? y + 3 * escalaHerraje
       : openingAxisY(line, leaf, y, height, physicalHeight);
   const side = spec.side === 'left' ? 'left' : spec.side === 'right' ? 'right' : 'center';
+  const k = escalaHerraje;
   const rawHx = side === 'left'
-    ? x + 3.5
+    ? x + 3.5 * k
     : side === 'right'
-      ? x + width - 3.5
+      ? x + width - 3.5 * k
       : x + width / 2;
   // La base de la manilla siempre cae dentro de la hoja; lo único que puede
   // sobresalir es la palanca cuando apunta hacia el vano (puertas, abatibles).
-  const BASE_RADIUS = 1.9;
+  const BASE_RADIUS = 1.9 * k;
   const hx = clamp(rawHx, x + BASE_RADIUS + 0.4, x + width - BASE_RADIUS - 0.4);
 
   if (spec.role === 'striker') {
@@ -451,10 +485,10 @@ export function handleMark(
   // Misma manilla en todas las familias -- la de corredera es exactamente
   // ésta, sólo que la palanca apunta hacia abajo en vez de hacia el lado.
   const vertical = spec.orientation === 'down';
-  const leverX = vertical ? hx : side === 'left' ? hx + 7 : side === 'right' ? hx - 7 : hx;
+  const leverX = vertical ? hx : side === 'left' ? hx + 7 * k : side === 'right' ? hx - 7 * k : hx;
   const leverY = vertical
-    ? hy + 7
-    : spec.orientation === 'up' ? hy - 9 : spec.position === 'top' ? hy + 9 : hy;
+    ? hy + 7 * k
+    : spec.orientation === 'up' ? hy - 9 * k : spec.position === 'top' ? hy + 9 * k : hy;
   const lever = vertical || side === 'center'
     ? `M ${hx} ${hy} L ${leverX} ${leverY}`
     : `M ${hx} ${hy} H ${leverX}`;
@@ -484,13 +518,20 @@ export function handleMark(
   // valor en mm como texto sobre el plano.
   return `<g class="window-handle" data-axis-y="${hy}" data-height-source="${heightSource}" data-hardware="${spec.lock ? 'monoblock' : 'manilla'}" data-reason="${escape(spec.reason || 'opening-leaf')}">`
     + lockPlate
-    + `<circle cx="${hx}" cy="${hy}" r="${BASE_RADIUS}" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.45"/>`
-    + `<circle cx="${hx - 0.5}" cy="${hy - 0.5}" r=".8" style="fill:${metal.light};opacity:.8"/>`
-    + `<path d="${lever}" style="${lineStyle(metal.base, 2.4, `stroke:${metal.base}`)}"/>`
-    + `<path d="${lever}" style="${lineStyle(metal.edge, 2.9, 'opacity:.35')}"/>`
-    + `<path d="${lever}" style="${lineStyle(metal.base, 2.2)}"/>`
-    + `<path d="${glare}" style="${lineStyle(metal.light, 0.65, 'opacity:.85')}"/>`
+    + `<circle cx="${hx}" cy="${hy}" r="${BASE_RADIUS}" style="fill:${metal.base};stroke:${metal.edge};stroke-width:${0.45 * k}"/>`
+    + `<circle cx="${hx - 0.5 * k}" cy="${hy - 0.5 * k}" r="${0.8 * k}" style="fill:${metal.light};opacity:.8"/>`
+    + `<path d="${lever}" style="${lineStyle(metal.base, 2.4 * k, `stroke:${metal.base}`)}"/>`
+    + `<path d="${lever}" style="${lineStyle(metal.edge, 2.9 * k, 'opacity:.35')}"/>`
+    + `<path d="${lever}" style="${lineStyle(metal.base, 2.2 * k)}"/>`
+    + `<path d="${glare}" style="${lineStyle(metal.light, 0.65 * k, 'opacity:.85')}"/>`
     + `</g>`;
+}
+
+// Cuántas bisagras se dibujan en un canto: las de la receta (a veces trae las
+// de todas las unidades de la línea), pero que quepan con aire entre ellas y
+// nunca más de 4 -- en las proyectantes de Mirador Azul salía una fila de puntos.
+function bisagrasVisibles(count: number, largo: number, barrel: number): number {
+  return Math.max(1, Math.min(count, 4, Math.floor((largo * 0.6) / (barrel * 1.8))));
 }
 
 export function hingeMarkup(
@@ -505,14 +546,16 @@ export function hingeMarkup(
 ): string {
   if (!count || !['left', 'right', 'top', 'bottom'].includes(side)) return '';
   const metal = metalColors(String(core.hardwareColor(line.materiales, finishFor(line).frame)));
-  const thickness = 2.6;
+  const k = escalaHerraje;
+  const thickness = 2.6 * k;
   // Las proyectantes y abatibles llevan las bisagras en el canto horizontal
   // (arriba o abajo), no en el vertical: mismo herraje, girado 90 grados.
   if (side === 'top' || side === 'bottom') {
-    const hy = side === 'top' ? y + 2.2 : y + height - 2.2;
-    const barrel = clamp(width * 0.07, 5, 9);
-    return Array.from({ length: count }, (_, index) => {
-      const hx = x + width * (index + 1) / (count + 1);
+    const hy = side === 'top' ? y + 2.2 * k : y + height - 2.2 * k;
+    const barrel = clamp(width * 0.07, 5 * k, 9 * k);
+    const n = bisagrasVisibles(count, width, barrel);
+    return Array.from({ length: n }, (_, index) => {
+      const hx = x + width * (index + 1) / (n + 1);
       const left = hx - barrel / 2;
       return `<g class="window-hinge" data-reason="${escape(reason)}">`
         + `<rect x="${left}" y="${hy - thickness / 2}" width="${barrel}" height="${thickness}" rx="${thickness / 2}" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.45"/>`
@@ -520,10 +563,11 @@ export function hingeMarkup(
         + `</g>`;
     }).join('');
   }
-  const hx = side === 'left' ? x + 2.2 : x + width - 2.2;
-  const barrel = clamp(height * 0.07, 5, 9);
-  return Array.from({ length: count }, (_, index) => {
-    const hy = y + height * (index + 1) / (count + 1);
+  const hx = side === 'left' ? x + 2.2 * k : x + width - 2.2 * k;
+  const barrel = clamp(height * 0.07, 5 * k, 9 * k);
+  const n = bisagrasVisibles(count, height, barrel);
+  return Array.from({ length: n }, (_, index) => {
+    const hy = y + height * (index + 1) / (n + 1);
     const top = hy - barrel / 2;
     return `<g class="window-hinge" data-reason="${escape(reason)}">`
       + `<rect x="${hx - thickness / 2}" y="${top}" width="${thickness}" height="${barrel}" rx="${thickness / 2}" style="fill:${metal.base};stroke:${metal.edge};stroke-width:.45"/>`

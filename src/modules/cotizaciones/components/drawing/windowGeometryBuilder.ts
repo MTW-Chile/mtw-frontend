@@ -26,6 +26,8 @@ import {
   transomMarkup,
   glassSplitMarkup,
   dimensionMarkup,
+  fijarEscalaHerraje,
+  machimbreMarkup,
   segmentDimensionMarkup,
   glassCodeMarkup,
   fixedMark,
@@ -37,8 +39,8 @@ import {
   handleMark,
   hingeMarkup,
   muntinMarkup,
-  FRAME_THICKNESS,
-  SASH_THICKNESS,
+  grosorMarco,
+  grosorHoja,
 } from './windowSvgMarkup';
 import type {
   WindowLine,
@@ -75,6 +77,8 @@ function computeDrawingDimensions(
   const drawingH = Math.max(14, h * scale);
   const x = DRAWING_OFFSET_X + (DRAWING_MAX_WIDTH - drawingW) / 2;
   const y = DRAWING_OFFSET_Y + (DRAWING_MAX_HEIGHT - drawingH) / 2;
+  // Cada dibujo fija la escala de su herraje (ver fijarEscalaHerraje).
+  fijarEscalaHerraje(scale);
   return { drawingW, drawingH, x, y, scale };
 }
 
@@ -148,7 +152,7 @@ function buildCompositePanel(
       // El marco del paño ocupa el borde del tile y todo el contenido (vidrio,
       // hojas, travesaños, herraje) va dentro de él: así los marcos de dos
       // paños vecinos quedan pegados borde con borde en vez de solaparse.
-      const panelInset = glassOnly ? 0 : FRAME_THICKNESS;
+      const panelInset = glassOnly ? 0 : grosorMarco();
       const px = outerX + panelInset;
       const py = outerY + panelInset;
       const pw = Math.max(2, outerW - panelInset * 2);
@@ -197,7 +201,7 @@ function buildCompositePanel(
       // El vidrio va DENTRO de la hoja (o directamente contra el marco, si la
       // ventana es fija): la hoja es un perfil relleno, así que dibujarla
       // encima del vidrio lo taparía por completo.
-      const sashInset = glassOnly ? 0 : SASH_THICKNESS;
+      const sashInset = glassOnly ? 0 : grosorHoja();
       // Un paño compuesto (numero_ventana propio) puede no traer NINGUN
       // elemento de vidrio real (tipo 40000/200) -- es un tramo ciego /
       // estructural entre dos ventanas vecinas de la misma linea HETMO, no
@@ -219,6 +223,12 @@ function buildCompositePanel(
       };
       const panelHasGlass = panel.raw.some((item: Record<string, unknown>) => core.glassElementTypes.indexOf(number(item && item.tipo_elemento)) >= 0);
       let panelGlazing = glazing(px, py, pw, ph, panelDefinition.family !== 'fixed', panelHasGlass);
+      // Vano con machimbre en vez de vidrio: tablas del color del acabado (~90 mm cada una).
+      const machimbre = core.isMachimbre(core.panelFillCode(panel), line.materiales) as boolean;
+      if (machimbre) {
+        const i = panelDefinition.family !== 'fixed' && !glassOnly ? sashInset : 0;
+        panelGlazing = machimbreMarkup(px + i, py + i, Math.max(1, pw - i * 2), Math.max(1, ph - i * 2), finish, 90 * scaleY);
+      }
 
       const panelAxisY = panelDefinition?.family === 'projecting'
         ? py + ph - 3
@@ -227,6 +237,10 @@ function buildCompositePanel(
       const isDoubleOpening = (panelDefinition.symbol === 'hinged' || panelDefinition.symbol === 'tilt-turn')
         && panelDefinition.leafCount === 2 && panel.aperturaCount >= 2;
       const tiltSide = panelDefinition.symbol === 'tilt-turn' ? panelDefinition.hand : '';
+      // Hojas de distinto ancho (ver core.doubleLeafWidths): izquierda y derecha.
+      const anchosDobles = isDoubleOpening ? (core.doubleLeafWidths(panel) as number[]) : [1, 1];
+      const leftW = pw * anchosDobles[0] / Math.max(1, anchosDobles[0] + anchosDobles[1]);
+      const rightW = pw - leftW;
 
       // Un mismo paño (un solo marco, un solo numero_ventana) puede traer
       // más de una hoja operable lado a lado -- ver panelVerticalDivisions.
@@ -251,21 +265,23 @@ function buildCompositePanel(
         : [];
 
       let mark = isDoubleOpening
-        ? `${tiltSide === 'left' ? doubleTiltTurnMark('left', px, py, pw / 2, ph, '#2452d6') : doubleHingedMark('left', px, py, pw / 2, ph, '#2452d6', panelAxisY)}${tiltSide === 'right' ? doubleTiltTurnMark('right', px + pw / 2, py, pw / 2, ph, '#2452d6') : doubleHingedMark('right', px + pw / 2, py, pw / 2, ph, '#2452d6', panelAxisY)}`
+        ? `${tiltSide === 'left' ? doubleTiltTurnMark('left', px, py, leftW, ph, '#2452d6') : doubleHingedMark('left', px, py, leftW, ph, '#2452d6', panelAxisY)}${tiltSide === 'right' ? doubleTiltTurnMark('right', px + leftW, py, rightW, ph, '#2452d6') : doubleHingedMark('right', px + leftW, py, rightW, ph, '#2452d6', panelAxisY)}`
         : sideBySideSegments.length
           ? sideBySideSegments.map((segment: { x: number; width: number; last: boolean }) =>
               `${hingedMark(panel.apertura, segment.x, py, segment.width, ph, '#2452d6', panelAxisY)}${segment.last ? '' : dividerMarkup(segment.x + segment.width, py + 2, py + ph - 2, finish, 2.5)}`
             ).join('')
           : (panel.apertura ? hingedMark(panel.apertura, px, py, pw, ph, '#2452d6', panelAxisY) : (panelHasGlass ? fixedMark(px, py, pw, ph, '#2452d6') : ''));
+      if (machimbre) mark = '';
 
       let hardwareMarkup = '';
       if (isDoubleOpening) {
         // Dos hojas en paralelo dentro del mismo marco, sin solape.
-        sash = glassOnly ? '' : `${sashMarkup(px, py, pw / 2, ph, finish)}${sashMarkup(px + pw / 2, py, pw / 2, ph, finish)}`;
-        panelGlazing = `${glazing(px, py, pw / 2, ph, true, panelHasGlass)}${glazing(px + pw / 2, py, pw / 2, ph, true, panelHasGlass)}`;
+        sash = glassOnly ? '' : `${sashMarkup(px, py, leftW, ph, finish)}${sashMarkup(px + leftW, py, rightW, ph, finish)}`;
+        panelGlazing = `${glazing(px, py, leftW, ph, true, panelHasGlass)}${glazing(px + leftW, py, rightW, ph, true, panelHasGlass)}`;
         if (!glassOnly) {
-          const activeSide = panelDefinition.hand === 'left' ? 'left' : 'right';
-          const activeX = activeSide === 'left' ? px : px + pw / 2;
+          // La manilla va en la hoja móvil cuando HETMO la declara (N1 de la apertura).
+          const activeSide = panel.movilLado === 1 ? 'left' : panel.movilLado === 2 ? 'right' : panelDefinition.hand === 'left' ? 'left' : 'right';
+          const activeX = activeSide === 'left' ? px : px + leftW;
           // Una practicable o abatible de dos hojas lleva UNA sola manilla: el
           // cerradero oculto de la hoja pasiva es cosa exclusiva de correderas.
           hardwareMarkup += handleMark(
@@ -274,13 +290,13 @@ function buildCompositePanel(
             { component: panel },
             activeX,
             py,
-            pw / 2,
+            activeSide === 'left' ? leftW : rightW,
             ph,
             panel.height
           );
           if (compositeHinges.count && ['hinged', 'door', 'tilt-turn'].includes(panelDefinition.family)) {
-            hardwareMarkup += hingeMarkup('left', compositeHinges.count, px, py, pw / 2, ph, compositeHinges.reason, line);
-            hardwareMarkup += hingeMarkup('right', compositeHinges.count, px + pw / 2, py, pw / 2, ph, compositeHinges.reason, line);
+            hardwareMarkup += hingeMarkup('left', compositeHinges.count, px, py, leftW, ph, compositeHinges.reason, line);
+            hardwareMarkup += hingeMarkup('right', compositeHinges.count, px + leftW, py, rightW, ph, compositeHinges.reason, line);
           }
         }
       } else if (sideBySideSegments.length) {
@@ -439,6 +455,15 @@ function buildCompositePanel(
       const tw = Math.max(1, pw - paneInset * 2);
       const th = Math.max(1, ph - paneInset * 2);
       const hetmoTraverses = core.panelTraverseLines(panel) as TraverseLine[];
+      // Vanos de vidrio del paño, de izquierda a derecha: en una hoja que abre,
+      // las barras horizontales (palillaje) van por dentro del vidrio de CADA
+      // hoja y se cortan contra su perfil, en vez de cruzar hojas y marcos.
+      const vanos: [number, number][] = isDoubleOpening
+        ? [[px + sashInset, px + leftW - sashInset], [px + leftW + sashInset, px + pw - sashInset]]
+        : sideBySideSegments.length
+          ? sideBySideSegments.map((segment: { x: number; width: number }) => [segment.x + sashInset, segment.x + segment.width - sashInset] as [number, number])
+          : [[tx, tx + tw]];
+      const grosorBarra = panel.apertura ? 1.6 : 2.8;
       const traverses = [
         ...hetmoTraverses,
         ...(core.manualTraverseLines(line, panel.number, panel.width, panel.height, hetmoTraverses) as TraverseLine[]),
@@ -448,9 +473,32 @@ function buildCompositePanel(
           const y1 = ty + th * (1 - item.y1 / Math.max(1, panel.height));
           const x2 = tx + tw * item.x2 / Math.max(1, panel.width);
           const y2 = ty + th * (1 - item.y2 / Math.max(1, panel.height));
-          return transomMarkup(x1, y1, x2, y2, finish);
+          if (Math.abs(y1 - y2) < 0.01) {
+            return vanos
+              .map(([a, b]) => [Math.max(a, Math.min(x1, x2)), Math.min(b, Math.max(x1, x2))])
+              .filter(([a, b]) => b - a > 0.5)
+              .map(([a, b]) => transomMarkup(a, y1, b, y2, finish, grosorBarra))
+              .join('');
+          }
+          return transomMarkup(x1, y1, x2, y2, finish, grosorBarra);
         })
         .join('');
+      // Travesaño vertical de un paño fijo (fila tipo 6 con POSICION=1): antes
+      // solo se dibujaba en paños que abren. Ej. V13 y V14 de Pórtico Vicuña
+      // Mackenna, fijo superior con travesaño al medio.
+      const cortesFijos = !panel.apertura && !panelLayout && !machimbre ? (core.panelVerticalDivisions(panel) as number[]) : [];
+      const traversesFijos = cortesFijos
+        .map((cota: number) => {
+          const cx = tx + tw * cota / Math.max(1, panel.width);
+          return transomMarkup(cx, ty, cx, ty + th, finish);
+        })
+        .join('');
+      if (cortesFijos.length && panelHasGlass) {
+        const bordes = [0, ...cortesFijos, panel.width];
+        mark = bordes.slice(0, -1)
+          .map((inicio: number, i: number) => fixedMark(tx + tw * inicio / panel.width, ty, tw * (bordes[i + 1] - inicio) / panel.width, th, '#2452d6'))
+          .join('');
+      }
 
       const splits = glassSplitMarkup(
         panel as unknown as Record<string, unknown>,
@@ -462,11 +510,12 @@ function buildCompositePanel(
         !panelLayout && !isDoubleOpening
       );
 
-      const visiblePanelGlass = !singleGlassCode || index === 0 ? panelGlass : '';
+      const visiblePanelGlass = machimbre ? '' : !singleGlassCode || index === 0 ? panelGlass : '';
       const code = panelLayout ? '' : glassCodeMarkup(codeClass, visiblePanelGlass, px, py, pw, ph);
       if (code) foregroundGlassCodes.push(code);
 
-      const panelMuntins = panelLayout ? '' : muntinMarkup(line, px, py, pw, ph, finish.frame);
+      // Barrotillos por dentro del vidrio (dentro de la hoja si la hay), no sobre el perfil.
+      const panelMuntins = panelLayout || machimbre ? '' : muntinMarkup(line, tx, ty, tw, th, finish.frame);
       // Cota por paño solo en los que tocan el borde inferior: con una fila
       // arriba y otra abajo de cortes distintos, las cotas se montaban.
       const tocaAbajo = tile.y + tile.height >= composite.height - 1;
@@ -481,7 +530,7 @@ function buildCompositePanel(
       // su propia unidad frente a los paños de al lado.
       const panelFrame = glassOnly ? '' : frameMarkup(frameClass, outerX, outerY, outerW, outerH, finish);
 
-      return `${panelFrame}${sash}${panelGlazing}${mark}${traverses}${splits}${panelMuntins}${panelDimension}${foregroundHardware}`;
+      return `${panelFrame}${sash}${panelGlazing}${mark}${traverses}${traversesFijos}${splits}${panelMuntins}${panelDimension}${foregroundHardware}`;
     })
     .join('');
 
@@ -586,7 +635,7 @@ function buildSimpleWindow(
   const hardwareLayers: string[] = [];
   const glassCodeLayers: string[] = [];
   const segmentDimensions: string[] = [];
-  const profileInset = glassOnly ? 0 : FRAME_THICKNESS;
+  const profileInset = glassOnly ? 0 : grosorMarco();
 
   // El travesaño es una barra a la misma profundidad que el perfil y acoplada
   // a él: va DENTRO del vidrio de cada hoja (o del paño fijo), no cruzando la
@@ -697,7 +746,7 @@ function buildSimpleWindow(
         return;
       }
 
-      const sashInset = glassOnly ? 0 : SASH_THICKNESS;
+      const sashInset = glassOnly ? 0 : grosorHoja();
       const paneX = leafX + sashInset;
       const paneY = contentY + sashInset;
       const paneW = Math.max(1, leafWidth - sashInset * 2);

@@ -8,6 +8,18 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - **Versión menor** (2.0 → 2.1): un conjunto grande de funciones nuevas.
 - **Parche** (2.0.0 → 2.0.1): ajustes y mejoras acotadas, cada despliegue.
 
+## Alpha v2.0.2 — 2026-10-19
+
+**Dibujo de ventanas**
+- Travesaño vertical en los paños fijos de una ventana compuesta (V13 y V14 de Pórtico Vicuña Mackenna).
+- Puertas y practicables de dos hojas con hojas de distinto ancho (V17 de Pórtico Vicuña Mackenna: 414 y 900 mm); la manilla va en la hoja móvil.
+- Palillaje más delgado y por dentro del vidrio de cada hoja, cortado contra su perfil.
+- Machimbre dibujado como tablas del color del acabado en vez de vidrio.
+- Manillas, bisagras, marcos y hojas a escala de la medida real (en ventanas grandes se veían enormes); como máximo 4 bisagras por canto.
+
+**Despliegue**
+- La API se publica ~4,5 minutos más rápido (sin cambiar el dueño de todos sus archivos al armarse).
+
 ## Alpha v2.0.1 — 2026-10-19
 
 **Presupuestos**

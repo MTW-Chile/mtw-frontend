@@ -1331,6 +1331,43 @@
     return lines;
   }
 
+  // Código del relleno de un paño (fila de vidrio tipo 200): "4+4 INC", o el
+  // código de un artículo cuando el vano no lleva vidrio (ej. 91319, machimbre).
+  export function panelFillCode(panel) {
+    const row = geometryItemsOf(panel).find(item => number(item && item.tipo_elemento) === 200);
+    return String((row && (row.geometria_a1 != null ? row.geometria_a1 : row.codigo_componente)) || '').trim();
+  }
+
+  // El vano lleva machimbre en vez de vidrio: el código lo dice, o es el
+  // código de un material de la línea cuya descripción dice machimbre
+  // (HETMO deja el artículo, ej. 91319 = "MACHIMBRE 14X89,3").
+  export function isMachimbre(code, materiales) {
+    const texto = String(code || '').trim();
+    if (!texto) return false;
+    if (/machimbre/i.test(texto)) return true;
+    return (Array.isArray(materiales) ? materiales : []).some(m => String((m && m.sku) || '').trim() === texto
+      && /machimbre/i.test(String((m && (m.descripcion || m.descripcionArticulo)) || '')));
+  }
+
+  // Ancho de cada hoja de una puerta o practicable de dos hojas, de izquierda
+  // a derecha. Las dos hojas no siempre son iguales: la V17 de Pórtico Vicuña
+  // Mackenna trae hojas (40001) de 414 y 900 mm, y su apertura (N1=2, N2=900)
+  // dice que la segunda es la móvil de 900. Sin datos, dos iguales.
+  export function doubleLeafWidths(panel) {
+    const porHoja = new Map();
+    geometryItemsOf(panel).filter(item => number(item && item.tipo_elemento) === 40001).forEach(item => {
+      const hoja = number(item.numero_hoja);
+      const ancho = firstPositive(item.ancho, item.ancho_mm);
+      if (hoja > 0 && ancho > 0 && !porHoja.has(hoja)) porHoja.set(hoja, ancho);
+    });
+    if (porHoja.size === 2) return [...porHoja.entries()].sort((a, b) => a[0] - b[0]).map(entry => entry[1]);
+    const total = firstPositive(panel && panel.width);
+    const movil = firstPositive(panel && panel.movilAncho);
+    const lado = number(panel && panel.movilLado);
+    if (total > 0 && movil > 0 && movil < total && (lado === 1 || lado === 2)) return lado === 1 ? [movil, total - movil] : [total - movil, movil];
+    return [1, 1];
+  }
+
   // Corte VERTICAL entre dos hojas operables lado a lado, o entre dos
   // columnas de vidrio fijo, dentro de un mismo paño (un solo marco, un
   // solo numero_ventana) -- ver isVerticalCutRow. Devuelve las cotas
