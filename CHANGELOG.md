@@ -18,6 +18,9 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - La fabricación se pone al día con HETMO al abrir la obra (lotes nuevos y estado de cada fase), sin esperar el sync automático; el sync también revisa las obras manuales con fabricación vinculada.
 - Nueva métrica en Información General: Ventanas producidas (unidades de las fases completadas sobre el total).
 
+**Presupuestos**
+- "Reimportar desde HETMO" lee solo los presupuestos de esa obra (antes corría la sincronización completa de todos) y avisa el resultado.
+
 **Configuración**
 - Subir y quitar el logo funcionan en producción (usaban métodos que Cloudflare bloquea).
 

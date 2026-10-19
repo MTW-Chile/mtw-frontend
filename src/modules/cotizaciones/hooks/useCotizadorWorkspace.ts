@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getProyectoById,
   updateVersionConfig,
-  triggerManualSync,
+  sincronizarObraHetmo,
   updateProyectoCliente,
   updateCodigoInterno,
   updateProyectoObra,
@@ -15,6 +15,7 @@ import {
 } from '../../../api/client';
 import type { ProyectoVersion, Cliente } from '../../../types';
 import { useParametrosGenerales } from '../../../lib/parametrosGenerales';
+import { mostrarToast } from '../../../lib/toast';
 
 export interface NuevoClienteForm {
   nombre: string;
@@ -288,9 +289,23 @@ export function useCotizadorWorkspace(proyectoId: string, pasoInicial: 1 | 2 | 3
 
   // Mutación para reimportar desde HETMO
   const reimportMutation = useMutation({
-    mutationFn: async () => triggerManualSync(true),
-    onSuccess: () => {
+    // Solo los presupuestos de esta obra, no el sync completo.
+    mutationFn: async () => sincronizarObraHetmo(proyectoId),
+    onSuccess: (r) => {
       setShowReimportModal(false);
+      const cambios = r.nuevas + r.actualizadas;
+      mostrarToast(
+        r.errores.length
+          ? 'No se pudo leer todo desde HETMO.'
+          : r.cuarentenas
+            ? 'HETMO trajo cambios que quedaron por revisar (cuarentena).'
+            : r.congeladas === r.versiones
+              ? 'La versión está congelada: no se reimporta.'
+              : cambios
+                ? `Reimportado desde HETMO: ${cambios} ${cambios === 1 ? 'versión' : 'versiones'} al día.`
+                : 'Sin cambios en HETMO.',
+        { tipo: r.errores.length ? 'error' : 'info', detalle: r.errores.join(' · ') || undefined }
+      );
       queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyectoId] });
       queryClient.invalidateQueries({ queryKey: ['proyectos'] });
     },

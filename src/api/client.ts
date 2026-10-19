@@ -287,6 +287,19 @@ export async function triggerManualSync(
   return response.data;
 }
 
+/** Reimporta desde HETMO solo los presupuestos de esta obra (no el sync completo). */
+export async function sincronizarObraHetmo(proyectoId: string): Promise<{
+  versiones: number;
+  nuevas: number;
+  actualizadas: number;
+  congeladas: number;
+  cuarentenas: number;
+  errores: string[];
+}> {
+  const response = await apiClient.post(`/proyectos/${proyectoId}/sincronizar-hetmo`);
+  return response.data.data;
+}
+
 export async function updateVersionConfig(
   id: string,
   payload: {
