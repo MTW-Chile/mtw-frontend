@@ -280,9 +280,12 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
     enabled: isOpen && modo === 'crear',
   });
   const proyectosEnCurso = (proyectosData?.data || []).filter((p) => p.versiones[0]?.estadoAprobacion === 'ACEPTADO_CLIENTE');
-  const { data: proveedoresData } = useQuery({
+  // Misma forma (lista) que el resto de las pantallas que comparten
+  // ['proveedores']: con { data } esta modal se caía si antes se había
+  // abierto Proveedores ("Cannot read properties of undefined (reading 'map')").
+  const { data: proveedores = [] } = useQuery({
     queryKey: ['proveedores'],
-    queryFn: () => getProveedores(),
+    queryFn: async () => (await getProveedores()).data,
     enabled: isOpen,
   });
   // Detalle completo del proyecto (ventanas + materiales + fases) para poder
@@ -670,7 +673,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   ];
   const proveedorOptions = [
     { value: '', label: 'Selecciona un proveedor...' },
-    ...(proveedoresData?.data.map((p) => ({ value: p.id, label: p.nombre })) || []),
+    ...proveedores.map((p) => ({ value: p.id, label: p.nombre })),
   ];
 
   return (
