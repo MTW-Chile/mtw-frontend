@@ -285,6 +285,53 @@
     return [{ apertura: normalizedApertura(line, line && (line.dibujoTipoApertura != null ? line.dibujoTipoApertura : line.tipoApertura)), ancho: 0, alto: 0, geometria: 'principal' }];
   }
 
+  // Unión entre dos paños (fila tipo 5100): UNIDO_INI y UNIDO_FIN son los
+  // numero_ventana de los paños unidos y N1 dice dónde queda el "fin"
+  // respecto del "ini": 0 arriba, 1 abajo, 2 derecha, 3 izquierda.
+  // Confirmado con 8 ventanas reales contra el dibujo de HETMO (v12, v01 y
+  // v03 de Loma La Cruz, V33 de Edificio Feel, V202 de C_QMr, V43 de Los
+  // Barbechos, V03 de Vista Pacífico y Casa A - V16 de Quillayes). El paño
+  // que se pega queda alineado al inicio del otro (izquierda o arriba).
+  // Devuelve null si no hay uniones o alguna no se puede aplicar: el llamador
+  // sigue con el armado por medidas.
+  export function panelsByJoins(rawItems, panels) {
+    const joins = rawItems
+      .filter(item => number(item && item.tipo_elemento) === 5100)
+      .map(item => ({ ini: number(item.unido_inicio != null ? item.unido_inicio : item.unido_ini), fin: number(item.unido_fin), dir: number(item.geometria_n1) }));
+    if (!joins.length) return null;
+    const byNumber = new Map(panels.map(panel => [panel.number, panel]));
+    if (joins.some(j => !byNumber.has(j.ini) || !byNumber.has(j.fin) || ![0, 1, 2, 3].includes(j.dir))) return null;
+    const pos = new Map([[panels[0].number, { x: 0, y: 0 }]]);
+    const place = (from, to, dir, inverse) => {
+      const a = byNumber.get(from), b = byNumber.get(to), p = pos.get(from);
+      // inverse: se conoce el "fin" y se ubica el "ini" (dirección opuesta).
+      const d = inverse ? [1, 0, 3, 2][dir] : dir;
+      if (d === 0) return { x: p.x, y: p.y - b.height };
+      if (d === 1) return { x: p.x, y: p.y + a.height };
+      if (d === 2) return { x: p.x + a.width, y: p.y };
+      return { x: p.x - b.width, y: p.y };
+    };
+    for (let changed = true; changed;) {
+      changed = false;
+      for (const j of joins) {
+        if (pos.has(j.ini) && !pos.has(j.fin)) { pos.set(j.fin, place(j.ini, j.fin, j.dir, false)); changed = true; }
+        else if (pos.has(j.fin) && !pos.has(j.ini)) { pos.set(j.ini, place(j.fin, j.ini, j.dir, true)); changed = true; }
+      }
+    }
+    if (pos.size !== panels.length) return null;
+    const minX = Math.min(...panels.map(panel => pos.get(panel.number).x));
+    const minY = Math.min(...panels.map(panel => pos.get(panel.number).y));
+    const tiles = panels.map(panel => {
+      const p = pos.get(panel.number);
+      return { panel, x: p.x - minX, y: p.y - minY, width: panel.width, height: panel.height };
+    });
+    return {
+      tiles,
+      width: Math.max(...tiles.map(t => t.x + t.width)),
+      height: Math.max(...tiles.map(t => t.y + t.height))
+    };
+  }
+
   // Algunas líneas no son un solo rectángulo: HETMO registra cada paño con
   // NUMERO_VENTANA y sus cotas (ej. un proyectante sobre un fijo). Esta
   // lectura respeta esas cotas en vez de inventar paños iguales.
@@ -334,6 +381,25 @@
     if (openingPanels.length === 1 && openingPanels[0].aperturaCount === 1 && declaredLeaves === 2
       && apertureDefinition(line, openingPanels[0].apertura).leafCount === 2) {
       openingPanels[0].aperturaCount = 2;
+    }
+    // Con uniones declaradas por HETMO (filas 5100), la posición de cada paño
+    // sale de ellas, igual que en el configurador de HETMO -- sin adivinar
+    // por medidas. Probado con las 2.019 ventanas compuestas de producción
+    // (2026-10-19): ubica 2.010 tal cual las dibuja HETMO, incluidas las 312
+    // que el armado por columnas de abajo no podía leer (fila de paños +
+    // paño de ancho completo).
+    const porUniones = panelsByJoins(raw, panels);
+    if (porUniones) {
+      const lineWidthU = firstPositive(line && line.dibujoAncho, line && line.ancho);
+      const lineHeightU = firstPositive(line && line.dibujoAlto, line && line.alto);
+      return {
+        panels,
+        tiles: porUniones.tiles,
+        width: porUniones.width,
+        height: porUniones.height,
+        direction: porUniones.width / Math.max(1, lineWidthU || porUniones.width) >= porUniones.height / Math.max(1, lineHeightU || porUniones.height) ? 'horizontal' : 'vertical',
+        verticalCuts: []
+      };
     }
     // La orientación se determina contra la medida total de la línea: un
     // conjunto de N paños puede apilarse en horizontal o en vertical según

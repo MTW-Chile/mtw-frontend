@@ -467,7 +467,10 @@ function buildCompositePanel(
       if (code) foregroundGlassCodes.push(code);
 
       const panelMuntins = panelLayout ? '' : muntinMarkup(line, px, py, pw, ph, finish.frame);
-      const panelDimension = composite.direction === 'vertical'
+      // Cota por paño solo en los que tocan el borde inferior: con una fila
+      // arriba y otra abajo de cortes distintos, las cotas se montaban.
+      const tocaAbajo = tile.y + tile.height >= composite.height - 1;
+      const panelDimension = composite.direction === 'vertical' || !tocaAbajo
         ? ''
         : segmentDimensionMarkup(outerX, outerW, y + drawingH, tile.width);
 
