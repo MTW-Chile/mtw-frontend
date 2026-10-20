@@ -1,11 +1,16 @@
+// Clave del catalogo de permisos (lo define mtw-api en src/seguridad/permisos.ts
+// y lo entrega GET /api/permisos/catalogo). El frontend no mantiene su propia lista.
+export type Permiso = string;
+
 export interface Rol {
   id: string;
   nombre: string;
-  secciones: string[];
-  configTabs: string[];
-  // 'tecnico' y/o 'gerencial' -- ver ROLES_APROBACION en accessControl.ts.
-  aprobaciones: string[];
-  // Presente solo en GET /api/roles (include: { _count: { select: { usuarios: true } } }).
+  descripcion: string | null;
+  // Administrador de negocio: tiene siempre todos los permisos de negocio.
+  esAdministradorNegocio: boolean;
+  // Permisos otorgados directamente (las implicaciones las resuelve el backend).
+  permisos: Permiso[];
+  // Presente solo en GET /api/roles.
   _count?: { usuarios: number };
 }
 
@@ -14,26 +19,42 @@ export interface Usuario {
   nombre: string;
   email: string;
   rolId: string | null;
-  rol: Rol | null;
+  rol: Omit<Rol, 'permisos'> | null;
   activo: boolean;
+  recibeNotificacionesCorreo: boolean;
   creadoEn: string;
-  // Acceso real (ver ADMIN_EMAILS en mtw-api) -- no depende de rolId/activo,
-  // asi que esta fila no es editable desde el panel de Roles de Usuario.
-  esAdmin: boolean;
+  // Superadministrador tecnico (SUPERADMIN_EMAILS en mtw-api): su acceso no
+  // depende del rol ni del estado.
+  esSuperadmin: boolean;
 }
 
 export interface MisPermisos {
   email: string;
   nombre: string | null;
-  esAdmin: boolean;
   rol: string | null;
-  secciones: string[];
-  configTabs: string[];
-  aprobaciones: string[];
+  activo: boolean;
+  esSuperadmin: boolean;
+  esAdministradorNegocio: boolean;
+  // Permisos efectivos (con implicaciones ya resueltas por el backend).
+  permisos: Permiso[];
+  recibeNotificacionesCorreo: boolean;
   // Si el usuario ya cargo su token personal de Clay (el token en si nunca
   // vuelve del backend). Sin token no se puede buscar ni contabilizar
   // facturas en Clay.
   tieneTokenClay: boolean;
+}
+
+export interface PermisoCatalogo {
+  clave: Permiso;
+  nombre: string;
+  descripcion: string;
+  implica: Permiso[];
+}
+
+export interface ModuloPermisos {
+  id: string;
+  nombre: string;
+  permisos: PermisoCatalogo[];
 }
 
 export interface AprobacionPendienteCotizacion {
@@ -59,8 +80,18 @@ export interface AprobacionPendienteOC {
   total: number;
 }
 
+export interface AprobacionPendienteAdicional {
+  tipo: 'adicional';
+  adicionalId: string;
+  numero: number;
+  titulo: string;
+  proyectoId: string;
+  obra: string;
+  codigoInterno: string | null;
+}
+
 export interface AprobacionesPendientes {
-  gerencial: (AprobacionPendienteCotizacion | AprobacionPendienteOC)[];
+  gerencial: (AprobacionPendienteCotizacion | AprobacionPendienteOC | AprobacionPendienteAdicional)[];
   total: number;
 }
 
@@ -79,10 +110,25 @@ export interface Cliente {
   _count?: { proyectos: number };
 }
 
+// Vinculo con un proveedor de HETMO por su codigo estable (mtw-api:
+// ProveedorOrigenHetmo). Un proveedor del ERP puede tener varios.
+export interface ProveedorOrigenHetmo {
+  codigoHetmo: number;
+  nombreHetmo: string;
+  vistoEn: string;
+  eliminadoEnOrigenEn: string | null;
+}
+
+export interface FusionReparacion {
+  origen: { id: string; nombre: string; materiales: number; ordenesCompra: number };
+  destino: { id: string; nombre: string };
+  motivo: string;
+}
+
 export interface Proveedor {
   id: string;
   nombre: string; // Razon Social
-  codigoHetmo: number | null;
+  origenesHetmo?: ProveedorOrigenHetmo[];
   rut: string | null;
   nombreFantasia: string | null;
   giroComercial: string | null;
@@ -123,8 +169,21 @@ export interface Material {
   id: string;
   skuInterno: string;
   descripcion: string;
+  // Familia tal como la entrega HETMO (espejo). Las reglas de calculo y
+  // compra salen del tipo de producto, no de este texto.
   familia: string;
   unidadMedida: string;
+  tipoProductoId: string;
+  tipoProducto?: Pick<TipoProducto, 'id' | 'nombre'> & {
+    medicion?: MedicionReceta;
+    compraPorPieza?: boolean;
+    partida?: Pick<Partida, 'codigo' | 'nombre'> & { orden?: number };
+  };
+  // Formato de compra resuelto (el propio del material o el de su tipo).
+  formato?: FormatoMaterial;
+  unidadCompraId?: string | null;
+  factorCompra?: number | null;
+  proveedorOrigen?: 'HETMO' | 'MANUAL';
   individualizado: boolean;
   precioOrigen?: number | null;
   monedaOrigen?: string | null;
@@ -219,31 +278,39 @@ export interface ProyectoMaterialAjuste {
   materialId: string;
   precioPersonalizado: number | null;
   monedaPersonalizada: string | null;
-  familiaPersonalizada: string | null;
+  // Reclasificacion por obra: el material se calcula como si fuera de este tipo.
+  tipoProductoPersonalizadoId: string | null;
   excluido: boolean;
   origen: string;
   material?: Material;
 }
 
-export interface FamiliaMaterialAprobacion {
+// Una partida de la Analitica en una version: aprobacion tecnica, descuento
+// negociado (baja el precio de compra) y holgura (suma al presupuesto, no al precio).
+export interface PartidaVersion {
   id: string;
   versionId: string;
-  familia: string;
+  partidaId: string;
+  partida: Pick<Partida, 'codigo' | 'nombre'>;
   aprobada: boolean;
   aprobadoPor: string | null;
   fechaAprobacion: string | null;
   descuentoPct: number | null;
-  recargoPct: number | null;
+  holguraPct: number | null;
 }
 
 export interface FijacionExtra {
   glosa: string;
   monto: number;
+  // Partida a la que se carga (sin partida: "Sin asignar").
+  partidaCodigo?: string | null;
 }
 
 export interface PresupuestoConfig {
   id: string;
   versionId: string;
+  // Plantilla de la que partieron los textos (los textos editados quedan aca).
+  plantillaOfertaId?: string | null;
   textoPresentacion: string | null;
   condicionesComerciales: string | null;
 }
@@ -254,8 +321,67 @@ export interface ConfiguracionEmpresa {
   footerWebLabel: string | null;
   footerInstagramUrl: string | null;
   footerInstagramHandle: string | null;
-  textoPresentacionDefault: string | null;
-  condicionesComercialesDefault: string | null;
+  tieneLogo: boolean;
+  logoActualizadoEn: string | null;
+  anuncioTexto: string | null;
+  anuncioUrgencia: UrgenciaAnuncio;
+  anuncioActivo: boolean;
+  anuncioActualizadoEn: string | null;
+}
+
+export type UrgenciaAnuncio = 'INFORMATIVO' | 'ADVERTENCIA' | 'URGENTE';
+
+export interface Anuncio {
+  texto: string;
+  urgencia: UrgenciaAnuncio;
+  actualizadoEn: string | null;
+}
+
+// ---- Configuracion comercial (Configuracion > Comercial) ----
+
+export interface ParametrosGenerales {
+  ivaPct: number;
+  // Tasas que se usan cuando una version todavia no tiene las suyas.
+  tasasRespaldo: { dolar: number; euro: number; uf: number };
+  // Hoja de Fijacion por defecto.
+  fijacion: {
+    manoObraM2: number;
+    filmM2: number;
+    materialInstalacionM2: number;
+    valorViaje: number;
+    ventanasPorViaje: number;
+    instalacionM2: number;
+    instalacionProtexM2: number;
+    margenPct: number;
+  };
+  // Aprobacion gerencial de adicionales: si se exige y desde que monto (UF; null = siempre).
+  adicional: { requiereAprobacion: boolean; umbralAprobacionUf: number | null };
+  // Conciliacion de facturas (fracciones: 0.005 = 0,5%).
+  conciliacion: { toleranciaCuadre: number; toleranciaSugerencia: number; toleranciaFiltro: number };
+}
+
+export interface TipoProyecto {
+  id: string;
+  codigo: string;
+  nombre: string;
+  orden: number;
+  activo: boolean;
+  porDefecto: boolean;
+  _count?: { proyectos: number };
+}
+
+export type TipoDocumentoComercial = 'COTIZACION' | 'ADICIONAL';
+
+export interface PlantillaOferta {
+  id: string;
+  nombre: string;
+  tipoDocumento: TipoDocumentoComercial;
+  tipoProyectoId: string | null;
+  tipoProyecto: Pick<TipoProyecto, 'id' | 'codigo' | 'nombre'> | null;
+  textoPresentacion: string;
+  condicionesComerciales: string;
+  porDefecto: boolean;
+  activa: boolean;
 }
 
 export interface FijacionConfig {
@@ -269,7 +395,6 @@ export interface FijacionConfig {
   valorInstalacionM2: number;
   valorInstalacionProtexM2: number;
   margenVentaPct: number;
-  extras: FijacionExtra[];
 }
 
 export type SentidoMovimientoHoja = 'fija' | 'izquierda' | 'derecha' | 'ambos' | 'oculta';
@@ -404,7 +529,7 @@ export interface ProyectoVersion {
   ventanas?: Ventana[];
   fases?: Fase[];
   materialAjustes?: ProyectoMaterialAjuste[];
-  familiaAprobaciones?: FamiliaMaterialAprobacion[];
+  partidasVersion?: PartidaVersion[];
   materialesResumen?: MaterialVersionResumen[];
   fijacionConfig?: FijacionConfig | null;
   presupuestoConfig?: PresupuestoConfig | null;
@@ -412,6 +537,9 @@ export interface ProyectoVersion {
 
 export interface Proyecto {
   id: string;
+  // Retail, Obra... (Configuracion > Comercial).
+  tipoProyectoId?: string;
+  tipoProyecto?: Pick<TipoProyecto, 'id' | 'codigo' | 'nombre'>;
   hetmoSinVersion: number;
   numeroPresupuesto: number;
   codigoInterno: string | null;
@@ -487,27 +615,256 @@ export type EstadoOC =
   | 'CONCILIADA'
   | 'CANCELADA';
 
-export type CategoriaGasto =
-  | 'PERFILERIA'
-  | 'HERRAJES'
-  | 'VIDRIOS'
-  | 'ACCESORIOS'
-  | 'REFUERZOS'
-  | 'MANO_DE_OBRA'
-  | 'FLETE'
-  | 'INSTALACION'
-  | 'OTROS'
-  | 'INSUMOS_GENERALES';
+// ---- Catalogo configurable (mtw-api: Configuracion > Catalogo) ----
 
-// Config editable por partida (nombre "estandarizado" + codigo de
-// integracion con Clay) -- una fila fija por valor de CategoriaGasto, ver
-// PartidaConfig en mtw-api/schema.prisma.
-export interface PartidaConfig {
+export interface Partida {
   id: string;
-  categoria: CategoriaGasto;
+  codigo: string;
   nombre: string;
   integracionClay: string | null;
-  actualizadoEn: string;
+  orden: number;
+  activa: boolean;
+  // La partida "Sin asignar": recibe lo que todavia no tiene partida.
+  porDefecto: boolean;
+  _count?: { tiposProducto: number; ordenCompraItems: number };
+}
+
+export interface UnidadMedida {
+  id: string;
+  codigo: string;
+  nombre: string;
+  simbolo: string;
+  activa: boolean;
+}
+
+export type MedicionReceta = 'UNIDAD' | 'LONGITUD' | 'AREA';
+
+export interface TipoProducto {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  partidaId: string;
+  partida: Pick<Partida, 'id' | 'codigo' | 'nombre'>;
+  medicion: MedicionReceta;
+  unidadConsumoId: string;
+  unidadConsumo: UnidadMedida;
+  unidadPrecioId: string;
+  unidadPrecio: UnidadMedida;
+  unidadCompraId: string;
+  unidadCompra: UnidadMedida;
+  factorCompra: number | string;
+  compraDesdeResumenHetmo: boolean;
+  // Se compra y se recibe por pieza a medida (ej. vidrios).
+  compraPorPieza: boolean;
+  moneda: string;
+  monedaFija: boolean;
+  individualizado: boolean;
+  porDefecto: boolean;
+  orden: number;
+  activo: boolean;
+  familiasHetmo?: { codigo: string }[];
+  _count?: { materiales: number };
+}
+
+export interface FamiliaHetmo {
+  codigo: string;
+  tipoProductoId: string;
+  tipoProducto: Pick<TipoProducto, 'id' | 'nombre'>;
+  materiales: number;
+}
+
+export interface UnidadLigera {
+  codigo: string;
+  simbolo: string;
+  nombre?: string;
+}
+
+export interface FormatoMaterial {
+  medicion: MedicionReceta;
+  unidadConsumo: UnidadLigera;
+  unidadPrecio: UnidadLigera;
+  unidadCompra: UnidadLigera;
+  factorCompra: number;
+  compraDesdeResumenHetmo: boolean;
+  moneda: string;
+  monedaFija: boolean;
+  propio: boolean;
+}
+
+// ---- Analitica de materiales (calculada en mtw-api, motor unico) ----
+
+export interface MaterialAnalitica {
+  id: string;
+  materialId: string;
+  skuInterno: string;
+  descripcion: string;
+  proveedorNombre: string;
+  tipoProducto: { id: string; nombre: string };
+  partida: { codigo: string; nombre: string };
+  // Unidad de cantidadTotal y del precio CLP (la de compra si se compra en barras).
+  unidad: UnidadLigera;
+  // Como se mide en la receta (para reemplazar solo por un material que se mide igual).
+  medicion: MedicionReceta;
+  unidadConsumo: UnidadLigera;
+  cantidadTotal: number;
+  precioOrigen: number;
+  monedaOrigen: string;
+  factorPrecio: number;
+  precioCLP: number;
+  // Precio por unidad con el descuento de la partida: el de compra (y de la OC).
+  precioCompraNeto: number;
+  excluido: boolean;
+  precioModificado: boolean;
+  reemplazado: boolean;
+}
+
+export interface PartidaAnalitica {
+  codigo: string;
+  nombre: string;
+  orden: number;
+  // Materiales con su descuento (sin holgura).
+  materiales: number;
+  holguraPct: number | null;
+  holgura: number;
+  // Costos de la Hoja de Fijacion cargados a esta partida.
+  fijacion: number;
+  // Presupuesto de la partida: materiales + holgura + fijacion.
+  total: number;
+  // Tiene materiales (se aprueba en la Analitica); si no, solo costos de la Hoja.
+  tieneMateriales: boolean;
+  aprobada: boolean;
+  descuentoPct: number | null;
+}
+
+export type ConceptoFijacionCodigo =
+  | 'MANO_OBRA_FABRICACION'
+  | 'FILM_PROTECTOR'
+  | 'MATERIAL_INSTALACION'
+  | 'FLETE'
+  | 'INSTALACION'
+  | 'INSTALACION_PROTEX';
+
+export interface ConceptoFijacion {
+  codigo: ConceptoFijacionCodigo;
+  nombre: string;
+  orden: number;
+  partidaPorDefectoId: string | null;
+  partidaPorDefecto: Pick<Partida, 'id' | 'codigo' | 'nombre'> | null;
+}
+
+export interface LineaFijacion {
+  tipo: 'CONCEPTO' | 'EXTRA';
+  concepto: ConceptoFijacionCodigo | null;
+  nombre: string;
+  monto: number;
+  partida: Pick<Partida, 'codigo' | 'nombre'>;
+}
+
+export interface TotalesAnalitica {
+  materialesTotal: number;
+  m2Ventanas: number;
+  m2Vidrios: number;
+  m2Protex: number;
+  costoManoObra: number;
+  costoFilm: number;
+  costoMaterialInstalacion: number;
+  costoExtras: number;
+  costosComplementarios: number;
+  costoFlete: number;
+  costoInstalacion: number;
+  costoInstalacionProtex: number;
+  costoTotal: number;
+  margen: number;
+  venta: number;
+}
+
+export interface PrecioVentaLinea {
+  precioUnitarioCLP: number;
+  precioVentaCLP: number;
+}
+
+export interface Analitica {
+  tasas: { dolar: number; euro: number; uf: number };
+  materiales: MaterialAnalitica[];
+  partidas: PartidaAnalitica[];
+  totales: TotalesAnalitica;
+  // Costos de la Hoja de Fijacion con su partida.
+  lineasFijacion: LineaFijacion[];
+  // ventanas: unidades fisicas (suma de unidades de cada linea).
+  indicadores: { m2Vidrios: number; panos: number; ventanas: number };
+  // Precio de venta prorrateado por linea (el mismo que se congela al aceptar).
+  preciosVenta: ({ ventanaId: string } & PrecioVentaLinea)[];
+  // Hoja de Fijacion con la que se calculo (guardada, borrador o por defecto).
+  fijacion: FijacionBorrador;
+  fijacionGuardada: boolean;
+  simulada: boolean;
+}
+
+export interface FijacionBorrador {
+  manoObraFabricacion: number;
+  filmProtectorCristales: number;
+  materialInstalacion: number;
+  cantidadViajes: number;
+  valorViaje: number;
+  valorInstalacionM2: number;
+  valorInstalacionProtexM2: number;
+  margenVentaPct: number;
+  extras: FijacionExtra[];
+  // Partida de cada concepto cambiada en esta Hoja (sin entrada: la por defecto del concepto).
+  asignaciones?: Partial<Record<ConceptoFijacionCodigo, string>>;
+}
+
+// ---- Control de presupuesto por partida (GET /proyectos/:id/control-presupuesto) ----
+
+export interface ControlPresupuestoPartida {
+  partida: Pick<Partida, 'codigo' | 'nombre'>;
+  // Comprometido en OC que todavia no tiene factura (al conciliar pasa a facturado).
+  comprometidoOC: number;
+  facturado: number;
+  pagado: number;
+  recibido: number;
+  // Usado (en OC sin facturar + facturado) por presupuesto, reposicion y adicional.
+  usadoPorNaturaleza: Record<NaturalezaCompra, number>;
+}
+
+// ---- Requerimiento de materiales de una fase (para generar OC) ----
+
+export interface ItemRequerimiento {
+  materialId: string;
+  descripcion: string;
+  partida: { codigo: string; nombre: string };
+  unidad: string;
+  cantidad: number;
+  stockDisponible: number;
+  cantidadDesdeObrasMayores: number;
+  cantidadCalculada: number | null;
+  precioUnitario: number;
+  // Pieza a medida (vidrios): medidas y ventana de destino.
+  anchoMm: number | null;
+  altoMm: number | null;
+  ventanaId: string | null;
+  referenciaVentana: string | null;
+  // Tipo que se compra por pieza, pero la fila aun no trae medidas: va por m².
+  sinMedidas: boolean;
+}
+
+export interface GrupoRequerimiento {
+  proveedorId: string | null;
+  proveedorNombre: string;
+  items: ItemRequerimiento[];
+}
+
+export interface TrasladoRequerimiento {
+  materialId: string;
+  descripcion: string;
+  cantidad: number;
+  unidad: string;
+  partida: { codigo: string; nombre: string };
+}
+
+export interface RequerimientoFase {
+  grupos: GrupoRequerimiento[];
+  trasladosDesdeObrasMayores: TrasladoRequerimiento[];
 }
 
 export interface OrdenCompraItem {
@@ -517,10 +874,15 @@ export interface OrdenCompraItem {
   material?: Material | null;
   descripcion: string;
   unidadMedida: string;
-  // Snapshot al crear el item -- automatica desde material.familia si hay
-  // materialId, obligatoria a mano si es partida externa (ver
-  // categoriaDesdeFamiliaMaterial en mtw-api).
-  categoria: CategoriaGasto;
+  // Pieza a medida: medidas y ventana de destino (la referencia queda aunque la linea cambie).
+  anchoMm?: number | null;
+  altoMm?: number | null;
+  ventanaId?: string | null;
+  referenciaVentana?: string | null;
+  // Partida del item: la del tipo de producto del material, o la elegida a
+  // mano si es un item externo (sin material).
+  partidaId: string;
+  partida?: Pick<Partida, 'codigo' | 'nombre'>;
   cantidad: number;
   // Valor teorico antes de redondear a la unidad de compra (ej. barras
   // enteras de Perfileria/Refuerzos) -- solo referencia para poder
@@ -593,9 +955,22 @@ export interface CentroCosto {
   tipo: 'OBRA' | 'GENERAL';
 }
 
+// Que cubre una compra: lo cotizado, una reposicion (quiebre, falla, dano:
+// consume la holgura de su partida) o un adicional (fuera del presupuesto).
+export type NaturalezaCompra = 'PRESUPUESTO' | 'REPOSICION' | 'ADICIONAL';
+
+export const ETIQUETA_NATURALEZA: Record<NaturalezaCompra, string> = {
+  PRESUPUESTO: 'Presupuesto',
+  REPOSICION: 'Reposición',
+  ADICIONAL: 'Adicional',
+};
+
 export interface OrdenCompra {
   id: string;
   numero: string;
+  naturaleza: NaturalezaCompra;
+  // Pendiente de obra que origino la compra, si viene de uno.
+  obraPendienteId: string | null;
   // proyectoId puede venir null (compra de "Obras Mayores", sin obra
   // asociada) -- centroCosto es la relacion real de ahora en mas, ver
   // CentroCosto arriba.
@@ -740,6 +1115,11 @@ export interface UnidadMaterial {
   ordenCompraId: string | null;
   ordenCompraNumero: string | null;
   solicitudId: string | null;
+  // Pieza a medida: medidas y ventana de destino.
+  anchoMm: number | null;
+  altoMm: number | null;
+  ventanaId: string | null;
+  referenciaVentana: string | null;
 }
 
 export interface UnidadesMaterialResponse {
@@ -881,7 +1261,7 @@ export interface ItemOCCheckout {
   descripcion: string;
   // skuInterno del Material del catalogo -- null para partidas externas.
   codigo: string | null;
-  categoria: CategoriaGasto;
+  partida: Pick<Partida, 'codigo' | 'nombre'>;
   unidadMedida: string;
   cantidad: number;
   precioUnitario: number | null;
@@ -1083,7 +1463,17 @@ export type EstadoPendiente = 'INGRESADO' | 'EN_CURSO' | 'RESUELTO';
 export type DestinoPendiente = 'TECNICA' | 'FABRICA';
 export type OrigenPendiente = 'FABRICACION' | 'OBRA';
 export type TipoElementoPendiente = 'VENTANA' | 'HOJA' | 'MATERIAL' | 'VIDRIO' | 'OTRO';
-export type MotivoPendiente = 'FALLA' | 'DANO_OBRA' | 'DANO_INSTALACION' | 'NO_RECEPCION' | 'NO_FABRICADO';
+export type MotivoPendiente = 'FALLA' | 'DANO_OBRA' | 'DANO_INSTALACION' | 'NO_RECEPCION' | 'NO_FABRICADO' | 'CAMBIO_CLIENTE';
+
+// A cargo de quien va un pendiente: cliente o instalador -> adicional (se les
+// cobra); nosotros -> reposicion contra la holgura.
+export type CargoPendiente = 'CLIENTE' | 'INSTALADOR' | 'MTW';
+
+export const ETIQUETA_CARGO: Record<CargoPendiente, string> = {
+  CLIENTE: 'Cliente',
+  INSTALADOR: 'Instalador',
+  MTW: 'Nosotros',
+};
 
 // Catalogo editable de etapas de un pendiente EN_CURSO. destino null = aplica a
 // ambos destinos. No se borran: se desactivan.
@@ -1109,6 +1499,8 @@ export interface ObraPendiente {
   id: string;
   numero: number;
   proyectoId: string;
+  // Solo en el visor central (GET /pendientes).
+  proyecto?: { id: string; obra: string; codigoInterno: string | null; numeroPresupuesto: number };
   origen: OrigenPendiente;
   destino: DestinoPendiente;
   tipo: TipoElementoPendiente;
@@ -1120,6 +1512,8 @@ export interface ObraPendiente {
   descripcion: string;
   notas: string | null;
   responsable: string | null;
+  // A cargo de quien (null: el que sugiere el motivo).
+  cargoA?: CargoPendiente | null;
   // Rectificacion de medidas (ventana o vidrio); los decimales llegan como texto.
   anchoOriginalMm: string | null;
   altoOriginalMm: string | null;
@@ -1197,9 +1591,16 @@ export interface OneDriveObra {
   nombreSugeridoNueva?: string;
 }
 
-export interface ObraPendienteDetalle extends ObraPendiente {
+export interface ObraPendienteDetalle extends Omit<ObraPendiente, 'material'> {
   eventos: ObraPendienteEvento[];
   adjuntos: AdjuntoPendiente[];
+  material?: { id: string; skuInterno: string; descripcion: string; tipoProducto?: { compraPorPieza: boolean } } | null;
+  // A cargo de quien va (el indicado o el que sugiere el motivo; null: sin cargo
+  // aparte) y que cubriria una compra por el.
+  cargoEfectivo: CargoPendiente | null;
+  naturalezaSugerida: NaturalezaCompra;
+  // Compras generadas por este pendiente.
+  ordenesCompra: { id: string; numero: string; estado: EstadoOC; naturaleza: NaturalezaCompra }[];
   // Quien creo el pendiente (o un administrador): el unico que puede
   // resolverlo, reabrirlo, editarlo o eliminarlo.
   puedeResolver: boolean;
@@ -1214,6 +1615,8 @@ export interface NuevoPendientePayload {
   notas?: string;
   // Obligatorio con DANO_OBRA / DANO_INSTALACION.
   responsable?: string;
+  // A cargo de quien (sin indicar: el que sugiere el motivo).
+  cargoA?: CargoPendiente | null;
   // Solo ventana o vidrio. Para un vidrio van tambien las medidas originales.
   rectificacion?: { anchoMm: number; altoMm: number; anchoOriginalMm?: number; altoOriginalMm?: number };
   ventanaRef?: string;
@@ -1419,4 +1822,108 @@ export interface FiltroUnidadesCubicacion {
   estado?: '' | 'sinPosicion' | 'posicionadas';
   areasComunes?: boolean;
   limit?: number;
+}
+
+// ---- Adicionales (ventas o cargos fuera del presupuesto aceptado de una obra) ----
+
+export type EstadoAdicional = 'BORRADOR' | 'ESPERANDO_APROBACION' | 'APROBADO' | 'ENVIADO' | 'ACEPTADO' | 'RECHAZADO' | 'ANULADO';
+export type CargoAdicional = 'CLIENTE' | 'INSTALADOR';
+export type FormaCobroInstalador = 'FACTURA' | 'DESCUENTO_ESTADO_PAGO';
+
+export const ETIQUETA_ESTADO_ADICIONAL: Record<EstadoAdicional, string> = {
+  BORRADOR: 'Borrador',
+  ESPERANDO_APROBACION: 'Esperando aprobación',
+  APROBADO: 'Aprobado',
+  ENVIADO: 'Enviado',
+  ACEPTADO: 'Aceptado',
+  RECHAZADO: 'Rechazado',
+  ANULADO: 'Anulado',
+};
+
+export const ETIQUETA_FORMA_COBRO: Record<FormaCobroInstalador, string> = {
+  FACTURA: 'Factura al instalador',
+  DESCUENTO_ESTADO_PAGO: 'Descuento en su estado de pago',
+};
+
+export interface AdicionalItem {
+  id: string;
+  orden: number;
+  materialId: string | null;
+  material: { id: string; skuInterno: string; descripcion: string } | null;
+  descripcion: string;
+  unidad: string;
+  cantidad: number | string;
+  // Costo CLP por unidad (vigente para el catalogo; a mano para un item libre).
+  costoUnitario: number | string;
+  partidaId: string;
+  partida: Pick<Partida, 'id' | 'codigo' | 'nombre' | 'porDefecto'>;
+  anchoMm: number | null;
+  altoMm: number | null;
+  // En "Sin asignar": cuenta, pero no se contabiliza hasta clasificarlo.
+  porClasificar: boolean;
+  // Precio de venta (el costo llevado a la escala de venta con el margen).
+  precioUnitario: number;
+  precioTotal: number;
+}
+
+export interface Adicional {
+  id: string;
+  proyectoId: string;
+  proyecto: { id: string; obra: string; codigoInterno: string | null; cliente: { id: string; nombre: string; rut: string | null } | null };
+  numero: number;
+  titulo: string;
+  estado: EstadoAdicional;
+  origen: 'ITEMS' | 'VENTANAS' | 'HETMO';
+  cargoA: CargoAdicional;
+  formaCobroInstalador: FormaCobroInstalador | null;
+  instaladorProveedorId: string | null;
+  instalador: { id: string; nombre: string; rut: string | null } | null;
+  obraPendienteId: string | null;
+  obraPendiente: { id: string; numero: number; descripcion: string } | null;
+  tasaDolar: number | string;
+  tasaEuro: number | string;
+  tasaUf: number | string;
+  margenPct: number | string;
+  plantillaOfertaId: string | null;
+  textoPresentacion: string;
+  condicionesComerciales: string;
+  creadoPor: { id: string; nombre: string } | null;
+  aprobadoPor: { id: string; nombre: string } | null;
+  fechaAprobacion: string | null;
+  fechaEnvio: string | null;
+  fechaRespuesta: string | null;
+  motivoRechazo: string | null;
+  preciosAl: string;
+  creadoEn: string;
+  items: AdicionalItem[];
+  ordenesCompra: { id: string; numero: string; estado: EstadoOC }[];
+  // Origen VENTANAS u HETMO: su version (que se cotiza en la Analitica y la Hoja).
+  versionId: string | null;
+  version: {
+    id: string;
+    ventanas: { id: string; lineaHetmo: number; modelo: string; descripcionCorta: string | null; unidades: number; anchoMm: number | string; altoMm: number | string }[];
+  } | null;
+  totales: { costo: number; venta: number; ventaUf: number; iva: number; totalConIva: number; ivaPct: number };
+  // Segun la configuracion vigente (si se exige y desde que monto).
+  requiereAprobacion: boolean;
+}
+
+export interface PorClasificar {
+  ordenesCompra: {
+    id: string;
+    descripcion: string;
+    unidadMedida: string;
+    cantidad: number | string;
+    precioUnitario: number | string | null;
+    ordenCompra: { id: string; numero: string; estado: EstadoOC; proyecto: { id: string; obra: string } | null; proveedor: { nombre: string } | null };
+  }[];
+  adicionales: {
+    id: string;
+    descripcion: string;
+    unidad: string;
+    cantidad: number | string;
+    costoUnitario: number | string;
+    adicional: { id: string; numero: number; titulo: string; estado: EstadoAdicional; proyecto: { id: string; obra: string; codigoInterno: string | null } };
+  }[];
+  total: number;
 }

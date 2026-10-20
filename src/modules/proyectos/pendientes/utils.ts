@@ -1,5 +1,6 @@
 import type { BadgeVariant } from '../../../components/ui/Badge';
 import type {
+  CargoPendiente,
   DestinoPendiente,
   EstadoPendiente,
   EtapaPendiente,
@@ -34,13 +35,14 @@ export const ETIQUETA_MOTIVO: Record<MotivoPendiente, string> = {
   DANO_INSTALACION: 'Daño por instalación',
   NO_RECEPCION: 'No recepción',
   NO_FABRICADO: 'No fabricado',
+  CAMBIO_CLIENTE: 'Cambio del cliente',
 };
 
 export const ESTADOS_PENDIENTE: EstadoPendiente[] = ['INGRESADO', 'EN_CURSO', 'RESUELTO'];
 export const DESTINOS_PENDIENTE: DestinoPendiente[] = ['TECNICA', 'FABRICA'];
 export const ORIGENES_PENDIENTE: OrigenPendiente[] = ['OBRA', 'FABRICACION'];
 export const TIPOS_PENDIENTE: TipoElementoPendiente[] = ['VIDRIO', 'HOJA', 'VENTANA', 'MATERIAL', 'OTRO'];
-export const MOTIVOS_PENDIENTE: MotivoPendiente[] = ['FALLA', 'DANO_OBRA', 'DANO_INSTALACION', 'NO_RECEPCION', 'NO_FABRICADO'];
+export const MOTIVOS_PENDIENTE: MotivoPendiente[] = ['FALLA', 'DANO_OBRA', 'DANO_INSTALACION', 'CAMBIO_CLIENTE', 'NO_RECEPCION', 'NO_FABRICADO'];
 
 // ---- Reglas (espejo de mtw-api/src/pendientes-reglas.ts; el servidor es quien manda) ----
 
@@ -49,6 +51,18 @@ export const MOTIVOS_PENDIENTE: MotivoPendiente[] = ['FALLA', 'DANO_OBRA', 'DANO
 export function areaDelPendiente(tipo: TipoElementoPendiente, motivo: MotivoPendiente): DestinoPendiente {
   if (motivo === 'NO_FABRICADO' || motivo === 'NO_RECEPCION') return 'FABRICA';
   return tipo === 'VENTANA' || tipo === 'HOJA' ? 'FABRICA' : 'TECNICA';
+}
+
+/**
+ * A cargo de quien va si no se indica otro: daño en obra o cambio del cliente,
+ * al cliente; daño en la instalacion, al instalador; falla, a nosotros. Lo no
+ * fabricado o no recibido es parte del presupuesto (sin cargo aparte).
+ */
+export function cargoDeMotivo(motivo: MotivoPendiente): CargoPendiente | null {
+  if (motivo === 'DANO_OBRA' || motivo === 'CAMBIO_CLIENTE') return 'CLIENTE';
+  if (motivo === 'DANO_INSTALACION') return 'INSTALADOR';
+  if (motivo === 'FALLA') return 'MTW';
+  return null;
 }
 
 /** Un daño (en obra o en instalacion) pide el responsable. */

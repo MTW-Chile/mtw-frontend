@@ -1,15 +1,15 @@
-import React from 'react';
-import { PackageCheck, ClipboardList, Warehouse, Boxes } from 'lucide-react';
-import { SubTabs } from '../../components/ui/PageHeader';
+import React, { useEffect } from 'react';
+import { PackageCheck, ClipboardList, Warehouse } from 'lucide-react';
+import { BarraPestanas } from '../../components/ui/PageHeader';
 import { HeaderSeccion } from '../../components/layout/HeaderSeccion';
-import { useUrlParam } from '../../lib/navigation';
+import { useUrlParam, actualizarParams, navegar } from '../../lib/navigation';
 import { RecepcionesPendientesSection } from './RecepcionesPendientesSection';
 import { RequisicionesSection } from '../proyectos/RequisicionesSection';
 import { BodegasDisponiblesSection } from './BodegasDisponiblesSection';
-import { MaestroSecciones } from '../cotizaciones/MaestroPage';
 import { PAGE_CONTAINER_CLASS } from '../../lib/designSystem';
+import { useMigas } from '../../lib/migas';
 
-type SubTab = 'recepciones' | 'requisiciones' | 'bodegas' | 'maestro';
+type SubTab = 'recepciones' | 'requisiciones' | 'bodegas';
 
 /**
  * Módulo Bodega de primer nivel: recepciones, requisiciones, bodegas
@@ -20,22 +20,28 @@ export const BodegaPage: React.FC = () => {
     { id: 'recepciones', label: 'Recepciones pendientes', icon: PackageCheck },
     { id: 'requisiciones', label: 'Requisiciones', icon: ClipboardList },
     { id: 'bodegas', label: 'Bodegas disponibles', icon: Warehouse },
-    { id: 'maestro', label: 'Maestro de materiales', icon: Boxes },
   ];
 
   // Pestaña activa en la URL (?tab=...) -- Atras del navegador y F5 la respetan.
   const [tabUrl, setTabUrl] = useUrlParam('tab');
+  const [subUrl] = useUrlParam('sub');
+  // El Maestro y los Proveedores salieron de Bodega a su propia sección: los enlaces viejos siguen funcionando.
+  useEffect(() => {
+    if (tabUrl === 'maestro') navegar(subUrl === 'proveedores' ? '/proveedores' : '/maestro', {}, { replace: true });
+  }, [tabUrl, subUrl]);
   const activeSubTab: SubTab = tabs.some((t) => t.id === tabUrl) ? (tabUrl as SubTab) : 'recepciones';
+  // Volver a la pestaña limpia lo abierto dentro de ella (subpestaña, bodega).
+  useMigas(1, [{ label: tabs.find((t) => t.id === activeSubTab)!.label, alHacerClic: () => actualizarParams({ tab: activeSubTab, sub: null, bodega: null }) }]);
 
   return (
-    <div className={PAGE_CONTAINER_CLASS}>
+    <>
       <HeaderSeccion titulo="Bodega" />
-      <SubTabs tabs={tabs} active={activeSubTab} onChange={(id) => setTabUrl(id)} />
-
-      {activeSubTab === 'recepciones' && <RecepcionesPendientesSection />}
-      {activeSubTab === 'requisiciones' && <RequisicionesSection />}
-      {activeSubTab === 'bodegas' && <BodegasDisponiblesSection />}
-      {activeSubTab === 'maestro' && <MaestroSecciones />}
-    </div>
+      <BarraPestanas tabs={tabs} active={activeSubTab} onChange={(id) => setTabUrl(id)} />
+      <div className={PAGE_CONTAINER_CLASS}>
+        {activeSubTab === 'recepciones' && <RecepcionesPendientesSection />}
+        {activeSubTab === 'requisiciones' && <RequisicionesSection />}
+        {activeSubTab === 'bodegas' && <BodegasDisponiblesSection />}
+      </div>
+    </>
   );
 };

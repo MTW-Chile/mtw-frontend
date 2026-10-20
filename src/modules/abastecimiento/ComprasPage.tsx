@@ -1,13 +1,15 @@
 import React from 'react';
-import { ShoppingCart, FileCheck2 } from 'lucide-react';
-import { SubTabs } from '../../components/ui/PageHeader';
+import { ShoppingCart, FileCheck2, Tags } from 'lucide-react';
+import { BarraPestanas } from '../../components/ui/PageHeader';
 import { HeaderSeccion } from '../../components/layout/HeaderSeccion';
-import { useUrlParam } from '../../lib/navigation';
+import { useUrlParam, actualizarParams } from '../../lib/navigation';
 import { OrdenesCompraList } from './OrdenesCompraList';
 import { ControlDocumentosTab } from '../proyectos/ControlDocumentosTab';
+import { PorClasificarTab } from './PorClasificarTab';
 import { PAGE_CONTAINER_CLASS } from '../../lib/designSystem';
+import { useMigas } from '../../lib/migas';
 
-type SubTab = 'ordenes' | 'conciliacion';
+type SubTab = 'ordenes' | 'conciliacion' | 'por-clasificar';
 
 /**
  * Módulo Compras de primer nivel (Sidebar) -- fuera de la vista
@@ -22,19 +24,23 @@ export const ComprasPage: React.FC = () => {
   const tabs: { id: SubTab; label: string; icon: React.ElementType }[] = [
     { id: 'ordenes', label: 'Órdenes de Compra', icon: ShoppingCart },
     { id: 'conciliacion', label: 'Conciliación de Facturas', icon: FileCheck2 },
+    { id: 'por-clasificar', label: 'Por clasificar', icon: Tags },
   ];
 
   // Pestaña activa en la URL (?tab=...) -- Atras del navegador y F5 la respetan.
   const [tabUrl, setTabUrl] = useUrlParam('tab');
   const activeSubTab: SubTab = tabs.some((t) => t.id === tabUrl) ? (tabUrl as SubTab) : 'ordenes';
+  useMigas(1, [{ label: tabs.find((t) => t.id === activeSubTab)!.label, alHacerClic: () => actualizarParams({ tab: activeSubTab }) }]);
 
   return (
-    <div className={PAGE_CONTAINER_CLASS}>
+    <>
       <HeaderSeccion titulo="Compras" />
-      <SubTabs tabs={tabs} active={activeSubTab} onChange={(id) => setTabUrl(id)} />
-
-      {activeSubTab === 'ordenes' && <OrdenesCompraList />}
-      {activeSubTab === 'conciliacion' && <ControlDocumentosTab />}
-    </div>
+      <BarraPestanas tabs={tabs} active={activeSubTab} onChange={(id) => setTabUrl(id)} />
+      <div className={PAGE_CONTAINER_CLASS}>
+        {activeSubTab === 'ordenes' && <OrdenesCompraList />}
+        {activeSubTab === 'conciliacion' && <ControlDocumentosTab />}
+        {activeSubTab === 'por-clasificar' && <PorClasificarTab />}
+      </div>
+    </>
   );
 };

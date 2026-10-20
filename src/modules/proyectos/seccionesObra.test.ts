@@ -3,11 +3,12 @@ import { seccionDisponible, seccionEfectiva, SECCIONES_OBRA, SECCIONES_QUE_REQUI
 
 describe('seccionDisponible', () => {
   it('una obra manual solo tiene disponible lo que no requiere presupuesto', () => {
+    expect(seccionDisponible('general', 'MANUAL_OBRA')).toBe(true);
     expect(seccionDisponible('fabricacion', 'MANUAL_OBRA')).toBe(true);
     expect(seccionDisponible('pendientes', 'MANUAL_OBRA')).toBe(true);
     expect(seccionDisponible('cubicacion', 'MANUAL_OBRA')).toBe(true);
-    expect(seccionDisponible('documentos', 'MANUAL_OBRA')).toBe(true);
-    expect(seccionDisponible('presupuesto', 'MANUAL_OBRA')).toBe(false);
+    // Un adicional se cotiza con precios vigentes: no depende de la cotizacion.
+    expect(seccionDisponible('adicionales', 'MANUAL_OBRA')).toBe(true);
     expect(seccionDisponible('abastecimiento', 'MANUAL_OBRA')).toBe(false);
     expect(seccionDisponible('bodega', 'MANUAL_OBRA')).toBe(false);
   });
@@ -16,11 +17,11 @@ describe('seccionDisponible', () => {
       for (const s of SECCIONES_OBRA) expect(seccionDisponible(s, origen)).toBe(true);
     }
   });
-  it('Fabricacion, Cubicacion, Documentos y Control de pendientes nunca requieren presupuesto', () => {
-    expect(SECCIONES_QUE_REQUIEREN_PRESUPUESTO).not.toContain('cubicacion');
-    expect(SECCIONES_QUE_REQUIEREN_PRESUPUESTO).not.toContain('fabricacion');
-    expect(SECCIONES_QUE_REQUIEREN_PRESUPUESTO).not.toContain('pendientes');
-    expect(SECCIONES_QUE_REQUIEREN_PRESUPUESTO).not.toContain('documentos');
+  it('Información General, Fabricacion, Cubicacion y Control de pendientes nunca requieren presupuesto', () => {
+    for (const s of ['general', 'cubicacion', 'fabricacion', 'pendientes'] as const) expect(SECCIONES_QUE_REQUIEREN_PRESUPUESTO).not.toContain(s);
+  });
+  it('Fabricación va después de Cubicación', () => {
+    expect(SECCIONES_OBRA.indexOf('fabricacion')).toBe(SECCIONES_OBRA.indexOf('cubicacion') + 1);
   });
 });
 
@@ -29,13 +30,13 @@ describe('seccionEfectiva', () => {
     expect(seccionEfectiva('cubicacion', 'HETMO')).toBe('cubicacion');
     expect(seccionEfectiva('fabricacion', 'MANUAL_OBRA')).toBe('fabricacion');
   });
-  it('una obra manual con un enlace a una seccion en gris cae a Fabricacion', () => {
-    expect(seccionEfectiva('presupuesto', 'MANUAL_OBRA')).toBe('fabricacion');
-    expect(seccionEfectiva('bodega', 'MANUAL_OBRA')).toBe('fabricacion');
-    expect(seccionEfectiva(undefined, 'MANUAL_OBRA')).toBe('fabricacion');
+  it('los enlaces viejos a Control de presupuesto y Documentos abren Información General', () => {
+    expect(seccionEfectiva('presupuesto', 'HETMO')).toBe('general');
+    expect(seccionEfectiva('documentos', 'MANUAL_OBRA')).toBe('general');
   });
-  it('sin seccion valida, el resto cae a Control de presupuesto', () => {
-    expect(seccionEfectiva(undefined, 'HETMO')).toBe('presupuesto');
-    expect(seccionEfectiva('inexistente', 'MANUAL_PRESUPUESTO')).toBe('presupuesto');
+  it('sin seccion valida o disponible, cae a Información General', () => {
+    expect(seccionEfectiva(undefined, 'HETMO')).toBe('general');
+    expect(seccionEfectiva('inexistente', 'MANUAL_PRESUPUESTO')).toBe('general');
+    expect(seccionEfectiva('bodega', 'MANUAL_OBRA')).toBe('general');
   });
 });

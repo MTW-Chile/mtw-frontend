@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
-import { Loader2, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import type { Material } from '../../../../types';
 import { MaterialPicker } from './MaterialPicker';
+import { Button } from '../../../../components/ui/Button';
+import { IconButton } from '../../../../components/ui/IconButton';
+import { Aviso } from '../../../../components/ui/Aviso';
+import { Campo, InputCompacto } from '../../../../components/ui/Campos';
 
 export interface MaterialLineaFormPayload {
   materialId: string;
@@ -67,18 +71,11 @@ export const MaterialLineaForm: React.FC<MaterialLineaFormProps> = ({
     <div className="rounded-2xl border border-brand-200 bg-brand-50/40 p-3.5 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-bold uppercase tracking-wide text-brand-600">{title}</span>
-        <button
-          onClick={onCancel}
-          disabled={isSaving}
-          className="p-1 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-200/60 transition-colors cursor-pointer disabled:opacity-50"
-          aria-label="Cancelar"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
+        <IconButton icono={X} etiqueta="Cancelar" onClick={onCancel} disabled={isSaving} />
       </div>
 
       {error && (
-        <div className="text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-1.5">{error}</div>
+        <Aviso tono="peligro">{error}</Aviso>
       )}
 
       {!selected ? (
@@ -90,14 +87,9 @@ export const MaterialLineaForm: React.FC<MaterialLineaFormProps> = ({
               <div className="font-mono font-semibold text-[11px] text-slate-900">{selected.skuInterno}</div>
               <div className="text-[11px] text-slate-600 leading-tight">{selected.descripcion}</div>
             </div>
-            <button
-              type="button"
-              onClick={() => setSelected(null)}
-              disabled={isSaving}
-              className="text-[10px] font-semibold text-brand-600 hover:underline shrink-0 cursor-pointer disabled:opacity-50"
-            >
+            <Button variant="link" size="sm" className="shrink-0" onClick={() => setSelected(null)} disabled={isSaving}>
               Cambiar
-            </button>
+            </Button>
           </div>
 
           {initialCantidad !== undefined && (
@@ -115,61 +107,52 @@ export const MaterialLineaForm: React.FC<MaterialLineaFormProps> = ({
           )}
 
           <div className="grid grid-cols-3 gap-2">
-            <label className="text-[10px] font-bold uppercase text-slate-500 space-y-1 block">
-              <span>Cantidad *</span>
-              <input
+            <Campo label="Cantidad *">
+              <InputCompacto
+                aria-label="Cantidad"
                 type="number"
-                min={0}
-                max={initialCantidad}
-                step="any"
-                value={cantidad}
-                onChange={(e) => setCantidad(e.target.value)}
-                disabled={isSaving}
-                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-brand-600/30"
+              min={0}
+              max={initialCantidad}
+              step="any"
+              value={cantidad}
+              onChange={(e) => setCantidad(e.target.value)}
+              disabled={isSaving}
+                className="w-full"
               />
-            </label>
-            <label className="text-[10px] font-bold uppercase text-slate-500 space-y-1 block">
-              <span>Piezas</span>
-              <input
+            </Campo>
+            <Campo label="Piezas">
+              <InputCompacto
+                aria-label="Piezas"
                 type="number"
-                min={0}
-                step="1"
-                value={piezas}
-                onChange={(e) => setPiezas(e.target.value)}
-                disabled={isSaving}
-                placeholder="—"
-                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-brand-600/30"
+              min={0}
+              step="1"
+              value={piezas}
+              onChange={(e) => setPiezas(e.target.value)}
+              disabled={isSaving}
+              placeholder="—"
+                className="w-full"
               />
-            </label>
-            <label className="text-[10px] font-bold uppercase text-slate-500 space-y-1 block">
-              <span>Acabado</span>
-              <input
+            </Campo>
+            <Campo label="Acabado">
+              <InputCompacto
+                aria-label="Acabado"
                 type="text"
-                value={acabado}
-                onChange={(e) => setAcabado(e.target.value)}
-                disabled={isSaving}
-                placeholder="—"
-                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-brand-600/30"
+              value={acabado}
+              onChange={(e) => setAcabado(e.target.value)}
+              disabled={isSaving}
+              placeholder="—"
+                className="w-full"
               />
-            </label>
+            </Campo>
           </div>
 
           <div className="flex justify-end gap-2">
-            <button
-              onClick={onCancel}
-              disabled={isSaving}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-200/60 transition-colors cursor-pointer disabled:opacity-50"
-            >
+            <Button variant="ghost" size="sm" onClick={onCancel} disabled={isSaving}>
               Cancelar
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={isSaving}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-600 hover:bg-brand-700 text-white transition-colors cursor-pointer disabled:opacity-60 flex items-center gap-1.5"
-            >
-              {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              <span>Confirmar</span>
-            </button>
+            </Button>
+            <Button size="sm" onClick={handleSubmit} isLoading={isSaving}>
+              Confirmar
+            </Button>
           </div>
         </div>
       )}

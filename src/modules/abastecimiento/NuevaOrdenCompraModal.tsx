@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { X, ShoppingCart, AlertCircle, Plus, Trash2, Package, Loader2 } from 'lucide-react';
+import { X, ShoppingCart, Plus, Trash2, Package, Loader2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -13,36 +13,23 @@ import {
   getBodegaProyecto,
   getOrdenCompraById,
   getMateriales,
+  getPartidas,
+  getAdicionales,
   type ItemOrdenCompraPayload,
 } from '../../api/client';
-import { useMonedas } from '../../lib/monedas';
-import {
-  computeMaterialesFasePorProveedor,
-  computeMaterialesConsolidados,
-  MONEDA_POR_FAMILIA,
-  normalizarFamilia,
-  type GrupoFaseProveedor,
-  type TrasladoDesdeObrasMayores,
-} from '../cotizaciones/lib/materialesConsolidados';
-import { CATEGORIA_GASTO_OPTIONS, CATEGORIA_GASTO_LABEL } from './categoriaGasto';
-import type { CategoriaGasto, Fase, Material } from '../../types';
-
-// Convierte el precio de catalogo de un Material (Material.precioOrigen) a
-// CLP para sugerirlo al elegirlo a mano -- "precio del maestro", usado para
-// Obras Mayores y para items marcados como Adicional (ver esAdicional).
-// OJO: la moneda NO sale de Material.monedaOrigen -- ese campo es el
-// moneda_origen_codigo crudo de HETMO, que viene hardcodeado en "2" para
-// todo material (nunca fue un dato real, confirmado en
-// materialesConsolidados.ts). La divisa real depende de la familia
-// (MONEDA_POR_FAMILIA), igual que en la Analitica de Materiales -- comparar
-// contra el codigo de HETMO directamente siempre daba CLP sin convertir.
-function precioMaestroCLP(material: Material, tasaDolar: number, tasaEuro: number): number | null {
-  if (material.precioOrigen == null) return null;
-  const familia = normalizarFamilia((material.familia || '').toUpperCase().trim());
-  const moneda = MONEDA_POR_FAMILIA[familia] || 'CLP';
-  const factor = moneda === 'USD' ? tasaDolar : moneda === 'EUR' ? tasaEuro : 1;
-  return material.precioOrigen * factor;
-}
+import { useAnalitica, useRequerimientoFase } from '../cotizaciones/lib/useAnalitica';
+import { precioCompraCLP, unidadCompra } from '../../lib/formatoMaterial';
+import { ETIQUETA_NATURALEZA } from '../../types';
+import type { Fase, GrupoRequerimiento, ItemRequerimiento, Material, NaturalezaCompra, ObraPendienteDetalle } from '../../types';
+import { useParametrosGenerales } from '../../lib/parametrosGenerales';
+import { usePermisos } from '../../lib/permisos';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
+import { Modal } from '../../components/ui/Modal';
+import { Aviso } from '../../components/ui/Aviso';
+import { Textarea, SelectCompacto, OpcionesTarjeta, InputCompacto } from '../../components/ui/Campos';
+import { IconButton } from '../../components/ui/IconButton';
+import { BotonAlternar } from '../../components/ui/BotonAlternar';
+import { BotonFila } from '../../components/ui/Lista';
 
 // Campo de descripcion de un item manual: con proveedor elegido, busca en
 // vivo en el catalogo filtrado a ESE proveedor (Material.proveedorId) para
@@ -91,9 +78,7 @@ const BuscadorProductoProveedor: React.FC<{
           <Package className="w-3.5 h-3.5 shrink-0" />
           <span className="truncate">{descripcion}</span>
         </span>
-        <button type="button" onClick={onQuitarSeleccion} title="Quitar del catálogo" className="text-sky-400 hover:text-sky-700 shrink-0">
-          <X className="w-3.5 h-3.5" />
-        </button>
+        <IconButton icono={X} etiqueta="Quitar del catálogo" onClick={onQuitarSeleccion} className="shrink-0" />
       </div>
     );
   }
@@ -117,23 +102,21 @@ const BuscadorProductoProveedor: React.FC<{
             <div className="p-2.5 text-[11px] text-slate-400">Sin productos de este proveedor que coincidan -- se guarda como item nuevo.</div>
           ) : (
             resultados.map((m) => (
-              <button
+              <BotonFila
                 key={m.id}
-                type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   onSeleccionar(m);
                   setAbierto(false);
                 }}
-                className="w-full text-left px-3 py-2 hover:bg-slate-50 cursor-pointer"
               >
                 <div className="text-[11px] font-semibold text-slate-800 leading-tight">{m.descripcion}</div>
                 <div className="text-[10px] text-slate-400">
-                  {m.skuInterno} · {m.unidadMedida}
+                  {m.skuInterno} · {unidadCompra(m)}
                   {m.precioOrigen != null &&
-                    ` · ${m.precioOrigen.toLocaleString('es-CL')} ${MONEDA_POR_FAMILIA[normalizarFamilia((m.familia || '').toUpperCase().trim())] || 'CLP'}`}
+                    ` · ${m.precioOrigen.toLocaleString('es-CL')} ${m.formato?.moneda ?? ''}/${m.formato?.unidadPrecio.simbolo ?? m.unidadMedida}`}
                 </div>
-              </button>
+              </BotonFila>
             ))
           )}
         </div>
@@ -145,10 +128,13 @@ const BuscadorProductoProveedor: React.FC<{
 interface NuevaOrdenCompraModalProps {
   isOpen: boolean;
   onClose: () => void;
+  // Desde dónde se abre: en Compras se emite la OC directamente; desde una
+  // obra (fases, abastecimiento de la obra, pendientes) siempre es una
+  // solicitud de materiales que Compras completa, aunque quien la pide pueda
+  // emitir OC.
+  origen: 'compras' | 'obra';
   // Cuando se abre desde la ficha de un proyecto ya sabemos el proyecto --
   // se fija y no se puede cambiar, en vez de mostrar el selector completo.
-  // Con esto puesto (y sin solicitudId) el modo es "solicitar": no se
-  // elige proveedor ni precio, solo se pide -- ver comentario de `modo`.
   proyectoIdFijo?: string;
   proyectoLabelFijo?: string;
   // Cuando se abre desde el boton "Generar OC" de una fase puntual (ver
@@ -156,21 +142,28 @@ interface NuevaOrdenCompraModalProps {
   // proveedor) al abrir, en vez de que el usuario tenga que volver a
   // elegirla del selector.
   faseIdInicial?: string;
-  // Cuando se abre desde el boton "Generar OC" de UNA categoria puntual
-  // dentro de una fase (ver FasesTab) -- filtra los materiales calculados
-  // a solo esa familia (Perfileria/Herrajes/Vidrios/...) y, si todos caen
-  // en un unico proveedor, lo deja ya elegido con sus items cargados,
-  // lista para enviar sin tocar nada mas.
-  categoriaFiltro?: string;
+  // Cuando se abre desde el boton de UNA partida puntual dentro de una fase
+  // (ver FasesTab) -- codigo de la partida: filtra los materiales calculados
+  // a solo esa partida y, si todos caen en un unico proveedor, lo deja ya
+  // elegido con sus items cargados, lista para enviar sin tocar nada mas.
+  partidaFiltro?: string;
   // Cuando se abre para COMPLETAR una solicitud existente (Compras, ver
   // OrdenesCompraList) en vez de crear una OC nueva -- modo "completar".
   solicitudId?: string;
+  // Cuando se abre desde un pendiente de obra: la compra queda enlazada a el,
+  // su naturaleza parte de la que sugiere el motivo y se precarga su material.
+  obraPendiente?: ObraPendienteDetalle;
 }
 
+const AYUDA_NATURALEZA: Record<NaturalezaCompra, string> = {
+  PRESUPUESTO: 'Lo cotizado para esta obra.',
+  REPOSICION: 'Rehacer o recomprar algo ya cotizado (quiebre, falla, daño): consume la holgura de su partida.',
+  ADICIONAL: 'Fuera del presupuesto: se cobra al cliente. Se sugiere el precio del maestro, no el comprometido.',
+};
+
 interface ItemForm {
-  // Presente cuando el item vino de los materiales calculados de una fase
-  // (ver gruposPorProveedor) -- mtw-api deriva la categoria sola de la
-  // familia del material, asi que estos items no piden categoria.
+  // Presente cuando el item es un material del catalogo -- mtw-api toma la
+  // partida del tipo de producto del material, asi que no se pide.
   materialId?: string;
   descripcion: string;
   unidadMedida: string;
@@ -181,7 +174,7 @@ interface ItemForm {
   cantidadCalculada?: number | null;
   // Modo "crear": cuanto de la necesidad bruta ya se cubrio con stock
   // disponible -- `cantidad` ya viene neta de esto, es solo para mostrar
-  // el porque (ver computeMaterialesFasePorProveedor).
+  // el porque (ver GET /fases/:id/requerimiento).
   stockDisponible?: number;
   // Modo "completar": la cantidad tal como se pidio en la solicitud
   // original, y lo que hay disponible en cada bodega AHORA (puede haber
@@ -191,43 +184,61 @@ interface ItemForm {
   disponibleObra?: number;
   disponibleObrasMayores?: number;
   precioUnitario: string;
-  categoria: CategoriaGasto | '';
+  // Solo items externos (sin material del catalogo): id de la partida.
+  partidaId: string;
+  // Pieza a medida (vidrios): medidas y ventana de destino. No se contrasta
+  // contra stock: una pieza a medida es de su ventana.
+  anchoMm?: number | null;
+  altoMm?: number | null;
+  ventanaId?: string | null;
+  referenciaVentana?: string | null;
+  // Pieza a medida cuya version aun no trae medidas: va por m².
+  sinMedidas?: boolean;
 }
 
-const itemVacio = (): ItemForm => ({ descripcion: '', unidadMedida: 'UN', cantidad: '', precioUnitario: '', categoria: '' });
+const esPieza = (i: Pick<ItemForm, 'anchoMm' | 'altoMm'>) => !!(i.anchoMm && i.altoMm);
 
-const itemFormDesdeCalculo = (item: GrupoFaseProveedor['items'][number]): ItemForm => ({
+const itemVacio = (): ItemForm => ({ descripcion: '', unidadMedida: 'UN', cantidad: '', precioUnitario: '', partidaId: '' });
+
+const itemFormDesdeCalculo = (item: ItemRequerimiento): ItemForm => ({
   materialId: item.materialId,
   descripcion: item.descripcion,
-  unidadMedida: item.unidadMedida,
+  unidadMedida: item.unidad,
   cantidad: String(item.cantidad),
   cantidadCalculada: item.cantidadCalculada,
   stockDisponible: item.stockDisponible,
   precioUnitario: item.precioUnitario ? String(item.precioUnitario) : '',
-  categoria: '',
+  partidaId: '',
+  anchoMm: item.anchoMm,
+  altoMm: item.altoMm,
+  ventanaId: item.ventanaId,
+  referenciaVentana: item.referenciaVentana,
+  sinMedidas: item.sinMedidas,
 });
 
 const fmtCantidad = (n: number | undefined) => (n ?? 0).toLocaleString('es-CL', { maximumFractionDigits: 2 });
 const formatCLP = (v: number) => v.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
 export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
+  origen,
   isOpen,
   onClose,
   proyectoIdFijo,
   proyectoLabelFijo,
   faseIdInicial,
-  categoriaFiltro,
+  partidaFiltro,
   solicitudId,
+  obraPendiente,
 }) => {
-  // "solicitar": desde un Proyecto, se pide sin elegir proveedor/precio --
-  // Compras la completa despues. "completar": Compras abre una solicitud
-  // existente, ve el contraste contra stock y arma el pedido final.
-  // "crear": Compras arma una OC nueva y completa de una (con proveedor),
-  // igual que antes -- ver PATCH /api/ordenes-compra/:id/completar y POST
-  // /api/ordenes-compra en mtw-api.
-  const modo: 'solicitar' | 'completar' | 'crear' = solicitudId ? 'completar' : proyectoIdFijo ? 'solicitar' : 'crear';
+  // "completar": Compras abre una solicitud existente, ve el contraste contra
+  // stock y arma el pedido final. "crear": desde Compras, una OC completa con
+  // proveedor y precios (requiere compras.oc.emitir, la API lo valida).
+  // "solicitar": desde la obra, se pide sin proveedor ni precio y queda en
+  // borrador para que Compras la complete -- ver PATCH
+  // /api/ordenes-compra/:id/completar.
+  const { tiene } = usePermisos();
+  const modo: 'solicitar' | 'completar' | 'crear' = solicitudId ? 'completar' : origen === 'compras' && tiene('compras.oc.emitir') ? 'crear' : 'solicitar';
   const queryClient = useQueryClient();
-  const monedas = useMonedas();
 
   const [proyectoId, setProyectoId] = useState(proyectoIdFijo || '');
   const [faseId, setFaseId] = useState('');
@@ -235,13 +246,20 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   const [comentarios, setComentarios] = useState('');
   const [items, setItems] = useState<ItemForm[]>([itemVacio()]);
   const [generalError, setGeneralError] = useState<string | null>(null);
-  // Un Adicional es trabajo fuera de lo que el cliente ya aprobo en el
-  // presupuesto -- al elegir un producto a mano para un item nuevo, no
-  // corresponde sugerirle el precio comprometido de esa obra (ese precio es
-  // del alcance original), se sugiere el precio del maestro, igual que
-  // Obras Mayores. Se vuelve a preguntar cada vez que se elige una obra
-  // distinta (ver el useEffect que resetea proveedor/items mas abajo).
-  const [esAdicional, setEsAdicional] = useState(false);
+  // Que cubre la compra (se guarda en la OC). Un Adicional es trabajo fuera de
+  // lo que el cliente ya aprobo -- al elegir un producto a mano no corresponde
+  // sugerirle el precio comprometido de esa obra, se sugiere el del maestro,
+  // igual que Obras Mayores. Se vuelve a elegir al cambiar de obra.
+  const [naturaleza, setNaturaleza] = useState<NaturalezaCompra>(obraPendiente?.naturalezaSugerida ?? 'PRESUPUESTO');
+  const esAdicional = naturaleza === 'ADICIONAL';
+  // Una compra adicional va con el adicional de la obra que la cubre.
+  const [adicionalId, setAdicionalId] = useState('');
+  const { data: adicionalesObra = [] } = useQuery({
+    queryKey: ['adicionales', proyectoId],
+    queryFn: () => getAdicionales(proyectoId),
+    enabled: isOpen && !!proyectoId && esAdicional,
+  });
+  const adicionalesDisponibles = adicionalesObra.filter((a) => a.estado !== 'RECHAZADO' && a.estado !== 'ANULADO');
 
   // Solo modo "completar": la solicitud que se esta completando.
   const { data: solicitud, isLoading: cargandoSolicitud } = useQuery({
@@ -262,9 +280,12 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
     enabled: isOpen && modo === 'crear',
   });
   const proyectosEnCurso = (proyectosData?.data || []).filter((p) => p.versiones[0]?.estadoAprobacion === 'ACEPTADO_CLIENTE');
-  const { data: proveedoresData } = useQuery({
+  // Misma forma (lista) que el resto de las pantallas que comparten
+  // ['proveedores']: con { data } esta modal se caía si antes se había
+  // abierto Proveedores ("Cannot read properties of undefined (reading 'map')").
+  const { data: proveedores = [] } = useQuery({
     queryKey: ['proveedores'],
-    queryFn: () => getProveedores(),
+    queryFn: async () => (await getProveedores()).data,
     enabled: isOpen,
   });
   // Detalle completo del proyecto (ventanas + materiales + fases) para poder
@@ -314,48 +335,52 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   const stockObrasMayoresPorMaterial = useMemo(() => mapaStock(bodegaData?.stockObrasMayores), [bodegaData]);
 
   // Materiales necesarios para fabricar la fase elegida, agrupados por
-  // proveedor -- reusa EXACTAMENTE la misma logica de precio/cantidad que
-  // la Analitica de Materiales (conversion de moneda, ajustes manuales,
-  // descuento/recargo por familia, barras para Perfileria/Refuerzos) para
-  // no mostrar un precio distinto al ya aprobado en el proyecto. Ya neta
-  // de lo que hay en stock -- ver comentario de
-  // computeMaterialesFasePorProveedor.
-  const tasaDolar = Number(activeVersion?.tipoCambioDolar) || 950;
-  const tasaUf = Number(activeVersion?.tipoCambioUF) || 38500;
-  const tasaEuro = Number(activeVersion?.tipoCambioEuro) || 1030;
-  const { gruposPorProveedor, trasladosDesdeObrasMayores }: { gruposPorProveedor: GrupoFaseProveedor[]; trasladosDesdeObrasMayores: TrasladoDesdeObrasMayores[] } = useMemo(() => {
-    const fase = (activeVersion?.fases || []).find((f) => f.id === faseId);
-    const { grupos, trasladosDesdeObrasMayores } = computeMaterialesFasePorProveedor(
-      activeVersion,
-      fase,
-      tasaDolar,
-      tasaEuro,
-      tasaUf,
-      monedas,
-      stockProyectoPorMaterial,
-      stockObrasMayoresPorMaterial
-    );
-    if (!categoriaFiltro) return { gruposPorProveedor: grupos, trasladosDesdeObrasMayores };
+  // proveedor (GET /fases/:id/requerimiento de mtw-api): cantidades de la
+  // Analitica prorrateadas a la fase, en unidad de compra (ej. barras
+  // enteras), con el precio de compra (con el descuento de su partida; la
+  // holgura no va al precio). En
+  // "crear" ya vienen netos del stock de la obra y de Obras Mayores; en
+  // "solicitar" es la necesidad bruta (Compras contrasta al completarla).
+  const parametros = useParametrosGenerales();
+  const tasaDolar = Number(activeVersion?.tipoCambioDolar) || parametros?.tasasRespaldo.dolar || 0;
+  const tasaUf = Number(activeVersion?.tipoCambioUF) || parametros?.tasasRespaldo.uf || 0;
+  const tasaEuro = Number(activeVersion?.tipoCambioEuro) || parametros?.tasasRespaldo.euro || 0;
+  const { data: requerimiento } = useRequerimientoFase(
+    proyectoId,
+    isOpen && modo !== 'completar' && faseId ? faseId : undefined,
+    modo !== 'solicitar'
+  );
+  const { gruposPorProveedor, trasladosDesdeObrasMayores } = useMemo(() => {
+    const grupos: GrupoRequerimiento[] = requerimiento?.grupos ?? [];
+    const traslados = requerimiento?.trasladosDesdeObrasMayores ?? [];
+    if (!partidaFiltro) return { gruposPorProveedor: grupos, trasladosDesdeObrasMayores: traslados };
     return {
       gruposPorProveedor: grupos
-        .map((g) => ({ ...g, items: g.items.filter((it) => it.familia === categoriaFiltro) }))
+        .map((g) => ({ ...g, items: g.items.filter((it) => it.partida.codigo === partidaFiltro) }))
         .filter((g) => g.items.length > 0),
-      trasladosDesdeObrasMayores: trasladosDesdeObrasMayores.filter((t) => t.familia === categoriaFiltro),
+      trasladosDesdeObrasMayores: traslados.filter((t) => t.partida.codigo === partidaFiltro),
     };
-  }, [activeVersion, faseId, tasaDolar, tasaEuro, tasaUf, monedas, categoriaFiltro, stockProyectoPorMaterial, stockObrasMayoresPorMaterial]);
+  }, [requerimiento, partidaFiltro]);
 
-  // Precio comprometido por material: el mismo que ya usa gruposPorProveedor
-  // arriba, pero para TODA la version del proyecto (no solo lo que necesita
-  // la fase elegida) -- un material del presupuesto aprobado que no sea
-  // parte de esta fase igual tiene un precio ya comprometido con el
-  // cliente. Se usa al elegir un producto a mano (ver seleccionarMaterialEnItem)
-  // cuando la obra no es Adicional; sin proyecto, o marcado Adicional, se
-  // usa el precio del maestro en su lugar.
-  const preciosComprometidosPorMaterial = useMemo(() => {
-    if (!activeVersion) return new Map<string, { precioCLP: number; unidadMedida: string }>();
-    const consolidado = computeMaterialesConsolidados(activeVersion, tasaDolar, tasaEuro, tasaUf, monedas);
-    return new Map(consolidado.map((m) => [m.materialId, { precioCLP: m.precioCLP, unidadMedida: m.unidadMedida }]));
-  }, [activeVersion, tasaDolar, tasaEuro, tasaUf, monedas]);
+  // Partidas para clasificar los items externos (sin material del catalogo).
+  const { data: partidas } = useQuery({ queryKey: ['partidas'], queryFn: getPartidas, enabled: isOpen });
+  const opcionesPartida = [
+    { value: '', label: 'Partida...' },
+    ...(partidas || []).filter((p) => p.activa).map((p) => ({ value: p.id, label: p.nombre })),
+  ];
+
+  // Precio comprometido por material: el de la Analitica de TODA la version
+  // del proyecto (no solo lo que necesita la fase elegida) -- un material del
+  // presupuesto aprobado que no sea parte de esta fase igual tiene un precio
+  // ya comprometido con el cliente. Se usa al elegir un producto a mano (ver
+  // seleccionarMaterialEnItem) cuando la obra no es Adicional; sin proyecto,
+  // o marcado Adicional, se usa el precio del maestro en su lugar.
+  const { data: analitica } = useAnalitica(proyectoId, isOpen && proyectoId && modo !== 'completar' ? activeVersion?.id : undefined);
+  const preciosComprometidosPorMaterial = useMemo(
+    // Precio de compra con el descuento de la partida; la holgura es presupuesto, no precio.
+    () => new Map((analitica?.materiales ?? []).map((m) => [m.materialId, { precioCLP: m.precioCompraNeto, unidadMedida: m.unidad.codigo }])),
+    [analitica]
+  );
 
   // Cambiar de proyecto o de fase invalida cualquier proveedor/items que ya
   // se hubieran elegido -- evita mezclar items de una fase con el proveedor
@@ -363,7 +388,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   // selector mas abajo) en vez de arrastrarse de una obra a otra.
   useEffect(() => {
     setFaseId('');
-    setEsAdicional(false);
+    setNaturaleza(obraPendiente?.naturalezaSugerida ?? 'PRESUPUESTO');
   }, [proyectoId]);
 
   // Precarga de fase al abrir desde "Generar OC" (ver faseIdInicial) --
@@ -383,6 +408,28 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
     setProveedorId('');
     setItems([itemVacio()]);
   }, [faseId, modo]);
+
+  // Desde un pendiente de obra: se precarga su material (y, si es una pieza a
+  // medida, sus medidas -- las rectificadas si las hay -- y su ventana).
+  useEffect(() => {
+    if (!isOpen || !obraPendiente || modo === 'completar') return;
+    setNaturaleza(obraPendiente.naturalezaSugerida);
+    const m = obraPendiente.material;
+    if (!m) return;
+    const ancho = Number(obraPendiente.anchoRectificadoMm ?? obraPendiente.anchoOriginalMm) || 0;
+    const alto = Number(obraPendiente.altoRectificadoMm ?? obraPendiente.altoOriginalMm) || 0;
+    const pieza = m.tipoProducto?.compraPorPieza && ancho > 0 && alto > 0;
+    setItems([
+      {
+        ...itemVacio(),
+        materialId: m.id,
+        descripcion: pieza ? `${m.skuInterno} · ${m.descripcion} · ${Math.round(ancho)} × ${Math.round(alto)} mm` : `${m.skuInterno} · ${m.descripcion}`,
+        cantidad: '1',
+        ...(pieza ? { anchoMm: Math.round(ancho), altoMm: Math.round(alto), referenciaVentana: obraPendiente.ventanaRef } : {}),
+      },
+    ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, obraPendiente?.id, faseId]);
 
   // Modo "completar": fija el proyecto de la solicitud en cuanto carga
   // (dispara el fetch de su bodega) y precarga los comentarios.
@@ -406,8 +453,9 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
       solicitud.items.length
         ? solicitud.items.map((it): ItemForm => {
             const cantidadSolicitada = Number(it.cantidad);
-            const disponibleObra = it.materialId ? stockProyectoPorMaterial.get(it.materialId) || 0 : 0;
-            const disponibleObrasMayores = it.materialId ? stockObrasMayoresPorMaterial.get(it.materialId) || 0 : 0;
+            const pieza = esPieza(it);
+            const disponibleObra = it.materialId && !pieza ? stockProyectoPorMaterial.get(it.materialId) || 0 : 0;
+            const disponibleObrasMayores = it.materialId && !pieza ? stockObrasMayoresPorMaterial.get(it.materialId) || 0 : 0;
             const neta = Math.max(0, cantidadSolicitada - disponibleObra - disponibleObrasMayores);
             return {
               materialId: it.materialId || undefined,
@@ -419,32 +467,35 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
               disponibleObra,
               disponibleObrasMayores,
               precioUnitario: it.precioUnitario != null ? String(it.precioUnitario) : '',
-              categoria: (it.materialId ? '' : it.categoria) as CategoriaGasto | '',
+              partidaId: it.materialId ? '' : it.partidaId,
+              anchoMm: it.anchoMm,
+              altoMm: it.altoMm,
+              ventanaId: it.ventanaId,
+              referenciaVentana: it.referenciaVentana,
             };
           })
         : [itemVacio()]
     );
   }, [modo, solicitud, isOpen, bodegaData, stockProyectoPorMaterial, stockObrasMayoresPorMaterial]);
 
-  const elegirGrupoProveedor = (grupo: GrupoFaseProveedor) => {
+  const elegirGrupoProveedor = (grupo: GrupoRequerimiento) => {
     if (!grupo.proveedorId) return; // sin proveedor asignado: no se puede generar OC para este grupo
     setProveedorId(grupo.proveedorId);
     setItems(grupo.items.length ? grupo.items.map(itemFormDesdeCalculo) : [itemVacio()]);
   };
 
-  // Con categoriaFiltro (boton "Generar OC" de una categoria puntual en
-  // FasesTab): si esa categoria cae entera en un unico proveedor, se elige
-  // solo -- el caso comun (Vidrios de un solo vidriero, Perfileria de un
-  // solo distribuidor). Si hay mas de un proveedor para la misma
-  // categoria, no se puede armar una sola OC igual (una OC es de un
-  // proveedor) -- queda el selector de chips de abajo, ya filtrado a solo
-  // esos proveedores, para elegir a mano.
+  // Con partidaFiltro (boton de una partida puntual en FasesTab): si esa
+  // partida cae entera en un unico proveedor, se elige solo -- el caso comun
+  // (Vidrios de un solo vidriero, Perfileria de un solo distribuidor). Si
+  // hay mas de un proveedor para la misma partida, no se puede armar una
+  // sola OC igual (una OC es de un proveedor) -- queda el selector de chips
+  // de abajo, ya filtrado a solo esos proveedores, para elegir a mano.
   useEffect(() => {
-    if (isOpen && categoriaFiltro && gruposPorProveedor.length === 1) {
+    if (isOpen && partidaFiltro && gruposPorProveedor.length === 1) {
       elegirGrupoProveedor(gruposPorProveedor[0]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, categoriaFiltro, gruposPorProveedor]);
+  }, [isOpen, partidaFiltro, gruposPorProveedor]);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -458,8 +509,11 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
       if (itemsValidos.length === 0) {
         throw new Error(modo === 'solicitar' ? 'Agrega al menos un item con descripción y cantidad.' : 'Agrega al menos un item con descripción, cantidad y precio.');
       }
-      if (itemsValidos.some((i) => !i.materialId && !i.categoria)) {
-        throw new Error('Elige una categoría para cada item sin material del catálogo -- sirve para el Control de Presupuesto.');
+      if (modo !== 'completar' && proyectoId && esAdicional && !adicionalId) {
+        throw new Error('Elige el adicional que cubre esta compra.');
+      }
+      if (itemsValidos.some((i) => !i.materialId && !i.partidaId)) {
+        throw new Error('Elige una partida para cada item sin material del catálogo -- sirve para el Control de Presupuesto.');
       }
 
       const itemsPayload: ItemOrdenCompraPayload[] = itemsValidos.map((i) => ({
@@ -469,7 +523,8 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
         cantidad: parseFloat(i.cantidad),
         cantidadCalculada: i.cantidadCalculada ?? undefined,
         precioUnitario: i.precioUnitario ? parseFloat(i.precioUnitario) : undefined,
-        categoria: i.materialId ? undefined : (i.categoria as CategoriaGasto),
+        partidaId: i.materialId ? undefined : i.partidaId,
+        ...(esPieza(i) ? { anchoMm: i.anchoMm, altoMm: i.altoMm, ventanaId: i.ventanaId, referenciaVentana: i.referenciaVentana } : {}),
       }));
 
       if (modo === 'completar') {
@@ -496,6 +551,9 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
         // Mayores", ver resolverCentroCosto en mtw-api).
         proyectoId: proyectoId || null,
         faseId: faseId || null,
+        naturaleza: proyectoId ? naturaleza : 'PRESUPUESTO',
+        obraPendienteId: obraPendiente?.id ?? null,
+        adicionalId: esAdicional ? adicionalId || null : null,
         // En "solicitar" nunca se manda -- aunque haya un chip de
         // proveedor elegido arriba (solo sirve para agrupar los items),
         // mandarlo la convertiria en una OC completa, no una solicitud.
@@ -539,7 +597,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
     setProveedorId('');
     setComentarios('');
     setItems([itemVacio()]);
-    setEsAdicional(false);
+    setNaturaleza(obraPendiente?.naturalezaSugerida ?? 'PRESUPUESTO');
     setGeneralError(null);
     solicitudPobladaRef.current = null;
     onClose();
@@ -562,7 +620,7 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   const seleccionarMaterialEnItem = (index: number, material: Material) => {
     const comprometido = proyectoId && !esAdicional ? preciosComprometidosPorMaterial.get(material.id) : undefined;
     const precioReferencial = comprometido ? Math.round(comprometido.precioCLP) : (() => {
-      const maestro = precioMaestroCLP(material, tasaDolar, tasaEuro);
+      const maestro = precioCompraCLP(material, { dolar: tasaDolar, euro: tasaEuro, uf: tasaUf });
       return maestro != null ? Math.round(maestro) : null;
     })();
     setItems((prev) =>
@@ -572,20 +630,18 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
               ...it,
               materialId: material.id,
               descripcion: material.descripcion,
-              // El precio comprometido viene por la unidad de compra real
-              // (ej. BARRA para Perfileria, no el metro de catalogo) -- usar
-              // esa unidad junto con ese precio, nunca mezclar con la del
-              // maestro.
-              unidadMedida: comprometido?.unidadMedida || material.unidadMedida,
-              categoria: '',
+              // Ambos precios vienen por unidad de compra (ej. BARRA para
+              // Perfileria, no el metro de catalogo): la unidad va con el precio.
+              unidadMedida: comprometido?.unidadMedida || unidadCompra(material),
+              partidaId: '',
               precioUnitario: precioReferencial != null ? String(precioReferencial) : it.precioUnitario,
             }
           : it
       )
     );
   };
-  // Vuelve el item a texto libre (partida externa) -- la descripcion queda
-  // como estaba, solo se desliga del material para poder elegir categoria.
+  // Vuelve el item a texto libre (item externo) -- la descripcion queda
+  // como estaba, solo se desliga del material para poder elegir partida.
   const quitarMaterialDeItem = (index: number) => {
     setItems((prev) => prev.map((it, i) => (i === index ? { ...it, materialId: undefined } : it)));
   };
@@ -617,317 +673,274 @@ export const NuevaOrdenCompraModal: React.FC<NuevaOrdenCompraModalProps> = ({
   ];
   const proveedorOptions = [
     { value: '', label: 'Selecciona un proveedor...' },
-    ...(proveedoresData?.data.map((p) => ({ value: p.id, label: p.nombre })) || []),
+    ...proveedores.map((p) => ({ value: p.id, label: p.nombre })),
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
-      <div
-        className="w-full sm:max-w-4xl bg-white rounded-t-2xl sm:rounded-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[94vh] sm:max-h-[88vh] animate-slide-up sm:animate-none"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-brand-600/10 border border-brand-600/20 flex items-center justify-center text-brand-600 shrink-0">
-              <ShoppingCart className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-sm font-black tracking-tight text-slate-900">
-                {modo === 'solicitar' ? 'Solicitud de Materiales' : modo === 'completar' ? 'Completar solicitud' : 'Nueva Orden de Compra'}
-              </h2>
-              <p className="text-[11px] text-slate-500">
-                {modo === 'solicitar'
+    <Modal
+      icono={ShoppingCart}
+      titulo={modo === 'solicitar' ? 'Solicitud de Materiales' : modo === 'completar' ? 'Completar solicitud' : 'Nueva Orden de Compra'}
+      subtitulo={modo === 'solicitar'
                   ? 'Se manda a Compras -- ellos eligen proveedor y precio, y la envían'
                   : modo === 'completar'
                     ? `${solicitud?.numero} -- elige proveedor y ajusta cantidades/precios antes de enviarla`
                     : 'Se crea en BORRADOR -- el número se genera automáticamente'}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={handleClose}
-            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setGeneralError(null);
-            mutation.mutate();
-          }}
-          className="p-5 space-y-4 overflow-y-auto flex-1"
-        >
-          {generalError && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{generalError}</span>
-            </div>
-          )}
-
-          {modo === 'completar' ? (
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-              <p className="font-bold text-slate-900">
-                {solicitud?.proyecto?.obra || solicitud?.centroCosto?.nombre || 'Obras Mayores'}
-              </p>
-              {solicitud?.fase && (
-                <p className="text-slate-500">
-                  Fase {solicitud.fase.numeroFase ?? ''} - {solicitud.fase.nombre}
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {proyectoIdFijo ? (
-                <div className="space-y-1.5">
-                  <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Proyecto (obra)</span>
-                  <div className="w-full py-2.5 px-3.5 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-700 font-semibold">
-                    {proyectoLabelFijo || 'Proyecto actual'}
-                  </div>
-                </div>
-              ) : (
-                <Select
-                  label="Proyecto (obra)"
-                  options={proyectoOptions}
-                  value={proyectoId}
-                  onChange={(e) => setProyectoId(e.target.value)}
-                  helperText="Sin proyecto, la compra va al stock de Obras Mayores"
-                />
-              )}
-              <Select
-                label="Fase"
-                options={faseOptions}
-                value={faseId}
-                onChange={(e) => setFaseId(e.target.value)}
-                disabled={!proyectoId || cargandoDetalle}
-                helperText={cargandoDetalle ? 'Cargando fases del proyecto...' : undefined}
-              />
-            </div>
-          )}
-
-          {modo !== 'completar' && proyectoId && (
-            <label className="flex items-start gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={esAdicional}
-                onChange={(e) => setEsAdicional(e.target.checked)}
-                className="mt-0.5 accent-brand-600"
-              />
-              <span className="text-xs text-slate-700">
-                <strong>Es un Adicional</strong> -- trabajo fuera del presupuesto aprobado para esta obra. Al elegir productos a mano se
-                sugiere el precio del maestro en vez del precio ya comprometido con el cliente.
-              </span>
-            </label>
-          )}
-
-          {modo !== 'completar' && faseId && (
-            <div className="space-y-1.5">
-              <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                {categoriaFiltro
-                  ? `Proveedores de ${(CATEGORIA_GASTO_LABEL as Record<string, string>)[categoriaFiltro] || categoriaFiltro} en esta fase`
-                  : 'Proveedores con materiales en esta fase'}
-              </span>
-              {gruposPorProveedor.length === 0 ? (
-                <p className="text-[11px] text-slate-500">
-                  {categoriaFiltro
-                    ? `Esta fase no tiene materiales calculados de esta categoría. ${modo === 'solicitar' ? 'Agrega un item manual abajo para una compra externa.' : 'Elige un proveedor manualmente abajo para una compra externa.'}`
-                    : `Esta fase no tiene materiales calculados (¿tiene líneas de ventana asignadas en la pestaña Fases?). ${modo === 'solicitar' ? 'Agrega un item manual abajo para una compra externa (flete, mano de obra, etc.).' : 'Elige un proveedor manualmente abajo para una compra externa (flete, mano de obra, etc.).'}`}
-                </p>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {gruposPorProveedor.map((g) => {
-                    const activo = !!g.proveedorId && proveedorId === g.proveedorId;
-                    const sinProveedor = !g.proveedorId;
-                    return (
-                      <button
-                        key={g.proveedorId || 'sin-proveedor'}
-                        type="button"
-                        disabled={sinProveedor}
-                        onClick={() => elegirGrupoProveedor(g)}
-                        title={sinProveedor ? 'Asígnale un proveedor a estos materiales en el Maestro para poder generar una OC' : undefined}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-colors ${
-                          activo
-                            ? 'bg-brand-600/10 text-brand-600 border-brand-600/30'
-                            : sinProveedor
-                              ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed'
-                              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50 cursor-pointer'
-                        }`}
-                      >
-                        <Package className="w-3.5 h-3.5" />
-                        {g.proveedorNombre}
-                        <span className="font-mono font-normal opacity-70">
-                          · {g.items.length} {g.items.length === 1 ? 'item' : 'items'}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {modo !== 'solicitar' && (
-            <Select
-              label="Proveedor"
-              options={proveedorOptions}
-              value={proveedorId}
-              onChange={(e) => setProveedorId(e.target.value)}
-              helperText={
-                modo === 'completar'
-                  ? 'A quién se le va a comprar -- elige uno para poder guardar'
-                  : 'Se llena solo al elegir un proveedor arriba -- se puede cambiar a mano para una compra externa'
-              }
-              required
-            />
-          )}
-
-          <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5">
-            {modo === 'solicitar'
-              ? 'Se manda como solicitud a Compras -- ellos eligen el proveedor, ajustan precios/cantidades contra el stock disponible, y la envían.'
-              : modo === 'completar'
-                ? 'Al guardar, el material que ya esté disponible en Obras Mayores se traslada de verdad a la bodega de la obra (queda reservado). Después podés pedirle aprobación a Gerencia desde el listado.'
-                : 'Esta queda en Borrador -- pedile la aprobación a Gerencia y envíala al proveedor desde el listado cuando esté lista.'}
-          </p>
-
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-              Comentarios o instrucciones especiales
-            </label>
-            <textarea
-              value={comentarios}
-              onChange={(e) => setComentarios(e.target.value)}
-              placeholder="Ej: entregar en horario de mañana, coordinar con bodega antes de despachar..."
-              rows={3}
-              className="w-full py-2.5 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-brand-600 focus:ring-2 focus:ring-brand-600/10 transition-all resize-none"
-            />
-          </div>
-
-          <div className="space-y-2.5">
-            <span className="block text-xs font-bold uppercase tracking-wider text-slate-700">Items</span>
-
-            <div className="rounded-xl border border-slate-200 overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
-                    <th className="px-3 py-2 font-bold">Descripción</th>
-                    <th className="px-3 py-2 font-bold w-36">Categoría</th>
-                    <th className="px-3 py-2 font-bold w-20">Unidad</th>
-                    <th className="px-3 py-2 font-bold text-right w-24">Cantidad</th>
-                    {modo !== 'solicitar' && <th className="px-3 py-2 font-bold text-right w-28">Precio unit.</th>}
-                    <th className="px-3 py-2 font-bold text-right w-28">Subtotal</th>
-                    <th className="w-10"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item, index) => {
-                    const subtotal = (parseFloat(item.cantidad) || 0) * (parseFloat(item.precioUnitario) || 0);
-                    return (
-                      <tr key={index} className="border-b border-slate-50 align-top">
-                        <td className="px-3 py-2 min-w-[200px]">
-                          <BuscadorProductoProveedor
-                            proveedorId={proveedorId}
-                            descripcion={item.descripcion}
-                            seleccionado={!!item.materialId}
-                            onCambiarTexto={(valor) => setItemField(index, 'descripcion', valor)}
-                            onSeleccionar={(material) => seleccionarMaterialEnItem(index, material)}
-                            onQuitarSeleccion={() => quitarMaterialDeItem(index)}
-                          />
-                          {modo === 'completar' && item.materialId && (
-                            <p className="text-[10px] text-slate-500 mt-1">
-                              Solicitado {fmtCantidad(item.cantidadSolicitada)} · Obra: {fmtCantidad(item.disponibleObra)} · Obras Mayores:{' '}
-                              {fmtCantidad(item.disponibleObrasMayores)}
-                            </p>
-                          )}
-                          {modo !== 'completar' && !!item.stockDisponible && (
-                            <p className="text-[10px] text-slate-400 mt-1">Ya tenías {fmtCantidad(item.stockDisponible)} en stock</p>
-                          )}
-                          {modo === 'solicitar' && item.precioUnitario && (
-                            <p className="text-[10px] text-slate-400 mt-1">Precio referencial: {formatCLP(Number(item.precioUnitario))}</p>
-                          )}
-                        </td>
-                        <td className="px-3 py-2">
-                          {item.materialId ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-sky-50 border border-sky-200 text-[10px] font-bold text-sky-700 whitespace-nowrap">
-                              <Package className="w-3 h-3 shrink-0" /> Del catálogo
-                            </span>
-                          ) : (
-                            <Select
-                              options={[{ value: '', label: 'Categoría...' }, ...CATEGORIA_GASTO_OPTIONS]}
-                              value={item.categoria}
-                              onChange={(e) => setItemField(index, 'categoria', e.target.value as CategoriaGasto)}
-                            />
-                          )}
-                        </td>
-                        <td className="px-3 py-2">
-                          <input
-                            type="text"
-                            value={item.unidadMedida}
-                            onChange={(e) => setItemField(index, 'unidadMedida', e.target.value)}
-                            className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs"
-                          />
-                        </td>
-                        <td className="px-3 py-2">
-                          <input
-                            type="number"
-                            value={item.cantidad}
-                            onChange={(e) => setItemField(index, 'cantidad', e.target.value)}
-                            className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-mono text-right"
-                          />
-                        </td>
-                        {modo !== 'solicitar' && (
-                          <td className="px-3 py-2">
-                            <input
-                              type="number"
-                              value={item.precioUnitario}
-                              onChange={(e) => setItemField(index, 'precioUnitario', e.target.value)}
-                              className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-mono text-right"
-                            />
-                          </td>
-                        )}
-                        <td className="px-3 py-2 text-right font-mono font-semibold text-slate-900">{formatCLP(subtotal)}</td>
-                        <td className="px-3 py-2">
-                          <button
-                            type="button"
-                            onClick={() => quitarItem(index)}
-                            disabled={items.length === 1}
-                            className="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors disabled:opacity-30 disabled:pointer-events-none"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-slate-50/70 font-bold">
-                    <td className="px-3 py-2 text-slate-600" colSpan={modo === 'solicitar' ? 4 : 5}>
-                      {modo === 'solicitar' ? 'Total referencial' : 'Total estimado'}
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono text-slate-900">{formatCLP(total)}</td>
-                    <td></td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-
-            <Button type="button" variant="ghost" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={agregarItem}>
-              Agregar item
-            </Button>
-          </div>
-        </form>
-
-        <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/70 flex items-center justify-end gap-2.5 shrink-0">
+      ancho="xl"
+      onClose={handleClose}
+      pie={
+        <Modal.Pie>
           <Button type="button" variant="outline" onClick={handleClose}>
             Cancelar
           </Button>
           <Button type="button" isLoading={mutation.isPending} onClick={() => { setGeneralError(null); mutation.mutate(); }}>
             {modo === 'solicitar' ? 'Solicitar Materiales' : modo === 'completar' ? 'Guardar y completar' : 'Crear Orden de Compra'}
           </Button>
+        </Modal.Pie>
+      }
+    >
+      {generalError && <Aviso tono="peligro">{generalError}</Aviso>}
+
+      {modo === 'completar' ? (
+        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+          <p className="font-bold text-slate-900">
+            {solicitud?.proyecto?.obra || solicitud?.centroCosto?.nombre || 'Obras Mayores'}
+          </p>
+          {solicitud?.fase && (
+            <p className="text-slate-500">
+              Fase {solicitud.fase.numeroFase ?? ''} - {solicitud.fase.nombre}
+            </p>
+          )}
         </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          {proyectoIdFijo ? (
+            <div className="space-y-1.5">
+              <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Proyecto (obra)</span>
+              <div className="w-full py-2.5 px-3.5 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-700 font-semibold">
+                {proyectoLabelFijo || 'Proyecto actual'}
+              </div>
+            </div>
+          ) : (
+            <Select
+              label="Proyecto (obra)"
+              options={proyectoOptions}
+              value={proyectoId}
+              onChange={(e) => setProyectoId(e.target.value)}
+              helperText="Sin proyecto, la compra va al stock de Obras Mayores"
+            />
+          )}
+          <Select
+            label="Fase"
+            options={faseOptions}
+            value={faseId}
+            onChange={(e) => setFaseId(e.target.value)}
+            disabled={!proyectoId || cargandoDetalle}
+            helperText={cargandoDetalle ? 'Cargando fases del proyecto...' : undefined}
+          />
+        </div>
+      )}
+
+      {modo !== 'completar' && proyectoId && (
+        <div className="space-y-1.5">
+          <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+            Qué cubre esta compra
+            {obraPendiente && <span className="ml-1.5 normal-case font-normal text-slate-500">(pendiente {obraPendiente.numero})</span>}
+          </span>
+          <OpcionesTarjeta
+            valor={naturaleza}
+            onChange={setNaturaleza}
+            opciones={(['PRESUPUESTO', 'REPOSICION', 'ADICIONAL'] as NaturalezaCompra[]).map((n) => ({ value: n, label: ETIQUETA_NATURALEZA[n] }))}
+          />
+          <p className="text-[11px] text-slate-500">{AYUDA_NATURALEZA[naturaleza]}</p>
+          {esAdicional && (
+            <div className="space-y-1">
+              <SelectCompacto aria-label="Adicional que cubre la compra" value={adicionalId} onChange={(e) => setAdicionalId(e.target.value)} className={`w-full ${adicionalId ? 'border-slate-200' : 'border-amber-300'}`}>
+                <option value="">Elige el adicional que cubre esta compra…</option>
+                {adicionalesDisponibles.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    A{a.numero} · {a.titulo} ({a.estado.toLowerCase().replace('_', ' ')})
+                  </option>
+                ))}
+              </SelectCompacto>
+              {adicionalesDisponibles.find((a) => a.id === adicionalId && a.estado !== 'ACEPTADO') && (
+                <p className="text-[11px] text-amber-700">Ese adicional aún no está aceptado: estás comprando antes de que el cliente lo acepte.</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {modo !== 'completar' && faseId && (
+        <div className="space-y-1.5">
+          <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+            {partidaFiltro
+              ? `Proveedores de ${partidas?.find((p) => p.codigo === partidaFiltro)?.nombre ?? partidaFiltro} en esta fase`
+              : 'Proveedores con materiales en esta fase'}
+          </span>
+          {gruposPorProveedor.length === 0 ? (
+            <p className="text-[11px] text-slate-500">
+              {partidaFiltro
+                ? `Esta fase no tiene materiales calculados de esta partida. ${modo === 'solicitar' ? 'Agrega un item manual abajo para una compra externa.' : 'Elige un proveedor manualmente abajo para una compra externa.'}`
+                : `Esta fase no tiene materiales calculados (¿tiene líneas de ventana asignadas en la pestaña Fases?). ${modo === 'solicitar' ? 'Agrega un item manual abajo para una compra externa (flete, mano de obra, etc.).' : 'Elige un proveedor manualmente abajo para una compra externa (flete, mano de obra, etc.).'}`}
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {gruposPorProveedor.map((g) => {
+                const activo = !!g.proveedorId && proveedorId === g.proveedorId;
+                const sinProveedor = !g.proveedorId;
+                return (
+                  <BotonAlternar
+                    key={g.proveedorId || 'sin-proveedor'}
+                    activo={activo}
+                    icono={Package}
+                    disabled={sinProveedor}
+                    onClick={() => elegirGrupoProveedor(g)}
+                    title={sinProveedor ? 'Asígnale un proveedor a estos materiales en el Maestro para poder generar una OC' : undefined}
+                  >
+                    {g.proveedorNombre}
+                    <span className="font-mono font-normal opacity-70">
+                      · {g.items.length} {g.items.length === 1 ? 'item' : 'items'}
+                    </span>
+                  </BotonAlternar>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {modo !== 'solicitar' && (
+        <Select
+          label="Proveedor"
+          options={proveedorOptions}
+          value={proveedorId}
+          onChange={(e) => setProveedorId(e.target.value)}
+          helperText={
+            modo === 'completar'
+              ? 'A quién se le va a comprar -- elige uno para poder guardar'
+              : 'Se llena solo al elegir un proveedor arriba -- se puede cambiar a mano para una compra externa'
+          }
+          required
+        />
+      )}
+
+      <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5">
+        {modo === 'solicitar'
+          ? 'Se manda como solicitud a Compras -- ellos eligen el proveedor, ajustan precios/cantidades contra el stock disponible, y la envían.'
+          : modo === 'completar'
+            ? 'Al guardar, el material que ya esté disponible en Obras Mayores se traslada de verdad a la bodega de la obra (queda reservado). Después podés pedirle aprobación a Gerencia desde el listado.'
+            : 'Esta queda en Borrador -- pedile la aprobación a Gerencia y envíala al proveedor desde el listado cuando esté lista.'}
+      </p>
+
+      <div className="space-y-1.5">
+        <Textarea label="Comentarios o instrucciones especiales"
+          value={comentarios}
+          onChange={(e) => setComentarios(e.target.value)}
+          placeholder="Ej: entregar en horario de mañana, coordinar con bodega antes de despachar..."
+          rows={3} className="resize-none" />
       </div>
-    </div>
+
+      <div className="space-y-2.5">
+        <span className="block text-xs font-bold uppercase tracking-wider text-slate-700">Items</span>
+
+        <div className="rounded-xl border border-slate-200 overflow-hidden">
+          <Tabla>
+            <Thead>
+              <Tr className="border-b border-slate-200 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                <Th className="font-bold">Descripción</Th>
+                <Th className="font-bold w-36">Partida</Th>
+                <Th className="font-bold w-20">Unidad</Th>
+                <Th alinear="derecha" className="font-bold w-24">Cantidad</Th>
+                {modo !== 'solicitar' && <Th alinear="derecha" className="font-bold w-28">Precio unit.</Th>}
+                <Th alinear="derecha" className="font-bold w-28">Subtotal</Th>
+                <Th className="w-10"></Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {items.map((item, index) => {
+                const subtotal = (parseFloat(item.cantidad) || 0) * (parseFloat(item.precioUnitario) || 0);
+                return (
+                  <Tr key={index} className="border-b border-slate-50 align-top">
+                    <Td className="min-w-[200px]">
+                      <BuscadorProductoProveedor
+                        proveedorId={proveedorId}
+                        descripcion={item.descripcion}
+                        seleccionado={!!item.materialId}
+                        onCambiarTexto={(valor) => setItemField(index, 'descripcion', valor)}
+                        onSeleccionar={(material) => seleccionarMaterialEnItem(index, material)}
+                        onQuitarSeleccion={() => quitarMaterialDeItem(index)}
+                      />
+                      {esPieza(item) && (
+                        <p className="text-[10px] font-semibold text-sky-700 mt-1">
+                          Pieza {item.anchoMm} × {item.altoMm} mm{item.referenciaVentana ? ` · ${item.referenciaVentana}` : ''}
+                        </p>
+                      )}
+                      {item.sinMedidas && (
+                        <p className="text-[10px] text-amber-700 mt-1">
+                          Sin medidas de HETMO todavía: va por m². Pide que se completen las medidas de los vidrios.
+                        </p>
+                      )}
+                      {modo === 'completar' && item.materialId && !esPieza(item) && (
+                        <p className="text-[10px] text-slate-500 mt-1">
+                          Solicitado {fmtCantidad(item.cantidadSolicitada)} · Obra: {fmtCantidad(item.disponibleObra)} · Obras Mayores:{' '}
+                          {fmtCantidad(item.disponibleObrasMayores)}
+                        </p>
+                      )}
+                      {modo !== 'completar' && !!item.stockDisponible && (
+                        <p className="text-[10px] text-slate-400 mt-1">Ya tenías {fmtCantidad(item.stockDisponible)} en stock</p>
+                      )}
+                      {modo === 'solicitar' && item.precioUnitario && (
+                        <p className="text-[10px] text-slate-400 mt-1">Precio referencial: {formatCLP(Number(item.precioUnitario))}</p>
+                      )}
+                    </Td>
+                    <Td>
+                      {item.materialId ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-sky-50 border border-sky-200 text-[10px] font-bold text-sky-700 whitespace-nowrap">
+                          <Package className="w-3 h-3 shrink-0" /> Del catálogo
+                        </span>
+                      ) : (
+                        <Select
+                          options={opcionesPartida}
+                          value={item.partidaId}
+                          onChange={(e) => setItemField(index, 'partidaId', e.target.value)}
+                        />
+                      )}
+                    </Td>
+                    <Td>
+                      <InputCompacto aria-label="Unidad" type="text" value={item.unidadMedida} onChange={(e) => setItemField(index, 'unidadMedida', e.target.value)} className="w-full" />
+                    </Td>
+                    <Td>
+                      <InputCompacto aria-label="Cantidad" type="number" value={item.cantidad} onChange={(e) => setItemField(index, 'cantidad', e.target.value)} className="w-full font-mono text-right" />
+                    </Td>
+                    {modo !== 'solicitar' && (
+                      <Td>
+                        <InputCompacto aria-label="Precio unitario" type="number" value={item.precioUnitario} onChange={(e) => setItemField(index, 'precioUnitario', e.target.value)} className="w-full font-mono text-right" />
+                      </Td>
+                    )}
+                    <Td alinear="derecha" className="font-mono font-semibold text-slate-900">{formatCLP(subtotal)}</Td>
+                    <Td>
+                      <IconButton icono={Trash2} tono="peligro" etiqueta="Quitar ítem" onClick={() => quitarItem(index)} disabled={items.length === 1} />
+                    </Td>
+                  </Tr>
+                );
+              })}
+            </Tbody>
+            <tfoot>
+              <Tr className="bg-slate-50/70 font-bold">
+                <Td className="text-slate-600" colSpan={modo === 'solicitar' ? 4 : 5}>
+                  {modo === 'solicitar' ? 'Total referencial' : 'Total estimado'}
+                </Td>
+                <Td alinear="derecha" className="font-mono text-slate-900">{formatCLP(total)}</Td>
+                <Td></Td>
+              </Tr>
+            </tfoot>
+          </Tabla>
+        </div>
+
+        <Button type="button" variant="ghost" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={agregarItem}>
+          Agregar item
+        </Button>
+      </div>
+    </Modal>
   );
 };

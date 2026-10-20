@@ -1,29 +1,40 @@
 import React, { useState, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Pencil, Building2, X, Trash2, GitMerge, Loader2 } from 'lucide-react';
-import { getProveedores, getMisPermisos, eliminarProveedor } from '../../../api/client';
+import { Pencil, Building2, Trash2, GitMerge } from 'lucide-react';
+import { getProveedores, eliminarProveedor } from '../../../api/client';
 import { TableSkeleton } from '../../../components/ui/Skeleton';
 import { Badge } from '../../../components/ui/Badge';
 import type { Proveedor } from '../../../types';
 import { ProveedorEditModal } from './ProveedorEditModal';
 import { FusionarProveedorModal } from './FusionarProveedorModal';
+import { RepararDuplicadosModal } from './RepararDuplicadosModal';
+import { Button } from '../../../components/ui/Button';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
 import { useColumnFilters, type ColumnFilterDef } from '../../../lib/useColumnFilters';
 import { ColumnFilterHeader } from '../../../components/ui/ColumnFilterHeader';
-import { BREAKPOINT_DESKTOP, TABLE_CLASS } from '../../../lib/designSystem';
+import { BREAKPOINT_DESKTOP } from '../../../lib/designSystem';
+import { usePermisos } from '../../../lib/permisos';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
+import { IconButton } from '../../../components/ui/IconButton';
+import { Buscador } from '../../../components/ui/Buscador';
+import { ErrorCarga } from '../../../components/ui/Estados';
+import { mostrarToast } from '../../../lib/toast';
+import { useConfirmar } from '../../../components/ui/Confirmar';
+import { Seccion } from '../../../components/ui/Seccion';
 
 /**
  * Maestro de Proveedores: quién es cada proveedor y sus datos de
  * facturación (RUT, dirección, email, forma de pago, cuenta bancaria). Los
- * importados de HETMO se completan solos en cada sincronización (ver
- * syncProveedores en sync-service.ts); los creados a mano desde "Nuevo
- * Artículo en Maestro" se completan acá, no tienen otra fuente.
+ * vinculados a HETMO (por código) reciben de HETMO solo los campos vacíos;
+ * lo que se edita acá manda.
  */
 export const ProveedoresPanel: React.FC = () => {
+  const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [editando, setEditando] = useState<Proveedor | null>(null);
   const [fusionando, setFusionando] = useState<Proveedor | null>(null);
+  const [reparando, setReparando] = useState(false);
   // Monta sólo la vista de escritorio o la de mobile, nunca las dos -- ver
   // useMediaQuery.ts (mismo patrón que MaestroProductos y CotizacionesPage).
   const isDesktop = useMediaQuery(BREAKPOINT_DESKTOP);
@@ -35,16 +46,21 @@ export const ProveedoresPanel: React.FC = () => {
 
   // mismo queryKey que App.tsx/Header.tsx -- sale del cache, no pega de
   // nuevo al backend.
-  const { data: permisos } = useQuery({ queryKey: ['misPermisos'], queryFn: getMisPermisos });
+  const { tiene } = usePermisos();
+  const puedeFusionar = tiene('catalogo.proveedores.fusionar');
 
-  // Solo admin (ver requireAdmin en mtw-api) -- borra un proveedor sin
-  // ningun material/OC enlazado. El backend responde 409 si todavia tiene
-  // algo enlazado (hay que fusionarlo, ver FusionarProveedorModal).
+  // Borra un proveedor sin materiales, OC ni vinculo con HETMO. El backend
+  // responde 409 si tiene algo enlazado (hay que fusionarlo).
   const eliminarMutation = useMutation({
     mutationFn: (id: string) => eliminarProveedor(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['proveedores'] }),
-    onError: (err: any) => window.alert(err?.response?.data?.error || 'No se pudo eliminar el proveedor.'),
+    onError: (err: any) => mostrarToast(err?.response?.data?.error || 'No se pudo eliminar el proveedor.'),
   });
+
+  const pedirEliminar = async (p: Proveedor) => {
+    const ok = await confirmar({ titulo: `¿Eliminar el proveedor "${p.nombre}"?`, mensaje: 'Esta acción no se puede deshacer.', confirmar: 'Eliminar', peligro: true });
+    if (ok) eliminarMutation.mutate(p.id);
+  };
 
   const proveedores = useMemo(() => data || [], [data]);
 
@@ -71,39 +87,34 @@ export const ProveedoresPanel: React.FC = () => {
 
   return (
     <div className="space-y-4 sm:space-y-5 animate-fade-in">
-      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-xs">
-        <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por nombre, RUT o email..."
-            className="w-full pl-10 pr-9 py-2.5 sm:py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-brand-600 transition-all"
-          />
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
-              aria-label="Limpiar búsqueda"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
+      <Seccion
+        titulo={
+          <span className="flex items-center gap-2">
+            Proveedores
+            <Badge size="sm" className="normal-case tracking-normal font-mono">
+              {visibles.length}
+            </Badge>
+          </span>
+        }
+        descripcion="Datos de facturación de cada proveedor. Los que vienen de HETMO conservan lo que edites aquí."
+        acciones={
+          puedeFusionar && (
+            <Button variant="outline" size="sm" leftIcon={<GitMerge className="w-3.5 h-3.5" />} onClick={() => setReparando(true)}>
+              Reparar duplicados
+            </Button>
+          )
+        }
+      >
+        <Buscador valor={searchTerm} onChange={setSearchTerm} placeholder="Buscar por nombre, RUT o email…" />
+      </Seccion>
+      {reparando && <RepararDuplicadosModal onClose={() => setReparando(false)} />}
 
       {isLoading ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
           <TableSkeleton rows={6} cols={5} />
         </div>
       ) : isError ? (
-        <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-3 shadow-xs">
-          <p className="text-sm font-bold text-rose-600">Error al consultar el maestro de proveedores.</p>
-          <button onClick={() => refetch()} className="text-xs font-bold text-brand-600 hover:underline cursor-pointer">
-            Reintentar
-          </button>
-        </div>
+        <ErrorCarga que="el maestro de proveedores" onReintentar={refetch} />
       ) : filtrados.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-10 sm:p-14 text-center space-y-3 shadow-xs">
           <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-400">
@@ -120,107 +131,76 @@ export const ProveedoresPanel: React.FC = () => {
           {/* 1. VISTA TABLA AUTOMÁTICA EN DESKTOP/TABLET (System-Wide) */}
           {isDesktop && (
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className={TABLE_CLASS + ' text-left text-slate-700'}>
-                <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
-                  <tr>
-                    <th className="px-5 py-3.5">Nombre</th>
-                    <th className="px-5 py-3.5">Origen</th>
-                    <th className="px-5 py-3.5">RUT</th>
-                    <th className="px-5 py-3.5">Email</th>
-                    <th className="px-5 py-3.5">Condiciones de Pago</th>
-                    <th className="px-5 py-3.5">Uso</th>
-                    <th className="px-5 py-3.5 text-right">Acciones</th>
-                  </tr>
-                  <tr className="bg-white border-b border-slate-100">
-                    <th className="px-5 py-2.5">
-                      <ColumnFilterHeader columna={columnas[0]} valor={valores.nombre || ''} onChange={(v) => setValor('nombre', v)} />
-                    </th>
-                    <th className="px-5 py-2.5" />
-                    <th className="px-5 py-2.5">
-                      <ColumnFilterHeader columna={columnas[1]} valor={valores.rut || ''} onChange={(v) => setValor('rut', v)} />
-                    </th>
-                    <th className="px-5 py-2.5">
-                      <ColumnFilterHeader columna={columnas[2]} valor={valores.email || ''} onChange={(v) => setValor('email', v)} />
-                    </th>
-                    <th className="px-5 py-2.5" colSpan={3} />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {visibles.map((p) => {
-                    const sinUso = !!p._count && p._count.materiales === 0 && p._count.ordenesCompra === 0;
-                    return (
-                    <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="px-5 py-3.5 font-semibold text-slate-900">{p.nombre}</td>
-                      <td className="px-5 py-3.5">
-                        {p.codigoHetmo != null ? (
-                          <Badge variant="info" size="sm">HETMO</Badge>
+            <Tabla>
+              <Thead>
+                <Tr>
+                  <Th className="px-5 py-3.5">Nombre</Th>
+                  <Th className="px-5 py-3.5">Origen</Th>
+                  <Th className="px-5 py-3.5">RUT</Th>
+                  <Th className="px-5 py-3.5">Email</Th>
+                  <Th className="px-5 py-3.5">Condiciones de Pago</Th>
+                  <Th className="px-5 py-3.5">Uso</Th>
+                  <Th alinear="derecha" className="px-5 py-3.5">Acciones</Th>
+                </Tr>
+                <Tr className="bg-white border-b border-slate-100">
+                  <Th className="px-5">
+                    <ColumnFilterHeader columna={columnas[0]} valor={valores.nombre || ''} onChange={(v) => setValor('nombre', v)} />
+                  </Th>
+                  <Th className="px-5" />
+                  <Th className="px-5">
+                    <ColumnFilterHeader columna={columnas[1]} valor={valores.rut || ''} onChange={(v) => setValor('rut', v)} />
+                  </Th>
+                  <Th className="px-5">
+                    <ColumnFilterHeader columna={columnas[2]} valor={valores.email || ''} onChange={(v) => setValor('email', v)} />
+                  </Th>
+                  <Th className="px-5" colSpan={3} />
+                </Tr>
+              </Thead>
+              <Tbody>
+                {visibles.map((p) => {
+                  const sinUso = !!p._count && p._count.materiales === 0 && p._count.ordenesCompra === 0;
+                  return (
+                  <Tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
+                    <Td className="px-5 py-3.5 font-semibold text-slate-900">{p.nombre}</Td>
+                    <Td className="px-5 py-3.5">
+                      {(p.origenesHetmo?.length ?? 0) > 0 ? (
+                        <Badge variant="info" size="sm" title={`Código HETMO: ${p.origenesHetmo!.map((o) => o.codigoHetmo).join(', ')}`}>HETMO</Badge>
+                      ) : (
+                        <Badge variant="default" size="sm">Manual</Badge>
+                      )}
+                    </Td>
+                    <Td className="px-5 py-3.5 text-slate-600">{p.rut || <span className="text-slate-300">—</span>}</Td>
+                    <Td className="px-5 py-3.5 text-slate-600">{p.email || <span className="text-slate-300">—</span>}</Td>
+                    <Td className="px-5 py-3.5 text-slate-600">{p.condicionesPago || <span className="text-slate-300">—</span>}</Td>
+                    <Td className="px-5 py-3.5">
+                      {p._count ? (
+                        sinUso ? (
+                          <Badge variant="warning" size="sm">Sin uso</Badge>
                         ) : (
-                          <Badge variant="default" size="sm">Manual</Badge>
-                        )}
-                      </td>
-                      <td className="px-5 py-3.5 text-slate-600">{p.rut || <span className="text-slate-300">—</span>}</td>
-                      <td className="px-5 py-3.5 text-slate-600">{p.email || <span className="text-slate-300">—</span>}</td>
-                      <td className="px-5 py-3.5 text-slate-600">{p.condicionesPago || <span className="text-slate-300">—</span>}</td>
-                      <td className="px-5 py-3.5">
-                        {p._count ? (
-                          sinUso ? (
-                            <Badge variant="warning" size="sm">Sin uso</Badge>
-                          ) : (
-                            <span className="text-[11px] text-slate-500 font-mono">
-                              {p._count.materiales} mat · {p._count.ordenesCompra} OC
-                            </span>
-                          )
-                        ) : (
-                          <span className="text-slate-300">—</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => setEditando(p)}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:text-brand-600 hover:bg-brand-50 transition-colors cursor-pointer"
-                          >
-                            <Pencil className="w-3 h-3" />
-                            <span>Editar</span>
-                          </button>
-                          {permisos?.esAdmin && (
-                            <>
-                              <button
-                                onClick={() => setFusionando(p)}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-                                title="Fusionar dentro de otro proveedor (reasigna materiales/OC)"
-                              >
-                                <GitMerge className="w-3 h-3" />
-                                <span>Fusionar</span>
-                              </button>
-                              <button
-                                onClick={() => {
-                                  if (window.confirm(`¿Eliminar el proveedor "${p.nombre}"? Esta acción no se puede deshacer.`)) {
-                                    eliminarMutation.mutate(p.id);
-                                  }
-                                }}
-                                disabled={!sinUso || (eliminarMutation.isPending && eliminarMutation.variables === p.id)}
-                                title={sinUso ? undefined : 'Tiene materiales u OC enlazados -- fusiónalo primero'}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
-                              >
-                                {eliminarMutation.isPending && eliminarMutation.variables === p.id ? (
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                ) : (
-                                  <Trash2 className="w-3 h-3" />
-                                )}
-                                <span>Eliminar</span>
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          <span className="text-[11px] text-slate-500 font-mono">
+                            {p._count.materiales} mat · {p._count.ordenesCompra} OC
+                          </span>
+                        )
+                      ) : (
+                        <span className="text-slate-300">—</span>
+                      )}
+                    </Td>
+                    <Td alinear="derecha" className="px-5 py-3.5">
+                      <AccionesProveedor
+                        proveedor={p}
+                        sinUso={sinUso}
+                        puedeFusionar={puedeFusionar}
+                        eliminando={eliminarMutation.isPending && eliminarMutation.variables === p.id}
+                        onEditar={() => setEditando(p)}
+                        onFusionar={() => setFusionando(p)}
+                        onEliminar={() => pedirEliminar(p)}
+                      />
+                    </Td>
+                  </Tr>
+                  );
+                })}
+              </Tbody>
+            </Tabla>
           </div>
           )}
 
@@ -238,7 +218,7 @@ export const ProveedoresPanel: React.FC = () => {
                   <h4 className="text-xs font-bold text-slate-900 leading-snug">{p.nombre}</h4>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {sinUso && <Badge variant="warning" size="sm">Sin uso</Badge>}
-                    {p.codigoHetmo != null ? (
+                    {(p.origenesHetmo?.length ?? 0) > 0 ? (
                       <Badge variant="info" size="sm">HETMO</Badge>
                     ) : (
                       <Badge variant="default" size="sm">Manual</Badge>
@@ -270,40 +250,15 @@ export const ProveedoresPanel: React.FC = () => {
                 </div>
 
                 <div className="pt-2.5 border-t border-slate-100 flex justify-end gap-1 flex-wrap">
-                  <button
-                    onClick={() => setEditando(p)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-brand-600 hover:bg-brand-50 transition-colors cursor-pointer"
-                  >
-                    <Pencil className="w-3 h-3" />
-                    <span>Editar</span>
-                  </button>
-                  {permisos?.esAdmin && (
-                    <>
-                      <button
-                        onClick={() => setFusionando(p)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-                      >
-                        <GitMerge className="w-3 h-3" />
-                        <span>Fusionar</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (window.confirm(`¿Eliminar el proveedor "${p.nombre}"? Esta acción no se puede deshacer.`)) {
-                            eliminarMutation.mutate(p.id);
-                          }
-                        }}
-                        disabled={!sinUso || (eliminarMutation.isPending && eliminarMutation.variables === p.id)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
-                      >
-                        {eliminarMutation.isPending && eliminarMutation.variables === p.id ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-3 h-3" />
-                        )}
-                        <span>Eliminar</span>
-                      </button>
-                    </>
-                  )}
+                  <AccionesProveedor
+                    proveedor={p}
+                    sinUso={sinUso}
+                    puedeFusionar={puedeFusionar}
+                    eliminando={eliminarMutation.isPending && eliminarMutation.variables === p.id}
+                    onEditar={() => setEditando(p)}
+                    onFusionar={() => setFusionando(p)}
+                    onEliminar={() => pedirEliminar(p)}
+                  />
                 </div>
               </div>
               );
@@ -320,3 +275,34 @@ export const ProveedoresPanel: React.FC = () => {
     </div>
   );
 };
+
+const AccionesProveedor: React.FC<{
+  proveedor: Proveedor;
+  sinUso: boolean;
+  puedeFusionar: boolean;
+  eliminando: boolean;
+  onEditar: () => void;
+  onFusionar: () => void;
+  onEliminar: () => void;
+}> = ({ proveedor, sinUso, puedeFusionar, eliminando, onEditar, onFusionar, onEliminar }) => (
+  <div className="flex items-center justify-end gap-1">
+    <Button size="sm" variant="ghost" leftIcon={<Pencil className="w-3 h-3" />} onClick={onEditar}>
+      Editar
+    </Button>
+    {puedeFusionar && (
+      <>
+        <Button size="sm" variant="ghost" leftIcon={<GitMerge className="w-3 h-3" />} title="Fusionar dentro de otro proveedor (reasigna materiales y OC)" onClick={onFusionar}>
+          Fusionar
+        </Button>
+        <IconButton
+          icono={Trash2}
+          tono="peligro"
+          etiqueta={sinUso ? `Eliminar ${proveedor.nombre}` : 'Tiene materiales u OC enlazados: fusiónalo primero'}
+          disabled={!sinUso}
+          cargando={eliminando}
+          onClick={onEliminar}
+        />
+      </>
+    )}
+  </div>
+);

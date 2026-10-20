@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 export interface SelectOption {
@@ -8,15 +8,17 @@ export interface SelectOption {
 
 export interface SelectProps
   extends React.SelectHTMLAttributes<HTMLSelectElement> {
-  label?: string;
+  label?: React.ReactNode;
   error?: string;
   helperText?: string;
-  options: SelectOption[];
+  /** Opciones simples; para grupos u opciones deshabilitadas, pasar <option> como children. */
+  options?: SelectOption[];
 }
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, error, helperText, options, className = '', id, ...props }, ref) => {
-    const selectId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
+  ({ label, error, helperText, options, className = '', id, children, ...props }, ref) => {
+    const generado = useId();
+    const selectId = id || generado;
 
     return (
       <div className="space-y-1.5 w-full">
@@ -32,16 +34,18 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           <select
             ref={ref}
             id={selectId}
-            className={`w-full py-2.5 pl-3.5 pr-10 rounded-xl bg-slate-50 border text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600 focus:ring-2 focus:ring-brand-600/10 transition-all appearance-none cursor-pointer ${
+            className={`w-full py-2.5 pl-3.5 pr-10 rounded-xl bg-slate-50 border text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600 focus:ring-2 focus:ring-brand-600/10 transition-all appearance-none cursor-pointer disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed ${
               error ? 'border-rose-300 bg-rose-50/30' : 'border-slate-200'
             } ${className}`}
             {...props}
           >
-            {options.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
+            {options
+              ? options.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))
+              : children}
           </select>
           <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>

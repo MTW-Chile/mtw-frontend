@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ClipboardList, Loader2, Paperclip, Plus, Search } from 'lucide-react';
-import { getPendientes } from '../../../api/client';
+import { ClipboardList, Loader2, Paperclip, Plus } from 'lucide-react';
+import { getPendientes, getPendientesTodos } from '../../../api/client';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
@@ -24,30 +24,43 @@ import {
   textoRectificacion,
   varianteEstadoPendiente,
 } from './utils';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
+import { SelectCompacto } from '../../../components/ui/Campos';
+import { Buscador } from '../../../components/ui/Buscador';
+import { Segmentado } from '../../../components/ui/Segmentado';
+import { BotonFila } from '../../../components/ui/Lista';
 
 interface Props {
-  proyecto: Proyecto;
+  // Sin obra: visor central con los pendientes de todas las obras.
+  proyecto?: Proyecto;
 }
 
-const selector =
-  'px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-brand-600 cursor-pointer';
 
 // Seccion "Control de pendientes" de una obra: lo que falta o fallo (ventanas,
 // hojas, vidrios, materiales), levantado por Fabricacion o por la supervision en
 // obra. Cada pendiente va a Compras o a Fabricacion, sigue sus etapas y lo
-// resuelve quien lo creo.
+// resuelve quien lo creo. Sin `proyecto` es el visor central (Pendientes en
+// obra del Sidebar): todos los pendientes de todas las obras, con su obra.
 export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
   const isDesktop = useMediaQuery(BREAKPOINT_DESKTOP);
   const [estado, setEstado] = useState<EstadoPendiente | ''>('');
   const [destino, setDestino] = useState<DestinoPendiente | ''>('');
   const [texto, setTexto] = useState('');
   const [creando, setCreando] = useState(false);
-  const [abierto, setAbierto] = useState<string | null>(null);
+  const [abierto, setAbierto] = useState<ObraPendiente | null>(null);
+  const [obraId, setObraId] = useState('');
+  const central = !proyecto;
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['pendientes', proyecto.id],
-    queryFn: () => getPendientes(proyecto.id),
+    queryKey: proyecto ? ['pendientes', proyecto.id] : ['pendientes', 'todas'],
+    queryFn: () => (proyecto ? getPendientes(proyecto.id) : getPendientesTodos()),
   });
+  // Obras con pendientes, para filtrar el visor central.
+  const obras = useMemo(() => {
+    const mapa = new Map<string, string>();
+    for (const p of data ?? []) if (p.proyecto) mapa.set(p.proyecto.id, p.proyecto.obra);
+    return [...mapa].sort((a, b) => a[1].localeCompare(b[1], 'es'));
+  }, [data]);
   const todos = useMemo(() => data ?? [], [data]);
   const conteo = useMemo(() => contarPorEstado(todos), [todos]);
 
@@ -56,10 +69,12 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
     return todos.filter((p) => {
       if (estado && p.estado !== estado) return false;
       if (destino && p.destino !== destino) return false;
+      if (obraId && p.proyectoId !== obraId) return false;
       if (!t) return true;
-      return `${codigoPendiente(p.numero)} ${p.descripcion} ${referenciaPendiente(p)}`.toLowerCase().includes(t);
+      return `${codigoPendiente(p.numero)} ${p.descripcion} ${referenciaPendiente(p)} ${p.proyecto?.obra ?? ''}`.toLowerCase().includes(t);
     });
-  }, [todos, estado, destino, texto]);
+  }, [todos, estado, destino, texto, obraId]);
+  const codigoObra = (p: ObraPendiente) => (p.proyecto ? p.proyecto.codigoInterno || `PRJ-${p.proyecto.numeroPresupuesto}` : '');
 
   const filas = (p: ObraPendiente) => ({
     codigo: codigoPendiente(p.numero),
@@ -70,56 +85,54 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-black text-slate-900">Control de pendientes</h2>
+          <h2 className="text-sm font-black text-slate-900">{central ? 'Pendientes en obra' : 'Control de pendientes'}</h2>
           <p className="text-xs text-slate-500 max-w-xl">
-            Lo que falta o falló en esta obra, solicitado desde la obra o desde la fábrica. Cada pendiente va solo al área que corresponde (técnica o
-            fábrica) y lo resuelve quien lo solicitó.
+            {central
+              ? 'Todos los pendientes de todas las obras: lo que falta o falló, su área, su estado y quién lo solicitó. Se crean desde cada obra.'
+              : 'Lo que falta o falló en esta obra, solicitado desde la obra o desde la fábrica. Cada pendiente va solo al área que corresponde (técnica o fábrica) y lo resuelve quien lo solicitó.'}
           </p>
         </div>
-        <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setCreando(true)}>
-          Nuevo pendiente
-        </Button>
+        {proyecto && (
+          <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setCreando(true)}>
+            Nuevo pendiente
+          </Button>
+        )}
       </div>
 
       {/* Resumen por estado: cada uno filtra la lista */}
-      <div className="flex flex-wrap gap-2">
-        {ESTADOS_PENDIENTE.map((e) => {
-          const activo = estado === e;
-          return (
-            <button
-              key={e}
-              type="button"
-              onClick={() => setEstado(activo ? '' : e)}
-              aria-pressed={activo}
-              className={`px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-colors ${
-                activo ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              {ETIQUETA_ESTADO[e]} <span className={`ml-1 font-mono ${activo ? 'text-slate-300' : 'text-slate-400'}`}>{conteo[e]}</span>
-            </button>
-          );
-        })}
-      </div>
+      <Segmentado
+        etiqueta="Filtrar por estado"
+        valor={estado}
+        onChange={(v) => setEstado(v === estado ? '' : v)}
+        opciones={[{ value: '' as const, label: 'Todos' }, ...ESTADOS_PENDIENTE.map((e) => ({ value: e, label: ETIQUETA_ESTADO[e], contador: conteo[e] }))]}
+      />
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[12rem]">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            placeholder="Buscar por número, descripción o ventana..."
-            aria-label="Buscar pendientes"
-            className="w-full pl-9 pr-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-brand-600"
-          />
-        </div>
-        <select value={destino} onChange={(e) => setDestino(e.target.value as DestinoPendiente | '')} aria-label="Filtrar por área" className={selector}>
+        <Buscador
+          className="flex-1 min-w-[12rem]"
+          valor={texto}
+          onChange={setTexto}
+          placeholder={central ? 'Buscar por obra, número, descripción o ventana…' : 'Buscar por número, descripción o ventana…'}
+          etiqueta="Buscar pendientes"
+        />
+        {central && (
+          <SelectCompacto value={obraId} onChange={(e) => setObraId(e.target.value)} aria-label="Filtrar por obra" className="max-w-[16rem]">
+            <option value="">Todas las obras</option>
+            {obras.map(([id, nombre]) => (
+              <option key={id} value={id}>
+                {nombre}
+              </option>
+            ))}
+          </SelectCompacto>
+        )}
+        <SelectCompacto value={destino} onChange={(e) => setDestino(e.target.value as DestinoPendiente | '')} aria-label="Filtrar por área">
           <option value="">Todas las áreas</option>
           {DESTINOS_PENDIENTE.map((d) => (
             <option key={d} value={d}>
               {ETIQUETA_DESTINO[d]}
             </option>
           ))}
-        </select>
+        </SelectCompacto>
       </div>
 
       {isLoading ? (
@@ -133,31 +146,40 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
       ) : todos.length === 0 ? (
         <div className="p-10 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs space-y-1">
           <ClipboardList className="w-6 h-6 text-slate-300 mx-auto" />
-          <p className="font-bold text-slate-700">Esta obra aún no tiene pendientes.</p>
-          <p>Usa "Nuevo pendiente" para registrar lo que falta o falló en una ventana, hoja, vidrio o material.</p>
+          <p className="font-bold text-slate-700">{central ? 'No hay pendientes en ninguna obra.' : 'Esta obra aún no tiene pendientes.'}</p>
+          <p>{central ? 'Se registran desde el Control de pendientes de cada obra.' : 'Usa "Nuevo pendiente" para registrar lo que falta o falló en una ventana, hoja, vidrio o material.'}</p>
         </div>
       ) : visibles.length === 0 ? (
         <div className="p-8 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">Ningún pendiente coincide con los filtros.</div>
       ) : isDesktop ? (
-        <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
-                <th className="px-3 py-2.5 font-bold">N°</th>
-                <th className="px-3 py-2.5 font-bold">Pendiente</th>
-                <th className="px-3 py-2.5 font-bold">Motivo</th>
-                <th className="px-3 py-2.5 font-bold">Área</th>
-                <th className="px-3 py-2.5 font-bold">Estado</th>
-                <th className="px-3 py-2.5 font-bold">Solicitante</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+          <Tabla>
+            <Thead>
+              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                <Th className="font-bold">N°</Th>
+                {central && <Th className="font-bold">Obra</Th>}
+                <Th className="font-bold">Pendiente</Th>
+                <Th className="font-bold">Motivo</Th>
+                <Th className="font-bold">Área</Th>
+                <Th className="font-bold">Estado</Th>
+                <Th className="font-bold">Solicitante</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
               {visibles.map((p) => {
                 const f = filas(p);
                 return (
-                  <tr key={p.id} onClick={() => setAbierto(p.id)} className="border-b border-slate-50 hover:bg-slate-50/70 cursor-pointer">
-                    <td className="px-3 py-2.5 font-mono font-bold text-slate-600 whitespace-nowrap">{f.codigo}</td>
-                    <td className="px-3 py-2.5 min-w-0 max-w-[26rem]">
+                  <Tr key={p.id} onClick={() => setAbierto(p)} className="border-b border-slate-50 hover:bg-slate-50/70 cursor-pointer">
+                    <Td className="font-mono font-bold text-slate-600 whitespace-nowrap">{f.codigo}</Td>
+                    {central && (
+                      <Td className="max-w-[14rem]">
+                        <div className="font-semibold text-slate-800 truncate" title={p.proyecto?.obra}>
+                          {p.proyecto?.obra}
+                        </div>
+                        <div className="text-[10px] font-mono text-slate-400">{codigoObra(p)}</div>
+                      </Td>
+                    )}
+                    <Td className="min-w-0 max-w-[26rem]">
                       <div className="font-bold text-slate-900 truncate" title={p.descripcion}>
                         <Badge size="sm" variant="outline" className="mr-1.5 align-middle">
                           {ETIQUETA_TIPO[p.tipo]}
@@ -172,30 +194,31 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
                       </div>
                       {f.referencia && <div className="text-[11px] text-slate-500 truncate">{f.referencia}</div>}
                       {textoRectificacion(p) && <div className="text-[11px] font-bold text-brand-700 truncate">{textoRectificacion(p)}</div>}
-                    </td>
-                    <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{ETIQUETA_MOTIVO[p.motivo]}</td>
-                    <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{ETIQUETA_DESTINO[p.destino]}</td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
+                    </Td>
+                    <Td className="text-slate-600 whitespace-nowrap">{ETIQUETA_MOTIVO[p.motivo]}</Td>
+                    <Td className="text-slate-600 whitespace-nowrap">{ETIQUETA_DESTINO[p.destino]}</Td>
+                    <Td className="whitespace-nowrap">
                       <Badge size="sm" variant={varianteEstadoPendiente(p.estado)}>
                         {textoEstadoPendiente(p)}
                       </Badge>
-                    </td>
-                    <td className="px-3 py-2.5 text-[11px] text-slate-500 whitespace-nowrap">
+                    </Td>
+                    <Td className="text-[11px] text-slate-500 whitespace-nowrap">
                       {p.reportadoPor?.nombre || '—'}
                       <div>{formatoFechaHora(p.fechaReporte)}</div>
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 );
               })}
-            </tbody>
-          </table>
+            </Tbody>
+          </Tabla>
         </div>
       ) : (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm divide-y divide-slate-100">
           {visibles.map((p) => {
             const f = filas(p);
             return (
-              <button key={p.id} type="button" onClick={() => setAbierto(p.id)} className="w-full text-left px-4 py-3.5 space-y-1.5 cursor-pointer hover:bg-slate-50/70">
+              <BotonFila key={p.id} onClick={() => setAbierto(p)} className="px-4! py-3.5! space-y-1.5">
+                {central && <p className="text-[11px] font-semibold text-slate-500 truncate">{p.proyecto?.obra} · {codigoObra(p)}</p>}
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-mono font-bold text-xs text-slate-600">{f.codigo}</span>
                   <Badge size="sm" variant={varianteEstadoPendiente(p.estado)}>
@@ -216,14 +239,14 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
                 <p className="text-[11px] text-slate-500">
                   {ETIQUETA_TIPO[p.tipo]} · {ETIQUETA_MOTIVO[p.motivo]} · {ETIQUETA_DESTINO[p.destino]}
                 </p>
-              </button>
+              </BotonFila>
             );
           })}
         </div>
       )}
 
-      {creando && <NuevoPendienteModal proyecto={proyecto} onClose={() => setCreando(false)} onCreado={() => setCreando(false)} />}
-      {abierto && <PendienteDetalleModal proyectoId={proyecto.id} pendienteId={abierto} onClose={() => setAbierto(null)} />}
+      {creando && proyecto && <NuevoPendienteModal proyecto={proyecto} onClose={() => setCreando(false)} onCreado={() => setCreando(false)} />}
+      {abierto && <PendienteDetalleModal proyectoId={abierto.proyectoId} pendienteId={abierto.id} onClose={() => setAbierto(null)} />}
     </div>
   );
 };

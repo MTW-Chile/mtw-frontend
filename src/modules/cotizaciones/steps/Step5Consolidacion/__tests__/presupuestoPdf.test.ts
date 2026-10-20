@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { cropSvgToContent, buildDocumentoHtml } from '../presupuestoPdf';
 import type { Proyecto, Ventana } from '../../../../../types';
-import type { PrecioVentaLinea } from '../../../lib/presupuesto';
+import type { PrecioVentaLinea } from '../../../../../types';
 
 describe('cropSvgToContent — ventana "con forma" (poliforme) dibujada como <polygon>', () => {
   // windowGeometryBuilder.ts (rama specialOutline) dibuja una ventana con
@@ -229,5 +229,33 @@ describe('buildDocumentoHtml — el cupo de página es fijo (2 en portada, 3 en 
       conteos.push((m[1].match(/>V\d</g) || []).length);
     }
     expect(conteos).toEqual([2, 3, 2]);
+  });
+});
+
+describe('buildDocumentoHtml — composición y vidrios salen del tipo de producto, no del texto de familia', () => {
+  const mat = (descripcion: string, proveedor: string, partida: string, medicion: string, familia = 'cualquiera') => ({
+    excluido: false,
+    material: { descripcion, familia, proveedor: { nombre: proveedor }, tipoProducto: { id: partida, nombre: partida, medicion, partida: { codigo: partida, nombre: partida } } },
+  });
+  const ventana = {
+    id: 'a', modelo: 'V1', descripcionCorta: 'Línea Efficient', anchoMm: 1200, altoMm: 1350, unidades: 1, acabadoCodigo: '7310', comentarioPresupuesto: null,
+    materiales: [
+      mat('Perfil marco', 'Perfiles SA', 'PERFILERIA', 'UNIDAD'),
+      mat('Manilla', 'Herrajes SA', 'HERRAJES', 'UNIDAD'),
+      mat('DVH 4/12/4', 'Vidriera', 'VIDRIOS', 'AREA', 'Superficies'),
+    ],
+  } as unknown as Ventana;
+
+  it('usa la partida para los proveedores y la medición por área para los vidrios', () => {
+    const html = buildDocumentoHtml({
+      proyecto: { obra: 'TEST', codigoInterno: 'T', numeroPresupuesto: 1 } as unknown as Proyecto,
+      ventanas: [ventana], texto: '', condiciones: '', venta: 1, iva: 1, totalConIva: 1, ivaPct: 19, tasaUf: 38500,
+      logoDataUrl: null, logoMuchtekDataUrl: null,
+      preciosVenta: new Map<string, PrecioVentaLinea>([['a', { precioUnitarioCLP: 1, precioVentaCLP: 1 }]]),
+      pngPorVentana: new Map([['a', 'data:image/png;base64,AA==']]),
+    });
+    expect(html).toContain('Perfiles SA');
+    expect(html).toContain('Herrajes Herrajes SA');
+    expect(html).toContain('DVH 4/12/4');
   });
 });

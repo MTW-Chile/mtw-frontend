@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
-import { X, DoorClosed, Trash2, AlertCircle } from 'lucide-react';
+import { DoorClosed, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { IconButton } from '../../components/ui/IconButton';
+import { Modal } from '../../components/ui/Modal';
+import { Aviso } from '../../components/ui/Aviso';
+import { Campo, InputCompacto, OpcionesTarjeta } from '../../components/ui/Campos';
 import { MaterialPicker } from '../cotizaciones/steps/Step2Lineas/MaterialPicker';
 import { createPlantillaLinea, updatePlantillaLinea } from '../../api/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -57,8 +61,7 @@ export const PlantillaLineaEditModal: React.FC<PlantillaLineaEditModalProps> = (
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = () => {
     setGeneralError(null);
     if (!nombre.trim()) {
       setGeneralError('El nombre es obligatorio.');
@@ -76,141 +79,87 @@ export const PlantillaLineaEditModal: React.FC<PlantillaLineaEditModalProps> = (
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
-      <div
-        className="w-full sm:max-w-xl bg-white rounded-t-2xl sm:rounded-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[94vh] sm:max-h-[88vh] animate-slide-up sm:animate-none"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-brand-600/10 border border-brand-600/20 flex items-center justify-center text-brand-600 shrink-0">
-              <DoorClosed className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-sm font-black tracking-tight text-slate-900">
-                {esNueva ? 'Nueva Plantilla de Puerta' : plantilla!.nombre}
-              </h2>
-              <p className="text-[11px] text-slate-500">Herrajes que lleva cada puerta de este tipo</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+    <Modal
+      icono={DoorClosed}
+      ancho="md"
+      titulo={esNueva ? 'Nueva plantilla de puerta' : plantilla!.nombre}
+      subtitulo="Herrajes que lleva cada puerta de este tipo"
+      onClose={onClose}
+      cerrable={!mutation.isPending}
+      onSubmit={handleSubmit}
+      pie={
+        <Modal.Pie>
+          <Button type="button" variant="outline" onClick={onClose} disabled={mutation.isPending}>
+            Cancelar
+          </Button>
+          <Button type="submit" isLoading={mutation.isPending}>
+            Guardar
+          </Button>
+        </Modal.Pie>
+      }
+    >
+      {generalError && <Aviso tono="peligro">{generalError}</Aviso>}
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto flex-1">
-          {generalError && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{generalError}</span>
-            </div>
-          )}
+      <Input label="Nombre de la plantilla" placeholder="Ej: Puerta Protex 2 Hojas - Quicio Sobrepiso" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
 
-          <Input
-            label="Nombre de la Plantilla"
-            placeholder="Ej: Puerta Protex 2 Hojas - Quicio Sobrepiso"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            required
-          />
+      <OpcionesTarjeta
+        legend="Hojas"
+        columnas={2}
+        opciones={[
+          { value: '1', label: '1 hoja' },
+          { value: '2', label: '2 hojas' },
+        ]}
+        valor={String(hojas) as '1' | '2'}
+        onChange={(v) => setHojas(v === '1' ? 1 : 2)}
+      />
 
+      <Campo label="Materiales (cantidad por puerta)">
+        {items.length > 0 && (
           <div className="space-y-1.5">
-            <span className="text-[10px] font-bold uppercase text-slate-500">Hojas</span>
-            <div className="grid grid-cols-2 gap-2.5">
-              {([1, 2] as const).map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setHojas(n)}
-                  className={`py-2 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
-                    hojas === n ? 'border-brand-600 bg-brand-50 text-brand-600' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  {n} {n === 1 ? 'Hoja' : 'Hojas'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <span className="text-[10px] font-bold uppercase text-slate-500">Materiales (cantidad por puerta)</span>
-
-            {items.length > 0 && (
-              <div className="space-y-1.5">
-                {items.map((it, idx) => (
-                  <div
-                    key={it.material.id}
-                    className="flex items-center gap-2 bg-white rounded-lg border border-slate-200 px-3 py-2"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="font-mono font-semibold text-[11px] text-slate-900">{it.material.skuInterno}</div>
-                      <div className="text-[11px] text-slate-600 leading-tight truncate">{it.material.descripcion}</div>
-                    </div>
-                    <input
-                      type="number"
-                      min={0}
-                      step="any"
-                      value={it.cantidad}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, cantidad: val } : p)));
-                      }}
-                      className="w-16 px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-mono text-right focus:outline-none focus:ring-2 focus:ring-brand-600/30"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setItems((prev) => prev.filter((_, i) => i !== idx))}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer shrink-0"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {showPicker ? (
-              <div className="rounded-xl border border-brand-200 bg-brand-50/40 p-3">
-                <MaterialPicker
-                  onSelect={(material) => {
-                    if (!items.some((it) => it.material.id === material.id)) {
-                      setItems((prev) => [...prev, { material, cantidad: '1' }]);
-                    }
-                    setShowPicker(false);
+            {items.map((it, idx) => (
+              <div key={it.material.id} className="flex items-center gap-2 bg-white rounded-lg border border-slate-200 px-3 py-2">
+                <div className="flex-1 min-w-0">
+                  <div className="font-mono font-semibold text-[11px] text-slate-900">{it.material.skuInterno}</div>
+                  <div className="text-[11px] text-slate-600 leading-tight truncate">{it.material.descripcion}</div>
+                </div>
+                <InputCompacto
+                  aria-label={`Cantidad de ${it.material.skuInterno}`}
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={it.cantidad}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, cantidad: val } : p)));
                   }}
+                  className="w-16 font-mono text-right"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPicker(false)}
-                  className="mt-2 text-[11px] font-semibold text-slate-500 hover:underline cursor-pointer"
-                >
-                  Cancelar
-                </button>
+                <IconButton icono={Trash2} tono="peligro" etiqueta={`Quitar ${it.material.skuInterno}`} onClick={() => setItems((prev) => prev.filter((_, i) => i !== idx))} />
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowPicker(true)}
-                className="w-full py-2 rounded-lg border border-dashed border-slate-300 text-[11px] font-bold text-slate-500 hover:text-brand-600 hover:border-brand-600 transition-colors cursor-pointer"
-              >
-                + Agregar material
-              </button>
-            )}
+            ))}
           </div>
+        )}
 
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
-            <Button type="button" variant="outline" onClick={onClose} disabled={mutation.isPending}>
+        {showPicker ? (
+          <div className="rounded-xl border border-brand-200 bg-brand-50/40 p-3 space-y-2">
+            <MaterialPicker
+              onSelect={(material) => {
+                if (!items.some((it) => it.material.id === material.id)) {
+                  setItems((prev) => [...prev, { material, cantidad: '1' }]);
+                }
+                setShowPicker(false);
+              }}
+            />
+            <Button type="button" size="sm" variant="ghost" onClick={() => setShowPicker(false)}>
               Cancelar
             </Button>
-            <Button type="submit" variant="primary" isLoading={mutation.isPending}>
-              Guardar
-            </Button>
           </div>
-        </form>
-      </div>
-    </div>
+        ) : (
+          <Button type="button" size="sm" variant="outline" className="w-full border-dashed" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setShowPicker(true)}>
+            Agregar material
+          </Button>
+        )}
+      </Campo>
+    </Modal>
   );
 };

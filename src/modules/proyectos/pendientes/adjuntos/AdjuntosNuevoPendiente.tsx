@@ -6,6 +6,7 @@ import { Button } from '../../../../components/ui/Button';
 import { BotonesAdjuntar } from './BotonesAdjuntar';
 import { VincularCarpetaModal } from './VincularCarpetaModal';
 import { esImagen, formatoTamano, mimeDeArchivo } from './utils';
+import { IconButton } from '../../../../components/ui/IconButton';
 
 interface Props {
   proyectoId: string;
@@ -46,15 +47,7 @@ export const AdjuntosNuevoPendiente: React.FC<Props> = ({ proyectoId, archivos, 
                     {f.name}
                   </span>
                   <span className="text-slate-400 shrink-0">{formatoTamano(f.size)}</span>
-                  <button
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => onChange(archivos.filter((_, j) => j !== i))}
-                    className="text-slate-400 hover:text-rose-600 cursor-pointer"
-                    aria-label={`Quitar ${f.name}`}
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
+                  <IconButton icono={X} etiqueta={`Quitar ${f.name}`} tono="peligro" disabled={disabled} onClick={() => onChange(archivos.filter((_, j) => j !== i))} />
                 </li>
               ))}
             </ul>

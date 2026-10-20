@@ -7,7 +7,8 @@ export type ButtonVariant =
   | 'outline'
   | 'ghost'
   | 'danger'
-  | 'subtle';
+  | 'subtle'
+  | 'link';
 
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
 
@@ -48,6 +49,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         'bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white shadow-xs border border-transparent font-bold',
       subtle:
         'bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 font-semibold',
+      // Acción secundaria dentro de un texto o una fila (Reintentar, Ver detalle): sin relleno ni padding.
+      link: 'bg-transparent text-brand-600 hover:text-brand-700 hover:underline font-bold p-0! active:scale-100',
     };
 
     const sizeStyles: Record<ButtonSize, string> = {
@@ -58,11 +61,13 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     };
 
     const isDisabled = disabled || isLoading;
+    const tipo = props.type ?? 'button';
 
     return (
       <button
         ref={ref}
         disabled={isDisabled}
+        type={tipo}
         className={`inline-flex items-center justify-center transition-all duration-150 select-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none active:scale-[0.98] ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
         {...props}
       >
@@ -71,7 +76,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ) : (
           leftIcon && <span className="shrink-0">{leftIcon}</span>
         )}
-        {children && <span>{children}</span>}
+        {children && <span className="boton-etiqueta inline-flex items-center gap-1.5 min-w-0">{children}</span>}
         {!isLoading && rightIcon && (
           <span className="shrink-0">{rightIcon}</span>
         )}

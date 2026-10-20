@@ -3,6 +3,25 @@
   "plugins": ["react", "typescript", "oxc"],
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "no-alert": "error",
+    "react/forbid-elements": [
+      "error",
+      {
+        "forbid": [
+          { "element": "table", "message": "Usa <Tabla> de components/ui/Tabla (DESIGN.md 5)." },
+          { "element": "button", "message": "Usa <Button> o <IconButton> (DESIGN.md 5)." },
+          { "element": "select", "message": "Usa <Select> o <SelectCompacto> (DESIGN.md 5)." },
+          { "element": "textarea", "message": "Usa <Textarea> de components/ui/Campos (DESIGN.md 5)." },
+          { "element": "input", "message": "Usa <Input>, <InputCompacto>, <NumeroInput> o <Casilla> (DESIGN.md 5)." }
+        ]
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["src/components/ui/**", "src/components/layout/Sidebar.tsx", "src/components/layout/Header.tsx", "src/components/layout/NavControls.tsx"],
+      "rules": { "react/forbid-elements": "off" }
+    }
+  ]
 }

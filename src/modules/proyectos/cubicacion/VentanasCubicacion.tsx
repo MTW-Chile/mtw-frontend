@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { editarUnidadCubicacion, eliminarUnidadCubicacion, getUbicacionesCubicacion, getUnidadesCubicacion } from '../../../api/client';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
@@ -8,9 +8,13 @@ import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import type { ConfigCubicacion, TipoCubicacion, UnidadCubicacion } from '../../../types';
 import { formatoMm } from '../fabricacion/utils';
 import { leerMilimetros } from '../pendientes/utils';
-import { campoChico } from './estilos';
 import { UnidadModal } from './UnidadModal';
 import { formatoMonto, mmATexto, textoTorre } from './utils';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
+import { useConfirmar } from '../../../components/ui/Confirmar';
+import { IconButton } from '../../../components/ui/IconButton';
+import { Casilla, InputCompacto, SelectCompacto } from '../../../components/ui/Campos';
+import { Buscador } from '../../../components/ui/Buscador';
 
 export interface FiltroVentanas {
   pisoId: string;
@@ -71,8 +75,8 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
   };
 
   return (
-    <tr className="border-b border-slate-50 hover:bg-slate-50/60 align-middle">
-      <td className="px-3 py-2 whitespace-nowrap">
+    <Tr className="border-b border-slate-50 hover:bg-slate-50/60 align-middle">
+      <Td className="whitespace-nowrap">
         {unidad.nomenclatura ? (
           <span className="font-mono font-bold text-xs text-slate-800">{unidad.nomenclatura}</span>
         ) : (
@@ -80,39 +84,23 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
             {unidad.codigo} <Badge size="sm" variant="outline">sin posición</Badge>
           </span>
         )}
-      </td>
-      <td className="px-3 py-2 text-xs text-slate-600 whitespace-nowrap">{unidad.ubicacion || '—'}</td>
-      <td className="px-3 py-2 text-[11px] text-slate-500 max-w-[14rem] truncate" title={unidad.sistema}>
+      </Td>
+      <Td className="text-xs text-slate-600 whitespace-nowrap">{unidad.ubicacion || '—'}</Td>
+      <Td className="text-[11px] text-slate-500 max-w-[14rem] truncate" title={unidad.sistema}>
         {unidad.sistema}
-      </td>
-      <td className="px-3 py-2 text-xs font-mono text-slate-500 whitespace-nowrap">
+      </Td>
+      <Td className="text-xs font-mono text-slate-500 whitespace-nowrap">
         {formatoMm(unidad.anchoPlanoMm)} × {formatoMm(unidad.altoPlanoMm)}
-      </td>
-      <td className="px-3 py-2" onBlur={alSalir}>
+      </Td>
+      <Td onBlur={alSalir}>
         <div className="flex items-center gap-1 min-w-[10rem]">
-          <input
-            aria-label={`Rasgo ancho de ${unidad.nomenclatura ?? unidad.codigo}`}
-            inputMode="decimal"
-            value={ancho}
-            onChange={(e) => setAncho(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.blur(), intentarGuardar())}
-            placeholder="ancho"
-            className={`${campoChico} ${invalido ? 'border-rose-300' : ''}`}
-          />
+          <InputCompacto aria-label={`Rasgo ancho de ${unidad.nomenclatura ?? unidad.codigo}`} inputMode="decimal" value={ancho} onChange={(e) => setAncho(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.blur(), intentarGuardar())} placeholder="ancho" className={`${invalido ? 'border-rose-300' : ''}`} />
           <span className="text-slate-300">×</span>
-          <input
-            aria-label={`Rasgo alto de ${unidad.nomenclatura ?? unidad.codigo}`}
-            inputMode="decimal"
-            value={alto}
-            onChange={(e) => setAlto(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.blur(), intentarGuardar())}
-            placeholder="alto"
-            className={`${campoChico} ${invalido ? 'border-rose-300' : ''}`}
-          />
+          <InputCompacto aria-label={`Rasgo alto de ${unidad.nomenclatura ?? unidad.codigo}`} inputMode="decimal" value={alto} onChange={(e) => setAlto(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.blur(), intentarGuardar())} placeholder="alto" className={`${invalido ? 'border-rose-300' : ''}`} />
           {guardar.isPending && <Loader2 className="w-3 h-3 animate-spin text-slate-400 shrink-0" />}
         </div>
-      </td>
-      <td className="px-3 py-2 text-xs font-mono whitespace-nowrap">
+      </Td>
+      <Td className="text-xs font-mono whitespace-nowrap">
         {unidad.rectificada ? (
           <span className="font-bold text-emerald-700" title={`Rasgo − ${unidad.holguraMm} mm${unidad.rectificadoPor ? ` · ${unidad.rectificadoPor}` : ''}`}>
             {formatoMm(unidad.anchoFabricacionMm)} × {formatoMm(unidad.altoFabricacionMm)}
@@ -120,22 +108,19 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
         ) : (
           <span className="text-slate-300">—</span>
         )}
-      </td>
-      <td className="px-3 py-2 text-right text-xs font-mono text-slate-500 whitespace-nowrap">{unidad.m2 != null ? unidad.m2.toLocaleString('es-CL', { maximumFractionDigits: 2 }) : '—'}</td>
-      <td className="px-3 py-2 whitespace-nowrap text-right">
-        <button type="button" onClick={onEditar} className="p-1.5 text-slate-400 hover:text-brand-600 cursor-pointer" aria-label={`Editar ${unidad.nomenclatura ?? unidad.codigo}`} title="Editar posición y datos">
-          <Pencil className="w-3.5 h-3.5" />
-        </button>
-        <button type="button" onClick={onEliminar} className="p-1.5 text-slate-400 hover:text-rose-600 cursor-pointer" aria-label={`Eliminar ${unidad.nomenclatura ?? unidad.codigo}`} title="Eliminar">
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      </td>
-    </tr>
+      </Td>
+      <Td alinear="derecha" className="text-xs font-mono text-slate-500 whitespace-nowrap">{unidad.m2 != null ? unidad.m2.toLocaleString('es-CL', { maximumFractionDigits: 2 }) : '—'}</Td>
+      <Td alinear="derecha" className="whitespace-nowrap">
+        <IconButton icono={Pencil} etiqueta={`Editar ${unidad.nomenclatura ?? unidad.codigo}`} tono="marca" onClick={onEditar} />
+        <IconButton icono={Trash2} etiqueta={`Eliminar ${unidad.nomenclatura ?? unidad.codigo}`} tono="peligro" onClick={onEliminar} />
+      </Td>
+    </Tr>
   );
 };
 
 // Ventanas fisicas de la cubicacion (por torre / piso / depto) y sus areas comunes.
 export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, moneda, tipos, filtro, onFiltro }) => {
+  const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
   const [texto, setTexto] = useState('');
   const [tipoId, setTipoId] = useState('');
@@ -167,44 +152,28 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
   });
 
   const unidades = data?.unidades ?? [];
-  const selector = 'px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-brand-600 cursor-pointer';
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[12rem]">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            placeholder="Buscar por nomenclatura, código o ubicación..."
-            aria-label="Buscar ventanas"
-            className="w-full pl-9 pr-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-brand-600"
-          />
-        </div>
-        <select value={filtro.torreId} onChange={(e) => onFiltro({ torreId: e.target.value, pisoId: '' })} aria-label="Filtrar por torre" className={selector}>
+        <Buscador className="flex-1 min-w-[12rem]" valor={texto} onChange={setTexto} placeholder="Buscar por nomenclatura, código o ubicación…" etiqueta="Buscar ventanas" />
+        <SelectCompacto value={filtro.torreId} onChange={(e) => onFiltro({ torreId: e.target.value, pisoId: '' })} aria-label="Filtrar por torre">
           <option value="">Todas las torres</option>
           {(ubicaciones.data ?? []).map((t) => (
             <option key={t.id} value={t.id}>
               {textoTorre(t.nombre)}
             </option>
           ))}
-        </select>
-        <select
-          value={filtro.pisoId}
-          onChange={(e) => onFiltro({ ...filtro, pisoId: e.target.value })}
-          disabled={!filtro.torreId}
-          aria-label="Filtrar por piso"
-          className={`${selector} disabled:opacity-50 disabled:cursor-not-allowed`}
-        >
+        </SelectCompacto>
+        <SelectCompacto value={filtro.pisoId} onChange={(e) => onFiltro({ ...filtro, pisoId: e.target.value })} disabled={!filtro.torreId} aria-label="Filtrar por piso">
           <option value="">Todos los pisos</option>
           {(ubicaciones.data?.find((t) => t.id === filtro.torreId)?.pisos ?? []).map((p) => (
             <option key={p.id} value={p.id}>
               Piso {p.numero}
             </option>
           ))}
-        </select>
-        <select value={tipoId} onChange={(e) => setTipoId(e.target.value)} aria-label="Filtrar por tipo" className={selector}>
+        </SelectCompacto>
+        <SelectCompacto value={tipoId} onChange={(e) => setTipoId(e.target.value)} aria-label="Filtrar por tipo">
           <option value="">Todos los tipos</option>
           {tipos
             .filter((t) => !t.esAreaComun)
@@ -213,15 +182,13 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
                 {t.codigo}
               </option>
             ))}
-        </select>
-        <select value={estado} onChange={(e) => setEstado(e.target.value as '' | 'sinPosicion' | 'posicionadas')} aria-label="Filtrar por posición" className={selector}>
+        </SelectCompacto>
+        <SelectCompacto value={estado} onChange={(e) => setEstado(e.target.value as '' | 'sinPosicion' | 'posicionadas')} aria-label="Filtrar por posición">
           <option value="">Con y sin posición</option>
           <option value="sinPosicion">Sin posición</option>
           <option value="posicionadas">Con posición</option>
-        </select>
-        <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
-          <input type="checkbox" checked={sinRectificar} onChange={(e) => setSinRectificar(e.target.checked)} /> Solo sin rectificar
-        </label>
+        </SelectCompacto>
+        <Casilla checked={sinRectificar} onChange={setSinRectificar} label="Solo sin rectificar" />
         <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setModal({})}>
           Nueva ventana
         </Button>
@@ -240,34 +207,34 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
             : 'Ninguna ventana coincide con los filtros.'}
         </div>
       ) : (
-        <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
-                <th className="px-3 py-2.5 font-bold">Nomenclatura</th>
-                <th className="px-3 py-2.5 font-bold">Ubicación</th>
-                <th className="px-3 py-2.5 font-bold">Apertura</th>
-                <th className="px-3 py-2.5 font-bold">Plano (mm)</th>
-                <th className="px-3 py-2.5 font-bold">Rasgo medido (mm)</th>
-                <th className="px-3 py-2.5 font-bold">Fabricación (mm)</th>
-                <th className="px-3 py-2.5 font-bold text-right">M2</th>
-                <th className="px-3 py-2.5 font-bold w-20"></th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+          <Tabla>
+            <Thead>
+              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                <Th className="font-bold">Nomenclatura</Th>
+                <Th className="font-bold">Ubicación</Th>
+                <Th className="font-bold">Apertura</Th>
+                <Th className="font-bold">Plano (mm)</Th>
+                <Th className="font-bold">Rasgo medido (mm)</Th>
+                <Th className="font-bold">Fabricación (mm)</Th>
+                <Th alinear="derecha" className="font-bold">M2</Th>
+                <Th className="font-bold w-20"></Th>
+              </Tr>
+            </Thead>
+            <Tbody>
               {unidades.map((u) => (
                 <FilaVentana
                   key={`${u.id}-${u.rasgoAnchoMm}-${u.rasgoAltoMm}-${u.holguraMm}`}
                   unidad={u}
                   proyectoId={proyectoId}
                   onEditar={() => setModal({ unidad: u })}
-                  onEliminar={() => {
-                    if (window.confirm(`¿Eliminar la ventana ${u.nomenclatura ?? u.codigo}?`)) eliminar.mutate(u.id);
+                  onEliminar={async () => {
+                    if (await confirmar({ titulo: `¿Eliminar la ventana ${u.nomenclatura ?? u.codigo}?`, confirmar: 'Eliminar', peligro: true })) eliminar.mutate(u.id);
                   }}
                 />
               ))}
-            </tbody>
-          </table>
+            </Tbody>
+          </Tabla>
           {data && data.total > unidades.length && (
             <p className="px-3 py-2 text-[11px] text-slate-500 border-t border-slate-100">
               Mostrando {unidades.length} de {data.total} ventanas: filtra por torre o piso para ver el resto.
@@ -279,27 +246,27 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
       {(comunes.data?.unidades.length ?? 0) > 0 && (
         <div className="space-y-2">
           <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Áreas comunes y fachada ({comunes.data!.unidades.length})</h3>
-          <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
-                  <th className="px-3 py-2.5 font-bold">Código</th>
-                  <th className="px-3 py-2.5 font-bold">Descripción</th>
-                  <th className="px-3 py-2.5 font-bold text-right">Cantidad</th>
-                  <th className="px-3 py-2.5 font-bold text-right">Precio total</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+            <Tabla>
+              <Thead>
+                <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                  <Th className="font-bold">Código</Th>
+                  <Th className="font-bold">Descripción</Th>
+                  <Th alinear="derecha" className="font-bold">Cantidad</Th>
+                  <Th alinear="derecha" className="font-bold">Precio total</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
                 {comunes.data!.unidades.map((u) => (
-                  <tr key={u.id} className="border-b border-slate-50">
-                    <td className="px-3 py-2 font-mono font-bold text-slate-700">{u.codigo}</td>
-                    <td className="px-3 py-2 text-slate-600">{u.sistema}</td>
-                    <td className="px-3 py-2 text-right font-mono text-slate-600">{u.cantidad}</td>
-                    <td className="px-3 py-2 text-right font-mono text-slate-600">{precios.get(u.tipoId) != null ? formatoMonto((precios.get(u.tipoId) as number) * u.cantidad, moneda ?? 'UF') : '—'}</td>
-                  </tr>
+                  <Tr key={u.id} className="border-b border-slate-50">
+                    <Td className="font-mono font-bold text-slate-700">{u.codigo}</Td>
+                    <Td className="text-slate-600">{u.sistema}</Td>
+                    <Td alinear="derecha" className="font-mono text-slate-600">{u.cantidad}</Td>
+                    <Td alinear="derecha" className="font-mono text-slate-600">{precios.get(u.tipoId) != null ? formatoMonto((precios.get(u.tipoId) as number) * u.cantidad, moneda ?? 'UF') : '—'}</Td>
+                  </Tr>
                 ))}
-              </tbody>
-            </table>
+              </Tbody>
+            </Tabla>
           </div>
           <p className="text-[11px] text-slate-400">Por ahora cada ítem cuenta como una sola unidad; tendrán sus propias etapas y estado de pago.</p>
         </div>

@@ -1,28 +1,32 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Boxes, Search, FileSpreadsheet, FileDown, CheckCircle2, Check, ChevronDown, ShieldCheck, ArrowRightLeft } from 'lucide-react';
+import { Boxes, Search, FileSpreadsheet, FileDown, CheckCircle2, Check, ShieldCheck, ArrowRightLeft } from 'lucide-react';
 import { Badge } from '../../../../components/ui/Badge';
 import { Button } from '../../../../components/ui/Button';
-import { TABLE_CLASS, TABLE_WRAPPER_CLASS } from '../../../../lib/designSystem';
+import { TABLE_WRAPPER_CLASS } from '../../../../lib/designSystem';
 import { formatNumber } from '../../../../lib/utils';
 import { useMonedas, resolverMoneda, formatMonto } from '../../../../lib/monedas';
 import {
   reemplazarMaterialEnVersion,
   saveMaterialAjuste,
-  setFamiliaAprobacion,
-  setFamiliaDescuento,
-  setFamiliaRecargo,
+  setPartidaAprobacion,
+  setPartidaDescuento,
+  setPartidaHolgura,
   updateEstadoAprobacion,
 } from '../../../../api/client';
-import type { Proyecto, ProyectoVersion } from '../../../../types';
+import type { MaterialAnalitica, PartidaAnalitica, Proyecto, ProyectoVersion } from '../../../../types';
 import { DivisasForm, DivisasResumen } from '../Step1DatosCliente/DivisasForm';
 import { ReemplazarMaterialModal } from './ReemplazarMaterialModal';
-import {
-  computeMaterialesConsolidados,
-  montoConAjuste,
-  type MaterialConsolidado,
-} from '../../lib/materialesConsolidados';
+import { useAnalitica, decimalesCantidad } from '../../lib/useAnalitica';
 import { MTW_NAVY, MTW_GRIS, MTW_BORDE, MTW_HEAD_BG, pdfTableStyle, drawPdfHeader } from '../../lib/pdfTheme';
+import { usePermisos } from '../../../../lib/permisos';
+import { useParametrosGenerales } from '../../../../lib/parametrosGenerales';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../../components/ui/Tabla';
+import { NumeroInput } from '../../../../components/ui/Campos';
+import { BadgeBoton } from '../../../../components/ui/BadgeBoton';
+import { IconButton } from '../../../../components/ui/IconButton';
+import { Input } from '../../../../components/ui/Input';
+import { BotonColapsar } from '../../../../components/ui/BotonColapsar';
 
 interface Step3MaterialesProps {
   proyecto: Proyecto;
@@ -38,6 +42,9 @@ interface Step3MaterialesProps {
   // Recibe el callback que cierra la edición: solo se llama si el guardado tuvo éxito.
   onSaveDivisas: (onGuardado: () => void) => void;
   isSavingDivisas: boolean;
+  // Version de un adicional: las divisas las fija el adicional y no hay
+  // aprobacion tecnica por partida (el adicional tiene su propio flujo).
+  modoAdicional?: boolean;
 }
 
 // BORRADOR es el valor historico de la columna antes del flujo de estado
@@ -55,14 +62,6 @@ const mensajeDeError = (err: unknown, fallback: string) => {
   return del || (err instanceof Error ? err.message : fallback);
 };
 
-// Orden de categorias pedido explicitamente, no alfabetico. Cualquier
-// familia que no este en la lista (ej. "Otros") va al final, alfabetica.
-const ORDEN_FAMILIAS = ['PERFILERIA', 'ACCESORIOS', 'REFUERZOS', 'HERRAJES', 'VIDRIOS'];
-const ordenFamilia = (familia: string) => {
-  const idx = ORDEN_FAMILIAS.indexOf(familia);
-  return idx === -1 ? ORDEN_FAMILIAS.length : idx;
-};
-
 // Input numerico inline: mantiene texto local mientras se edita y solo
 // dispara el guardado al perder foco o con Enter -- si guardara en cada
 // tecla, cada digito escrito seria un PATCH distinto contra la API.
@@ -70,41 +69,9 @@ const PrecioEditable: React.FC<{
   valor: number;
   disabled: boolean;
   onGuardar: (valor: number) => void;
-}> = ({ valor, disabled, onGuardar }) => {
-  const [texto, setTexto] = useState(String(valor));
-
-  useEffect(() => {
-    setTexto(String(valor));
-  }, [valor]);
-
-  const confirmar = () => {
-    const parsed = Number(texto.replace(',', '.'));
-    if (Number.isFinite(parsed) && parsed !== valor) {
-      onGuardar(parsed);
-    } else {
-      setTexto(String(valor));
-    }
-  };
-
-  return (
-    <input
-      type="text"
-      inputMode="decimal"
-      value={texto}
-      disabled={disabled}
-      onChange={(e) => setTexto(e.target.value)}
-      onBlur={confirmar}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-      }}
-      className="w-24 px-2 py-1 rounded-lg border border-slate-200 bg-white text-right tabular-nums text-xs font-semibold text-slate-800 focus:outline-none focus:border-brand-600 disabled:bg-slate-50 disabled:text-slate-400 disabled:border-transparent"
-    />
-  );
-};
-
-// Unidad que se muestra para un material: vidrios van en m², juntas en metros.
-const unidadDe = (m: MaterialConsolidado, familia: string) =>
-  familia === 'VIDRIOS' ? 'M²' : m.familiaCruda === 'JUNTAS' ? 'M' : m.unidadMedida;
+}> = ({ valor, disabled, onGuardar }) => (
+  <NumeroInput valor={valor} disabled={disabled} onGuardar={(v) => v !== null && onGuardar(v)} aria-label="Valor" className="w-24 font-semibold" />
+);
 
 // Botón de estado Incluido / Excluido (cada material se puede excluir del total).
 const EstadoMaterial: React.FC<{ excluido: boolean; disabled: boolean; onClick: () => void; title: string }> = ({
@@ -113,34 +80,22 @@ const EstadoMaterial: React.FC<{ excluido: boolean; disabled: boolean; onClick: 
   onClick,
   title,
 }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    title={title}
-    className="shrink-0 disabled:cursor-not-allowed cursor-pointer disabled:opacity-50"
-  >
-    <Badge size="sm" variant={excluido ? 'warning' : 'success'}>
-      {excluido ? 'Excluido' : 'Incluido'}
-    </Badge>
-  </button>
+  <BadgeBoton variant={excluido ? 'warning' : 'success'} onClick={onClick} disabled={disabled} title={title}>
+    {excluido ? 'Excluido' : 'Incluido'}
+  </BadgeBoton>
 );
 
 // Reemplazo de este material en todas las líneas de la versión (ver
 // ReemplazarMaterialModal). Solo se muestra si el material está en alguna línea.
 const BotonReemplazar: React.FC<{ disabled: boolean; onClick: () => void }> = ({ disabled, onClick }) => (
-  <button
+  <IconButton
+    icono={ArrowRightLeft}
+    tono="marca"
     onClick={onClick}
     disabled={disabled}
-    title={disabled ? 'Categoría aprobada o presupuesto congelado -- no se puede modificar' : 'Reemplazar este material en todas las líneas'}
-    aria-label="Reemplazar material"
-    className={`shrink-0 w-7 h-7 rounded-lg border flex items-center justify-center transition-colors disabled:cursor-not-allowed ${
-      disabled
-        ? 'bg-slate-100 border-slate-200 text-slate-300'
-        : 'bg-white border-slate-200 text-slate-500 hover:text-brand-600 hover:border-brand-600/40 cursor-pointer'
-    }`}
-  >
-    <ArrowRightLeft className="w-3.5 h-3.5" />
-  </button>
+    etiqueta={disabled ? 'Partida aprobada o presupuesto congelado -- no se puede modificar' : 'Reemplazar este material en todas las líneas'}
+    className="border border-slate-200 bg-white"
+  />
 );
 
 // Dato con etiqueta encima (mismo patrón que la tarjeta de línea).
@@ -163,15 +118,18 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   saveSuccess,
   onSaveDivisas,
   isSavingDivisas,
+  modoAdicional = false,
 }) => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
-  const [familiaColapsada, setFamiliaColapsada] = useState<Record<string, boolean>>({});
+  const [partidaColapsada, setPartidaColapsada] = useState<Record<string, boolean>>({});
 
   const monedas = useMonedas();
-  const tasaDolar = Number(dolar) || 950;
-  const tasaUf = Number(uf) || 38500;
-  const tasaEuro = Number(euro) || 1030;
+  // Sin tasa en pantalla: las de respaldo de Configuración > Comercial.
+  const parametros = useParametrosGenerales();
+  const tasaDolar = Number(dolar) || parametros?.tasasRespaldo.dolar || 0;
+  const tasaUf = Number(uf) || parametros?.tasasRespaldo.uf || 0;
+  const tasaEuro = Number(euro) || parametros?.tasasRespaldo.euro || 0;
 
   const versionId = activeVersion?.id;
   const estadoActual = activeVersion ? normalizarEstado(activeVersion.estadoAprobacion) : 'EN_COTIZACION';
@@ -189,8 +147,9 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   // ACEPTADO_CLIENTE el retroceso se maneja desde el Paso 5, no desde aca.
   const puedeDeshacerAca = estadoActual === 'ESPERANDO_APROBACION_COMERCIAL';
 
-  // Sólo invalida el detalle de este proyecto: nada de lo que se edita acá
-  // (ajustes de material, aprobación/descuento/recargo por familia) se
+  // Sólo invalida el detalle de este proyecto (y con él la Analítica, que
+  // cuelga de la misma key): nada de lo que se edita acá
+  // (ajustes de material, aprobación/descuento/holgura por partida) se
   // muestra en el listado de proyectos (['proyectos'], CotizacionesPage.tsx
   // -- ahí sólo aparecen codigoInterno, los datos crudos de cliente y el
   // estadoGlosa de HETMO), así que invalidarlo en cada ajuste sólo generaba
@@ -199,68 +158,49 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyecto.id] });
   };
 
-  // Ajustes por material: exclusion, precio y familia personalizados. Se
-  // guardan directo contra la API al tocarlos -- nada de estado "flotante"
-  // que se pierda al recargar.
+  // Ajustes por material: exclusion y precio personalizado. Se guardan
+  // directo contra la API al tocarlos -- nada de estado "flotante" que se
+  // pierda al recargar. La API actualiza solo los campos que recibe.
   const ajusteMutation = useMutation({
-    mutationFn: (payload: {
-      materialId: string;
-      excluido: boolean;
-      familia: string;
-      precioPersonalizado?: number;
-      monedaPersonalizada?: string;
-    }) => {
+    mutationFn: (payload: { materialId: string; excluido?: boolean; precioPersonalizado?: number; monedaPersonalizada?: string }) => {
       if (!versionId) return Promise.resolve(null);
-      return saveMaterialAjuste(versionId, {
-        materialId: payload.materialId,
-        excluido: payload.excluido,
-        familiaPersonalizada: payload.familia,
-        precioPersonalizado: payload.precioPersonalizado,
-        monedaPersonalizada: payload.monedaPersonalizada,
-      });
+      return saveMaterialAjuste(versionId, payload);
     },
     onSuccess: invalidar,
   });
 
-  // Reenvia siempre excluido/familia actuales junto con el cambio puntual --
-  // el endpoint sobreescribe esos campos con lo que reciba, asi que mandar
-  // solo el campo que cambio resetearia los demas (ej. excluido volveria a
-  // false). precioPersonalizado/monedaPersonalizada se omiten cuando no se
-  // esta editando precio, para no "congelar" el precio de HETMO como
-  // override cada vez que solo se toca la exclusion.
   const guardarAjuste = (
-    m: MaterialConsolidado,
+    m: MaterialAnalitica,
     cambios: { excluido?: boolean; precioOrigen?: number; monedaOrigen?: string }
   ) => {
     ajusteMutation.mutate({
       materialId: m.materialId,
-      excluido: cambios.excluido ?? m.excluido,
-      familia: m.familia,
+      excluido: cambios.excluido,
       precioPersonalizado: cambios.precioOrigen,
       monedaPersonalizada: cambios.precioOrigen !== undefined ? cambios.monedaOrigen ?? m.monedaOrigen : undefined,
     });
   };
 
-  const familiaAprobacionMutation = useMutation({
-    mutationFn: (payload: { familia: string; aprobada: boolean }) => {
+  const partidaAprobacionMutation = useMutation({
+    mutationFn: (payload: { partida: string; aprobada: boolean }) => {
       if (!versionId) return Promise.resolve(null);
-      return setFamiliaAprobacion(versionId, payload.familia, payload.aprobada);
+      return setPartidaAprobacion(versionId, payload.partida, payload.aprobada);
     },
     onSuccess: invalidar,
   });
 
-  const familiaDescuentoMutation = useMutation({
-    mutationFn: (payload: { familia: string; descuentoPct: number }) => {
+  const partidaDescuentoMutation = useMutation({
+    mutationFn: (payload: { partida: string; descuentoPct: number }) => {
       if (!versionId) return Promise.resolve(null);
-      return setFamiliaDescuento(versionId, payload.familia, payload.descuentoPct);
+      return setPartidaDescuento(versionId, payload.partida, payload.descuentoPct);
     },
     onSuccess: invalidar,
   });
 
-  const familiaRecargoMutation = useMutation({
-    mutationFn: (payload: { familia: string; recargoPct: number }) => {
+  const partidaHolguraMutation = useMutation({
+    mutationFn: (payload: { partida: string; holguraPct: number }) => {
       if (!versionId) return Promise.resolve(null);
-      return setFamiliaRecargo(versionId, payload.familia, payload.recargoPct);
+      return setPartidaHolgura(versionId, payload.partida, payload.holguraPct);
     },
     onSuccess: invalidar,
   });
@@ -280,11 +220,15 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   // vez que esa tambien esta guardada (el backend rechaza el congelamiento
   // si falta). Antes se congelaba aca mismo, dejando el Paso 4 en solo
   // lectura antes de poder completarlo.
+  // La aprobacion tecnica la exige la API; aca solo se ocultan los botones.
+  const { tiene } = usePermisos();
+  const puedeAprobarTecnico = tiene('presupuestos.aprobar_tecnico');
+
   const aprobarTodoMutation = useMutation({
     mutationFn: async () => {
       if (!versionId) return null;
-      const pendientes = gruposPorFamilia.filter(([familia]) => !aprobacionesPorFamilia.get(familia)?.aprobada);
-      await Promise.all(pendientes.map(([familia]) => setFamiliaAprobacion(versionId, familia, true)));
+      const pendientes = partidasMateriales.filter((p) => !p.aprobada);
+      await Promise.all(pendientes.map((p) => setPartidaAprobacion(versionId, p.codigo, true)));
       return null;
     },
     onSuccess: invalidar,
@@ -293,7 +237,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   // Reemplazo de un material en todas las líneas de la versión (ver
   // ReemplazarMaterialModal). Al terminar, refresca el detalle como cualquier
   // otro ajuste de esta pantalla.
-  const [reemplazoOrigen, setReemplazoOrigen] = useState<MaterialConsolidado | null>(null);
+  const [reemplazoOrigen, setReemplazoOrigen] = useState<MaterialAnalitica | null>(null);
   const reemplazoMutation = useMutation({
     mutationFn: (payload: { materialIdOriginal: string; materialIdNuevo: string }) => {
       if (!versionId) return Promise.reject(new Error('No hay una versión activa.'));
@@ -305,13 +249,15 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     },
   });
 
-  // Consolidar todos los materiales de las ventanas de esta versión, con los
-  // ajustes ya guardados (exclusion / familia personalizada) aplicados.
-  // Logica compartida con Step4Fijaciones -- ver materialesConsolidados.ts.
-  const materialesConsolidados: MaterialConsolidado[] = useMemo(
-    () => computeMaterialesConsolidados(activeVersion, tasaDolar, tasaEuro, tasaUf, monedas),
-    [activeVersion, tasaDolar, tasaEuro, tasaUf, monedas]
-  );
+  // Analítica calculada en mtw-api (motor único) con las tasas que se ven en
+  // pantalla: al editar una divisa se recalcula sin guardarla.
+  const { data: analitica, isLoading: cargandoAnalitica } = useAnalitica(proyecto.id, versionId, {
+    dolar: tasaDolar,
+    euro: tasaEuro,
+    uf: tasaUf,
+  });
+  const materiales = useMemo(() => analitica?.materiales ?? [], [analitica]);
+  const partidas = useMemo(() => analitica?.partidas ?? [], [analitica]);
 
   // Líneas de la versión que contienen cada material (HETMO o agregado a mano).
   // Solo cuenta lo visible: un HETMO ya reemplazado no aparece en la línea.
@@ -323,63 +269,42 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     return map;
   }, [activeVersion]);
 
-  // Unidad de medida tal como viene del maestro (no la de la Analítica, que
-  // puede ser BARRA en Perfilería): es la que decide con qué materiales se puede reemplazar.
-  const unidadMaestroPorMaterial = useMemo(() => {
-    const map = new Map<string, string>();
-    (activeVersion?.ventanas || []).forEach((v) =>
-      (v.materiales || []).forEach((mv) => {
-        if (!map.has(mv.materialId) && mv.material?.unidadMedida) map.set(mv.materialId, mv.material.unidadMedida);
-      })
-    );
-    return map;
-  }, [activeVersion]);
-
-  // Filtrado por buscador
+  // Filtrado por buscador (solo filas: los totales son siempre los de toda la versión).
   const filteredMateriales = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
-    if (!term) return materialesConsolidados;
-    return materialesConsolidados.filter((m) => {
+    if (!term) return materiales;
+    return materiales.filter((m) => {
       const matchSku = m.skuInterno.toLowerCase().includes(term);
       const matchDesc = m.descripcion.toLowerCase().includes(term);
       const matchProv = m.proveedorNombre.toLowerCase().includes(term);
       return matchSku || matchDesc || matchProv;
     });
-  }, [materialesConsolidados, searchTerm]);
+  }, [materiales, searchTerm]);
 
-  // Agrupado por familia -- cada una es su propia seccion con aprobacion
-  // independiente, como en la Analitica de Materiales del sistema anterior.
-  const gruposPorFamilia = useMemo(() => {
-    const map = new Map<string, MaterialConsolidado[]>();
+  // Agrupado por partida, en el orden configurado en Configuración > Catálogo.
+  // Cada partida tiene aprobación, descuento y holgura propios. Solo las
+  // partidas con materiales: las que reciben solo costos de la Hoja de
+  // Fijación se ven en el Paso 4.
+  const gruposPorPartida = useMemo(() => {
+    const porCodigo = new Map<string, MaterialAnalitica[]>();
     filteredMateriales.forEach((m) => {
-      const list = map.get(m.familia) || [];
+      const list = porCodigo.get(m.partida.codigo) || [];
       list.push(m);
-      map.set(m.familia, list);
+      porCodigo.set(m.partida.codigo, list);
     });
-    return Array.from(map.entries()).sort((a, b) => {
-      const diff = ordenFamilia(a[0]) - ordenFamilia(b[0]);
-      return diff !== 0 ? diff : a[0].localeCompare(b[0]);
-    });
-  }, [filteredMateriales]);
+    return partidas
+      .filter((p) => porCodigo.has(p.codigo))
+      .map((p) => [p, porCodigo.get(p.codigo)!] as [PartidaAnalitica, MaterialAnalitica[]]);
+  }, [filteredMateriales, partidas]);
 
-  const aprobacionesPorFamilia = useMemo(
-    () => new Map((activeVersion?.familiaAprobaciones || []).map((f) => [f.familia, f])),
-    [activeVersion?.familiaAprobaciones]
-  );
+  const partidasMateriales = partidas.filter((p) => p.tieneMateriales);
+  const todasLasPartidasAprobadas = partidasMateriales.length > 0 && partidasMateriales.every((p) => p.aprobada);
 
-  const todasLasFamiliasAprobadas =
-    gruposPorFamilia.length > 0 && gruposPorFamilia.every(([familia]) => aprobacionesPorFamilia.get(familia)?.aprobada);
-
-  // Totales -- el descuento y el recargo de cada familia se aplican sobre
-  // el total CLP de sus materiales incluidos (nunca sobre el precio de
-  // cada material individual). Se combinan como dos ajustes porcentuales
-  // independientes: primero se descuenta, despues se recarga.
-  const costoTotalCLP = filteredMateriales
-    .filter((m) => !m.excluido)
-    .reduce((acc, m) => acc + montoConAjuste(m, aprobacionesPorFamilia), 0);
-
+  // Presupuesto de materiales: precios con descuento, mas la holgura de cada
+  // partida (que no toca ningun precio) -- lo calcula mtw-api.
+  const costoTotalCLP = analitica?.totales.materialesTotal ?? 0;
   const costoTotalUF = tasaUf > 0 ? costoTotalCLP / tasaUf : 0;
-  const cantidadExcluidos = materialesConsolidados.filter((m) => m.excluido).length;
+  const cantidadExcluidos = materiales.filter((m) => m.excluido).length;
 
   const exportarPDF = async () => {
     // jsPDF + autotable pesan ~430KB: se cargan recién al exportar, no con
@@ -412,14 +337,11 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
     doc.text(proyecto.obra, margen, y);
     y += 22;
 
-    gruposPorFamilia.forEach(([familia, materiales]) => {
-      const aprobacion = aprobacionesPorFamilia.get(familia);
-      const descuento = Number(aprobacion?.descuentoPct) || 0;
-      const recargo = Number(aprobacion?.recargoPct) || 0;
-      const factorFamilia = (1 - descuento / 100) * (1 + recargo / 100);
-      const totalFamilia = materiales
-        .filter((m) => !m.excluido)
-        .reduce((acc, m) => acc + m.precioCLP * m.cantidadTotal, 0) * factorFamilia;
+    gruposPorPartida.forEach(([partida, materiales]) => {
+      const familia = partida.nombre;
+      const descuento = partida.descuentoPct ?? 0;
+      const holgura = partida.holguraPct ?? 0;
+      const totalFamilia = partida.materiales + partida.holgura;
 
       if (y > pageBottom - 40) {
         doc.addPage();
@@ -429,7 +351,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
       // Banda de encabezado de familia -- nombre + cantidad de referencias a
       // la izquierda, subtotal a la derecha, mismo estilo que las cabeceras
       // de sección de la hoja de fijación anterior.
-      const ajustes = [descuento > 0 ? `descuento ${descuento}%` : null, recargo > 0 ? `recargo ${recargo}%` : null]
+      const ajustes = [descuento > 0 ? `descuento ${descuento}%` : null, holgura > 0 ? `holgura ${holgura}% ($ ${formatNumber(partida.holgura, 0)})` : null]
         .filter(Boolean)
         .join(', ');
       doc.setFillColor(...MTW_HEAD_BG);
@@ -458,9 +380,9 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
           m.proveedorNombre,
           formatMonto(m.precioOrigen, resolverMoneda(m.monedaOrigen, monedas)),
           `$ ${formatNumber(m.precioCLP, 2)}`,
-          formatNumber(m.cantidadTotal, familia === 'VIDRIOS' ? 2 : 0),
-          familia === 'VIDRIOS' ? 'M²' : m.familiaCruda === 'JUNTAS' ? 'M' : m.unidadMedida,
-          `$ ${formatNumber(m.precioCLP * m.cantidadTotal * factorFamilia, 0)}`,
+          formatNumber(m.cantidadTotal, decimalesCantidad(m.cantidadTotal)),
+          m.unidad.simbolo,
+          `$ ${formatNumber(m.precioCompraNeto * m.cantidadTotal, 0)}`,
           m.excluido ? 'Excluido' : 'Incluido',
         ]),
         didParseCell: (data: any) => {
@@ -504,17 +426,16 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
       return /[",\n]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
     };
     const encabezados = [
-      'Familia', 'SKU', 'Descripción', 'Proveedor', 'Precio Unit. Origen', 'Moneda Origen',
-      'Precio Unit. CLP', 'Cantidad', 'Unidad', 'Descuento %', 'Recargo %', 'Total CLP', 'Estado',
+      'Partida', 'SKU', 'Descripción', 'Proveedor', 'Precio Unit. Origen', 'Moneda Origen',
+      'Precio Unit. CLP', 'Cantidad', 'Unidad', 'Descuento %', 'Holgura %', 'Total CLP (neto)', 'Estado',
     ];
     const filas: (string | number)[][] = [encabezados];
-    gruposPorFamilia.forEach(([familia, materiales]) => {
-      const aprobacion = aprobacionesPorFamilia.get(familia);
-      const descuento = Number(aprobacion?.descuentoPct) || 0;
-      const recargo = Number(aprobacion?.recargoPct) || 0;
+    gruposPorPartida.forEach(([partida, materiales]) => {
+      const descuento = partida.descuentoPct ?? 0;
+      const holgura = partida.holguraPct ?? 0;
       materiales.forEach((m) => {
         filas.push([
-          familia,
+          partida.nombre,
           m.skuInterno,
           m.descripcion,
           m.proveedorNombre,
@@ -522,13 +443,16 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
           resolverMoneda(m.monedaOrigen, monedas).nombre,
           m.precioCLP,
           m.cantidadTotal,
-          familia === 'VIDRIOS' ? 'M²' : m.familiaCruda === 'JUNTAS' ? 'M' : m.unidadMedida,
+          m.unidad.simbolo,
           descuento,
-          recargo,
-          montoConAjuste(m, aprobacionesPorFamilia),
+          holgura,
+          m.excluido ? 0 : m.precioCompraNeto * m.cantidadTotal,
           m.excluido ? 'Excluido' : 'Incluido',
         ]);
       });
+    });
+    gruposPorPartida.forEach(([partida]) => {
+      if (partida.holgura > 0) filas.push([partida.nombre, '', `Holgura ${partida.holguraPct}%`, '', '', '', '', '', '', '', partida.holguraPct ?? 0, partida.holgura, '']);
     });
     filas.push(['TOTAL', '', '', '', '', '', '', '', '', '', '', costoTotalCLP, '']);
 
@@ -544,8 +468,8 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
 
   return (
     <div className="space-y-5 sm:space-y-6 animate-fade-in">
-      {/* 1. PARÁMETROS ECONÓMICOS */}
-      {!divisasEditables ? (
+      {/* 1. PARÁMETROS ECONÓMICOS (en un adicional, las fija el adicional) */}
+      {modoAdicional ? null : !divisasEditables ? (
         <DivisasResumen dolar={dolar} uf={uf} euro={euro} congelado={congelado} onEditar={() => setEditandoDivisas(true)} />
       ) : (
       <DivisasForm
@@ -592,27 +516,27 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
             <div className="min-w-0">
               <h2 className="text-base font-extrabold text-slate-900">Analítica de materiales</h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                {materialesConsolidados.length} materiales consolidados en fábrica
+                {cargandoAnalitica ? 'Calculando…' : `${materiales.length} materiales consolidados en fábrica`}
                 {cantidadExcluidos > 0 && ` · ${cantidadExcluidos} excluidos`}
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 lg:justify-end shrink-0">
-            {versionId && estadoActual === 'EN_COTIZACION' && !todasLasFamiliasAprobadas && (
+            {versionId && !modoAdicional && puedeAprobarTecnico && estadoActual === 'EN_COTIZACION' && !todasLasPartidasAprobadas && (
               <Button
                 variant="primary"
                 size="sm"
                 onClick={() => aprobarTodoMutation.mutate()}
-                disabled={gruposPorFamilia.length === 0 || aprobarTodoMutation.isPending}
+                disabled={partidasMateriales.length === 0 || aprobarTodoMutation.isPending}
                 isLoading={aprobarTodoMutation.isPending}
                 leftIcon={<ShieldCheck className="w-3.5 h-3.5" />}
-                title="Aprueba todas las categorías que falten"
+                title="Aprueba todas las partidas que falten"
               >
                 Aprobar analítica completa
               </Button>
             )}
-            {versionId && puedeDeshacerAca && (
+            {versionId && !modoAdicional && puedeAprobarTecnico && puedeDeshacerAca && (
               <Button
                 variant="outline"
                 size="sm"
@@ -658,68 +582,54 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
         </div>
 
         {/* Buscador */}
-        <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar SKU o descripción…"
-            className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-brand-600 transition-colors"
-          />
+        <div>
+          <Input type="search" aria-label="Buscar material" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar SKU o descripción…" leftIcon={<Search className="w-4 h-4" />} />
         </div>
 
-        {/* Familias */}
+        {/* Partidas */}
         <div className="space-y-3">
-          {gruposPorFamilia.map(([familia, materiales]) => {
-            const aprobacion = aprobacionesPorFamilia.get(familia);
-            const aprobada = Boolean(aprobacion?.aprobada);
-            // Edicion bloqueada si la familia ya esta aprobada, o si toda la
+          {gruposPorPartida.map(([partida, materiales]) => {
+            const codigo = partida.codigo;
+            const aprobada = partida.aprobada;
+            // Edicion bloqueada si la partida ya esta aprobada, o si toda la
             // version esta congelada (aprobacion global mas adelante en el
             // flujo, o presupuesto ya emitido).
             const edicionBloqueada = aprobada || congelado;
             // Las categorías parten colapsadas: el usuario las despliega si necesita el detalle.
-            const colapsada = familiaColapsada[familia] ?? true;
-            const descuentoActual = Number(aprobacion?.descuentoPct) || 0;
-            const recargoActual = Number(aprobacion?.recargoPct) || 0;
-            const factorFamilia = (1 - descuentoActual / 100) * (1 + recargoActual / 100);
-            const totalFamiliaBruto = materiales.filter((m) => !m.excluido).reduce((acc, m) => acc + m.precioCLP * m.cantidadTotal, 0);
-            const totalFamiliaCLP = totalFamiliaBruto * factorFamilia;
-            const decimalesCantidad = familia === 'VIDRIOS' ? 2 : 0;
+            const colapsada = partidaColapsada[codigo] ?? true;
+            const descuentoActual = partida.descuentoPct ?? 0;
+            const holguraActual = partida.holguraPct ?? 0;
+            const totalFamiliaCLP = partida.materiales + partida.holgura;
 
             return (
-              <div key={familia} className="rounded-2xl border border-slate-200 overflow-hidden">
+              <div key={codigo} className="rounded-2xl border border-slate-200 overflow-hidden">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 px-4 py-3 bg-slate-50/70 border-b border-slate-100">
-                  <button
-                    onClick={() => setFamiliaColapsada((prev) => ({ ...prev, [familia]: !colapsada }))}
-                    className="flex flex-wrap items-center gap-x-2.5 gap-y-1 min-w-0 text-left cursor-pointer"
-                  >
-                    <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${colapsada ? '-rotate-90' : ''}`} />
-                    <span className="font-bold text-sm text-slate-900">{familia}</span>
+                  <BotonColapsar abierto={!colapsada} onClick={() => setPartidaColapsada((prev) => ({ ...prev, [codigo]: !colapsada }))}>
+                    <span className="font-bold text-sm text-slate-900">{partida.nombre}</span>
                     <Badge size="sm" variant="default">{materiales.length} {materiales.length === 1 ? 'ítem' : 'ítems'}</Badge>
                     <span className="text-xs text-slate-600 tabular-nums">
                       $ {formatNumber(totalFamiliaCLP, 0)}
-                      {descuentoActual > 0 && ` (-${descuentoActual}%)`}
-                      {recargoActual > 0 && ` (+${recargoActual}%)`}
+                      {descuentoActual > 0 && ` (desc. ${descuentoActual}%)`}
+                      {partida.holgura > 0 && ` · incluye holgura ${holguraActual}% ($ ${formatNumber(partida.holgura, 0)})`}
                     </span>
-                  </button>
+                  </BotonColapsar>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    <label className="flex items-center gap-1.5 text-[11px] text-slate-500" title="Descuento comercial de la categoría (aplicado al total, no a los precios individuales)">
+                    <label className="flex items-center gap-1.5 text-[11px] text-slate-500" title="Descuento negociado con el proveedor: baja el precio de compra de los materiales de la partida (y el de la OC)">
                       Desc.
                       <PrecioEditable
                         valor={descuentoActual}
                         disabled={edicionBloqueada}
-                        onGuardar={(nuevo) => familiaDescuentoMutation.mutate({ familia, descuentoPct: Math.min(100, Math.max(0, nuevo)) })}
+                        onGuardar={(nuevo) => partidaDescuentoMutation.mutate({ partida: codigo, descuentoPct: Math.min(100, Math.max(0, nuevo)) })}
                       />
                       %
                     </label>
-                    <label className="flex items-center gap-1.5 text-[11px] text-slate-500" title="Recargo comercial de la categoría (aplicado al total, no a los precios individuales)">
-                      Rec.
+                    <label className="flex items-center gap-1.5 text-[11px] text-slate-500" title="Holgura del presupuesto (ej. quiebre): se suma al presupuesto de la partida y se cobra, sin cambiar ningún precio ni la OC">
+                      Holgura
                       <PrecioEditable
-                        valor={recargoActual}
+                        valor={holguraActual}
                         disabled={edicionBloqueada}
-                        onGuardar={(nuevo) => familiaRecargoMutation.mutate({ familia, recargoPct: Math.min(100, Math.max(0, nuevo)) })}
+                        onGuardar={(nuevo) => partidaHolguraMutation.mutate({ partida: codigo, holguraPct: Math.min(100, Math.max(0, nuevo)) })}
                       />
                       %
                     </label>
@@ -728,14 +638,14 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                         <ShieldCheck className="w-3 h-3" /> Aprobada
                       </Badge>
                     )}
-                    {estadoActual === 'EN_COTIZACION' && (
+                    {!modoAdicional && puedeAprobarTecnico && estadoActual === 'EN_COTIZACION' && (
                       <Button
                         variant={aprobada ? 'outline' : 'primary'}
                         size="sm"
-                        onClick={() => familiaAprobacionMutation.mutate({ familia, aprobada: !aprobada })}
-                        disabled={familiaAprobacionMutation.isPending}
+                        onClick={() => partidaAprobacionMutation.mutate({ partida: codigo, aprobada: !aprobada })}
+                        disabled={partidaAprobacionMutation.isPending}
                       >
-                        {aprobada ? 'Deshacer' : 'Aprobar categoría'}
+                        {aprobada ? 'Deshacer' : 'Aprobar partida'}
                       </Button>
                     )}
                   </div>
@@ -745,35 +655,35 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                   // @container: la tabla exige ancho real; en tablet y móvil cada material va en tarjeta.
                   <div className="@container">
                     <div className={`hidden @4xl:block ${TABLE_WRAPPER_CLASS}`}>
-                      <table className={`${TABLE_CLASS} text-left text-slate-700`}>
-                        <thead className="bg-white text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-100">
-                          <tr>
-                            <th className="px-4 py-2.5 font-semibold">SKU</th>
-                            <th className="px-4 py-2.5 font-semibold">Material</th>
-                            <th className="px-4 py-2.5 font-semibold text-right">Precio origen</th>
-                            <th className="px-4 py-2.5 font-semibold text-right">Precio CLP</th>
-                            <th className="px-4 py-2.5 font-semibold text-right">Cantidad</th>
-                            <th className="px-4 py-2.5 font-semibold text-right">Total CLP</th>
-                            <th className="px-4 py-2.5 font-semibold text-center">Estado</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
+                      <Tabla>
+                        <Thead>
+                          <Tr>
+                            <Th className="font-semibold">SKU</Th>
+                            <Th className="font-semibold">Material</Th>
+                            <Th alinear="derecha" className="font-semibold">Precio origen</Th>
+                            <Th alinear="derecha" className="font-semibold">Precio CLP</Th>
+                            <Th alinear="derecha" className="font-semibold">Cantidad</Th>
+                            <Th alinear="derecha" className="font-semibold">Total CLP</Th>
+                            <Th alinear="centro" className="font-semibold">Estado</Th>
+                          </Tr>
+                        </Thead>
+                        <Tbody>
                           {materiales.map((m) => (
-                            <tr
+                            <Tr
                               key={m.id}
                               title={m.precioModificado ? 'Precio modificado a mano -- distinto al original de HETMO' : undefined}
                               className={`transition-colors hover:bg-slate-50 ${m.excluido ? 'opacity-40' : m.reemplazado ? 'bg-violet-50/60' : m.precioModificado ? 'bg-sky-50/60' : ''}`}
                             >
-                              <td className="px-4 py-2.5 align-top font-semibold text-slate-900 whitespace-nowrap">{m.skuInterno}</td>
-                              <td className="px-4 py-2.5 align-top min-w-0">
+                              <Td className="align-top font-semibold text-slate-900 whitespace-nowrap">{m.skuInterno}</Td>
+                              <Td className="align-top min-w-0">
                                 <div className="font-medium text-slate-800">{m.descripcion}</div>
                                 <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                                   <span className="text-[11px] text-slate-500">{m.proveedorNombre}</span>
                                   {m.precioModificado && <Badge size="sm" variant="info">Precio editado</Badge>}
                                   {m.reemplazado && <Badge size="sm" variant="violet">Reemplazado</Badge>}
                                 </div>
-                              </td>
-                              <td className="px-4 py-2.5 align-top text-right">
+                              </Td>
+                              <Td alinear="derecha" className="align-top">
                                 <div className="flex items-center justify-end gap-1">
                                   <span className="text-slate-400 text-[10px]">{resolverMoneda(m.monedaOrigen, monedas).simbolo}</span>
                                   <PrecioEditable
@@ -782,24 +692,24 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                     onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo, monedaOrigen: m.monedaOrigen })}
                                   />
                                 </div>
-                              </td>
-                              <td className="px-4 py-2.5 align-top text-right">
+                              </Td>
+                              <Td alinear="derecha" className="align-top">
                                 <div className="flex items-center justify-end gap-1">
                                   <span className="text-slate-400 text-[10px]">$</span>
                                   <PrecioEditable
                                     valor={Math.round(m.precioCLP * 100) / 100}
                                     disabled={edicionBloqueada}
-                                    onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo / m.factorBarra, monedaOrigen: 'CLP' })}
+                                    onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo / m.factorPrecio, monedaOrigen: 'CLP' })}
                                   />
                                 </div>
-                              </td>
-                              <td className="px-4 py-2.5 align-top text-right tabular-nums text-slate-800 whitespace-nowrap">
-                                {formatNumber(m.cantidadTotal, decimalesCantidad)} <span className="text-slate-400">{unidadDe(m, familia)}</span>
-                              </td>
-                              <td className="px-4 py-2.5 align-top text-right tabular-nums font-bold text-slate-900 whitespace-nowrap">
-                                $ {formatNumber(m.precioCLP * m.cantidadTotal * factorFamilia, 0)}
-                              </td>
-                              <td className="px-4 py-2.5 align-top text-center">
+                              </Td>
+                              <Td numero className="align-top text-slate-800">
+                                {formatNumber(m.cantidadTotal, decimalesCantidad(m.cantidadTotal))} <span className="text-slate-400">{m.unidad.simbolo}</span>
+                              </Td>
+                              <Td numero className="align-top font-bold text-slate-900">
+                                $ {formatNumber(m.precioCompraNeto * m.cantidadTotal, 0)}
+                              </Td>
+                              <Td alinear="centro" className="align-top">
                                 <div className="flex items-center justify-center gap-2">
                                   {lineasPorMaterial.get(m.materialId) ? (
                                     <BotonReemplazar
@@ -816,18 +726,18 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                     onClick={() => guardarAjuste(m, { excluido: !m.excluido })}
                                     title={
                                       edicionBloqueada
-                                        ? 'Categoría aprobada o presupuesto congelado -- no se puede modificar'
+                                        ? 'Partida aprobada o presupuesto congelado -- no se puede modificar'
                                         : m.excluido
                                         ? 'Click para incluir'
                                         : 'Click para excluir'
                                     }
                                   />
                                 </div>
-                              </td>
-                            </tr>
+                              </Td>
+                            </Tr>
                           ))}
-                        </tbody>
-                      </table>
+                        </Tbody>
+                      </Tabla>
                     </div>
 
                     <ul className="@4xl:hidden divide-y divide-slate-100">
@@ -861,7 +771,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                 excluido={m.excluido}
                                 disabled={edicionBloqueada || ajusteMutation.isPending}
                                 onClick={() => guardarAjuste(m, { excluido: !m.excluido })}
-                                title={edicionBloqueada ? 'Categoría aprobada o presupuesto congelado' : m.excluido ? 'Click para incluir' : 'Click para excluir'}
+                                title={edicionBloqueada ? 'Partida aprobada o presupuesto congelado' : m.excluido ? 'Click para incluir' : 'Click para excluir'}
                               />
                             </div>
                           </div>
@@ -883,18 +793,18 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                 <PrecioEditable
                                   valor={Math.round(m.precioCLP * 100) / 100}
                                   disabled={edicionBloqueada}
-                                  onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo / m.factorBarra, monedaOrigen: 'CLP' })}
+                                  onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo / m.factorPrecio, monedaOrigen: 'CLP' })}
                                 />
                               </div>
                             </Campo>
                             <Campo label="Cantidad">
                               <span className="tabular-nums font-semibold">
-                                {formatNumber(m.cantidadTotal, decimalesCantidad)}
+                                {formatNumber(m.cantidadTotal, decimalesCantidad(m.cantidadTotal))}
                               </span>{' '}
-                              <span className="text-slate-400">{unidadDe(m, familia)}</span>
+                              <span className="text-slate-400">{m.unidad.simbolo}</span>
                             </Campo>
                             <Campo label="Total CLP">
-                              <span className="tabular-nums font-bold">$ {formatNumber(m.precioCLP * m.cantidadTotal * factorFamilia, 0)}</span>
+                              <span className="tabular-nums font-bold">$ {formatNumber(m.precioCompraNeto * m.cantidadTotal, 0)}</span>
                             </Campo>
                           </div>
                         </li>
@@ -905,7 +815,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
               </div>
             );
           })}
-          {gruposPorFamilia.length === 0 && (
+          {gruposPorPartida.length === 0 && !cargandoAnalitica && (
             <p className="text-center text-sm text-slate-500 py-8">No hay materiales que coincidan con la búsqueda.</p>
           )}
         </div>
@@ -915,10 +825,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
         <ReemplazarMaterialModal
           original={reemplazoOrigen}
           lineasAfectadas={lineasPorMaterial.get(reemplazoOrigen.materialId) ?? 0}
-          unidadOriginal={unidadMaestroPorMaterial.get(reemplazoOrigen.materialId) ?? ''}
-          familiasAprobadas={Array.from(aprobacionesPorFamilia.entries())
-            .filter(([, a]) => a?.aprobada)
-            .map(([familia]) => familia)}
+          partidasAprobadas={partidas.filter((p) => p.aprobada).map((p) => p.codigo)}
           isPending={reemplazoMutation.isPending}
           error={reemplazoMutation.error ? mensajeDeError(reemplazoMutation.error, 'No se pudo reemplazar el material.') : null}
           onConfirm={(nuevo) => reemplazoMutation.mutate({ materialIdOriginal: reemplazoOrigen.materialId, materialIdNuevo: nuevo.id })}

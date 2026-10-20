@@ -1,3 +1,5 @@
+import { getLogoEmpresa } from '../../../api/client';
+
 // Estilo compartido de los PDFs exportables de la app (Hoja de Fijación,
 // Analítica de Materiales, Presupuesto): mismo logo, colores de marca y
 // estilo de tabla en los tres, para que se sientan un mismo documento.
@@ -18,6 +20,21 @@ export const loadImageDataUrl = async (url: string): Promise<string> => {
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
+};
+
+/**
+ * Logo de los documentos: el que se subió en Configuración de Empresa o, si
+ * no hay, el de MTW. Lanza si no se pudo cargar ninguno (el logo es decorativo:
+ * cada documento sigue sin él).
+ */
+export const cargarLogoDocumentos = async (): Promise<string> => {
+  try {
+    const propio = await getLogoEmpresa();
+    if (propio) return propio;
+  } catch {
+    // Sin conexión con el API: el de MTW.
+  }
+  return loadImageDataUrl(`${import.meta.env.BASE_URL}mtw-logo.png`);
 };
 
 // Estilo base de autoTable para todas las tablas de estos PDFs: header claro
@@ -46,8 +63,11 @@ export async function drawPdfHeader(
 
   let logoDataUrl: string | null = null;
   try {
-    logoDataUrl = await loadImageDataUrl('/mtw-logo.png');
-    doc.addImage(logoDataUrl, 'PNG', 36, 18, 92, 42.1);
+    logoDataUrl = await cargarLogoDocumentos();
+    // Cabe en 92 × 42 pt sin deformarse (un logo propio puede tener otra proporción).
+    const { width, height } = doc.getImageProperties(logoDataUrl);
+    const escala = Math.min(92 / width, 42.1 / height);
+    doc.addImage(logoDataUrl, logoDataUrl.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG', 36, 18, width * escala, height * escala);
   } catch {
     // El logo es decorativo -- si falla la carga, el PDF sigue sin él.
   }

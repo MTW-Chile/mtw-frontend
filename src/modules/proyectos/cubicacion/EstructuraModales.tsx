@@ -16,6 +16,11 @@ import type { NodoTorreCubicacion, TipoCubicacion } from '../../../types';
 import { formatoMm } from '../fabricacion/utils';
 import { cajaModal, campo, etiqueta, fondoModal } from './estilos';
 import { leerEntero, leerTorres, mensajeAsignacion, mensajeCopiaPiso, rangoPisos, textoTorre } from './utils';
+import { Input } from '../../../components/ui/Input';
+import { Select } from '../../../components/ui/Select';
+import { IconButton } from '../../../components/ui/IconButton';
+import { Casilla, InputCompacto } from '../../../components/ui/Campos';
+import { BotonAlternar } from '../../../components/ui/BotonAlternar';
 
 // Formularios del cubicador visual. Todos avisan con onHecho() para que la pantalla vuelva a leer la estructura.
 
@@ -43,9 +48,7 @@ const Marco: React.FC<{
     >
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-black text-slate-900">{titulo}</h3>
-        <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer" aria-label="Cerrar">
-          <X className="w-4 h-4" />
-        </button>
+        <IconButton icono={X} etiqueta="Cerrar" onClick={onClose} />
       </div>
       {children}
       <div className="flex justify-end gap-2 pt-1">
@@ -75,7 +78,7 @@ const Campo: React.FC<{ id: string; etiquetaTexto: string; valor: string; onCamb
     <label htmlFor={id} className={etiqueta}>
       {etiquetaTexto}
     </label>
-    <input id={id} value={valor} onChange={(e) => onCambio(e.target.value)} placeholder={placeholder} maxLength={max} inputMode={mono ? 'numeric' : undefined} className={`${campo} ${invalido ? 'border-rose-300' : ''}`} />
+    <InputCompacto id={id} value={valor} onChange={(e) => onCambio(e.target.value)} placeholder={placeholder} maxLength={max} inputMode={mono ? 'numeric' : undefined} className={`${invalido ? 'border-rose-300' : ''}`} />
     {ayuda && <p className="text-[11px] text-slate-500 mt-1">{ayuda}</p>}
   </div>
 );
@@ -246,10 +249,7 @@ export const DeptosModal: React.FC<Base & { torre: string; piso?: number }> = ({
         <Campo id="deptos-hasta" etiquetaTexto="Hasta el depto" valor={hasta} onCambio={setHasta} mono invalido={hasta !== '' && (h === null || (d !== null && h < d))} />
       </div>
       {piso !== undefined && (
-        <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
-          <input type="checkbox" checked={todos} onChange={(e) => setTodos(e.target.checked)} />
-          Crearlos en todos los pisos de la torre
-        </label>
+        <Casilla checked={todos} onChange={setTodos} label="Crearlos en todos los pisos de la torre" />
       )}
     </Marco>
   );
@@ -294,32 +294,20 @@ export const CopiarPisoModal: React.FC<Base & { torre: NodoTorreCubicacion; piso
         ) : (
           <div className="flex flex-wrap gap-1.5">
             {otros.map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => alternar(p)}
-                aria-pressed={elegidos.includes(p)}
-                className={`px-2.5 py-1 rounded-lg border text-xs font-mono cursor-pointer ${elegidos.includes(p) ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-slate-200 text-slate-700 hover:border-brand-400'}`}
-              >
-                {p}
-              </button>
+              <BotonAlternar key={p} activo={elegidos.includes(p)} onClick={() => alternar(p)}>
+                <span className="font-mono">{p}</span>
+              </BotonAlternar>
             ))}
           </div>
         )}
         {otros.length > 1 && (
           <div className="flex flex-wrap items-center gap-2 mt-2 text-xs">
-            <button type="button" onClick={() => setElegidos(otros)} className="text-brand-700 hover:underline cursor-pointer">
-              todos
-            </button>
-            <button type="button" onClick={() => setElegidos([])} className="text-slate-500 hover:underline cursor-pointer">
-              ninguno
-            </button>
+            <Button variant="link" size="sm" onClick={() => setElegidos(otros)}>todos</Button>
+            <Button variant="link" size="sm" onClick={() => setElegidos([])}>ninguno</Button>
             <span className="text-slate-300">|</span>
-            <input aria-label="Rango desde" value={desde} onChange={(e) => setDesde(e.target.value)} placeholder="desde" className="w-16 px-2 py-1 rounded-lg border border-slate-200 text-xs font-mono" />
-            <input aria-label="Rango hasta" value={hasta} onChange={(e) => setHasta(e.target.value)} placeholder="hasta" className="w-16 px-2 py-1 rounded-lg border border-slate-200 text-xs font-mono" />
-            <button type="button" onClick={agregarRango} disabled={d === null || h === null} className="text-brand-700 hover:underline cursor-pointer disabled:opacity-40">
-              agregar rango
-            </button>
+            <InputCompacto aria-label="Rango desde" value={desde} onChange={(e) => setDesde(e.target.value)} placeholder="desde" className="w-16 font-mono" />
+            <InputCompacto aria-label="Rango hasta" value={hasta} onChange={(e) => setHasta(e.target.value)} placeholder="hasta" className="w-16 font-mono" />
+            <Button variant="link" size="sm" onClick={agregarRango} disabled={d === null || h === null}>agregar rango</Button>
           </div>
         )}
       </div>
@@ -364,10 +352,7 @@ export const AsignarModal: React.FC<Base & { unidadId: string; torre: string; no
   return (
     <Marco titulo={`Agregar ventanas · ${textoTorre(torre)}, depto ${nombreUnidad}`} textoEnviar="Agregar" puedeEnviar={valido} cargando={asignar.isPending} onEnviar={() => asignar.mutate()} onClose={onClose}>
       <div>
-        <label htmlFor="asignar-tipo" className={etiqueta}>
-          Tipo de ventana
-        </label>
-        <select id="asignar-tipo" value={tipoId} onChange={(e) => setTipoId(e.target.value)} className={campo}>
+        <Select label="Tipo de ventana" id="asignar-tipo" value={tipoId} onChange={(e) => setTipoId(e.target.value)} className={campo}>
           <option value="">— elegir tipo —</option>
           {disponibles.map((t) => (
             <option key={t.id} value={t.id}>
@@ -375,15 +360,12 @@ export const AsignarModal: React.FC<Base & { unidadId: string; torre: string; no
               {t.anchoPlanoMm != null ? ` · ${formatoMm(t.anchoPlanoMm)} × ${formatoMm(t.altoPlanoMm)}` : ''} · quedan {Math.max(t.saldo, 0)}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Campo id="asignar-cantidad" etiquetaTexto="Cantidad" valor={cantidad} onCambio={setCantidad} mono invalido={n === null || n < 1} />
         <div>
-          <label htmlFor="asignar-ubicacion" className={etiqueta}>
-            Ubicación
-          </label>
-          <input id="asignar-ubicacion" list="recintos-cubicacion" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} maxLength={100} placeholder="DORM 1, ESTAR…" className={campo} />
+          <Input label="Ubicación" id="asignar-ubicacion" list="recintos-cubicacion" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} maxLength={100} placeholder="DORM 1, ESTAR…" />
           <datalist id="recintos-cubicacion">
             {RECINTOS.map((r) => (
               <option key={r} value={r} />
@@ -392,12 +374,9 @@ export const AsignarModal: React.FC<Base & { unidadId: string; torre: string; no
         </div>
       </div>
       {pasa && (
-        <label className="flex items-start gap-2 text-xs text-amber-900 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 cursor-pointer">
-          <input type="checkbox" className="mt-0.5" checked={exceder} onChange={(e) => setExceder(e.target.checked)} />
-          <span>
+        <Casilla checked={exceder} onChange={setExceder} label={<><span>
             Solo quedan {saldo} {tipo!.codigo} sin ubicar (contratadas {tipo!.cantidadContratada}). Marca esto para agregar igualmente las {n! - saldo} de más; quedarán por sobre lo contratado.
-          </span>
-        </label>
+          </span></>} />
       )}
     </Marco>
   );

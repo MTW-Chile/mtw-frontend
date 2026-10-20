@@ -38,11 +38,11 @@ export const StatCard: React.FC<StatCardProps> = ({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1 min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 truncate">
+          <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 line-clamp-2 sm:truncate">
             {title}
           </p>
           <div className="flex items-baseline gap-1.5 flex-wrap">
-            <span className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900 tabular-nums">
+            <span className="text-lg sm:text-2xl font-extrabold tracking-tight text-slate-900 tabular-nums break-all sm:break-normal">
               {value}
             </span>
             {unit && (
@@ -54,20 +54,20 @@ export const StatCard: React.FC<StatCardProps> = ({
         </div>
 
         <div
-          className={`p-2 sm:p-2.5 rounded-xl border flex items-center justify-center shrink-0 ${iconBgColor} ${iconColor}`}
+          className={`hidden min-[480px]:flex p-2 sm:p-2.5 rounded-xl border items-center justify-center shrink-0 ${iconBgColor} ${iconColor}`}
         >
           <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
         </div>
       </div>
 
       {(subtitle || trend) && (
-        <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs text-slate-500">
+        <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
           {subtitle && (
             <span className="truncate text-[11px] sm:text-xs">{subtitle}</span>
           )}
           {trend && (
             <span
-              className={`font-semibold text-[10px] sm:text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 ${
+              className={`font-semibold text-[10px] sm:text-[11px] px-2 py-0.5 rounded-full sm:whitespace-nowrap sm:shrink-0 ${
                 trend.positive
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
                   : 'bg-slate-100 text-slate-600 border border-slate-200/60'

@@ -285,6 +285,53 @@
     return [{ apertura: normalizedApertura(line, line && (line.dibujoTipoApertura != null ? line.dibujoTipoApertura : line.tipoApertura)), ancho: 0, alto: 0, geometria: 'principal' }];
   }
 
+  // Unión entre dos paños (fila tipo 5100): UNIDO_INI y UNIDO_FIN son los
+  // numero_ventana de los paños unidos y N1 dice dónde queda el "fin"
+  // respecto del "ini": 0 arriba, 1 abajo, 2 derecha, 3 izquierda.
+  // Confirmado con 8 ventanas reales contra el dibujo de HETMO (v12, v01 y
+  // v03 de Loma La Cruz, V33 de Edificio Feel, V202 de C_QMr, V43 de Los
+  // Barbechos, V03 de Vista Pacífico y Casa A - V16 de Quillayes). El paño
+  // que se pega queda alineado al inicio del otro (izquierda o arriba).
+  // Devuelve null si no hay uniones o alguna no se puede aplicar: el llamador
+  // sigue con el armado por medidas.
+  export function panelsByJoins(rawItems, panels) {
+    const joins = rawItems
+      .filter(item => number(item && item.tipo_elemento) === 5100)
+      .map(item => ({ ini: number(item.unido_inicio != null ? item.unido_inicio : item.unido_ini), fin: number(item.unido_fin), dir: number(item.geometria_n1) }));
+    if (!joins.length) return null;
+    const byNumber = new Map(panels.map(panel => [panel.number, panel]));
+    if (joins.some(j => !byNumber.has(j.ini) || !byNumber.has(j.fin) || ![0, 1, 2, 3].includes(j.dir))) return null;
+    const pos = new Map([[panels[0].number, { x: 0, y: 0 }]]);
+    const place = (from, to, dir, inverse) => {
+      const a = byNumber.get(from), b = byNumber.get(to), p = pos.get(from);
+      // inverse: se conoce el "fin" y se ubica el "ini" (dirección opuesta).
+      const d = inverse ? [1, 0, 3, 2][dir] : dir;
+      if (d === 0) return { x: p.x, y: p.y - b.height };
+      if (d === 1) return { x: p.x, y: p.y + a.height };
+      if (d === 2) return { x: p.x + a.width, y: p.y };
+      return { x: p.x - b.width, y: p.y };
+    };
+    for (let changed = true; changed;) {
+      changed = false;
+      for (const j of joins) {
+        if (pos.has(j.ini) && !pos.has(j.fin)) { pos.set(j.fin, place(j.ini, j.fin, j.dir, false)); changed = true; }
+        else if (pos.has(j.fin) && !pos.has(j.ini)) { pos.set(j.ini, place(j.fin, j.ini, j.dir, true)); changed = true; }
+      }
+    }
+    if (pos.size !== panels.length) return null;
+    const minX = Math.min(...panels.map(panel => pos.get(panel.number).x));
+    const minY = Math.min(...panels.map(panel => pos.get(panel.number).y));
+    const tiles = panels.map(panel => {
+      const p = pos.get(panel.number);
+      return { panel, x: p.x - minX, y: p.y - minY, width: panel.width, height: panel.height };
+    });
+    return {
+      tiles,
+      width: Math.max(...tiles.map(t => t.x + t.width)),
+      height: Math.max(...tiles.map(t => t.y + t.height))
+    };
+  }
+
   // Algunas líneas no son un solo rectángulo: HETMO registra cada paño con
   // NUMERO_VENTANA y sus cotas (ej. un proyectante sobre un fijo). Esta
   // lectura respeta esas cotas en vez de inventar paños iguales.
@@ -335,118 +382,47 @@
       && apertureDefinition(line, openingPanels[0].apertura).leafCount === 2) {
       openingPanels[0].aperturaCount = 2;
     }
-    // La orientación se determina contra la medida total de la línea: un
-    // conjunto de N paños puede apilarse en horizontal o en vertical según
-    // cuál combinación efectivamente suma el ancho/alto declarado.
+    // Con uniones declaradas por HETMO (filas 5100), la posición de cada paño
+    // sale de ellas, igual que en el configurador de HETMO -- sin adivinar
+    // por medidas. Probado con las 2.019 ventanas compuestas de producción
+    // (2026-10-19): ubica 2.010 tal cual las dibuja HETMO, incluidas las 312
+    // que el armado por columnas de abajo no podía leer (fila de paños +
+    // paño de ancho completo).
+    const porUniones = panelsByJoins(raw, panels);
+    if (porUniones) {
+      const lineWidthU = firstPositive(line && line.dibujoAncho, line && line.ancho);
+      const lineHeightU = firstPositive(line && line.dibujoAlto, line && line.alto);
+      return {
+        panels,
+        tiles: porUniones.tiles,
+        width: porUniones.width,
+        height: porUniones.height,
+        direction: porUniones.width / Math.max(1, lineWidthU || porUniones.width) >= porUniones.height / Math.max(1, lineHeightU || porUniones.height) ? 'horizontal' : 'vertical'
+      };
+    }
+    // Sin uniones -- no pasa con los datos de producción (2026-10-19: las
+    // 2.019 compuestas las traen); queda de respaldo simple: paños lado a lado
+    // en orden de numero_ventana si sus anchos suman el de la línea, o
+    // apilados si suman el alto. Si no calza, la línea se dibuja simple.
     const lineWidth = firstPositive(line && line.dibujoAncho, line && line.ancho);
     const lineHeight = firstPositive(line && line.dibujoAlto, line && line.alto);
-    const widthError = lineWidth ? Math.abs(panels.reduce((sum, panel) => sum + panel.width, 0) - lineWidth) : Number.POSITIVE_INFINITY;
-    const heightError = lineHeight ? Math.abs(panels.reduce((sum, panel) => sum + panel.height, 0) - lineHeight) : Number.POSITIVE_INFINITY;
-    // Sólo cuenta como corte vertical de la LÍNEA cuando POSICION lo dice --
-    // ver isVerticalCutRow. Sin ese filtro, un travesaño horizontal de un
-    // paño con cota < lineWidth (cualquier ventana más ancha que alta) se
-    // confundía con un corte vertical entre paños fijos.
-    const verticalCuts = [...new Set(raw
-      .filter(item => number(item && item.tipo_elemento) === 6 && isVerticalCutRow(item, lineWidth, lineHeight))
-      .map(item => firstPositive(item.cota, item.cota_fija))
-      .filter(cut => cut > 0 && cut < lineWidth))].sort((a, b) => a - b);
     const tolerance = value => Math.max(3, value * .006);
-    const unused = new Set(panels.map(panel => panel.number));
-    const columns = [];
-    for (const panel of panels) {
-      if (!unused.has(panel.number)) continue;
-      const column = [panel]; unused.delete(panel.number);
-      let columnHeight = panel.height;
-      if (lineHeight && Math.abs(columnHeight - lineHeight) > tolerance(lineHeight)) {
-        for (const candidate of panels) {
-          if (!unused.has(candidate.number) || Math.abs(candidate.width - panel.width) > tolerance(panel.width)) continue;
-          if (columnHeight + candidate.height <= lineHeight + tolerance(lineHeight)) {
-            column.push(candidate); unused.delete(candidate.number); columnHeight += candidate.height;
-          }
-          if (Math.abs(columnHeight - lineHeight) <= tolerance(lineHeight)) break;
-        }
-      }
-      columns.push(column);
-    }
-    // Una columna puede quedar mas corta que el alto de la linea sin que
-    // HETMO declare ningun paño real para el resto -- confirmado con datos
-    // reales de Edificio Matta Esmax (PV09, HETMO 7160x4800mm): la columna
-    // del medio (numero_ventana=2, 1940mm de ancho) solo trae un paño de
-    // 2400mm de alto, sin ningun paño hermano que complete los 4800mm
-    // totales -- el resto es un tramo ciego (probablemente el pilar
-    // estructural que pide la propia observacion de la linea), no vidrio.
-    // Antes esto hacia fallar packedHeightValid y compositePanels()
-    // devolvia null para TODA la linea (ninguna de las 5 columnas se
-    // dibujaba bien, ni siquiera las que si calzaban) -- ahora se rellena
-    // el faltante con un paño sintetico sin vidrio (mismo tratamiento que
-    // un paño ciego real, ver panelHasGlass en windowGeometryBuilder.ts:
-    // panel.raw vacio hace que ese chequeo de vidrio real de false solo).
-    // Una columna que se PASA del alto declarado (mas larga que lineHeight)
-    // sigue sin aceptarse -- ese es un desajuste real de datos, no un hueco
-    // legitimo, y no hay forma segura de adivinar donde recortarla.
-    columns.forEach(column => {
-      if (!lineHeight) return;
-      const columnWidth = Math.max(...column.map(panel => panel.width));
-      const columnHeight = column.reduce((sum, panel) => sum + panel.height, 0);
-      const shortfall = lineHeight - columnHeight;
-      if (shortfall > tolerance(lineHeight)) {
-        column.push({
-          number: Math.max(...column.map(panel => panel.number)) + .5,
-          order: Math.max(...column.map(panel => panel.order)) + 1,
-          width: columnWidth,
-          height: shortfall,
-          apertura: 0,
-          aperturaCount: 0,
-          raw: []
-        });
-      }
-    });
-    const packedWidth = columns.reduce((sum, column) => sum + Math.max(...column.map(panel => panel.width)), 0);
-    const packedHeightValid = columns.every(column => !lineHeight || Math.abs(column.reduce((sum, panel) => sum + panel.height, 0) - lineHeight) <= tolerance(lineHeight));
-    if (!packedHeightValid || (lineWidth && Math.abs(packedWidth - lineWidth) > tolerance(lineWidth))) return null;
-    // Dentro de una columna, el orden por defecto es panel.number (el orden
-    // en que HETMO define los paños) -- confirmado correcto para paños
-    // fijos/practicables entre sí. Pero una PUERTA (familia 'door', código
-    // HETMO 17/18/20/21 -- distinta de 'hinged', que es una ventana
-    // practicable que no llega al piso) siempre tiene que apoyar en el
-    // suelo: si comparte columna con otro paño (típico: puerta + fijo
-    // superior tipo dintel/luz sobre la puerta), la puerta va SIEMPRE
-    // abajo, sin importar en qué orden HETMO haya definido los paños.
-    // Confirmado con un caso real (V05A, Franklin Sánchez) donde HETMO
-    // define primero el paño de la puerta y después el fijo -- sin este
-    // ajuste, la puerta quedaba dibujada arriba y el fijo abajo, al revés
-    // de como HETMO mismo la muestra en su propio configurador.
-    const esPuerta = panel => apertureDefinition(line, panel.apertura).family === 'door';
-    // Fuera de una puerta, no hay una regla física única para decidir qué
-    // paño va arriba en una columna (ej. proyectante+fijo: HETMO no siempre
-    // define sus paños en el mismo orden que el plano real, y a diferencia
-    // de una puerta, un fijo puede ir arriba O abajo de una ventana que no
-    // llega al piso). ordenPanelesInvertido es la corrección manual para
-    // esos casos (ver Ventana.ordenPanelesInvertido, botón "Invertir orden"
-    // en VentanaCard) -- invierte el orden por numero_ventana, pero NUNCA
-    // saca a una puerta de abajo: una puerta llega al piso siempre, así que
-    // ese ajuste manual no tiene sentido aplicárselo a ella.
-    const invertirOrden = Boolean(line && line.ordenPanelesInvertido);
-    let packedX = 0;
-    const tiles = [];
-    columns.forEach(column => {
-      const columnWidth = Math.max(...column.map(panel => panel.width));
-      const puertas = column.filter(esPuerta).sort((a, b) => a.number - b.number);
-      const resto = column.filter(panel => !esPuerta(panel)).sort((a, b) => a.number - b.number);
-      if (invertirOrden) resto.reverse();
-      let packedY = 0;
-      [...resto, ...puertas].forEach(panel => {
-        tiles.push({ panel, x: packedX, y: packedY, width: columnWidth, height: panel.height });
-        packedY += panel.height;
-      });
-      packedX += columnWidth;
+    const horizontal = lineWidth && Math.abs(panels.reduce((sum, panel) => sum + panel.width, 0) - lineWidth) <= tolerance(lineWidth);
+    const vertical = !horizontal && lineHeight && Math.abs(panels.reduce((sum, panel) => sum + panel.height, 0) - lineHeight) <= tolerance(lineHeight);
+    if (!horizontal && !vertical) return null;
+    let offset = 0;
+    const tiles = panels.map(panel => {
+      const tile = horizontal
+        ? { panel, x: offset, y: 0, width: panel.width, height: panel.height }
+        : { panel, x: 0, y: offset, width: panel.width, height: panel.height };
+      offset += horizontal ? panel.width : panel.height;
+      return tile;
     });
     return {
       panels, tiles,
-      width: lineWidth || packedWidth,
-      height: lineHeight || Math.max(...columns.map(column => column.reduce((sum, panel) => sum + panel.height, 0))),
-      direction: widthError <= heightError ? 'horizontal' : 'vertical',
-      verticalCuts
+      width: Math.max(...tiles.map(t => t.x + t.width)),
+      height: Math.max(...tiles.map(t => t.y + t.height)),
+      direction: horizontal ? 'horizontal' : 'vertical'
     };
   }
 
@@ -553,20 +529,6 @@
       : declared;
   }
 
-  // Un código de dos hojas puede fabricarse en la práctica con una sola
-  // hoja móvil real y un paño fijo del lado contrario al que asume el
-  // código HETMO -- confirmado con la ficha de fábrica real de V2H1
-  // (código 32: un solo riel Ext. móvil y un paño Int. fijo más ancho, sin
-  // flecha). Se reconstruye a partir de la única hoja real que sí declaró
-  // el despiece. orden_hoja ordena de izquierda a derecha -- misma
-  // convención que ya usa collectExactLeaves para repartir varias hojas --
-  // y decide de qué lado queda esa hoja real.
-  export function reconcileSingleLeafSlider(rawItems) {
-    const leaves = collectExactLeaves(rawItems);
-    if (leaves.length !== 1) return null;
-    const leaf = leaves[0];
-    return { leaf, side: number(leaf.orden_hoja || leaf.posicion) <= 1 ? 'left' : 'right' };
-  }
 
   // ÚNICA resolución de hojas de una corredera, compartida por la línea
   // simple y por cada paño de una composición. Existían dos caminos de
@@ -741,6 +703,36 @@
     return { millimeters: height / 2, reason: 'center-default', reportedMillimeters: 0 };
   }
 
+  // Corredera cuya hoja fija declara HETMO en el despiece: la hoja que trae
+  // SUPLEMENTO FIJO (fila 40003) no se mueve y las otras se deslizan hacia
+  // ella; si alguna trae GUIA ADICIONAL (40004) hay un riel por hoja. La
+  // apertura sola no alcanza: las 109 correderas de 3 hojas de producción
+  // llegan como 36, y Car Wash V10 (móvil-fija-móvil, 2 rieles) y La Aurora
+  // V03B (móvil-móvil-fija, 3 rieles) son distintas. Las hojas se cuentan de
+  // izquierda a derecha por numero_hoja. Sin esas filas devuelve null.
+  export function slidingPiecesFromFixedLeaf(source, layout, realLeaves, totalWidth, base) {
+    const raw = geometryItemsOf(source.raw);
+    const hojasCon = tipo => new Set(raw.filter(item => number(item && item.tipo_elemento) === tipo).map(item => number(item.numero_hoja)).filter(n => n > 0));
+    const fijas = hojasCon(40003);
+    if (!fijas.size || fijas.size >= layout.length) return null;
+    const tresRieles = hojasCon(40004).size > 0;
+    const n = layout.length;
+    const posFijas = [...fijas].filter(h => h <= n);
+    if (!posFijas.length) return null;
+    const widths = realLeaves.length === n ? realLeaves.map(leaf => firstPositive(leaf.ancho, leaf.ancho_mm)) : null;
+    return layout.map((_, index) => {
+      const hoja = index + 1;
+      const width = widths ? widths[index] : totalWidth / n;
+      if (fijas.has(hoja)) return { ...base, kind: 'fijo', width, carril: tresRieles ? n : 2, carrilFuente: 'hetmo-suplemento-fijo' };
+      // Se desliza hacia la fija más cercana; con tres rieles, la vecina de la
+      // fija va en el riel del medio y la más lejana en el primero.
+      const fija = posFijas.reduce((a, b) => (Math.abs(b - hoja) < Math.abs(a - hoja) ? b : a));
+      const distancia = Math.abs(fija - hoja);
+      const carril = tresRieles ? Math.max(1, n - distancia) : 1;
+      return { ...base, kind: `${carril === 1 ? 'int' : 'ext'}:${fija > hoja ? 'right' : 'left'}`, width, carril, carrilFuente: 'hetmo-suplemento-fijo' };
+    });
+  }
+
   export function slidingPieces(source) {
     const layout = sliderLayouts[source.apertura];
     if (!layout) return null;
@@ -760,6 +752,8 @@
     const mobileWidth = firstPositive(source.movilAncho);
     const mobileSlot = number(source.movilLado);
     const base = { apertura: source.apertura, exacta: true };
+    const porSuplemento = slidingPiecesFromFixedLeaf(source, layout, realLeaves, totalWidth, base);
+    if (porSuplemento) return porSuplemento;
     if (mobileSlot >= 1 && mobileSlot <= layout.length && mobileWidth > 0) {
       const widths = realLeaves.length === layout.length
         ? realLeaves.map(leaf => firstPositive(leaf.ancho, leaf.ancho_mm))
@@ -1263,6 +1257,43 @@
       });
     }
     return lines;
+  }
+
+  // Código del relleno de un paño (fila de vidrio tipo 200): "4+4 INC", o el
+  // código de un artículo cuando el vano no lleva vidrio (ej. 91319, machimbre).
+  export function panelFillCode(panel) {
+    const row = geometryItemsOf(panel).find(item => number(item && item.tipo_elemento) === 200);
+    return String((row && (row.geometria_a1 != null ? row.geometria_a1 : row.codigo_componente)) || '').trim();
+  }
+
+  // El vano lleva machimbre en vez de vidrio: el código lo dice, o es el
+  // código de un material de la línea cuya descripción dice machimbre
+  // (HETMO deja el artículo, ej. 91319 = "MACHIMBRE 14X89,3").
+  export function isMachimbre(code, materiales) {
+    const texto = String(code || '').trim();
+    if (!texto) return false;
+    if (/machimbre/i.test(texto)) return true;
+    return (Array.isArray(materiales) ? materiales : []).some(m => String((m && m.sku) || '').trim() === texto
+      && /machimbre/i.test(String((m && (m.descripcion || m.descripcionArticulo)) || '')));
+  }
+
+  // Ancho de cada hoja de una puerta o practicable de dos hojas, de izquierda
+  // a derecha. Las dos hojas no siempre son iguales: la V17 de Pórtico Vicuña
+  // Mackenna trae hojas (40001) de 414 y 900 mm, y su apertura (N1=2, N2=900)
+  // dice que la segunda es la móvil de 900. Sin datos, dos iguales.
+  export function doubleLeafWidths(panel) {
+    const porHoja = new Map();
+    geometryItemsOf(panel).filter(item => number(item && item.tipo_elemento) === 40001).forEach(item => {
+      const hoja = number(item.numero_hoja);
+      const ancho = firstPositive(item.ancho, item.ancho_mm);
+      if (hoja > 0 && ancho > 0 && !porHoja.has(hoja)) porHoja.set(hoja, ancho);
+    });
+    if (porHoja.size === 2) return [...porHoja.entries()].sort((a, b) => a[0] - b[0]).map(entry => entry[1]);
+    const total = firstPositive(panel && panel.width);
+    const movil = firstPositive(panel && panel.movilAncho);
+    const lado = number(panel && panel.movilLado);
+    if (total > 0 && movil > 0 && movil < total && (lado === 1 || lado === 2)) return lado === 1 ? [movil, total - movil] : [total - movil, movil];
+    return [1, 1];
   }
 
   // Corte VERTICAL entre dos hojas operables lado a lado, o entre dos

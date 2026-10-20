@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { GitBranch, Loader2, Hash, RotateCcw, Building2 } from 'lucide-react';
 import type { Proyecto, ProyectoVersion } from '../../../../types';
+import { Segmentado } from '../../../../components/ui/Segmentado';
+import { Button } from '../../../../components/ui/Button';
+import { InputCompacto } from '../../../../components/ui/Campos';
 
 interface VersionActivaCardProps {
   proyecto: Proyecto;
@@ -81,38 +84,31 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
 
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           {hayVariasVersiones ? (
-            <div className="flex items-center rounded-xl p-1 bg-slate-100 border border-slate-200">
-              {proyecto.versiones.map((v, idx) => (
-                <button
-                  key={v.id}
-                  onClick={() => onSelectVersion(idx)}
-                  disabled={isSaving}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 cursor-pointer ${
-                    selectedVersionIdx === idx ? 'bg-brand-600 text-white font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Rev {v.versionNumero}
-                </button>
-              ))}
-            </div>
+            <Segmentado
+              etiqueta="Revisión"
+              valor={selectedVersionIdx}
+              onChange={onSelectVersion}
+              opciones={proyecto.versiones.map((v, idx) => ({ value: idx, label: `Rev ${v.versionNumero}`, disabled: isSaving }))}
+            />
           ) : (
             <span className="text-xs text-slate-500">Única versión sincronizada desde HETMO</span>
           )}
           {isSaving && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
 
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={onOpenReimport}
             disabled={activeVersion?.esCongelado}
-            className="px-3 py-1.5 rounded-xl bg-white hover:bg-amber-50 text-slate-600 hover:text-amber-700 border border-slate-200 hover:border-amber-400 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            leftIcon={<RotateCcw className="w-3.5 h-3.5 text-amber-600" />}
             title={
               activeVersion?.esCongelado
                 ? 'La versión está congelada: no se puede reimportar'
                 : 'Restablecer presupuesto leyendo los datos originales de HETMO'
             }
           >
-            <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
-            <span>Reimportar HETMO</span>
-          </button>
+            Reimportar HETMO
+          </Button>
         </div>
       </div>
 
@@ -130,7 +126,8 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <input
+          <InputCompacto
+            aria-label="Nombre de la obra"
             type="text"
             value={draftObra}
             onChange={(e) => setDraftObra(e.target.value)}
@@ -140,7 +137,7 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
             }}
             maxLength={200}
             placeholder="Nombre de la obra"
-            className="flex-1 min-w-0 sm:max-w-md px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white"
+            className="flex-1 min-w-0 sm:max-w-md text-sm! py-2! font-semibold"
           />
           {isSavingObra && <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin shrink-0" />}
         </div>
@@ -160,7 +157,8 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <input
+          <InputCompacto
+            aria-label="Número interno"
             type="text"
             value={draftNumero}
             onChange={(e) => setDraftNumero(e.target.value)}
@@ -169,7 +167,7 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
               if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
             }}
             placeholder="Ej: 4521"
-            className="w-36 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono font-bold text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white"
+            className="w-36 text-sm! py-2! font-mono font-bold"
           />
           {isSavingNumeroInterno && <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin shrink-0" />}
           {draftNumero.trim() && (

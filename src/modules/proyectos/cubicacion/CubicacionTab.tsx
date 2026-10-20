@@ -11,6 +11,9 @@ import { EstructuraVisual } from './EstructuraVisual';
 import { TiposCubicacion } from './TiposCubicacion';
 import { VentanasCubicacion, type FiltroVentanas } from './VentanasCubicacion';
 import { descargarBlob, formatoMonto, lineaReporteSincronizacion, lineasReporteImportacion } from './utils';
+import { IconButton } from '../../../components/ui/IconButton';
+import { InputArchivo } from '../../../components/ui/InputArchivo';
+import { useMigas } from '../../../lib/migas';
 
 interface Props {
   proyecto: Proyecto;
@@ -57,6 +60,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
   const queryClient = useQueryClient();
   const entrada = useRef<HTMLInputElement>(null);
   const [vista, setVista] = useState<'estructura' | 'ventanas' | 'tipos'>('estructura');
+  useMigas(2, [{ label: { estructura: 'Cubicador visual', ventanas: 'Ventanas', tipos: 'Tipos' }[vista] }]);
   const [config, setConfig] = useState(false);
   const [filtro, setFiltro] = useState<FiltroVentanas>({ pisoId: '', torreId: '' });
   const [panel, setPanel] = useState<ResultadoPanel | null>(null);
@@ -93,9 +97,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
     onSuccess: (blob) => descargarBlob(blob, `Planilla de cubicación ${proyecto.obra}.xlsx`),
     onError: aviso,
   });
-  const elegirArchivo = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const archivo = e.target.files?.[0];
-    e.target.value = '';
+  const elegirArchivo = ([archivo]: File[]) => {
     if (!archivo) return;
     if (!/\.xlsx$/i.test(archivo.name)) {
       mostrarToast('La planilla debe ser un archivo Excel (.xlsx).', { tipo: 'info' });
@@ -105,7 +107,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
   };
 
   const entradaArchivo = (
-    <input ref={entrada} type="file" accept=".xlsx" className="hidden" onChange={elegirArchivo} aria-label="Elegir planilla de cubicación" data-testid="planilla-cubicacion" />
+    <InputArchivo ref={entrada} accept=".xlsx" onArchivos={elegirArchivo} etiqueta="Elegir planilla de cubicación" data-testid="planilla-cubicacion" />
   );
 
   if (isLoading) {
@@ -146,9 +148,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900 space-y-1" role="status" data-testid="reporte-importacion">
           <div className="flex items-start justify-between gap-2">
             <p className="font-bold">{panel.titulo}</p>
-            <button type="button" onClick={() => setPanel(null)} className="text-emerald-700 hover:text-emerald-900 cursor-pointer" aria-label="Cerrar el resultado">
-              <X className="w-3.5 h-3.5" />
-            </button>
+            <IconButton icono={X} etiqueta="Cerrar el resultado" onClick={() => setPanel(null)} />
           </div>
           {panel.lineas.map((l, i) => (
             <p key={i}>{l}</p>
@@ -185,9 +185,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
               </div>
               <p className="text-[11px] text-slate-400">
                 ¿Ya tienes una planilla de cubicación (la de siempre)?{' '}
-                <button type="button" className="text-brand-700 hover:underline cursor-pointer" onClick={() => entrada.current?.click()}>
-                  Súbela
-                </button>
+                <Button variant="link" size="sm" onClick={() => entrada.current?.click()}>Súbela</Button>
                 .
               </p>
             </>
@@ -236,11 +234,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
             <span className="mr-2">
               Holgura: <b>{cubicacion.holguraMm} mm</b> · Nomenclatura: <b className="font-mono">{cubicacion.formatoNomenclatura}</b>
             </span>
-            {presupuesto && (
-              <Button variant="ghost" size="sm" leftIcon={<RefreshCw className="w-3.5 h-3.5" />} isLoading={sincronizar.isPending} onClick={() => sincronizar.mutate()} title="Vuelve a leer el presupuesto de HETMO (no pisa lo ya cargado)">
-                Actualizar desde el presupuesto
-              </Button>
-            )}
+            {/* Sin "Actualizar desde el presupuesto": la obra ya tiene su presupuesto aceptado y congelado; se lee una sola vez al activar. */}
             <Button variant="ghost" size="sm" leftIcon={<Settings2 className="w-3.5 h-3.5" />} onClick={() => setConfig(true)}>
               Configuración
             </Button>

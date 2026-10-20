@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight, Factory, Link2, Loader2, RefreshCw, Search, Unlink } from 'lucide-react';
+import { Factory, Link2, Loader2, RefreshCw, Search, Unlink } from 'lucide-react';
 import {
   desvincularFabricacion,
   detectarFabricaciones,
@@ -16,6 +16,9 @@ import { FasesTab } from '../FasesTab';
 import { BuscarFabricacionModal } from './BuscarFabricacionModal';
 import { FabricacionDetalle } from './FabricacionDetalle';
 import { formatoFechaHora, textoEstadoFabricacion, textoVinculacionCubicacion, varianteEstadoFabricacion } from './utils';
+import { useConfirmar } from '../../../components/ui/Confirmar';
+import { BotonColapsar } from '../../../components/ui/BotonColapsar';
+import { useMigas } from '../../../lib/migas';
 
 interface Props {
   proyecto: Proyecto;
@@ -31,6 +34,8 @@ type SubTab = 'fases' | 'documentos';
 // documentos, sin el switcher de sub-pestañas.
 export const FabricacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
   const [subTab, setSubTab] = useState<SubTab>('fases');
+  const conSubpestanas = proyecto.origen !== 'MANUAL_OBRA' && !!activeVersion;
+  useMigas(2, [conSubpestanas && { label: subTab === 'fases' ? 'Fases' : 'Documentos de fabricación' }]);
 
   if (proyecto.origen === 'MANUAL_OBRA' || !activeVersion) {
     return <DocumentosFabricacionSubTab proyecto={proyecto} />;
@@ -56,6 +61,7 @@ export const FabricacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => 
 };
 
 const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }) => {
+  const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
   const [buscando, setBuscando] = useState(false);
   const [abierto, setAbierto] = useState<string | null>(null);
@@ -113,8 +119,8 @@ const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyect
     },
   });
 
-  const confirmarDesvincular = (f: FabricacionHetmo) => {
-    if (window.confirm(`¿Desvincular "${f.descripcion || `documento ${f.hetmoId}`}" de esta obra? Solo se borra la copia local; HETMO no se modifica.`)) {
+  const confirmarDesvincular = async (f: FabricacionHetmo) => {
+    if (await confirmar({ titulo: `¿Desvincular "${f.descripcion || `documento ${f.hetmoId}`}" de esta obra?`, mensaje: `Solo se borra la copia local; HETMO no se modifica.`, confirmar: 'Desvincular', peligro: true })) {
       desvincular.mutate(f.id);
     }
   };
@@ -175,16 +181,7 @@ const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyect
             return (
               <div key={f.id} className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
                 <div className="p-4 flex flex-wrap items-center gap-3">
-                  <button
-                    onClick={() => setAbierto(expandido ? null : f.id)}
-                    className="flex items-center gap-2 min-w-0 text-left cursor-pointer flex-1 basis-full sm:basis-0"
-                    aria-expanded={expandido}
-                  >
-                    {expandido ? (
-                      <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
-                    )}
+                  <BotonColapsar abierto={expandido} onClick={() => setAbierto(expandido ? null : f.id)} className="flex-nowrap! gap-2! flex-1 basis-full sm:basis-0">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-bold text-slate-900 truncate">{f.descripcion || `Documento ${f.hetmoId}`}</span>
@@ -200,7 +197,7 @@ const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyect
                         {f.hetmoVentaId ? ` · venta ${f.hetmoVentaId}` : ''} · {f._count?.ventanas ?? 0} ventana(s) · leído {formatoFechaHora(f.sincronizadoEn)}
                       </p>
                     </div>
-                  </button>
+                  </BotonColapsar>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <Button
                       variant="ghost"

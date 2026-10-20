@@ -10,11 +10,17 @@ import { ProyectosPage } from './modules/proyectos/ProyectosPage';
 import { ComprasPage } from './modules/abastecimiento/ComprasPage';
 import { BodegaPage } from './modules/abastecimiento/BodegaPage';
 import { CentroNotificacionesPage } from './modules/notificaciones/CentroNotificacionesPage';
-import { getProyectos, getMisPermisos } from './api/client';
+import { MiConfiguracionPage } from './modules/mi-configuracion/MiConfiguracionPage';
+import { ProveedoresPage } from './modules/proveedores/ProveedoresPage';
+import { MaestroMaterialesPage } from './modules/abastecimiento/MaestroMaterialesPage';
+import { PendientesPage } from './modules/proyectos/pendientes/PendientesPage';
+import { EnConstruccionPage } from './modules/en-construccion/EnConstruccionPage';
+import { getProyectos } from './api/client';
 import { clavePresupuestos, consultarPresupuestos } from './modules/cotizaciones/presupuestosQuery';
 import { esPresupuestoPrincipal } from './lib/estadosHetmo';
 import { useCloudflareAccessSession, SessionContext } from './lib/useCloudflareAccessSession';
-import { SECCIONES_FRONTEND } from './lib/accessControl';
+import { SECCIONES_FRONTEND, entradaVisible } from './lib/accessControl';
+import { usePermisos } from './lib/permisos';
 import { mostrarToast, extraerErrorParaToast } from './lib/toast';
 import { navegar, seccionDesdePath, useLocationHref, inicializarHistorial } from './lib/navigation';
 
@@ -22,6 +28,8 @@ import { navegar, seccionDesdePath, useLocationHref, inicializarHistorial } from
 // Sidebar -- solo se llega ahi desde el menú de usuario del Header o el link de
 // un correo de aprobacion pendiente, ver puedeVerCentro mas abajo).
 const TAB_CENTRO_NOTIFICACIONES = 'centro-notificaciones';
+// Configuración personal (menú de usuario): la ve cualquier usuario con algún permiso.
+const TAB_MI_CONFIGURACION = 'mi-configuracion';
 
 // Debug global: CUALQUIER query o mutation que falle en cualquier parte de
 // la app dispara un toast (ver ToastContainer, montado en main.tsx) --
@@ -54,10 +62,14 @@ const queryClient = new QueryClient({
     // lo que esta en pantalla. No se refresca todo lo activo de inmediato
     // para no multiplicar peticiones en ediciones seguidas (ej. editar 50
     // precios en el Paso 3) y pisar el rate limit de mtw-api.
-    onSuccess: () => {
+    onSuccess: (_data, _variables, _context, mutation) => {
+      // meta.silencioso: tareas de fondo (ej. poner al día la fabricación al
+      // abrir una obra) que no son un cambio de la persona.
+      if (mutation.meta?.silencioso) return;
       queryClient.invalidateQueries({ refetchType: 'none' });
     },
     onError: (error, _variables, _context, mutation) => {
+      if (mutation.meta?.silencioso) return;
       const { mensaje, detalle } = extraerErrorParaToast(error);
       console.error('[mutationCache]', mutation.options.mutationKey, error);
       mostrarToast(mensaje, { detalle });
@@ -92,17 +104,19 @@ const queryClient = new QueryClient({
 });
 
 import { ScrollToTop } from './components/ui/ScrollToTop';
+import { ConfirmarProvider } from './components/ui/Confirmar';
 
 // Generado desde SECCIONES_FRONTEND (lib/accessControl.ts) -- una seccion
 // nueva agrega su titulo de pestaña del navegador sola, sin tocar este archivo.
 const MODULE_TITLES: Record<string, string> = {
   ...Object.fromEntries(SECCIONES_FRONTEND.map((s) => [s.id, s.label])),
   [TAB_CENTRO_NOTIFICACIONES]: 'Centro de Notificaciones',
+  [TAB_MI_CONFIGURACION]: 'Mi configuración',
 };
 
 inicializarHistorial();
 
-const SECCIONES_CONOCIDAS = new Set([...SECCIONES_FRONTEND.map((s) => s.id), TAB_CENTRO_NOTIFICACIONES]);
+const SECCIONES_CONOCIDAS = new Set([...SECCIONES_FRONTEND.map((s) => s.id), TAB_CENTRO_NOTIFICACIONES, TAB_MI_CONFIGURACION]);
 
 const AppContent: React.FC = () => {
   // La seccion activa vive en la URL (/proyectos, /compras...) -- ver
@@ -114,21 +128,15 @@ const AppContent: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const { data: permisos, isLoading: cargandoPermisos } = useQuery({
-    queryKey: ['misPermisos'],
-    queryFn: getMisPermisos,
-  });
+  const { datos: permisos, cargando: cargandoPermisos, tieneAlguno } = usePermisos();
 
-  // null = administrador, ve todo sin filtrar.
-  const seccionesPermitidas = permisos ? (permisos.esAdmin ? null : permisos.secciones) : [];
+  // Secciones que el usuario puede ver segun sus permisos (ver lib/accessControl.ts).
+  const seccionesPermitidas = SECCIONES_FRONTEND.filter((s) => entradaVisible(s, tieneAlguno)).map((s) => s.id);
   // El Centro de Notificaciones no es una seccion real (no vive en
-  // SECCIONES_FRONTEND/Sidebar) -- lo ve cualquier usuario con rol, sin
-  // importar sus secciones ni sus aprobaciones.
-  const puedeVerCentroNotificaciones = !!permisos;
+  // SECCIONES_FRONTEND/Sidebar) -- lo ve cualquier usuario con algun permiso.
+  const puedeVerCentroNotificaciones = (permisos?.permisos.length ?? 0) > 0;
   const puedeVer = (id: string) =>
-    id === TAB_CENTRO_NOTIFICACIONES
-      ? puedeVerCentroNotificaciones
-      : seccionesPermitidas === null || seccionesPermitidas.includes(id);
+    id === TAB_CENTRO_NOTIFICACIONES || id === TAB_MI_CONFIGURACION ? puedeVerCentroNotificaciones : seccionesPermitidas.includes(id);
 
   // Si el usuario no tiene acceso a la pestaña activa (recien resueltos
   // los permisos, o un rol le quito acceso a lo que estaba viendo), cae a
@@ -181,6 +189,11 @@ const AppContent: React.FC = () => {
     navegar('/cotizaciones', { cotizar: proyectoId, paso: 4 }, opts);
   };
 
+  // Abre un adicional en la seccion Adicionales de su obra.
+  const abrirAdicional = (proyectoId: string, adicionalId: string) => {
+    navegar('/proyectos', { proyecto: proyectoId, seccion: 'adicionales', adicional: adicionalId });
+  };
+
   // Deep-link desde el link "Ver Centro de Notificaciones" de los correos
   // de aprobacion pendiente (?abrir=centro, ver
   // notificarAprobacionGerencialPendiente en mtw-api) -- tambien soporta
@@ -218,14 +231,15 @@ const AppContent: React.FC = () => {
     );
   }
 
-  if (seccionesPermitidas !== null && seccionesPermitidas.length === 0) {
+  if (seccionesPermitidas.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-8">
         <div className="max-w-sm text-center space-y-2">
           <h1 className="text-sm font-black text-slate-900">Sin acceso asignado</h1>
           <p className="text-xs text-slate-500">
-            Tu cuenta ({permisos?.email}) todavía no tiene un rol asignado en MTW ERP. Pídele a un administrador que
-            te asigne uno en Configuración &gt; Roles de Usuario.
+            Tu cuenta ({permisos?.email}) todavía no tiene un rol con permisos en MTW ERP
+            {permisos && !permisos.activo ? ' (está desactivada)' : ''}. Pídele a un administrador que te asigne uno
+            en Configuración &gt; Roles de Usuario.
           </p>
         </div>
       </div>
@@ -247,8 +261,6 @@ const AppContent: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         <Header
           onOpenSidebar={() => setIsSidebarOpen(true)}
-          onNavigateHome={() => handleNavigate('inicio')}
-          onNavigateConfig={() => handleNavigate('configuracion')}
           moduleTitle={MODULE_TITLES[activeTab] || 'Inicio'}
           onNavigate={handleNavigate}
         />
@@ -273,12 +285,22 @@ const AppContent: React.FC = () => {
 
           {activeTab === 'bodega' && <BodegaPage />}
 
+          {activeTab === 'proveedores' && <ProveedoresPage />}
+
+          {activeTab === 'maestro' && <MaestroMaterialesPage />}
+
+          {activeTab === 'pendientes' && <PendientesPage />}
+
+          {(activeTab === 'fabricacion' || activeTab === 'contabilidad') && <EnConstruccionPage seccion={activeTab} titulo={MODULE_TITLES[activeTab]} />}
+
           {activeTab === 'configuracion' && (
-            <ConfiguracionPage tabsPermitidas={permisos?.esAdmin ? null : permisos?.configTabs ?? []} />
+            <ConfiguracionPage />
           )}
 
+          {activeTab === TAB_MI_CONFIGURACION && <MiConfiguracionPage />}
+
           {activeTab === TAB_CENTRO_NOTIFICACIONES && (
-            <CentroNotificacionesPage onAbrirCompras={() => handleNavigate('compras')} onAbrirCotizacion={abrirCotizacion} />
+            <CentroNotificacionesPage onAbrirCompras={() => handleNavigate('compras')} onAbrirCotizacion={abrirCotizacion} onAbrirAdicional={abrirAdicional} />
           )}
         </main>
       </div>
@@ -309,9 +331,11 @@ const SessionGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 export const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <SessionGate>
-        <AppContent />
-      </SessionGate>
+      <ConfirmarProvider>
+        <SessionGate>
+          <AppContent />
+        </SessionGate>
+      </ConfirmarProvider>
     </QueryClientProvider>
   );
 };

@@ -12,7 +12,7 @@ import { buildWindow } from '../../components/drawing/windowGeometryBuilder';
 import { buildProtexDoorSvg } from '../../components/drawing/protexDoorSvg';
 import { getAcabadoNombre } from '../../components/drawing/colorSystem';
 import * as core from '../../components/drawing/geometryCore';
-import type { PrecioVentaLinea } from '../../lib/presupuesto';
+import type { PrecioVentaLinea } from '../../../../types';
 
 // Paleta medida a pixel del documento de referencia real (Presupuesto Casa La
 // Aurora, PDF del sistema anterior): borde/franja de cabecera #bacce5, filas
@@ -290,11 +290,10 @@ function analizarVentana(v: Ventana): VentanaAnalisis {
   // social.
   const nombreProveedor = (m: MaterialVentana) =>
     (m.material?.proveedor?.nombreFantasia || m.material?.proveedor?.nombre || '').trim();
-  // HETMO escribe la familia como 'Perfileria'/'Herrajes'/'Vidrios' (ver
-  // HetmoRepository.cs en mtw-hetmo), no en mayúsculas -- comparar directo
-  // contra 'PERFILERIA' nunca calzaba y estas filas salían siempre vacías.
-  const materialesDe = (familia: string) =>
-    (v.materiales || []).filter((m) => !m.excluido && (m.material?.familia || '').toUpperCase().trim() === familia);
+  // Por el código de partida del tipo de producto (los códigos no se editan:
+  // los usan integraciones y reportes); los vidrios, por medirse por área.
+  const incluidos = (v.materiales || []).filter((m) => !m.excluido);
+  const materialesDe = (partida: string) => incluidos.filter((m) => m.material?.tipoProducto?.partida?.codigo === partida);
   const serieBase = core.profileSeries({ modelo: v.descripcionCorta || v.modelo });
   const finishNombre = getAcabadoNombre(v.acabadoCodigo, v.acabadoDescripcion);
   // Proveedor de perfil = el que aporta MÁS filas de Perfileria -- HETMO
@@ -313,7 +312,9 @@ function analizarVentana(v: Ventana): VentanaAnalisis {
     finishNombre ? `Color ${finishNombre}` : null,
     proveedorHerraje ? `Herrajes ${proveedorHerraje}` : null,
   ].filter(Boolean).join(' - ');
-  const vidrio = Array.from(new Set(materialesDe('VIDRIOS').map((m) => m.material?.descripcion || ''))).filter(Boolean).join(' + ');
+  const vidrio = Array.from(
+    new Set(incluidos.filter((m) => m.material?.tipoProducto?.medicion === 'AREA').map((m) => m.material?.descripcion || ''))
+  ).filter(Boolean).join(' + ');
   // Una línea "sin marco" (dibujoSinMarco/isFrameless -- exige material
   // coincidente Y vidrio explícito, no es un simple "vacío -> sin marco",
   // ver el comentario largo en ventanaAdapter.ts) es en los hechos solo
@@ -548,6 +549,9 @@ export interface DocumentoHtmlParams {
   logoMuchtekDataUrl: string | null;
   preciosVenta: Map<string, PrecioVentaLinea>;
   pngPorVentana: Map<string, string | null>;
+  // Otro documento con el mismo formato (ej. un adicional de ventanas).
+  titulo?: string;
+  codigoLabel?: string;
 }
 
 // Documento completo: header con logo (solo primera página) + todas las
@@ -563,7 +567,7 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
     logoDataUrl, logoMuchtekDataUrl, preciosVenta, pngPorVentana,
   } = params;
 
-  const codigoLabel = `Presupuesto - ${proyecto.codigoInterno || proyecto.numeroPresupuesto}`;
+  const codigoLabel = params.codigoLabel ?? `Presupuesto - ${proyecto.codigoInterno || proyecto.numeroPresupuesto}`;
   const fechaLabel = new Date().toLocaleDateString('es-CL');
   const clienteNombre = proyecto.cliente?.nombre || proyecto.clienteNombreRaw;
   // Mismo patron de fallback que clienteNombre: si el cliente esta
@@ -575,7 +579,7 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
   const clienteComuna = proyecto.cliente?.localidad || proyecto.clienteLocalidadRaw;
   const clienteContacto = proyecto.cliente?.contacto || null;
 
-  const logoImg = logoDataUrl ? `<img src="${logoDataUrl}" style="width:101px;height:46px;display:block;margin-bottom:12px;" />` : '';
+  const logoImg = logoDataUrl ? `<img src="${logoDataUrl}" style="max-width:101px;max-height:46px;width:auto;height:auto;object-fit:contain;display:block;margin-bottom:12px;" />` : '';
   // En el documento de referencia el logo de Muchtek (Tecnoperfiles Group,
   // el proveedor del perfil) va arriba a la derecha, a la misma altura
   // que el logo de MTW -- solo en la primera página.
@@ -621,7 +625,7 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
     <div style="height:4px;background:${HEX.rojo};"></div>
     <div style="padding:20px 42px 0 42px;">
       ${logosHeaderHtml}
-      <div style="font-size:19px;font-weight:bold;color:${HEX.navy};margin-bottom:10px;">Oferta Cliente</div>
+      <div style="font-size:19px;font-weight:bold;color:${HEX.navy};margin-bottom:10px;">${escapeHtml(params.titulo ?? 'Oferta Cliente')}</div>
       <div style="border-top:1px solid ${HEX.borde};margin-bottom:16px;"></div>
       <table style="width:100%;margin-bottom:10px;"><tr>
         <td style="font-size:10px;font-weight:bold;color:${HEX.navy};">${escapeHtml(codigoLabel)}</td>
@@ -844,6 +848,7 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
 export interface HeaderFooterTemplatesParams {
   proyecto: Proyecto;
   logoDataUrl: string | null;
+  codigoLabel?: string;
   footerWebUrl?: string | null;
   footerWebLabel?: string | null;
   footerInstagramUrl?: string | null;
@@ -861,7 +866,7 @@ export interface HeaderFooterTemplatesParams {
 // para el detalle de por qué hace falta ese rodeo.
 export function buildHeaderFooterTemplates(params: HeaderFooterTemplatesParams): { headerTemplate: string; footerTemplate: string } {
   const { proyecto, footerWebUrl, footerWebLabel, footerInstagramUrl, footerInstagramHandle } = params;
-  const codigoLabel = `Presupuesto - ${proyecto.codigoInterno || proyecto.numeroPresupuesto}`;
+  const codigoLabel = params.codigoLabel ?? `Presupuesto - ${proyecto.codigoInterno || proyecto.numeroPresupuesto}`;
   const fechaLabel = new Date().toLocaleDateString('es-CL');
 
   // Puppeteer renderiza headerTemplate/footerTemplate en un documento

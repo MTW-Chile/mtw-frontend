@@ -535,7 +535,8 @@ describe('buildWindow — nivel 2 vía parametrosJson', () => {
     // branch que dibuja columnas fijas exigía `verticalCuts.length > 1`
     // (2+ cortes, es decir 3+ vidrios): con exactamente 1 corte (2 vidrios,
     // el caso más común) nunca se activaba y el paño fijo se dibujaba
-    // entero, sin el travesaño vertical que muestra HETMO.
+    // entero, sin el travesaño vertical que muestra HETMO. Desde v2.0.2 el
+    // paño fijo dibuja sus propios cortes verticales (cortesFijos).
     const v = ventana({
       anchoMm: 2600,
       altoMm: 1760,
@@ -550,7 +551,10 @@ describe('buildWindow — nivel 2 vía parametrosJson', () => {
       materiales: [materialDescrito('CARRO VENTO SIMP VE180', { cantidad: 8, piezas: 8 })],
     });
     const result = buildWindow(toWindowLine(v)!, 'line');
-    expect(result.svg).toContain('window-sash-divider');
+    // El travesaño vertical del paño fijo: una barra de arriba a abajo.
+    const vertical = [...result.svg.matchAll(/class="window-transom"[\s\S]*?<line x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)" y2="([\d.]+)"/g)]
+      .find(match => Math.abs(Number(match[1]) - Number(match[3])) < 0.01 && Math.abs(Number(match[2]) - Number(match[4])) > 1);
+    expect(vertical).toBeDefined();
   });
 
   it('toda hoja que abre lleva bisagras aunque HETMO no declare el herraje', () => {

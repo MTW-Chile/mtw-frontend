@@ -1,8 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { RotateCcw, Check, MoveHorizontal, Maximize2, Loader2, ArrowLeft, ArrowRight, Minus, EyeOff } from 'lucide-react';
+import { RotateCcw, Check, MoveHorizontal, Maximize2, ArrowLeft, ArrowRight, Minus, EyeOff } from 'lucide-react';
 import type { Ventana, CorreccionGeometria, CorreccionHoja, SentidoMovimientoHoja } from '../../../../types';
 import * as core from '../../components/drawing/geometryCore';
 import { updateVentanaCorreccionGeometria, deleteVentanaCorreccionGeometria } from '../../../../api/client';
+import { Aviso } from '../../../../components/ui/Aviso';
+import { Button } from '../../../../components/ui/Button';
+import { Select } from '../../../../components/ui/Select';
+import { InputCompacto } from '../../../../components/ui/Campos';
+import { Segmentado } from '../../../../components/ui/Segmentado';
+import { useConfirmar } from '../../../../components/ui/Confirmar';
 
 export interface CorrederaDraft {
   apertura: number;
@@ -18,6 +24,7 @@ interface CorrederaEditorProps {
 
 /** Editor de apertura, carriles y sentidos de las hojas de una corredera (embebido en EditarLineaModal). */
 export const CorrederaEditor: React.FC<CorrederaEditorProps> = ({ ventana, onDraftChange, onSaved }) => {
+  const { confirmar } = useConfirmar();
   // Catálogo de aperturas de corredera
   const slidingApertures = useMemo(() => {
     return Object.entries(core.apertureCatalog)
@@ -159,9 +166,12 @@ export const CorrederaEditor: React.FC<CorrederaEditorProps> = ({ ventana, onDra
 
   // Restablecer a original HETMO
   const handleRestoreOriginal = async () => {
-    if (!window.confirm('¿Deseas restablecer esta corredera a la geometría y apertura original importada desde HETMO?')) {
-      return;
-    }
+    const ok = await confirmar({
+      titulo: '¿Restablecer la corredera?',
+      mensaje: 'Vuelve a la geometría y apertura original importada desde HETMO.',
+      confirmar: 'Restablecer',
+    });
+    if (!ok) return;
     setIsSaving(true);
     setErrorMessage(null);
     try {
@@ -180,23 +190,15 @@ export const CorrederaEditor: React.FC<CorrederaEditorProps> = ({ ventana, onDra
 
   return (
     <div className="space-y-4">
-      {errorMessage && <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs">{errorMessage}</div>}
+      {errorMessage && <Aviso tono="peligro">{errorMessage}</Aviso>}
       {/* 1. Selector de Tipo de Apertura */}
             <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-2">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                1. Tipo de Apertura (Catálogo HETMO)
-              </label>
-              <select
-                value={selectedAperture}
+              <Select
+                label="1. Tipo de apertura (catálogo HETMO)"
+                value={String(selectedAperture)}
                 onChange={(e) => handleApertureChange(Number(e.target.value))}
-                className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white transition-colors cursor-pointer"
-              >
-                {slidingApertures.map((ap) => (
-                  <option key={ap.code} value={ap.code}>
-                    Código {ap.code} · {ap.label} ({ap.leafCount} {ap.leafCount === 1 ? 'hoja' : 'hojas'})
-                  </option>
-                ))}
-              </select>
+                options={slidingApertures.map((ap) => ({ value: String(ap.code), label: `Código ${ap.code} · ${ap.label} (${ap.leafCount} ${ap.leafCount === 1 ? 'hoja' : 'hojas'})` }))}
+              />
             </div>
 
             {/* 2. Configuración de Hojas */}
@@ -205,14 +207,9 @@ export const CorrederaEditor: React.FC<CorrederaEditorProps> = ({ ventana, onDra
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                   2. Configuración de Hojas ({draftHojas.length})
                 </label>
-                <button
-                  type="button"
-                  onClick={handleEqualizeWidths}
-                  className="text-[11px] font-semibold text-brand-600 hover:underline cursor-pointer flex items-center gap-1"
-                >
-                  <Maximize2 className="w-3 h-3" />
-                  <span>Repartir anchos iguales</span>
-                </button>
+                <Button variant="link" size="sm" onClick={handleEqualizeWidths} leftIcon={<Maximize2 className="w-3 h-3" />}>
+                  Repartir anchos iguales
+                </Button>
               </div>
 
               <div className="space-y-3">
@@ -260,16 +257,17 @@ export const CorrederaEditor: React.FC<CorrederaEditorProps> = ({ ventana, onDra
                           <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                             Ancho (mm)
                           </label>
-                          <input
-                            type="number"
-                            min={50}
-                            max={10000}
-                            step={1}
-                            value={hoja.ancho || ''}
-                            onChange={(e) => updateHoja(idx, { ancho: Number(e.target.value) || 0 })}
-                            disabled={isHidden}
-                            className="w-full px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-brand-600 focus:bg-white disabled:bg-slate-100 disabled:text-slate-400"
-                          />
+                          <InputCompacto
+                           aria-label={`Ancho de la hoja ${idx + 1}`}
+                           type="number"
+                           min={50}
+                           max={10000}
+                           step={1}
+                           value={hoja.ancho || ''}
+                           onChange={(e) => updateHoja(idx, { ancho: Number(e.target.value) || 0 })}
+                           disabled={isHidden}
+                           className="w-full font-bold"
+                         />
                         </div>
 
                         {/* Selector de Carril */}
@@ -277,36 +275,18 @@ export const CorrederaEditor: React.FC<CorrederaEditorProps> = ({ ventana, onDra
                           <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                             Carril / Riel
                           </label>
-                          <div className="grid grid-cols-4 gap-1">
-                            {[
-                              { num: 1, label: 'C1 (Int)' },
-                              { num: 2, label: 'C2' },
-                              { num: 3, label: 'C3 (Ext)' },
-                              { num: 0, label: 'Ocultar' },
-                            ].map((opt) => (
-                              <button
-                                key={opt.num}
-                                type="button"
-                                onClick={() => updateHoja(idx, { carril: opt.num })}
-                                className={`py-1.5 px-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer border text-center ${
-                                  hoja.carril === opt.num
-                                    ? opt.num === 0
-                                      ? 'bg-slate-800 text-white border-slate-800 shadow-xs'
-                                      : 'bg-brand-600 text-white border-brand-600 shadow-xs'
-                                    : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
-                                }`}
-                              >
-                                {opt.num === 0 ? (
-                                  <span className="flex items-center justify-center gap-1">
-                                    <EyeOff className="w-3 h-3" />
-                                    <span>Ocultar</span>
-                                  </span>
-                                ) : (
-                                  opt.label
-                                )}
-                              </button>
-                            ))}
-                          </div>
+                          <Segmentado
+                            tamano="xs"
+                            etiqueta={`Carril de la hoja ${idx + 1}`}
+                            valor={hoja.carril}
+                            onChange={(carril) => updateHoja(idx, { carril })}
+                            opciones={[
+                              { value: 1, label: 'C1 (int)' },
+                              { value: 2, label: 'C2' },
+                              { value: 3, label: 'C3 (ext)' },
+                              { value: 0, label: 'Ocultar', icono: EyeOff },
+                            ]}
+                          />
                         </div>
 
                         {/* Sentido de Movimiento */}
@@ -315,32 +295,18 @@ export const CorrederaEditor: React.FC<CorrederaEditorProps> = ({ ventana, onDra
                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                               Sentido de Movimiento
                             </label>
-                            <div className="grid grid-cols-4 gap-2">
-                              {[
-                                { val: 'fija' as SentidoMovimientoHoja, label: 'Fija', icon: Minus },
-                                { val: 'izquierda' as SentidoMovimientoHoja, label: 'Izquierda', icon: ArrowLeft },
-                                { val: 'derecha' as SentidoMovimientoHoja, label: 'Derecha', icon: ArrowRight },
-                                { val: 'ambos' as SentidoMovimientoHoja, label: 'Ambos lados', icon: MoveHorizontal },
-                              ].map((opt) => {
-                                const Icon = opt.icon;
-                                const isActive = hoja.movimiento === opt.val;
-                                return (
-                                  <button
-                                    key={opt.val}
-                                    type="button"
-                                    onClick={() => updateHoja(idx, { movimiento: opt.val })}
-                                    className={`py-1.5 px-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer border ${
-                                      isActive
-                                        ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
-                                    }`}
-                                  >
-                                    <Icon className="w-3.5 h-3.5" />
-                                    <span>{opt.label}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
+                            <Segmentado
+                              tamano="xs"
+                              etiqueta={`Movimiento de la hoja ${idx + 1}`}
+                              valor={hoja.movimiento}
+                              onChange={(movimiento) => updateHoja(idx, { movimiento })}
+                              opciones={[
+                                { value: 'fija' as SentidoMovimientoHoja, label: 'Fija', icono: Minus },
+                                { value: 'izquierda' as SentidoMovimientoHoja, label: 'Izquierda', icono: ArrowLeft },
+                                { value: 'derecha' as SentidoMovimientoHoja, label: 'Derecha', icono: ArrowRight },
+                                { value: 'ambos' as SentidoMovimientoHoja, label: 'Ambos lados', icono: MoveHorizontal },
+                              ]}
+                            />
                           </div>
                         )}
                       </div>
@@ -351,24 +317,12 @@ export const CorrederaEditor: React.FC<CorrederaEditorProps> = ({ ventana, onDra
             </div>
 
       <div className="flex items-center justify-between gap-2 pt-1">
-        <button
-          type="button"
-          onClick={handleRestoreOriginal}
-          disabled={isSaving || !ventana.correccionGeometria}
-          className="text-[11px] font-bold text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-200/60 cursor-pointer"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Restablecer a original HETMO</span>
-        </button>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={isSaving || !dirty}
-          className="px-4 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-          <span>Guardar apertura</span>
-        </button>
+        <Button variant="ghost" size="sm" onClick={handleRestoreOriginal} disabled={isSaving || !ventana.correccionGeometria} leftIcon={<RotateCcw className="w-3.5 h-3.5" />}>
+          Restablecer a original HETMO
+        </Button>
+        <Button size="sm" onClick={handleSave} disabled={!dirty} isLoading={isSaving} leftIcon={<Check className="w-3.5 h-3.5" />}>
+          Guardar apertura
+        </Button>
       </div>
     </div>
   );

@@ -1,34 +1,24 @@
 import React, { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Loader2,
-  Layers,
-  Plus,
-  Pencil,
-  Trash2,
-  AlertCircle,
-  X as XIcon,
-  Search,
-  Sparkles,
-  ChevronDown,
-  ChevronRight,
-  ShoppingCart,
-  Package,
-  FileSpreadsheet,
-} from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Loader2, Layers, Plus, Pencil, Trash2, AlertCircle, X as XIcon, Search, Sparkles, ShoppingCart, Package, FileSpreadsheet } from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { StatCard } from '../../components/ui/StatCard';
-import { createFase, updateFase, deleteFase, descargarInformeHetmoFase, getBodegaProyecto } from '../../api/client';
+import { createFase, updateFase, deleteFase, descargarInformeHetmoFase } from '../../api/client';
 import { extraerErrorParaToast, mostrarToast } from '../../lib/toast';
-import { useMonedas } from '../../lib/monedas';
-import { computeMaterialesFasePorProveedor } from '../cotizaciones/lib/materialesConsolidados';
-import { CATEGORIA_GASTO_LABEL } from '../abastecimiento/categoriaGasto';
+import { useRequerimientosFases } from '../cotizaciones/lib/useAnalitica';
 import { NuevaOrdenCompraModal } from '../abastecimiento/NuevaOrdenCompraModal';
 import { SelectorFaseDesdeCubicacion } from './cubicacion/SelectorFaseDesdeCubicacion';
 import { descargarBlob } from './cubicacion/utils';
-import type { CategoriaGasto, Fase, Proyecto, ProyectoVersion, SeleccionFaseCubicacion } from '../../types';
+import type { Fase, Proyecto, ProyectoVersion, SeleccionFaseCubicacion } from '../../types';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
+import { useConfirmar } from '../../components/ui/Confirmar';
+import { BotonColapsar } from '../../components/ui/BotonColapsar';
+import { Segmentado } from '../../components/ui/Segmentado';
+import { IconButton } from '../../components/ui/IconButton';
+import { Aviso } from '../../components/ui/Aviso';
+import { InputCompacto } from '../../components/ui/Campos';
 
 const formatoMoneda = (valor: number) => valor.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
@@ -62,6 +52,8 @@ interface FilaVentana {
 // ventana nunca puede superar el total de esa linea (el backend lo valida
 // igual, esto es feedback antes de mandar el request).
 export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVersion }> = ({ proyecto, activeVersion }) => {
+  const { confirmar } = useConfirmar();
+  // Quien puede emitir OC genera la OC completa; si no, la solicita a Compras.
   const queryClient = useQueryClient();
   const [editando, setEditando] = useState<'nueva' | string | null>(null);
   const [nombre, setNombre] = useState('');
@@ -78,8 +70,8 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
   const [busqueda, setBusqueda] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [expandidas, setExpandidas] = useState<Set<string>>(new Set());
-  const [ocParaFase, setOcParaFase] = useState<{ fase: Fase; categoria: string } | null>(null);
-  const monedas = useMonedas();
+  // partida: codigo de la partida cuyos items precarga la solicitud.
+  const [ocParaFase, setOcParaFase] = useState<{ fase: Fase; partida: string } | null>(null);
 
   const ventanas = activeVersion?.ventanas || [];
   const todasLasFases = activeVersion?.fases || [];
@@ -125,74 +117,47 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
     return { totalUnidades, planificado, sinPlanificar: totalUnidades - planificado };
   }, [filas]);
 
-  // Stock ya disponible para no sugerir comprar de nuevo algo que ya esta
-  // ahi -- bodega propia (ya reservado, no requiere accion) y Obras
-  // Mayores (se reserva de verdad con un traslado real al generar la OC,
-  // ver computeMaterialesFasePorProveedor y trasladosDesdeObrasMayores en
-  // NuevaOrdenCompraModal). Ojo: estos mapas se calculan UNA vez y se
-  // restan igual para cada fase de abajo -- si dos fases necesitan el
-  // mismo material, ambas ven el mismo stock disponible sin "reservarlo"
-  // entre si a nivel de este resumen (el traslado real solo ocurre cuando
-  // se genera una OC puntual).
-  const { data: bodegaData } = useQuery({
-    queryKey: ['bodegaProyecto', proyecto.id],
-    queryFn: () => getBodegaProyecto(proyecto.id),
-  });
-  const mapaStock = (rows: { materialId: string; cantidad: number }[] | undefined) => {
-    const mapa = new Map<string, number>();
-    (rows || []).forEach((s) => mapa.set(s.materialId, (mapa.get(s.materialId) || 0) + Number(s.cantidad)));
-    return mapa;
+  // Materiales por fase real (GET /fases/:id/requerimiento de mtw-api, el
+  // mismo calculo que Abastecimiento > Nueva OC): cantidad prorrateada de la
+  // Analitica, ya neta del stock de la bodega de la obra y de Obras Mayores.
+  // Ojo: cada fase ve el mismo stock disponible sin "reservarlo" entre si
+  // (el traslado real solo ocurre cuando se genera una OC puntual). Se pide
+  // para todas las fases reales de una porque el resumen se muestra siempre.
+  type ItemFase = {
+    descripcion: string;
+    proveedorNombre: string;
+    unidad: string;
+    cantidad: number;
+    stockDisponible: number;
+    precioUnitario: number;
+    referenciaVentana: string | null;
+    sinMedidas: boolean;
   };
-  const stockProyectoPorMaterial = useMemo(() => mapaStock(bodegaData?.stock), [bodegaData]);
-  const stockObrasMayoresPorMaterial = useMemo(() => mapaStock(bodegaData?.stockObrasMayores), [bodegaData]);
-
-  // Materiales calculados por fase real (misma logica que Abastecimiento >
-  // Nueva OC, ver computeMaterialesFasePorProveedor) -- de aca sale tanto el
-  // resumen por categoria como los items individuales que "Generar OC"
-  // precarga. Se calcula para todas las fases reales de una, no una por
-  // una al expandir, porque el resumen se muestra siempre (no solo al
-  // expandir el detalle). Ya neta de stock disponible.
-  const tasaDolar = Number(activeVersion?.tipoCambioDolar) || 950;
-  const tasaUf = Number(activeVersion?.tipoCambioUF) || 38500;
-  const tasaEuro = Number(activeVersion?.tipoCambioEuro) || 1030;
+  const requerimientos = useRequerimientosFases(
+    proyecto.id,
+    fasesReales.map((f) => f.id)
+  );
   const materialesPorFase = useMemo(() => {
-    type ItemFase = { descripcion: string; proveedorNombre: string; unidadMedida: string; cantidad: number; stockDisponible: number; precioUnitario: number };
-    const map = new Map<
-      string,
-      { montoTotal: number; categorias: { familia: string; monto: number; items: ItemFase[] }[] }
-    >();
-    fasesReales.forEach((fase) => {
-      const { grupos } = computeMaterialesFasePorProveedor(
-        activeVersion,
-        fase,
-        tasaDolar,
-        tasaEuro,
-        tasaUf,
-        monedas,
-        stockProyectoPorMaterial,
-        stockObrasMayoresPorMaterial
+    const map = new Map<string, { montoTotal: number; partidas: { codigo: string; nombre: string; monto: number; items: ItemFase[] }[] }>();
+    fasesReales.forEach((fase, i) => {
+      const req = requerimientos[i]?.data;
+      if (!req) return;
+      const porPartida = new Map<string, { codigo: string; nombre: string; monto: number; items: ItemFase[] }>();
+      req.grupos.forEach((g) =>
+        g.items.forEach((it) => {
+          const acc = porPartida.get(it.partida.codigo) || { ...it.partida, monto: 0, items: [] };
+          acc.monto += it.cantidad * it.precioUnitario;
+          acc.items.push({ ...it, proveedorNombre: g.proveedorNombre });
+          porPartida.set(it.partida.codigo, acc);
+        })
       );
-      const itemsFlat = grupos.flatMap((g) => g.items.map((it) => ({ ...it, proveedorNombre: g.proveedorNombre })));
-      const porCategoria = new Map<string, { monto: number; items: ItemFase[] }>();
-      itemsFlat.forEach((it) => {
-        const acc = porCategoria.get(it.familia) || { monto: 0, items: [] };
-        acc.monto += it.cantidad * it.precioUnitario;
-        acc.items.push(it);
-        porCategoria.set(it.familia, acc);
-      });
-      const categorias = [...porCategoria.entries()]
-        .map(([familia, v]) => ({ familia, monto: v.monto, items: v.items }))
-        .sort((a, b) => b.monto - a.monto);
-      map.set(fase.id, {
-        montoTotal: categorias.reduce((sum, c) => sum + c.monto, 0),
-        categorias,
-      });
+      const partidas = [...porPartida.values()].sort((a, b) => b.monto - a.monto);
+      map.set(fase.id, { montoTotal: partidas.reduce((sum, c) => sum + c.monto, 0), partidas });
     });
     return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fasesReales, activeVersion, tasaDolar, tasaEuro, tasaUf, monedas, stockProyectoPorMaterial, stockObrasMayoresPorMaterial]);
+  }, [fasesReales, requerimientos]);
 
-  // Expandidas se guarda como "faseId:familia" -- cada categoria se
+  // Expandidas se guarda como "faseId:partida" -- cada partida se
   // despliega de forma independiente, no toda la fase junta.
   const toggleExpandida = (key: string) =>
     setExpandidas((prev) => {
@@ -383,17 +348,10 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
           <div className="p-4 border-b border-slate-100 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold text-slate-800">{editando === 'nueva' ? 'Nueva fase' : 'Editar fase'}</h3>
-              <button onClick={resetForm} className="text-slate-400 hover:text-slate-700">
-                <XIcon className="w-4 h-4" />
-              </button>
+              <IconButton icono={XIcon} etiqueta="Cerrar el formulario" onClick={resetForm} />
             </div>
 
-            {error && (
-              <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                {error}
-              </div>
-            )}
+            {error && <Aviso tono="peligro">{error}</Aviso>}
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Input label="Nombre" placeholder="Ej. Torre Norte" value={nombre} onChange={(e) => setNombre(e.target.value)} />
@@ -402,22 +360,16 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
             </div>
 
             {esNueva && (
-              <div className="flex items-center gap-2 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setModoCreacion('cubicacion')}
-                  className={`px-2.5 py-1 rounded-lg font-bold cursor-pointer ${modoCreacion === 'cubicacion' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                >
-                  Desde la cubicación
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setModoCreacion('manual')}
-                  className={`px-2.5 py-1 rounded-lg font-bold cursor-pointer ${modoCreacion === 'manual' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                >
-                  Ventanas individuales (sin cubicar)
-                </button>
-              </div>
+              <Segmentado
+                tamano="xs"
+                etiqueta="Cómo elegir las ventanas"
+                valor={modoCreacion}
+                onChange={setModoCreacion}
+                opciones={[
+                  { value: 'cubicacion', label: 'Desde la cubicación' },
+                  { value: 'manual', label: 'Ventanas individuales (sin cubicar)' },
+                ]}
+              />
             )}
           </div>
 
@@ -443,57 +395,56 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                 />
               </div>
 
-              <div className="max-h-96 overflow-auto">
-                <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-slate-50/95 backdrop-blur">
-                    <tr className="border-b border-slate-100 text-left text-slate-500 uppercase tracking-wider text-[10px]">
-                      <th className="px-4 py-2.5 font-bold">Línea</th>
-                      <th className="px-4 py-2.5 font-bold text-right">Total</th>
-                      <th className="px-4 py-2.5 font-bold text-right">En otras fases</th>
-                      <th className="px-4 py-2.5 font-bold text-right">Restante</th>
-                      <th className="px-4 py-2.5 font-bold text-right w-28">En esta fase</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <div className="max-h-96 overflow-hidden">
+                <Tabla>
+                  <Thead>
+                    <Tr className="border-b border-slate-100 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                      <Th className="font-bold">Línea</Th>
+                      <Th alinear="derecha" className="font-bold">Total</Th>
+                      <Th alinear="derecha" className="font-bold">En otras fases</Th>
+                      <Th alinear="derecha" className="font-bold">Restante</Th>
+                      <Th alinear="derecha" className="font-bold w-28">En esta fase</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
                     {filasFiltradas.map((f) => {
                       const asignadaAqui = Number(cantidades[f.ventanaId]) || 0;
                       const restante = f.unidadesTotal - f.asignadoOtrasFases;
                       const excedida = asignadaAqui > restante;
                       return (
-                        <tr key={f.ventanaId} className="border-b border-slate-50 hover:bg-slate-50/50">
-                          <td className="px-4 py-2 text-slate-700">
+                        <Tr key={f.ventanaId} className="border-b border-slate-50 hover:bg-slate-50/50">
+                          <Td className="text-slate-700">
                             <span className="font-mono text-slate-400 mr-1.5">#{f.lineaHetmo}</span>
                             {f.modelo}
                             {f.descripcionCorta && <span className="text-slate-400"> · {f.descripcionCorta}</span>}
-                          </td>
-                          <td className="px-4 py-2 text-right font-mono text-slate-600">{f.unidadesTotal}</td>
-                          <td className="px-4 py-2 text-right font-mono text-slate-500">{f.asignadoOtrasFases}</td>
-                          <td className={`px-4 py-2 text-right font-mono font-semibold ${restante <= 0 ? 'text-slate-300' : 'text-slate-700'}`}>
+                          </Td>
+                          <Td alinear="derecha" className="font-mono text-slate-600">{f.unidadesTotal}</Td>
+                          <Td alinear="derecha" className="font-mono text-slate-500">{f.asignadoOtrasFases}</Td>
+                          <Td className={`px-4 py-2 text-right font-mono font-semibold ${restante <= 0 ? 'text-slate-300' : 'text-slate-700'}`}>
                             {restante}
-                          </td>
-                          <td className="px-4 py-2 text-right">
-                            <input
+                          </Td>
+                          <Td alinear="derecha">
+                            <InputCompacto
+                              aria-label="Cantidad en esta fase"
                               type="number"
                               min={0}
                               value={cantidades[f.ventanaId] || ''}
                               onChange={(e) => setCantidades((prev) => ({ ...prev, [f.ventanaId]: e.target.value }))}
-                              className={`w-20 text-right text-xs border rounded-lg px-2 py-1 outline-none ${
-                                excedida ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-slate-200 focus:border-brand-600'
-                              }`}
+                              className={`w-20 text-right ${excedida ? 'border-rose-400 bg-rose-50 text-rose-700' : ''}`}
                             />
-                          </td>
-                        </tr>
+                          </Td>
+                        </Tr>
                       );
                     })}
                     {filasFiltradas.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+                      <Tr>
+                        <Td colSpan={5} alinear="centro" className="py-8 text-slate-400">
                           Sin líneas que calcen con la búsqueda.
-                        </td>
-                      </tr>
+                        </Td>
+                      </Tr>
                     )}
-                  </tbody>
-                </table>
+                  </Tbody>
+                </Tabla>
               </div>
             </>
           )}
@@ -582,8 +533,8 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                       size="sm"
                       variant="ghost"
                       leftIcon={eliminarMutation.isPending && eliminarMutation.variables === fase.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                      onClick={() => {
-                        if (window.confirm(`¿Eliminar la fase "${fase.nombre}"?`)) eliminarMutation.mutate(fase.id);
+                      onClick={async () => {
+                        if (await confirmar({ titulo: `¿Eliminar la fase "${fase.nombre}"?`, confirmar: 'Eliminar', peligro: true })) eliminarMutation.mutate(fase.id);
                       }}
                       className="text-rose-500 hover:text-rose-700 hover:bg-rose-50"
                     >
@@ -592,96 +543,90 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                   </div>
                 </div>
 
-                {/* Resumen de materiales por categoria -- misma logica de
-                    precio/cantidad que Abastecimiento > Nueva OC, ver
-                    computeMaterialesFasePorProveedor. Cada categoria se
-                    despliega y genera su OC de forma independiente: una OC
-                    es de un solo proveedor, asi que mezclar categorias
-                    (que pueden ser de proveedores distintos) en un solo
-                    boton no tendria sentido. */}
+                {/* Resumen de materiales por partida -- el mismo
+                    requerimiento que usa Abastecimiento > Nueva OC. Cada
+                    partida se despliega y genera su solicitud de forma
+                    independiente. */}
                 <div className="pt-3 border-t border-slate-100 space-y-2">
-                  {!infoMateriales || infoMateriales.categorias.length === 0 ? (
+                  {!infoMateriales || infoMateriales.partidas.length === 0 ? (
                     <p className="text-[11px] text-slate-400">
                       Sin materiales calculados todavía para esta fase (asegúrate de que tenga líneas asignadas arriba).
                     </p>
                   ) : (
                     <>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Materiales por categoría</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Materiales por partida</span>
                         <span className="text-[11px] font-bold text-slate-900 whitespace-nowrap">
                           Total: {formatoMoneda(infoMateriales.montoTotal)}
                         </span>
                       </div>
 
                       <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
-                        {infoMateriales.categorias.map((c) => {
-                          const key = `${fase.id}:${c.familia}`;
+                        {infoMateriales.partidas.map((c) => {
+                          const key = `${fase.id}:${c.codigo}`;
                           const expandidaCat = expandidas.has(key);
                           return (
-                            <div key={c.familia} className="bg-white">
+                            <div key={c.codigo} className="bg-white">
                               <div className="flex items-center justify-between gap-2 px-3 py-2 flex-wrap">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleExpandida(key)}
-                                  className="flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-brand-600 transition-colors cursor-pointer"
-                                >
-                                  {expandidaCat ? <ChevronDown className="w-3.5 h-3.5 text-slate-400" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400" />}
-                                  {CATEGORIA_GASTO_LABEL[c.familia as CategoriaGasto] || c.familia}
+                                <BotonColapsar abierto={expandidaCat} onClick={() => toggleExpandida(key)} className="text-xs font-bold text-slate-700 hover:text-brand-600">
+                                  {c.nombre}
                                   <span className="font-mono font-normal text-slate-400">
                                     · {c.items.length} item{c.items.length === 1 ? '' : 's'}
                                   </span>
-                                </button>
+</BotonColapsar>
                                 <div className="flex items-center gap-2">
                                   <span className="font-mono font-bold text-slate-800 text-[11px]">{formatoMoneda(c.monto)}</span>
                                   <Button
                                     size="sm"
                                     variant="outline"
                                     leftIcon={<ShoppingCart className="w-3.5 h-3.5" />}
-                                    onClick={() => setOcParaFase({ fase, categoria: c.familia })}
+                                    onClick={() => setOcParaFase({ fase, partida: c.codigo })}
                                   >
-                                    Solicitud de Materiales
+                                    Solicitar materiales
                                   </Button>
                                 </div>
                               </div>
 
                               {expandidaCat && (
-                                <div className="overflow-x-auto border-t border-slate-100">
-                                  <table className="w-full text-[11px]">
-                                    <thead className="bg-slate-50/80">
-                                      <tr className="text-left text-slate-400 uppercase tracking-wider">
-                                        <th className="px-3 py-1.5 font-bold">Item</th>
-                                        <th className="px-3 py-1.5 font-bold">Proveedor</th>
-                                        <th className="px-3 py-1.5 font-bold text-right">Cantidad</th>
-                                        <th className="px-3 py-1.5 font-bold text-right">Precio unit.</th>
-                                        <th className="px-3 py-1.5 font-bold text-right">Subtotal</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
+                                <div className="border-t border-slate-100 overflow-hidden">
+                                  <Tabla>
+                                    <Thead>
+                                      <Tr className="text-left text-slate-400 uppercase tracking-wider">
+                                        <Th className="font-bold">Item</Th>
+                                        <Th className="font-bold">Proveedor</Th>
+                                        <Th alinear="derecha" className="font-bold">Cantidad</Th>
+                                        <Th alinear="derecha" className="font-bold">Precio unit.</Th>
+                                        <Th alinear="derecha" className="font-bold">Subtotal</Th>
+                                      </Tr>
+                                    </Thead>
+                                    <Tbody>
                                       {c.items.map((it, i) => (
-                                        <tr key={i} className="border-t border-slate-100/80">
-                                          <td className="px-3 py-1.5 text-slate-700">
+                                        <Tr key={i} className="border-t border-slate-100/80">
+                                          <Td className="text-slate-700">
                                             <span className="flex items-center gap-1.5">
                                               <Package className="w-3 h-3 text-sky-500 shrink-0" />
                                               {it.descripcion}
                                             </span>
-                                          </td>
-                                          <td className="px-3 py-1.5 text-slate-500">{it.proveedorNombre}</td>
-                                          <td className="px-3 py-1.5 text-right font-mono text-slate-700">
-                                            {it.cantidad.toLocaleString('es-CL', { maximumFractionDigits: 2 })} {it.unidadMedida}
+                                            {it.referenciaVentana && <span className="block pl-[18px] text-[10px] text-slate-400">{it.referenciaVentana}</span>}
+                                            {it.sinMedidas && <span className="block pl-[18px] text-[10px] text-amber-700">Sin medidas de HETMO todavía: va por m²</span>}
+                                          </Td>
+                                          <Td className="text-slate-500">{it.proveedorNombre}</Td>
+                                          <Td alinear="derecha" className="font-mono text-slate-700">
+                                            {it.cantidad.toLocaleString('es-CL', { maximumFractionDigits: 2 })} {it.unidad}
                                             {it.stockDisponible > 0 && (
                                               <span className="block text-[10px] text-emerald-600 font-normal">
                                                 ya tenías {it.stockDisponible.toLocaleString('es-CL', { maximumFractionDigits: 2 })} en stock
                                               </span>
                                             )}
-                                          </td>
-                                          <td className="px-3 py-1.5 text-right font-mono text-slate-700">{formatoMoneda(it.precioUnitario)}</td>
-                                          <td className="px-3 py-1.5 text-right font-mono font-semibold text-slate-900">
+                                          </Td>
+                                          <Td alinear="derecha" className="font-mono text-slate-700">{formatoMoneda(it.precioUnitario)}</Td>
+                                          <Td alinear="derecha" className="font-mono font-semibold text-slate-900">
                                             {formatoMoneda(it.cantidad * it.precioUnitario)}
-                                          </td>
-                                        </tr>
+                                          </Td>
+                                        </Tr>
                                       ))}
-                                    </tbody>
-                                  </table>
+                                    </Tbody>
+                                  </Tabla>
                                 </div>
                               )}
                             </div>
@@ -698,12 +643,13 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
       </div>
 
       <NuevaOrdenCompraModal
+        origen="obra"
         isOpen={!!ocParaFase}
         onClose={() => setOcParaFase(null)}
         proyectoIdFijo={proyecto.id}
         proyectoLabelFijo={proyecto.obra}
         faseIdInicial={ocParaFase?.fase.id}
-        categoriaFiltro={ocParaFase?.categoria}
+        partidaFiltro={ocParaFase?.partida}
       />
     </div>
   );

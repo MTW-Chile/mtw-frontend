@@ -29,11 +29,11 @@ interface HeaderContextoProps {
 }
 
 /**
- * Contexto de la obra en el Header del sitio (portal al slot): número de
- * proyecto y estado de aprobación. El selector de paso vive en el footer
+ * Contexto de la obra en el Header del sitio (portal al slot): estado de
+ * aprobación (el código va en las migas, junto al nombre). El selector de paso vive en el footer
  * (SelectorPaso), no acá.
  */
-export const HeaderContexto: React.FC<HeaderContextoProps> = ({ proyecto, activeVersion }) => {
+export const HeaderContexto: React.FC<HeaderContextoProps> = ({ activeVersion }) => {
   const estadoTexto = activeVersion
     ? ESTADO_LABEL[activeVersion.estadoAprobacion] || activeVersion.estadoAprobacion
     : 'En Cotización';
@@ -46,10 +46,6 @@ export const HeaderContexto: React.FC<HeaderContextoProps> = ({ proyecto, active
       {/* Solo cuando hay ancho de sobra: en tablet y móvil el header ya está lleno
           (hamburguesa, logo, atrás/recargar, campana, usuario). */}
       <div className="hidden @4xl:flex items-center gap-2 shrink-0">
-        <Badge size="sm" className="font-mono font-bold text-slate-600" title="Número de proyecto">
-          {proyecto.codigoInterno || `PRJ-${proyecto.numeroPresupuesto}`}
-        </Badge>
-
         <Badge size="sm" variant={activeVersion?.esCongelado ? 'success' : 'brand'} title={estadoTexto}>
           <span className="inline-flex items-center gap-1">
             {activeVersion?.esCongelado &&

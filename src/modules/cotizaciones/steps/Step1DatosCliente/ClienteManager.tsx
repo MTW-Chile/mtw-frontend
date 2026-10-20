@@ -2,6 +2,10 @@ import React from 'react';
 import { User, AlertTriangle, Search, Plus, Unlink, Check } from 'lucide-react';
 import type { Cliente, Proyecto } from '../../../../types';
 import type { NuevoClienteForm } from '../../hooks/useCotizadorWorkspace';
+import { Button } from '../../../../components/ui/Button';
+import { Input } from '../../../../components/ui/Input';
+import { Buscador } from '../../../../components/ui/Buscador';
+import { BotonFila } from '../../../../components/ui/Lista';
 
 interface ClienteManagerProps {
   proyecto: Proyecto;
@@ -66,19 +70,12 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setClientMode('select')}
-                className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-xs font-semibold text-slate-700 transition-colors shadow-2xs cursor-pointer"
-              >
-                Cambiar Cliente
-              </button>
-              <button
-                onClick={() => onVincularCliente(null)}
-                className="px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold transition-colors cursor-pointer"
-                title="Desvincular cliente de este proyecto"
-              >
-                <Unlink className="w-3.5 h-3.5 inline mr-1" /> Desvincular
-              </button>
+              <Button variant="outline" size="sm" onClick={() => setClientMode('select')}>
+                Cambiar cliente
+              </Button>
+              <Button variant="ghost" size="sm" className="text-rose-600! hover:bg-rose-50!" leftIcon={<Unlink className="w-3.5 h-3.5" />} title="Desvincular cliente de este proyecto" onClick={() => onVincularCliente(null)}>
+                Desvincular
+              </Button>
             </div>
           </div>
 
@@ -131,21 +128,13 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3 pt-2">
-            <button
-              onClick={() => setClientMode('select')}
-              className="w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 font-bold text-xs shadow-2xs flex items-center justify-center gap-2 transition-all cursor-pointer"
-            >
-              <Search className="w-3.5 h-3.5 text-brand-600" />
-              <span>Buscar en Maestro de Clientes</span>
-            </button>
+            <Button variant="outline" className="w-full sm:w-auto" leftIcon={<Search className="w-3.5 h-3.5 text-brand-600" />} onClick={() => setClientMode('select')}>
+              Buscar en maestro de clientes
+            </Button>
 
-            <button
-              onClick={() => setClientMode('create')}
-              className="w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-sm shadow-brand-600/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>+ Crear y Vincular Nuevo Cliente</span>
-            </button>
+            <Button className="w-full sm:w-auto" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setClientMode('create')}>
+              Crear y vincular nuevo cliente
+            </Button>
           </div>
         </div>
       )}
@@ -159,60 +148,36 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
               <span>Seleccionar Cliente del Maestro</span>
             </h4>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setClientMode('create')}
-                className="text-xs text-brand-600 font-bold hover:underline"
-              >
+              <Button variant="link" size="sm" onClick={() => setClientMode('create')}>
                 + Crear cliente nuevo
-              </button>
-              <button
-                onClick={() => setClientMode('view')}
-                className="text-xs text-slate-500 hover:text-slate-800 ml-3"
-              >
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setClientMode('view')}>
                 Cancelar
-              </button>
+              </Button>
             </div>
           </div>
 
-          <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              value={searchClientTerm}
-              onChange={(e) => setSearchClientTerm(e.target.value)}
-              placeholder="Buscar por Razón Social o RUT..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-brand-600"
-            />
-          </div>
+          <Buscador valor={searchClientTerm} onChange={setSearchClientTerm} placeholder="Buscar por razón social o RUT…" />
 
           <div className="max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white divide-y divide-slate-100">
             {filteredMasterClientes.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-500 space-y-2">
                 <p>No hay clientes registrados en el Maestro con ese criterio.</p>
-                <button
-                  onClick={() => setClientMode('create')}
-                  className="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-bold shadow-sm"
-                >
-                  Crear "{searchClientTerm || 'Nuevo Cliente'}"
-                </button>
+                <Button size="sm" onClick={() => setClientMode('create')}>
+                  Crear "{searchClientTerm || 'nuevo cliente'}"
+                </Button>
               </div>
             ) : (
               filteredMasterClientes.map((c) => (
-                <div
-                  key={c.id}
-                  onClick={() => onVincularCliente(c.id)}
-                  className="p-3.5 hover:bg-slate-50 cursor-pointer flex items-center justify-between transition-colors group"
-                >
+                <BotonFila key={c.id} onClick={() => onVincularCliente(c.id)} className="group p-3.5! flex items-center justify-between">
                   <div>
                     <div className="font-bold text-xs text-slate-900 group-hover:text-brand-600 transition-colors">{c.nombre}</div>
                     <div className="text-[11px] text-slate-500 font-mono">
                       {c.rut || 'Sin RUT'} {c.localidad ? `· ${c.localidad}` : ''}
                     </div>
                   </div>
-                  <button className="px-3 py-1 rounded-lg bg-slate-100 group-hover:bg-brand-600 group-hover:text-white text-slate-700 text-xs font-semibold transition-all">
-                    Asignar
-                  </button>
-                </div>
+                  <span className="px-3 py-1 rounded-lg bg-slate-100 group-hover:bg-brand-600 group-hover:text-white text-slate-700 text-xs font-semibold transition-all">Asignar</span>
+                </BotonFila>
               ))
             )}
           </div>
@@ -227,120 +192,37 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
               <Plus className="w-4 h-4 text-brand-600" />
               <span>Registrar Nuevo Cliente en el Maestro</span>
             </h4>
-            <button
-              onClick={() => setClientMode('view')}
-              className="text-xs text-slate-500 hover:text-slate-800"
-            >
+            <Button variant="ghost" size="sm" onClick={() => setClientMode('view')}>
               Cancelar
-            </button>
+            </Button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            <div className="space-y-1">
-              <label className="font-semibold text-slate-700">Razón Social *</label>
-              <input
-                type="text"
-                value={nuevoCliente.nombre}
-                onChange={(e) => onUpdateNuevoCliente('nombre', e.target.value)}
-                placeholder="Ej: Constructora San Felipe S.A."
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 font-bold focus:outline-none focus:border-brand-600"
-              />
-            </div>
+            <Input label="Razón Social" required type="text" value={nuevoCliente.nombre} onChange={(e) => onUpdateNuevoCliente('nombre', e.target.value)} placeholder="Ej: Constructora San Felipe S.A." className="font-bold" />
 
-            <div className="space-y-1">
-              <label className="font-semibold text-slate-700">RUT Fiscal</label>
-              <input
-                type="text"
-                value={nuevoCliente.rut}
-                onChange={(e) => onUpdateNuevoCliente('rut', e.target.value)}
-                placeholder="Ej: 76.543.210-K"
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 font-mono font-semibold text-slate-900 focus:outline-none focus:border-brand-600"
-              />
-            </div>
+            <Input label="RUT Fiscal" type="text" value={nuevoCliente.rut} onChange={(e) => onUpdateNuevoCliente('rut', e.target.value)} placeholder="Ej: 76.543.210-K" className="font-mono font-semibold" />
 
-            <div className="space-y-1">
-              <label className="font-semibold text-slate-700">Giro Comercial</label>
-              <input
-                type="text"
-                value={nuevoCliente.giro}
-                onChange={(e) => onUpdateNuevoCliente('giro', e.target.value)}
-                placeholder="Ej: Construcción de Edificios"
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-brand-600"
-              />
-            </div>
+            <Input label="Giro Comercial" type="text" value={nuevoCliente.giro} onChange={(e) => onUpdateNuevoCliente('giro', e.target.value)} placeholder="Ej: Construcción de Edificios" />
 
-            <div className="space-y-1">
-              <label className="font-semibold text-slate-700">Contacto Principal</label>
-              <input
-                type="text"
-                value={nuevoCliente.contacto}
-                onChange={(e) => onUpdateNuevoCliente('contacto', e.target.value)}
-                placeholder="Ej: Marcelo Morales"
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-brand-600"
-              />
-            </div>
+            <Input label="Contacto Principal" type="text" value={nuevoCliente.contacto} onChange={(e) => onUpdateNuevoCliente('contacto', e.target.value)} placeholder="Ej: Marcelo Morales" />
 
-            <div className="space-y-1">
-              <label className="font-semibold text-slate-700">Dirección Fiscal</label>
-              <input
-                type="text"
-                value={nuevoCliente.direccion}
-                onChange={(e) => onUpdateNuevoCliente('direccion', e.target.value)}
-                placeholder="Ej: Av. Vitacura 5000, Of 301"
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-brand-600"
-              />
-            </div>
+            <Input label="Dirección Fiscal" type="text" value={nuevoCliente.direccion} onChange={(e) => onUpdateNuevoCliente('direccion', e.target.value)} placeholder="Ej: Av. Vitacura 5000, Of 301" />
 
-            <div className="space-y-1">
-              <label className="font-semibold text-slate-700">Comuna / Ciudad</label>
-              <input
-                type="text"
-                value={nuevoCliente.localidad}
-                onChange={(e) => onUpdateNuevoCliente('localidad', e.target.value)}
-                placeholder="Ej: Las Condes, Santiago"
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-brand-600"
-              />
-            </div>
+            <Input label="Comuna / Ciudad" type="text" value={nuevoCliente.localidad} onChange={(e) => onUpdateNuevoCliente('localidad', e.target.value)} placeholder="Ej: Las Condes, Santiago" />
 
-            <div className="space-y-1">
-              <label className="font-semibold text-slate-700">Teléfono</label>
-              <input
-                type="text"
-                value={nuevoCliente.telefono}
-                onChange={(e) => onUpdateNuevoCliente('telefono', e.target.value)}
-                placeholder="+56 9 9876 5432"
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-brand-600"
-              />
-            </div>
+            <Input label="Teléfono" type="text" value={nuevoCliente.telefono} onChange={(e) => onUpdateNuevoCliente('telefono', e.target.value)} placeholder="+56 9 9876 5432" />
 
-            <div className="space-y-1">
-              <label className="font-semibold text-slate-700">Correo Electrónico</label>
-              <input
-                type="text"
-                value={nuevoCliente.email}
-                onChange={(e) => onUpdateNuevoCliente('email', e.target.value)}
-                placeholder="contacto@constructora.cl"
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-brand-600"
-              />
-            </div>
+            <Input label="Correo Electrónico" type="text" value={nuevoCliente.email} onChange={(e) => onUpdateNuevoCliente('email', e.target.value)} placeholder="contacto@constructora.cl" />
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-2">
-            <button
-              onClick={() => setClientMode('view')}
-              className="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-semibold text-xs transition-colors"
-            >
+            <Button variant="outline" onClick={() => setClientMode('view')}>
               Cancelar
-            </button>
+            </Button>
 
-            <button
-              onClick={onCrearCliente}
-              disabled={!nuevoCliente.nombre.trim() || isCrearPending}
-              className="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md shadow-brand-600/20 transition-all flex items-center gap-2 disabled:opacity-50"
-            >
-              <Check className="w-4 h-4" />
-              <span>{isCrearPending ? 'Guardando...' : 'Guardar en Maestro y Asignar'}</span>
-            </button>
+            <Button onClick={onCrearCliente} disabled={!nuevoCliente.nombre.trim()} isLoading={isCrearPending} leftIcon={<Check className="w-4 h-4" />}>
+              Guardar en maestro y asignar
+            </Button>
           </div>
         </div>
       )}

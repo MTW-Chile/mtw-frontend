@@ -1,9 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2, Check, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Check } from 'lucide-react';
 import type { Ventana, CorreccionTravesano } from '../../../../types';
 import { toWindowLine } from '../../components/drawing/ventanaAdapter';
 import * as core from '../../components/drawing/geometryCore';
 import { guardarCorreccionDibujo } from './correccionDibujo';
+import { Button } from '../../../../components/ui/Button';
+import { IconButton } from '../../../../components/ui/IconButton';
+import { InputCompacto, SelectCompacto } from '../../../../components/ui/Campos';
 
 interface TravesanosEditorProps {
   ventana: Ventana;
@@ -95,67 +98,56 @@ export const TravesanosEditor: React.FC<TravesanosEditorProps> = ({ ventana, onD
               return (
                 <div key={i} className="rounded-xl border border-slate-200 p-3 space-y-2">
                   <div className="flex items-center gap-2">
-                    <select
+                    <SelectCompacto
+                      aria-label="Eje del travesaño"
                       value={t.eje}
                       onChange={(e) => update(i, { eje: e.target.value as CorreccionTravesano['eje'] })}
-                      className="text-xs font-semibold border border-slate-200 rounded-lg px-2 py-1.5"
+                      className="font-semibold"
                     >
                       <option value="horizontal">Horizontal</option>
                       <option value="vertical" disabled={!permiteVerticalSinPano}>Vertical</option>
-                    </select>
-                    <input
+                    </SelectCompacto>
+                    <InputCompacto
+                      aria-label="Cota del travesaño (mm)"
                       type="number"
                       min={1}
                       value={t.cota || ''}
                       onChange={(e) => update(i, { cota: Number(e.target.value) })}
-                      className="w-28 text-xs border border-slate-200 rounded-lg px-2 py-1.5"
+                      className="w-28"
                       placeholder="mm"
                     />
                     <span className="text-[11px] text-slate-400 flex-1">
                       {t.eje === 'horizontal' ? 'desde arriba' : 'desde la izquierda'}
                     </span>
-                    <button
-                      onClick={() => setDraft((prev) => prev.filter((_, idx) => idx !== i))}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
-                      aria-label="Quitar travesaño"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <IconButton icono={Trash2} tono="peligro" etiqueta="Quitar travesaño" onClick={() => setDraft((prev) => prev.filter((_, idx) => idx !== i))} />
                   </div>
                   {panos.length > 1 && (
-                    <select
+                    <SelectCompacto
+                      aria-label="Paño del travesaño"
                       value={t.panel ?? ''}
                       onChange={(e) => update(i, { panel: e.target.value === '' ? null : Number(e.target.value) })}
-                      className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5"
+                      className="w-full"
                     >
                       {panos.map((p) => (
                         <option key={String(p.numero)} value={p.numero ?? ''}>{p.label}</option>
                       ))}
-                    </select>
+                    </SelectCompacto>
                   )}
                   {msg && <p className="text-[11px] text-rose-600 font-medium">{msg}</p>}
                 </div>
               );
             })}
-            <button
-              onClick={() => setDraft((prev) => [...prev, { eje: 'horizontal', cota: 0, panel: panos[0].numero }])}
-              className="text-xs font-semibold flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:text-brand-600 hover:bg-slate-50 cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" /> Agregar travesaño
-            </button>
+            <Button variant="outline" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setDraft((prev) => [...prev, { eje: 'horizontal', cota: 0, panel: panos[0].numero }])}>
+              Agregar travesaño
+            </Button>
             {!permiteVerticalSinPano && (
               <p className="text-[11px] text-slate-400">El travesaño vertical solo está disponible en ventanas fijas o compuestas.</p>
             )}
             <div className="flex items-center justify-between gap-2 pt-1">
         <p className="text-xs text-rose-600 font-medium">{error}</p>
-        <button
-          onClick={handleSave}
-          disabled={isSaving || hayErrores || !dirty}
-          className="px-4 py-1.5 text-xs font-bold rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer ml-auto"
-        >
-          {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+        <Button size="sm" className="ml-auto" onClick={handleSave} disabled={hayErrores || !dirty} isLoading={isSaving} leftIcon={<Check className="w-3.5 h-3.5" />}>
           Guardar travesaños
-        </button>
+        </Button>
       </div>
     </div>
   );

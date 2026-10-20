@@ -7,10 +7,21 @@ import type {
   CorreccionGeometria,
   Fase,
   ProyectoMaterialAjuste,
-  FamiliaMaterialAprobacion,
+  PartidaVersion,
+  ConceptoFijacion,
   FijacionConfig,
   PresupuestoConfig,
   ConfiguracionEmpresa,
+  Anuncio,
+  ParametrosGenerales,
+  Adicional,
+  CargoAdicional,
+  FormaCobroInstalador,
+  EstadoAdicional,
+  PorClasificar,
+  TipoProyecto,
+  PlantillaOferta,
+  TipoDocumentoComercial,
   SyncLog,
   Cliente,
   Material,
@@ -21,7 +32,17 @@ import type {
   EstadoOC,
   RecepcionOC,
   TipoDocumento,
-  PartidaConfig,
+  Partida,
+  UnidadMedida,
+  TipoProducto,
+  FamiliaHetmo,
+  MedicionReceta,
+  Analitica,
+  FijacionBorrador,
+  RequerimientoFase,
+  ControlPresupuestoPartida,
+  NaturalezaCompra,
+  CargoPendiente,
   SolicitudMaterial,
   BodegaProyectoResponse,
   BodegaGlobalResponse,
@@ -32,10 +53,11 @@ import type {
   FacturasSugeridasResponse,
   CheckoutFactura,
   ImportarXmlResponse,
-  CategoriaGasto,
   Rol,
   Usuario,
   MisPermisos,
+  ModuloPermisos,
+  FusionReparacion,
   AprobacionesPendientes,
   FabricacionHetmo,
   FabricacionHetmoBusqueda,
@@ -112,6 +134,7 @@ apiClient.interceptors.response.use(
           'Mensaje:',
           error?.message
         );
+        // oxlint-disable-next-line no-alert -- unico aviso que sobrevive la redireccion (ver arriba)
         window.alert(
           `No se pudo contactar al servidor (${error?.config?.method?.toUpperCase() || '?'} ${error?.config?.url || '?'}): ${error?.message || 'error de red'}.\n\nSe va a intentar renovar la sesion.`
         );
@@ -191,6 +214,14 @@ export async function detectarFabricaciones(proyectoId: string): Promise<Resulta
   return response.data;
 }
 
+/** Pone al día con HETMO la fabricación de la obra (lotes nuevos y estados); el API la limita a una vez cada 2 min por obra. */
+export async function actualizarFabricacionesObra(
+  proyectoId: string
+): Promise<{ omitida: boolean; detectadas: number; refrescadas: number; errores: number }> {
+  const response = await apiClient.post(`/proyectos/${proyectoId}/fabricaciones/actualizar`);
+  return response.data;
+}
+
 export async function refrescarFabricacion(proyectoId: string, fabId: string): Promise<ResultadoVinculoFabricacion> {
   const response = await apiClient.post<ResultadoVinculoFabricacion>(`/proyectos/${proyectoId}/fabricaciones/${fabId}/refrescar`);
   return response.data;
@@ -254,6 +285,19 @@ export async function triggerManualSync(
     forceUpdate,
   });
   return response.data;
+}
+
+/** Reimporta desde HETMO solo los presupuestos de esta obra (no el sync completo). */
+export async function sincronizarObraHetmo(proyectoId: string): Promise<{
+  versiones: number;
+  nuevas: number;
+  actualizadas: number;
+  congeladas: number;
+  cuarentenas: number;
+  errores: string[];
+}> {
+  const response = await apiClient.post(`/proyectos/${proyectoId}/sincronizar-hetmo`);
+  return response.data.data;
 }
 
 export async function updateVersionConfig(
@@ -402,7 +446,7 @@ export async function saveMaterialAjuste(
     materialId: string;
     precioPersonalizado?: number | null;
     monedaPersonalizada?: string | null;
-    familiaPersonalizada?: string | null;
+    tipoProductoPersonalizadoId?: string | null;
     excluido?: boolean;
   }
 ): Promise<{ success: boolean; ajuste: ProyectoMaterialAjuste }> {
@@ -413,45 +457,64 @@ export async function saveMaterialAjuste(
   return response.data;
 }
 
-export async function setFamiliaAprobacion(
-  versionId: string,
-  familia: string,
-  aprobada: boolean
-): Promise<{ success: boolean; familiaAprobacion: FamiliaMaterialAprobacion }> {
-  const response = await apiClient.patch<{ success: boolean; familiaAprobacion: FamiliaMaterialAprobacion }>(
-    `/versiones/${versionId}/materiales/familias/${encodeURIComponent(familia)}/aprobacion`,
-    { aprobada }
+// Aprobacion tecnica, descuento (precio de compra) y holgura (presupuesto) por partida.
+type RespuestaAprobacionPartida = { success: boolean; aprobacion: PartidaVersion };
+
+async function patchPartidaVersion(versionId: string, partidaCodigo: string, accion: string, body: object) {
+  const response = await apiClient.patch<RespuestaAprobacionPartida>(
+    `/versiones/${versionId}/partidas/${encodeURIComponent(partidaCodigo)}/${accion}`,
+    body
   );
   return response.data;
 }
 
-export async function setFamiliaDescuento(
+export const setPartidaAprobacion = (versionId: string, partidaCodigo: string, aprobada: boolean) =>
+  patchPartidaVersion(versionId, partidaCodigo, 'aprobacion', { aprobada });
+
+export const setPartidaDescuento = (versionId: string, partidaCodigo: string, descuentoPct: number) =>
+  patchPartidaVersion(versionId, partidaCodigo, 'descuento', { descuentoPct });
+
+export const setPartidaHolgura = (versionId: string, partidaCodigo: string, holguraPct: number) =>
+  patchPartidaVersion(versionId, partidaCodigo, 'holgura', { holguraPct });
+
+// Analitica calculada en mtw-api (motor unico). Las tasas del query solo
+// previsualizan: sin ellas se usan las guardadas en la version.
+export async function getAnalitica(
   versionId: string,
-  familia: string,
-  descuentoPct: number
-): Promise<{ success: boolean; familiaAprobacion: FamiliaMaterialAprobacion }> {
-  const response = await apiClient.patch<{ success: boolean; familiaAprobacion: FamiliaMaterialAprobacion }>(
-    `/versiones/${versionId}/materiales/familias/${encodeURIComponent(familia)}/descuento`,
-    { descuentoPct }
-  );
-  return response.data;
+  tasas?: { dolar?: number; euro?: number; uf?: number }
+): Promise<Analitica> {
+  const response = await apiClient.get<{ data: Analitica }>(`/versiones/${versionId}/analitica`, { params: tasas });
+  return response.data.data;
 }
 
-export async function setFamiliaRecargo(
+// Misma Analitica con una Hoja de Fijacion en borrador: no guarda nada.
+export async function simularAnalitica(
   versionId: string,
-  familia: string,
-  recargoPct: number
-): Promise<{ success: boolean; familiaAprobacion: FamiliaMaterialAprobacion }> {
-  const response = await apiClient.patch<{ success: boolean; familiaAprobacion: FamiliaMaterialAprobacion }>(
-    `/versiones/${versionId}/materiales/familias/${encodeURIComponent(familia)}/recargo`,
-    { recargoPct }
-  );
-  return response.data;
+  payload: { tasas: { dolar: number; euro: number; uf: number }; fijacion: FijacionBorrador }
+): Promise<Analitica> {
+  const response = await apiClient.post<{ data: Analitica }>(`/versiones/${versionId}/analitica/simular`, payload);
+  return response.data.data;
+}
+
+// Comprometido en OC, facturado, pagado y recibido por partida (NETO).
+export async function getControlPresupuesto(proyectoId: string): Promise<ControlPresupuestoPartida[]> {
+  const response = await apiClient.get<{ partidas: ControlPresupuestoPartida[] }>(`/proyectos/${proyectoId}/control-presupuesto`);
+  return response.data.partidas;
+}
+
+// Materiales que faltan para fabricar una fase, agrupados por proveedor.
+// descontarStock=false: la necesidad bruta (una solicitud desde la obra).
+export async function getRequerimientoFase(faseId: string, descontarStock = true): Promise<RequerimientoFase> {
+  const response = await apiClient.get<{ data: RequerimientoFase }>(`/fases/${faseId}/requerimiento`, {
+    params: descontarStock ? undefined : { descontarStock: 'false' },
+  });
+  return response.data.data;
 }
 
 export async function updateFijacionConfig(
   versionId: string,
-  payload: Partial<Omit<FijacionConfig, 'id' | 'versionId'>>
+  // extras y asignaciones, si vienen, reemplazan la lista completa.
+  payload: Partial<FijacionBorrador>
 ): Promise<{ success: boolean; fijacionConfig: FijacionConfig }> {
   const response = await apiClient.patch<{ success: boolean; fijacionConfig: FijacionConfig }>(
     `/versiones/${versionId}/fijacion-config`,
@@ -462,7 +525,8 @@ export async function updateFijacionConfig(
 
 export async function updatePresupuestoConfig(
   versionId: string,
-  payload: Partial<Pick<PresupuestoConfig, 'textoPresentacion' | 'condicionesComerciales'>>
+  // Con plantillaOfertaId y sin textos, la API copia los textos de la plantilla.
+  payload: Partial<Pick<PresupuestoConfig, 'textoPresentacion' | 'condicionesComerciales'>> & { plantillaOfertaId?: string | null }
 ): Promise<{ success: boolean; presupuestoConfig: PresupuestoConfig }> {
   const response = await apiClient.patch<{ success: boolean; presupuestoConfig: PresupuestoConfig }>(
     `/versiones/${versionId}/presupuesto-config`,
@@ -478,14 +542,50 @@ export async function getConfiguracionEmpresa(): Promise<{ success: boolean; con
   return response.data;
 }
 
+type CamposEmpresa = 'footerWebUrl' | 'footerWebLabel' | 'footerInstagramUrl' | 'footerInstagramHandle' | 'anuncioTexto' | 'anuncioUrgencia' | 'anuncioActivo';
+
 export async function updateConfiguracionEmpresa(
-  payload: Partial<Omit<ConfiguracionEmpresa, 'id'>>
+  payload: Partial<Pick<ConfiguracionEmpresa, CamposEmpresa>>
 ): Promise<{ success: boolean; configuracionEmpresa: ConfiguracionEmpresa }> {
   const response = await apiClient.patch<{ success: boolean; configuracionEmpresa: ConfiguracionEmpresa }>(
     '/configuracion-empresa',
     payload
   );
   return response.data;
+}
+
+/** Logo propio de la empresa como data URL, o null si no tiene (se usa el de MTW). */
+export async function getLogoEmpresa(): Promise<string | null> {
+  try {
+    const response = await apiClient.get<Blob>('/empresa/logo', { responseType: 'blob' });
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(response.data);
+    });
+  } catch (error: any) {
+    if (error?.response?.status === 404) return null;
+    throw error;
+  }
+}
+
+export async function subirLogoEmpresa(archivo: File): Promise<{ configuracionEmpresa: ConfiguracionEmpresa }> {
+  // POST y no PUT: Cloudflare Access bloquea DELETE/PUT en produccion.
+  const response = await apiClient.post<{ configuracionEmpresa: ConfiguracionEmpresa }>('/empresa/logo', archivo, {
+    headers: { 'Content-Type': archivo.type },
+  });
+  return response.data;
+}
+
+export async function quitarLogoEmpresa(): Promise<{ configuracionEmpresa: ConfiguracionEmpresa }> {
+  const response = await apiClient.post<{ configuracionEmpresa: ConfiguracionEmpresa }>('/empresa/logo/quitar');
+  return response.data;
+}
+
+export async function getAnuncio(): Promise<Anuncio | null> {
+  const response = await apiClient.get<{ data: Anuncio | null }>('/anuncio');
+  return response.data.data;
 }
 
 export async function updateVentanaPresupuesto(
@@ -541,25 +641,132 @@ export async function eliminarCliente(id: string): Promise<{ success: boolean }>
   return response.data;
 }
 
-// Config editable por partida (nombre + codigo de integracion Clay) --
-// ver PartidaConfig en mtw-api.
-export async function getPartidas(): Promise<{ data: PartidaConfig[] }> {
-  const response = await apiClient.get<{ data: PartidaConfig[] }>('/partidas');
-  return response.data;
+// ---- Catalogo configurable (Configuracion > Catalogo) ----
+// Sin borrado: lo que ya esta referenciado se desactiva (activa/activo).
+
+export async function getPartidas(): Promise<Partida[]> {
+  const response = await apiClient.get<{ data: Partida[] }>('/partidas');
+  return response.data.data;
 }
 
-// Solo administrador (ver requireAdmin en mtw-api).
-export async function updatePartida(
-  categoria: CategoriaGasto,
-  payload: { nombre?: string; integracionClay?: string | null }
-): Promise<{ success: boolean; partida: PartidaConfig }> {
-  const response = await apiClient.patch<{ success: boolean; partida: PartidaConfig }>(`/partidas/${categoria}`, payload);
-  return response.data;
+export interface PartidaPayload {
+  nombre: string;
+  integracionClay?: string | null;
+  orden?: number;
+  activa?: boolean;
+}
+
+export async function createPartida(payload: PartidaPayload & { codigo: string }): Promise<Partida> {
+  const response = await apiClient.post<{ data: Partida }>('/partidas', payload);
+  return response.data.data;
+}
+
+// El codigo no se edita: lo usan integraciones y reportes.
+export async function updatePartida(id: string, payload: Partial<PartidaPayload>): Promise<Partida> {
+  const response = await apiClient.patch<{ data: Partida }>(`/partidas/${id}`, payload);
+  return response.data.data;
+}
+
+// Conceptos de la Hoja de Fijacion y la partida a la que se cargan por defecto.
+export async function getConceptosFijacion(): Promise<ConceptoFijacion[]> {
+  const response = await apiClient.get<{ data: ConceptoFijacion[] }>('/conceptos-fijacion');
+  return response.data.data;
+}
+
+export async function updateConceptoFijacion(codigo: string, payload: { partidaPorDefectoId: string | null }): Promise<ConceptoFijacion> {
+  const response = await apiClient.patch<{ data: ConceptoFijacion }>(`/conceptos-fijacion/${codigo}`, payload);
+  return response.data.data;
+}
+
+export async function getUnidadesMedida(): Promise<UnidadMedida[]> {
+  const response = await apiClient.get<{ data: UnidadMedida[] }>('/unidades-medida');
+  return response.data.data;
+}
+
+export async function createUnidadMedida(payload: { codigo: string; nombre: string; simbolo: string }): Promise<UnidadMedida> {
+  const response = await apiClient.post<{ data: UnidadMedida }>('/unidades-medida', payload);
+  return response.data.data;
+}
+
+export async function updateUnidadMedida(
+  id: string,
+  payload: Partial<{ nombre: string; simbolo: string; activa: boolean }>
+): Promise<UnidadMedida> {
+  const response = await apiClient.patch<{ data: UnidadMedida }>(`/unidades-medida/${id}`, payload);
+  return response.data.data;
+}
+
+export async function getTiposProducto(): Promise<TipoProducto[]> {
+  const response = await apiClient.get<{ data: TipoProducto[] }>('/tipos-producto');
+  return response.data.data;
+}
+
+export interface TipoProductoPayload {
+  nombre: string;
+  descripcion?: string | null;
+  partidaId: string;
+  medicion: MedicionReceta;
+  unidadConsumoId: string;
+  unidadPrecioId: string;
+  unidadCompraId: string;
+  factorCompra: number;
+  compraDesdeResumenHetmo: boolean;
+  compraPorPieza?: boolean;
+  moneda: string;
+  monedaFija: boolean;
+  individualizado: boolean;
+  porDefecto?: boolean;
+  orden?: number;
+  activo?: boolean;
+}
+
+export async function createTipoProducto(payload: TipoProductoPayload): Promise<TipoProducto> {
+  const response = await apiClient.post<{ data: TipoProducto }>('/tipos-producto', payload);
+  return response.data.data;
+}
+
+export async function updateTipoProducto(id: string, payload: Partial<TipoProductoPayload>): Promise<TipoProducto> {
+  const response = await apiClient.patch<{ data: TipoProducto }>(`/tipos-producto/${id}`, payload);
+  return response.data.data;
+}
+
+export async function getFamiliasHetmo(): Promise<FamiliaHetmo[]> {
+  const response = await apiClient.get<{ data: FamiliaHetmo[] }>('/familias-hetmo');
+  return response.data.data;
+}
+
+// Cambia el tipo de los materiales que HETMO cree despues; con
+// aplicarAExistentes, tambien los que siguen en el tipo anterior.
+export async function updateFamiliaHetmo(
+  codigo: string,
+  payload: { tipoProductoId: string; aplicarAExistentes?: boolean }
+): Promise<{ materialesActualizados: number }> {
+  const response = await apiClient.patch<{ data: { materialesActualizados: number } }>(
+    `/familias-hetmo/${encodeURIComponent(codigo)}`,
+    payload
+  );
+  return response.data.data;
+}
+
+// Tipo, formato propio (unidad de compra y factor) y proveedor de un material.
+export async function updateMaterial(
+  id: string,
+  payload: Partial<{
+    tipoProductoId: string;
+    unidadCompraId: string | null;
+    factorCompra: number | null;
+    individualizado: boolean;
+    proveedorId: string | null;
+  }>
+): Promise<Material> {
+  const response = await apiClient.patch<{ data: Material }>(`/materiales/${id}`, payload);
+  return response.data.data;
 }
 
 export async function getMateriales(params?: {
   q?: string;
   familia?: string;
+  tipoProductoId?: string;
   proveedorId?: string;
   limit?: number;
 }): Promise<Material[]> {
@@ -590,7 +797,7 @@ export async function getMonedas(): Promise<
 export async function createMaterial(payload: {
   skuInterno: string;
   descripcion: string;
-  familia: string;
+  tipoProductoId: string;
   unidadMedida: string;
   precioOrigen?: number | null;
   monedaOrigen?: string | null;
@@ -640,16 +847,28 @@ export async function updateProveedor(id: string, payload: ProveedorFacturacionP
   return response.data;
 }
 
-// Solo administrador -- ver requireAdmin en mtw-api. Falla con 409 si el
-// proveedor todavia tiene materiales u OC enlazados (hay que fusionarlo,
-// no eliminarlo).
+// catalogo.proveedores.fusionar. Falla con 409 si el proveedor tiene
+// materiales, OC o vinculo con HETMO (hay que fusionarlo, no eliminarlo).
 export async function eliminarProveedor(id: string): Promise<{ success: boolean }> {
   const response = await apiClient.post<{ success: boolean }>(`/proveedores/${id}/eliminar`);
   return response.data;
 }
 
-// Solo administrador -- reasigna todos los materiales/OC del proveedor
-// origen (duplicado) al destino (el real) y elimina el origen.
+// Plan de reparacion de los duplicados que creaba el sync anterior (lee
+// HETMO, no cambia nada) y su aplicacion: se confirman los ids del plan
+// revisado; si cambio entre medio, la API responde 409.
+export async function getPlanReparacionProveedores(): Promise<{ data: FusionReparacion[] }> {
+  const response = await apiClient.get<{ data: FusionReparacion[] }>('/proveedores/reparar-duplicados');
+  return response.data;
+}
+
+export async function aplicarReparacionProveedores(origenes: string[]): Promise<{ success: boolean; fusionados: number }> {
+  const response = await apiClient.post<{ success: boolean; fusionados: number }>('/proveedores/reparar-duplicados', { origenes });
+  return response.data;
+}
+
+// Reasigna materiales, OC y vinculos con HETMO del proveedor origen
+// (duplicado) al destino (el real) y elimina el origen.
 export async function fusionarProveedor(id: string, proveedorDestinoId: string): Promise<{ success: boolean; data: Proveedor }> {
   const response = await apiClient.post<{ success: boolean; data: Proveedor }>(`/proveedores/${id}/fusionar`, { proveedorDestinoId });
   return response.data;
@@ -677,16 +896,6 @@ export async function espejarVentana(
 ): Promise<{ success: boolean; data: Ventana; message?: string }> {
   const response = await apiClient.post<{ success: boolean; data: Ventana; message?: string }>(
     `/ventanas/${ventanaId}/espejar`
-  );
-  return response.data;
-}
-
-// Toggle de ordenPanelesInvertido -- mismo patrón que espejarVentana.
-export async function invertirOrdenPanelesVentana(
-  ventanaId: string
-): Promise<{ success: boolean; data: Ventana; message?: string }> {
-  const response = await apiClient.post<{ success: boolean; data: Ventana; message?: string }>(
-    `/ventanas/${ventanaId}/invertir-orden-paneles`
   );
   return response.data;
 }
@@ -721,9 +930,14 @@ export interface ItemOrdenCompraPayload {
   // Obligatorio solo si la OC ya tiene proveedor (ver proveedorId abajo) --
   // una solicitud sin proveedor todavia puede no tener precio.
   precioUnitario?: number | null;
-  // Obligatoria solo cuando el item no tiene materialId (partida externa)
-  // -- con materialId, mtw-api la deriva sola de la familia.
-  categoria?: CategoriaGasto;
+  // Obligatoria solo cuando el item no tiene materialId (item externo):
+  // con materialId, mtw-api usa la partida del tipo de producto del material.
+  partidaId?: string;
+  // Pieza a medida (tipo que se compra por pieza): medidas y ventana de destino.
+  anchoMm?: number | null;
+  altoMm?: number | null;
+  ventanaId?: string | null;
+  referenciaVentana?: string | null;
 }
 
 export async function createOrdenCompra(payload: {
@@ -747,6 +961,11 @@ export async function createOrdenCompra(payload: {
   // -- ver ejecutarTraslado en mtw-api. Ignorado si no hay proyectoId o si
   // la OC nace sin proveedor (una solicitud todavia no reserva nada).
   trasladosDesdeObrasMayores?: { materialId: string; cantidad: number }[];
+  // Que cubre la compra; sin indicarla, la sugiere el motivo del pendiente o es PRESUPUESTO.
+  naturaleza?: NaturalezaCompra;
+  obraPendienteId?: string | null;
+  // Obligatorio si la compra es ADICIONAL: el adicional que la cubre.
+  adicionalId?: string | null;
 }): Promise<{ success: boolean; ordenCompra: OrdenCompra }> {
   const response = await apiClient.post<{ success: boolean; ordenCompra: OrdenCompra }>('/ordenes-compra', payload);
   return response.data;
@@ -784,13 +1003,12 @@ export async function updateOrdenCompraEstado(
   return response.data;
 }
 
-// Solo administrador (ver requireAdmin en mtw-api) -- borra la OC entera,
-// incluida CANCELADA, y reversa el stock que haya ingresado por ella. El
-// backend devuelve 409 (forzable: true) si ese stock ya se movio de
-// Bodega o se borro a mano -- forzar=true salta esa validacion (nunca
-// deja stock negativo, ver mtw-api).
-export async function eliminarOrdenCompra(id: string, forzar?: boolean): Promise<{ success: boolean }> {
-  const response = await apiClient.post<{ success: boolean }>(`/ordenes-compra/${id}/eliminar`, forzar ? { forzar: true } : undefined);
+// Purga de superadministrador, solo fuera de producción (sistema.purgas en
+// mtw-api): borra la OC entera y sus ingresos a bodega. Se rechaza (409) si
+// parte de lo que ingresó ya salió de bodega: el kardex no puede quedar
+// descuadrado. En producción una OC se cancela, no se borra.
+export async function eliminarOrdenCompra(id: string): Promise<{ success: boolean }> {
+  const response = await apiClient.post<{ success: boolean }>(`/ordenes-compra/${id}/eliminar`);
   return response.data;
 }
 
@@ -848,15 +1066,6 @@ export async function trasladarBodega(
 
 export async function getUnidadesMaterial(bodegaId: string, materialId: string): Promise<UnidadesMaterialResponse> {
   const response = await apiClient.get<UnidadesMaterialResponse>(`/bodega/${bodegaId}/materiales/${materialId}/unidades`);
-  return response.data;
-}
-
-// Solo administrador -- borra una fila de stock completa (y sus unidades
-// individualizadas si corresponde). Limpieza directa para datos de
-// prueba, no genera movimiento de kardex -- ver POST
-// /api/bodega/stock/:id/eliminar en mtw-api.
-export async function eliminarStockMaterial(stockId: string): Promise<{ success: boolean }> {
-  const response = await apiClient.post<{ success: boolean }>(`/bodega/stock/${stockId}/eliminar`);
   return response.data;
 }
 
@@ -1122,9 +1331,12 @@ export async function getMisPermisos(): Promise<MisPermisos> {
   return response.data;
 }
 
-// "Editar mi usuario": solo el nombre propio (rol/correo/estado son del admin).
-export async function updateMiUsuario(nombre: string): Promise<{ success: boolean; nombre: string }> {
-  const response = await apiClient.patch('/mi-usuario', { nombre });
+// "Editar mi usuario": nombre propio y preferencia de correos (rol, correo y
+// estado son de quien gestiona usuarios).
+export async function updateMiUsuario(
+  payload: Partial<{ nombre: string; recibeNotificacionesCorreo: boolean }>
+): Promise<{ success: boolean; nombre: string; recibeNotificacionesCorreo: boolean }> {
+  const response = await apiClient.patch('/mi-usuario', payload);
   return response.data;
 }
 
@@ -1140,24 +1352,26 @@ export async function deleteMiClayToken(): Promise<{ success: boolean; tieneToke
   return response.data;
 }
 
-export async function getRoles(): Promise<{ data: Rol[] }> {
-  const response = await apiClient.get<{ data: Rol[] }>('/roles');
+export async function getRoles(): Promise<{ data: Rol[]; permisosSinAsignar: string[] }> {
+  const response = await apiClient.get<{ data: Rol[]; permisosSinAsignar: string[] }>('/roles');
   return response.data;
 }
 
-export async function createRol(payload: {
-  nombre: string;
-  secciones: string[];
-  configTabs: string[];
-  aprobaciones: string[];
-}): Promise<{ data: Rol }> {
+export async function getCatalogoPermisos(): Promise<{ data: ModuloPermisos[] }> {
+  const response = await apiClient.get<{ data: ModuloPermisos[] }>('/permisos/catalogo');
+  return response.data;
+}
+
+type DatosRol = { nombre: string; descripcion: string | null; esAdministradorNegocio: boolean; permisos: string[] };
+
+export async function createRol(payload: DatosRol): Promise<{ data: Rol }> {
   const response = await apiClient.post<{ data: Rol }>('/roles', payload);
   return response.data;
 }
 
 export async function updateRol(
   id: string,
-  payload: Partial<{ nombre: string; secciones: string[]; configTabs: string[]; aprobaciones: string[] }>
+  payload: Partial<DatosRol>
 ): Promise<{ data: Rol }> {
   const response = await apiClient.patch<{ data: Rol }>(`/roles/${id}`, payload);
   return response.data;
@@ -1190,7 +1404,7 @@ export async function createUsuario(payload: {
 
 export async function updateUsuario(
   id: string,
-  payload: Partial<{ nombre: string; email: string; rolId: string | null; activo: boolean }>
+  payload: Partial<{ nombre: string; email: string; rolId: string | null; activo: boolean; recibeNotificacionesCorreo: boolean }>
 ): Promise<{ data: Usuario }> {
   const response = await apiClient.patch<{ data: Usuario }>(`/usuarios/${id}`, payload);
   return response.data;
@@ -1200,6 +1414,12 @@ export async function updateUsuario(
 
 export async function getPendientes(proyectoId: string): Promise<ObraPendiente[]> {
   const response = await apiClient.get<ObraPendiente[]>(`/proyectos/${proyectoId}/pendientes`);
+  return response.data;
+}
+
+/** Visor central: los pendientes de todas las obras, cada uno con su obra. */
+export async function getPendientesTodos(): Promise<ObraPendiente[]> {
+  const response = await apiClient.get<ObraPendiente[]>('/pendientes');
   return response.data;
 }
 
@@ -1220,6 +1440,13 @@ export async function cambiarEstadoPendiente(
   payload: { estado: EstadoPendiente; etapaId?: string; comentario?: string }
 ): Promise<ObraPendiente> {
   const response = await apiClient.patch<ObraPendiente>(`/pendientes/${id}/estado`, payload);
+  return response.data;
+}
+
+// Edita datos de un pendiente (no su estado). Por ahora: a cargo de quien va
+// (null = el que sugiere el motivo).
+export async function editarPendiente(id: string, payload: { cargoA?: CargoPendiente | null }): Promise<ObraPendiente> {
+  const response = await apiClient.patch<ObraPendiente>(`/pendientes/${id}`, payload);
   return response.data;
 }
 
@@ -1522,4 +1749,186 @@ export async function copiarPisoCubicacion(proyectoId: string, payload: { torreI
 
 export async function quitarPosicionVentanaCubicacion(id: string): Promise<void> {
   await apiClient.post(`/cubicacion-unidades/${id}/quitar-posicion`);
+}
+
+// ---- Configuracion comercial ----
+
+export async function getConfiguracionGeneral(): Promise<ParametrosGenerales> {
+  const response = await apiClient.get<{ data: ParametrosGenerales }>('/configuracion-general');
+  return response.data.data;
+}
+
+type ParcialProfundo<T> = { [K in keyof T]?: T[K] extends object ? ParcialProfundo<T[K]> : T[K] };
+
+export async function updateConfiguracionGeneral(payload: ParcialProfundo<ParametrosGenerales>): Promise<ParametrosGenerales> {
+  const response = await apiClient.patch<{ data: ParametrosGenerales }>('/configuracion-general', payload);
+  return response.data.data;
+}
+
+export async function getTiposProyecto(): Promise<TipoProyecto[]> {
+  const response = await apiClient.get<{ data: TipoProyecto[] }>('/tipos-proyecto');
+  return response.data.data;
+}
+
+export async function createTipoProyecto(payload: { codigo: string; nombre: string; orden?: number }): Promise<TipoProyecto> {
+  const response = await apiClient.post<{ data: TipoProyecto }>('/tipos-proyecto', payload);
+  return response.data.data;
+}
+
+export async function updateTipoProyecto(
+  id: string,
+  payload: Partial<Pick<TipoProyecto, 'nombre' | 'orden' | 'activo' | 'porDefecto'>>
+): Promise<TipoProyecto> {
+  const response = await apiClient.patch<{ data: TipoProyecto }>(`/tipos-proyecto/${id}`, payload);
+  return response.data.data;
+}
+
+export async function getPlantillasOferta(tipoDocumento?: TipoDocumentoComercial): Promise<PlantillaOferta[]> {
+  const response = await apiClient.get<{ data: PlantillaOferta[] }>('/plantillas-oferta', { params: { tipoDocumento } });
+  return response.data.data;
+}
+
+export type PlantillaOfertaPayload = Pick<
+  PlantillaOferta,
+  'nombre' | 'tipoDocumento' | 'tipoProyectoId' | 'textoPresentacion' | 'condicionesComerciales'
+> & { porDefecto?: boolean; activa?: boolean };
+
+export async function createPlantillaOferta(payload: PlantillaOfertaPayload): Promise<PlantillaOferta> {
+  const response = await apiClient.post<{ data: PlantillaOferta }>('/plantillas-oferta', payload);
+  return response.data.data;
+}
+
+export async function updatePlantillaOferta(id: string, payload: Partial<PlantillaOfertaPayload>): Promise<PlantillaOferta> {
+  const response = await apiClient.patch<{ data: PlantillaOferta }>(`/plantillas-oferta/${id}`, payload);
+  return response.data.data;
+}
+
+// Plantilla por defecto de un documento para un proyecto (la de su tipo o la general).
+export async function getPlantillaDeProyecto(proyectoId: string, tipoDocumento: TipoDocumentoComercial): Promise<PlantillaOferta | null> {
+  const response = await apiClient.get<{ data: PlantillaOferta | null }>(`/proyectos/${proyectoId}/plantilla-oferta`, {
+    params: { tipoDocumento },
+  });
+  return response.data.data;
+}
+
+export async function setTipoProyecto(proyectoId: string, tipoProyectoId: string): Promise<{ id: string; tipoProyecto: TipoProyecto }> {
+  const response = await apiClient.patch<{ data: { id: string; tipoProyecto: TipoProyecto } }>(`/proyectos/${proyectoId}/tipo`, { tipoProyectoId });
+  return response.data.data;
+}
+
+// ---- Adicionales ----
+
+type Tasas = { dolar: number; euro: number; uf: number };
+
+export async function getAdicionales(proyectoId: string): Promise<Adicional[]> {
+  const response = await apiClient.get<{ data: Adicional[] }>(`/proyectos/${proyectoId}/adicionales`);
+  return response.data.data;
+}
+
+export async function getAdicional(id: string): Promise<Adicional> {
+  const response = await apiClient.get<{ data: Adicional }>(`/adicionales/${id}`);
+  return response.data.data;
+}
+
+export async function createAdicional(
+  proyectoId: string,
+  payload: {
+    titulo: string;
+    // ITEMS: items sueltos. VENTANAS: ventanas de la cotizacion recotizadas.
+    // HETMO: un documento de venta de HETMO vinculado (se vincula despues).
+    origen?: 'ITEMS' | 'VENTANAS' | 'HETMO';
+    cargoA?: CargoAdicional;
+    instaladorProveedorId?: string | null;
+    formaCobroInstalador?: FormaCobroInstalador | null;
+    obraPendienteId?: string | null;
+    tasas?: Tasas;
+    margenPct?: number;
+  }
+): Promise<Adicional> {
+  const response = await apiClient.post<{ data: Adicional }>(`/proyectos/${proyectoId}/adicionales`, payload);
+  return response.data.data;
+}
+
+export async function updateAdicional(
+  id: string,
+  payload: Partial<{
+    titulo: string;
+    cargoA: CargoAdicional;
+    instaladorProveedorId: string | null;
+    formaCobroInstalador: FormaCobroInstalador | null;
+    margenPct: number;
+    textoPresentacion: string;
+    condicionesComerciales: string;
+    plantillaOfertaId: string | null;
+  }>
+): Promise<Adicional> {
+  const response = await apiClient.patch<{ data: Adicional }>(`/adicionales/${id}`, payload);
+  return response.data.data;
+}
+
+export async function addAdicionalItem(
+  id: string,
+  payload: { cantidad: number; materialId?: string; descripcion?: string; unidad?: string; costoUnitario?: number; partidaId?: string; anchoMm?: number; altoMm?: number }
+): Promise<Adicional> {
+  const response = await apiClient.post<{ data: Adicional }>(`/adicionales/${id}/items`, payload);
+  return response.data.data;
+}
+
+export async function updateAdicionalItem(
+  id: string,
+  itemId: string,
+  payload: Partial<{ cantidad: number; descripcion: string; unidad: string; costoUnitario: number; partidaId: string }>
+): Promise<Adicional> {
+  const response = await apiClient.patch<{ data: Adicional }>(`/adicionales/${id}/items/${itemId}`, payload);
+  return response.data.data;
+}
+
+export async function deleteAdicionalItem(id: string, itemId: string): Promise<Adicional> {
+  const response = await apiClient.post<{ data: Adicional }>(`/adicionales/${id}/items/${itemId}/eliminar`);
+  return response.data.data;
+}
+
+export async function actualizarPreciosAdicional(id: string, tasas?: Tasas): Promise<Adicional> {
+  const response = await apiClient.post<{ data: Adicional }>(`/adicionales/${id}/actualizar-precios`, { tasas });
+  return response.data.data;
+}
+
+export async function cambiarEstadoAdicional(id: string, estado: EstadoAdicional, motivoRechazo?: string): Promise<Adicional> {
+  const response = await apiClient.post<{ data: Adicional }>(`/adicionales/${id}/estado`, { estado, motivoRechazo });
+  return response.data.data;
+}
+
+// ---- Por clasificar ----
+
+export async function getPorClasificar(): Promise<PorClasificar> {
+  const response = await apiClient.get<{ data: PorClasificar }>('/por-clasificar');
+  return response.data.data;
+}
+
+export async function reclasificarItemOC(itemId: string, partidaId: string) {
+  const response = await apiClient.patch(`/ordenes-compra/items/${itemId}/partida`, { partidaId });
+  return response.data;
+}
+
+// Ventanas de la cotizacion que recotiza un adicional (reemplaza las elegidas antes).
+export async function elegirVentanasAdicional(id: string, ventanas: { ventanaId: string; unidades: number }[]): Promise<Adicional> {
+  const response = await apiClient.post<{ data: Adicional }>(`/adicionales/${id}/ventanas`, { ventanas });
+  return response.data.data;
+}
+
+// Una version con el detalle completo (la de un adicional, para la Analitica y la Hoja).
+export async function getVersion(id: string): Promise<ProyectoVersion> {
+  const response = await apiClient.get<{ data: ProyectoVersion }>(`/versiones/${id}`);
+  return response.data.data;
+}
+
+// Vincula un documento de venta de HETMO (por su codigo interno) como version del adicional.
+export async function vincularDocumentoHetmo(id: string, hetmoId: number): Promise<Adicional> {
+  const response = await apiClient.post<{ data: Adicional }>(`/adicionales/${id}/hetmo`, { hetmoId });
+  return response.data.data;
+}
+
+export async function desvincularDocumentoHetmo(id: string): Promise<Adicional> {
+  const response = await apiClient.post<{ data: Adicional }>(`/adicionales/${id}/hetmo/desvincular`);
+  return response.data.data;
 }

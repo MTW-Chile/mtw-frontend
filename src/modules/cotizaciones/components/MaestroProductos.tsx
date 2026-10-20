@@ -1,25 +1,24 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Search,
-  Plus,
-  Filter,
-  X,
-  Boxes,
-  Coins,
-  ChevronDown,
-} from 'lucide-react';
+import { Plus, Boxes, Coins, Pencil } from 'lucide-react';
 import { getMateriales } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
 import { TableSkeleton } from '../../../components/ui/Skeleton';
 import { NuevoMaterialModal } from './NuevoMaterialModal';
+import { EditarMaterialModal } from './EditarMaterialModal';
 import { useMonedas, resolverMoneda, formatMonto } from '../../../lib/monedas';
+import { usePermisos } from '../../../lib/permisos';
 import type { Material } from '../../../types';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
 import { useColumnFilters, type ColumnFilterDef } from '../../../lib/useColumnFilters';
 import { ColumnFilterHeader } from '../../../components/ui/ColumnFilterHeader';
-import { BREAKPOINT_DESKTOP, TABLE_CLASS, TABLE_WRAPPER_CLASS } from '../../../lib/designSystem';
+import { BREAKPOINT_DESKTOP } from '../../../lib/designSystem';
+import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
+import { Buscador } from '../../../components/ui/Buscador';
+import { FiltroChips } from '../../../components/ui/FiltroChips';
+import { IconButton } from '../../../components/ui/IconButton';
+import { Seccion } from '../../../components/ui/Seccion';
 
 // El catálogo trae hasta ~2000 materiales -- volcar esa cantidad de filas al
 // DOM de una sola vez (tabla + cards, sin virtualizar) es lo que hacía que
@@ -30,8 +29,12 @@ const TANDA_INCREMENTO = 150;
 
 export const MaestroProductos: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  // Filtro por tipo de producto (id), no por el texto de familia de HETMO.
   const [selectedFamilia, setSelectedFamilia] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editando, setEditando] = useState<Material | null>(null);
+  const { tiene } = usePermisos();
+  const puedeEditar = tiene('catalogo.editar');
   const [cantidadVisible, setCantidadVisible] = useState(TANDA_INICIAL);
   // Monta sólo la vista de escritorio o la de mobile, nunca las dos -- el
   // maestro puede traer hasta ~2000 materiales, así que duplicar el DOM acá
@@ -49,21 +52,21 @@ export const MaestroProductos: React.FC = () => {
   const materiales = useMemo(() => data || [], [data]);
   const monedas = useMonedas();
 
-  // Las familias del filtro salen de los datos, no de una lista fija: HETMO
-  // usa Perfileria, Vidrios, Herrajes, Accesorios, Refuerzos, Juntas y Otros,
-  // y una lista escrita a mano dejaba chips que no filtraban nada (CRISTALES)
-  // y familias reales sin chip (Refuerzos, Juntas).
+  // Chips por tipo de producto (Configuración > Catálogo), con los tipos que
+  // de verdad tienen materiales.
   const familiasChips = useMemo(() => {
-    const conteo = new Map<string, number>();
+    const conteo = new Map<string, { label: string; total: number }>();
     for (const mat of materiales) {
-      const familia = (mat.familia || 'Otros').trim();
-      conteo.set(familia, (conteo.get(familia) || 0) + 1);
+      const id = mat.tipoProductoId;
+      const actual = conteo.get(id) || { label: mat.tipoProducto?.nombre ?? '—', total: 0 };
+      actual.total += 1;
+      conteo.set(id, actual);
     }
     return [
-      { id: 'ALL', label: 'Todas las Partidas', total: materiales.length },
+      { id: 'ALL', label: 'Todos los tipos', total: materiales.length },
       ...[...conteo.entries()]
-        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'))
-        .map(([familia, total]) => ({ id: familia, label: familia, total })),
+        .sort((a, b) => b[1].total - a[1].total || a[1].label.localeCompare(b[1].label, 'es'))
+        .map(([id, { label, total }]) => ({ id, label, total })),
     ];
   }, [materiales]);
 
@@ -74,11 +77,10 @@ export const MaestroProductos: React.FC = () => {
         !term ||
         mat.skuInterno.toLowerCase().includes(term) ||
         mat.descripcion.toLowerCase().includes(term) ||
+        (mat.tipoProducto?.nombre ?? '').toLowerCase().includes(term) ||
         mat.familia.toLowerCase().includes(term);
 
-      const matchFamilia =
-        selectedFamilia === 'ALL' ||
-        mat.familia.toUpperCase() === selectedFamilia.toUpperCase();
+      const matchFamilia = selectedFamilia === 'ALL' || mat.tipoProductoId === selectedFamilia;
 
       return matchSearch && matchFamilia;
     });
@@ -112,132 +114,52 @@ export const MaestroProductos: React.FC = () => {
   );
   const hayMasPorMostrar = cantidadVisible < materialesFiltradosPorColumna.length;
 
-  // Mismas familias que familyOrder en MaterialesLineaModal.tsx y
-  // FAMILIAS_CATALOGO en NuevoMaterialModal.tsx -- las claves van en
-  // mayúsculas porque se comparan contra mat.familia.toUpperCase() más abajo.
-  const familiaBadges: Record<string, { label: string; variant: any }> = {
-    PERFILERIA: { label: 'Perfilería', variant: 'brand' },
-    HERRAJES: { label: 'Herrajes', variant: 'warning' },
-    JUNTAS: { label: 'Juntas', variant: 'success' },
-    VIDRIOS: { label: 'Vidrios', variant: 'info' },
-    REFUERZOS: { label: 'Refuerzos', variant: 'subtle' },
-    SUPERFICIES: { label: 'Superficies', variant: 'subtle' },
-    ACCESORIOS: { label: 'Accesorios', variant: 'default' },
-    OTROS: { label: 'Otros', variant: 'outline' },
+  // Formato de compra en una linea: "por m · barra de 5,8 m" (el del tipo o el propio).
+  const formatoCorto = (mat: Material) => {
+    const f = mat.formato;
+    if (!f) return mat.unidadMedida;
+    if (f.unidadCompra.codigo === f.unidadPrecio.codigo) return `por ${f.unidadPrecio.simbolo}`;
+    return `por ${f.unidadPrecio.simbolo} · ${f.unidadCompra.simbolo} de ${f.factorCompra.toLocaleString('es-CL')} ${f.unidadPrecio.simbolo}`;
   };
 
+  // La moneda con que se valoriza el precio: la del tipo de producto si es
+  // fija o si el precio vino de HETMO (que manda un codigo de divisa sin
+  // significado, "2"); la del precio si se cargo a mano con su ISO.
   const getMaterialPrecioInfo = (mat: Material) => {
-    if (mat.precios && mat.precios.length > 0) {
-      const p = mat.precios[0];
-      return { precio: Number(p.precio), moneda: p.moneda || '' };
-    }
-    return {
-      precio: mat.precioOrigen !== undefined && mat.precioOrigen !== null ? Number(mat.precioOrigen) : null,
-      moneda: mat.monedaOrigen || '',
-    };
+    const ultimo = mat.precios && mat.precios.length > 0 ? mat.precios[0] : null;
+    const precio = ultimo ? Number(ultimo.precio) : mat.precioOrigen != null ? Number(mat.precioOrigen) : null;
+    const monedaPrecio = (ultimo ? ultimo.moneda : mat.monedaOrigen) || '';
+    const esIso = /^([A-Z]{3}|UF)$/.test(monedaPrecio);
+    const moneda = mat.formato && (mat.formato.monedaFija || !esIso) ? mat.formato.moneda : monedaPrecio;
+    return { precio, moneda };
   };
 
-  // El material trae el codigo de divisa de HETMO ("2"), no un ISO: hay que
-  // resolverlo contra el diccionario antes de mostrar nada.
   const formatPrecio = (precio?: number | null, moneda?: string | null) =>
     formatMonto(precio, resolverMoneda(moneda, monedas));
 
   return (
     <div className="space-y-4 sm:space-y-5 animate-fade-in">
-      {/* Encabezado Superior */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
-        <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-base sm:text-lg font-black tracking-tight text-slate-900 flex items-center gap-2">
-              <span>Maestro de Productos & Materiales</span>
-            </h2>
-            <Badge variant="brand" size="sm">
-              {materialesFiltradosPorColumna.length} ítems
+      <Seccion
+        titulo={
+          <span className="flex items-center gap-2">
+            Materiales
+            <Badge size="sm" className="normal-case tracking-normal font-mono">
+              {materialesFiltradosPorColumna.length}
             </Badge>
-          </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Catálogo con SKU, partida, unidad de medida, divisa y precio de origen para cotización.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="primary"
-            size="md"
-            leftIcon={<Plus className="w-4 h-4" />}
-            onClick={() => setIsModalOpen(true)}
-            className="w-full sm:w-auto"
-          >
-            Nuevo Artículo
-          </Button>
-        </div>
-      </div>
-
-      {/* Barra de Búsqueda y Filtros Responsivos */}
-      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-          {/* Buscador */}
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por SKU, descripción o partida..."
-              className="w-full pl-10 pr-9 py-2.5 sm:py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-brand-600 transition-all"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
-                aria-label="Limpiar búsqueda"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-
-          {/* FILTRO EN FORMATO DESPLEGABLE PARA MÓVILES (System-Wide) */}
-          <div className="block md:hidden relative w-full sm:w-64">
-            <select
-              value={selectedFamilia}
-              onChange={(e) => setSelectedFamilia(e.target.value)}
-              className="w-full py-2.5 pl-3.5 pr-10 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:border-brand-600 appearance-none cursor-pointer"
-            >
-              {familiasChips.map((chip) => (
-                <option key={chip.id} value={chip.id}>
-                  {chip.label} ({chip.total})
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-        </div>
-
-        {/* FILTRO EN CHIPS HORIZONTALES PARA PANTALLAS GRANDES (System-Wide) */}
-        <div className="hidden md:flex items-center gap-1.5 overflow-x-auto pb-1.5 pt-1 -mx-1 px-1 scrollbar-thin">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1 flex items-center gap-1">
-            <Filter className="w-3 h-3" />
-            Partida:
           </span>
-          {familiasChips.map((chip) => {
-            const isActive = selectedFamilia === chip.id;
-            return (
-              <button
-                key={chip.id}
-                onClick={() => setSelectedFamilia(chip.id)}
-                className={`px-3 py-1 rounded-full text-xs font-medium shrink-0 whitespace-nowrap transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-brand-600 text-white font-bold shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 border border-slate-200/60'
-                }`}
-              >
-                {chip.label} <span className={isActive ? 'opacity-80' : 'text-slate-400'}>{chip.total}</span>
-              </button>
-            );
-          })}
+        }
+        descripcion="Catálogo con SKU, tipo de producto, formato de compra y precio de origen. Las reglas de cada tipo se configuran en Configuración › Catálogo."
+        acciones={
+          <Button size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setIsModalOpen(true)}>
+            Nuevo artículo
+          </Button>
+        }
+      >
+        <div className="space-y-3">
+          <Buscador valor={searchTerm} onChange={setSearchTerm} placeholder="Buscar por SKU, descripción o tipo…" />
+          <FiltroChips etiqueta="Filtrar por tipo de producto" opciones={familiasChips} valor={selectedFamilia} onChange={setSelectedFamilia} />
         </div>
-      </div>
+      </Seccion>
 
       {/* Contenedor Principal de Datos */}
       {isLoading ? (
@@ -263,7 +185,7 @@ export const MaestroProductos: React.FC = () => {
           </h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
             {searchTerm || selectedFamilia !== 'ALL' || hayFiltrosColumnaActivos
-              ? 'Intenta ajustar los filtros de búsqueda, partida o columna.'
+              ? 'Intenta ajustar los filtros de búsqueda, tipo o columna.'
               : 'Aún no hay artículos registrados en el maestro. Comienza creando el primero.'}
           </p>
           <div className="pt-2 flex justify-center gap-2 flex-wrap">
@@ -295,84 +217,82 @@ export const MaestroProductos: React.FC = () => {
           {/* 1. VISTA TABLA AUTOMÁTICA EN DESKTOP/TABLET (System-Wide) */}
           {isDesktop && (
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-            <div className={TABLE_WRAPPER_CLASS}>
-              <table className={TABLE_CLASS + ' text-left text-slate-700'}>
-                <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
-                  <tr>
-                    <th className="px-5 py-3.5 w-36">SKU / Código</th>
-                    <th className="px-5 py-3.5">Descripción</th>
-                    <th className="px-5 py-3.5 w-36">Partida</th>
-                    <th className="px-5 py-3.5 w-36">Proveedor</th>
-                    <th className="px-5 py-3.5 text-center w-20">Unidad</th>
-                    <th className="px-5 py-3.5 text-center w-24">Divisa</th>
-                    <th className="px-5 py-3.5 text-right w-32">Precio Origen</th>
-                  </tr>
-                  <tr className="bg-white border-b border-slate-100">
-                    <th className="px-5 py-2.5">
-                      <ColumnFilterHeader columna={columnas[0]} valor={valores.sku || ''} onChange={(v) => setValor('sku', v)} />
-                    </th>
-                    <th className="px-5 py-2.5">
-                      <ColumnFilterHeader columna={columnas[1]} valor={valores.descripcion || ''} onChange={(v) => setValor('descripcion', v)} />
-                    </th>
-                    <th className="px-5 py-2.5" />
-                    <th className="px-5 py-2.5">
-                      <ColumnFilterHeader columna={columnas[2]} valor={valores.proveedor || ''} onChange={(v) => setValor('proveedor', v)} />
-                    </th>
-                    <th className="px-5 py-2.5" colSpan={3} />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {materialesVisibles.map((mat) => {
-                    const badgeInfo = familiaBadges[mat.familia.toUpperCase()] || {
-                      label: mat.familia,
-                      variant: 'default',
-                    };
-                    const { precio, moneda } = getMaterialPrecioInfo(mat);
+            <Tabla>
+              <Thead>
+                <Tr>
+                  <Th className="px-5 py-3.5 w-36">SKU / Código</Th>
+                  <Th className="px-5 py-3.5">Descripción</Th>
+                  <Th className="px-5 py-3.5 w-36">Tipo · Partida</Th>
+                  <Th className="px-5 py-3.5 w-36">Proveedor</Th>
+                  <Th className="px-5 py-3.5 w-40">Formato</Th>
+                  <Th alinear="centro" className="px-5 py-3.5 w-24">Divisa</Th>
+                  <Th alinear="derecha" className="px-5 py-3.5 w-32">Precio Origen</Th>
+                  {puedeEditar && <Th className="px-5 py-3.5 w-12" />}
+                </Tr>
+                <Tr className="bg-white border-b border-slate-100">
+                  <Th className="px-5">
+                    <ColumnFilterHeader columna={columnas[0]} valor={valores.sku || ''} onChange={(v) => setValor('sku', v)} />
+                  </Th>
+                  <Th className="px-5">
+                    <ColumnFilterHeader columna={columnas[1]} valor={valores.descripcion || ''} onChange={(v) => setValor('descripcion', v)} />
+                  </Th>
+                  <Th className="px-5" />
+                  <Th className="px-5">
+                    <ColumnFilterHeader columna={columnas[2]} valor={valores.proveedor || ''} onChange={(v) => setValor('proveedor', v)} />
+                  </Th>
+                  <Th className="px-5" colSpan={puedeEditar ? 4 : 3} />
+                </Tr>
+              </Thead>
+              <Tbody>
+                {materialesVisibles.map((mat) => {
+                  const { precio, moneda } = getMaterialPrecioInfo(mat);
 
-                    return (
-                      <tr
-                        key={mat.id}
-                        className="hover:bg-slate-50/80 transition-colors group"
-                      >
-                        <td className="px-5 py-3 font-mono font-bold text-slate-900 whitespace-nowrap">
-                          <span className="inline-block px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200/80 group-hover:border-brand-600/30 group-hover:text-brand-600 transition-colors whitespace-nowrap">
-                            {mat.skuInterno}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3 min-w-[16rem]">
-                          <div className="font-semibold text-slate-900 line-clamp-2 leading-snug" title={mat.descripcion}>
-                            {mat.descripcion}
-                          </div>
-                        </td>
-                        <td className="px-5 py-3 whitespace-nowrap">
-                          <Badge variant={badgeInfo.variant} size="sm">
-                            {badgeInfo.label}
-                          </Badge>
-                        </td>
-                        <td className="px-5 py-3 text-slate-600 max-w-[14rem]">
-                          <div className="truncate" title={mat.proveedor?.nombre}>
-                            {mat.proveedor?.nombre || <span className="text-slate-300">—</span>}
-                          </div>
-                        </td>
-                        <td className="px-5 py-3 text-center font-mono font-bold text-slate-700 whitespace-nowrap">
-                          <span className="px-2 py-0.5 rounded-md bg-slate-100 text-[11px]">
-                            {mat.unidadMedida}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3 text-center font-mono font-bold text-slate-600 whitespace-nowrap">
-                          <span className="px-2 py-0.5 rounded-md bg-slate-50 border border-slate-200 text-[11px]">
-                            {resolverMoneda(moneda, monedas).nombre}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
-                          {formatPrecio(precio, moneda)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  return (
+                    <Tr
+                      key={mat.id}
+                      className="hover:bg-slate-50/80 transition-colors group"
+                    >
+                      <Td className="px-5 font-mono font-bold text-slate-900 whitespace-nowrap">
+                        <span className="inline-block px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200/80 group-hover:border-brand-600/30 group-hover:text-brand-600 transition-colors whitespace-nowrap">
+                          {mat.skuInterno}
+                        </span>
+                      </Td>
+                      <Td className="px-5 min-w-[16rem]">
+                        <div className="font-semibold text-slate-900 line-clamp-2 leading-snug" title={mat.descripcion}>
+                          {mat.descripcion}
+                        </div>
+                      </Td>
+                      <Td className="px-5 whitespace-nowrap">
+                        <div className="font-semibold text-slate-800">{mat.tipoProducto?.nombre ?? '—'}</div>
+                        <div className="text-[10.5px] text-slate-400">{mat.tipoProducto?.partida?.nombre}</div>
+                      </Td>
+                      <Td className="px-5 text-slate-600 max-w-[14rem]">
+                        <div className="truncate" title={mat.proveedor?.nombre}>
+                          {mat.proveedor?.nombre || <span className="text-slate-300">—</span>}
+                        </div>
+                      </Td>
+                      <Td className="px-5 text-[11px] text-slate-600 whitespace-nowrap">
+                        {formatoCorto(mat)}
+                        {mat.formato?.propio && <Badge size="sm" variant="info" className="ml-1.5">Propio</Badge>}
+                      </Td>
+                      <Td alinear="centro" className="px-5 font-mono font-bold text-slate-600 whitespace-nowrap">
+                        <span className="px-2 py-0.5 rounded-md bg-slate-50 border border-slate-200 text-[11px]">
+                          {resolverMoneda(moneda, monedas).nombre}
+                        </span>
+                      </Td>
+                      <Td alinear="derecha" className="px-5 font-mono font-bold text-slate-900 whitespace-nowrap">
+                        {formatPrecio(precio, moneda)}
+                      </Td>
+                      {puedeEditar && (
+                        <Td alinear="derecha" className="px-5">
+                          <IconButton icono={Pencil} tono="marca" etiqueta={`Editar ${mat.skuInterno}: tipo, formato y proveedor`} onClick={() => setEditando(mat)} />
+                        </Td>
+                      )}
+                    </Tr>
+                  );
+                })}
+              </Tbody>
+            </Tabla>
           </div>
           )}
 
@@ -380,10 +300,6 @@ export const MaestroProductos: React.FC = () => {
           {!isDesktop && (
           <div className="space-y-3">
             {materialesVisibles.map((mat) => {
-              const badgeInfo = familiaBadges[mat.familia.toUpperCase()] || {
-                label: mat.familia,
-                variant: 'default',
-              };
               const { precio, moneda } = getMaterialPrecioInfo(mat);
 
               return (
@@ -395,9 +311,14 @@ export const MaestroProductos: React.FC = () => {
                     <span className="font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-slate-100 text-slate-900 border border-slate-200 whitespace-nowrap">
                       {mat.skuInterno}
                     </span>
-                    <Badge variant={badgeInfo.variant} size="sm">
-                      {badgeInfo.label}
-                    </Badge>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="subtle" size="sm">
+                        {mat.tipoProducto?.nombre ?? '—'}
+                      </Badge>
+                      {puedeEditar && (
+                        <IconButton icono={Pencil} tono="marca" etiqueta={`Editar ${mat.skuInterno}`} onClick={() => setEditando(mat)} />
+                      )}
+                    </div>
                   </div>
 
                   <h4 className="text-xs font-bold text-slate-900 leading-snug">
@@ -412,9 +333,9 @@ export const MaestroProductos: React.FC = () => {
 
                   <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1.5 font-mono text-slate-600">
-                      <span className="text-slate-400">Unidad:</span>
+                      <span className="text-slate-400">Formato:</span>
                       <strong className="text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded text-[11px]">
-                        {mat.unidadMedida}
+                        {formatoCorto(mat)}
                       </strong>
                     </div>
 
@@ -449,6 +370,7 @@ export const MaestroProductos: React.FC = () => {
         onClose={() => setIsModalOpen(false)}
         onSuccess={() => refetch()}
       />
+      {editando && <EditarMaterialModal material={editando} onClose={() => setEditando(null)} />}
     </div>
   );
 };

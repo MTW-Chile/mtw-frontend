@@ -9,7 +9,8 @@ export type BadgeVariant =
   | 'danger'
   | 'outline'
   | 'subtle'
-  | 'violet';
+  | 'violet'
+  | 'dark';
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   variant?: BadgeVariant;
@@ -35,10 +36,12 @@ export const Badge: React.FC<BadgeProps> = ({
     outline: 'bg-transparent text-slate-600 border-slate-300',
     subtle: 'bg-slate-50 text-slate-500 border-slate-200/60',
     violet: 'bg-violet-50 text-violet-700 border-violet-200 font-semibold',
+    dark: 'bg-slate-800 text-white border-slate-800 font-bold',
   };
 
   const dotColors: Record<BadgeVariant, string> = {
     violet: 'bg-violet-500',
+    dark: 'bg-white',
     default: 'bg-slate-400',
     brand: 'bg-brand-600',
     success: 'bg-emerald-500',

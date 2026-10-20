@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, Loader2, RotateCcw, Trash2, X } from 'lucide-react';
-import { cambiarEstadoPendiente, eliminarPendiente, getEtapasPendiente, getPendiente } from '../../../api/client';
+import { CheckCircle2, RotateCcw, ShoppingCart, Trash2 } from 'lucide-react';
+import { cambiarEstadoPendiente, editarPendiente, eliminarPendiente, getEtapasPendiente, getPendiente } from '../../../api/client';
+import { NuevoAdicionalModal } from '../adicionales/NuevoAdicionalModal';
+import { actualizarParams } from '../../../lib/navigation';
+import { avisarError } from '../../configuracion/catalogo/comun';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { formatoFechaHora } from '../fabricacion/utils';
 import { AdjuntosDetalle } from './adjuntos/AdjuntosDetalle';
+import { NuevaOrdenCompraModal } from '../../abastecimiento/NuevaOrdenCompraModal';
+import { usePermisos } from '../../../lib/permisos';
+import { ETIQUETA_CARGO, ETIQUETA_NATURALEZA } from '../../../types';
+import type { CargoPendiente } from '../../../types';
 import {
   ETIQUETA_DESTINO,
   ETIQUETA_ESTADO,
@@ -18,6 +25,10 @@ import {
   textoRectificacion,
   varianteEstadoPendiente,
 } from './utils';
+import { useConfirmar } from '../../../components/ui/Confirmar';
+import { SelectCompacto, Textarea } from '../../../components/ui/Campos';
+import { Modal } from '../../../components/ui/Modal';
+import { Cargando } from '../../../components/ui/Estados';
 
 interface Props {
   proyectoId: string;
@@ -39,9 +50,13 @@ const Dato: React.FC<{ etiqueta: string; children: React.ReactNode }> = ({ etiqu
 //    debe recibir en obra) o de un administrador -- el servidor lo exige; aca
 //    solo se muestra o se deshabilita segun `puedeResolver`.
 export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId, onClose }) => {
+  const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
   const [etapaElegida, setEtapaElegida] = useState('');
   const [comentario, setComentario] = useState('');
+  const [comprando, setComprando] = useState(false);
+  const [cotizandoAdicional, setCotizandoAdicional] = useState(false);
+  const { tiene } = usePermisos();
 
   const { data: p, isLoading } = useQuery({
     queryKey: ['pendiente', pendienteId],
@@ -49,8 +64,14 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
   });
   const { data: etapas = [] } = useQuery({ queryKey: ['etapasPendiente'], queryFn: () => getEtapasPendiente(), staleTime: 1000 * 60 });
 
+  const cambiarCargo = useMutation({
+    mutationFn: (cargoA: CargoPendiente | null) => editarPendiente(pendienteId, { cargoA }),
+    onSuccess: () => refrescar(),
+    onError: avisarError,
+  });
+
   const refrescar = () => {
-    queryClient.invalidateQueries({ queryKey: ['pendientes', proyectoId] });
+    queryClient.invalidateQueries({ queryKey: ['pendientes'] }); // la lista de la obra y el visor central
     queryClient.invalidateQueries({ queryKey: ['pendiente', pendienteId] });
   };
 
@@ -66,7 +87,7 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
   const eliminar = useMutation({
     mutationFn: () => eliminarPendiente(pendienteId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pendientes', proyectoId] });
+      queryClient.invalidateQueries({ queryKey: ['pendientes'] }); // la lista de la obra y el visor central
       onClose();
     },
   });
@@ -77,28 +98,28 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
   const ocupado = cambiar.isPending || eliminar.isPending;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" role="dialog" aria-modal="true">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[92vh] overflow-y-auto p-5 space-y-4">
+    <>
+    <Modal
+      ancho="lg"
+      titulo={
+        p ? (
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="font-mono">{codigoPendiente(p.numero)}</span>
+            <Badge size="sm" variant={varianteEstadoPendiente(p.estado)}>
+              {textoEstadoPendiente(p)}
+            </Badge>
+          </span>
+        ) : (
+          'Pendiente'
+        )
+      }
+      subtitulo={p?.descripcion}
+      onClose={onClose}
+    >
         {isLoading || !p ? (
-          <div className="p-10 flex items-center justify-center text-slate-400">
-            <Loader2 className="w-5 h-5 animate-spin" />
-          </div>
+          <Cargando />
         ) : (
           <>
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-sm font-black text-slate-900 font-mono">{codigoPendiente(p.numero)}</h3>
-                  <Badge size="sm" variant={varianteEstadoPendiente(p.estado)}>
-                    {textoEstadoPendiente(p)}
-                  </Badge>
-                </div>
-                <p className="text-sm font-bold text-slate-900 mt-1 break-words">{p.descripcion}</p>
-              </div>
-              <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer shrink-0" aria-label="Cerrar">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
             <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3 rounded-xl bg-slate-50 border border-slate-200 p-3">
               <Dato etiqueta="Qué">{ETIQUETA_TIPO[p.tipo]}</Dato>
@@ -126,6 +147,55 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
                 {p.destino === 'FABRICA' && p.tipo === 'VENTANA' ? ' — pedido a Fábrica' : ''}
               </p>
             )}
+            {/* A cargo de quien: cliente o instalador -> adicional (se cobra); nosotros -> reposicion. */}
+            <div className="rounded-xl border border-slate-200 p-3 flex flex-wrap items-center justify-between gap-2">
+              <label className="flex items-center gap-2 text-xs">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">A cargo de</span>
+                <SelectCompacto
+                  value={p.cargoA ?? ''}
+                  disabled={!p.puedeResolver || p.estado === 'RESUELTO' || cambiarCargo.isPending}
+                  onChange={(e) => cambiarCargo.mutate((e.target.value || null) as CargoPendiente | null)}
+                >
+                  <option value="">Según el motivo ({p.cargoEfectivo && !p.cargoA ? ETIQUETA_CARGO[p.cargoEfectivo] : 'sin cargo aparte'})</option>
+                  {(['CLIENTE', 'INSTALADOR', 'MTW'] as CargoPendiente[]).map((c) => (
+                    <option key={c} value={c}>
+                      {ETIQUETA_CARGO[c]}
+                    </option>
+                  ))}
+                </SelectCompacto>
+              </label>
+              {(p.cargoEfectivo === 'CLIENTE' || p.cargoEfectivo === 'INSTALADOR') && tiene('adicionales.editar') && p.estado !== 'RESUELTO' && (
+                <Button size="sm" variant="outline" onClick={() => setCotizandoAdicional(true)}>
+                  Cotizar adicional
+                </Button>
+              )}
+            </div>
+            {/* Compras del pendiente: reposicion (falla o daño) u otra, enlazadas a el. */}
+            <div className="rounded-xl border border-slate-200 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Compras · sugerida: {ETIQUETA_NATURALEZA[p.naturalezaSugerida]}
+                </h4>
+                {tiene('compras.oc.solicitar') && p.estado !== 'RESUELTO' && (
+                  <Button size="sm" variant="outline" leftIcon={<ShoppingCart className="w-3.5 h-3.5" />} onClick={() => setComprando(true)}>
+                    Solicitar materiales
+                  </Button>
+                )}
+              </div>
+              {(p.ordenesCompra ?? []).length === 0 ? (
+                <p className="text-[11px] text-slate-400">Sin compras todavía.</p>
+              ) : (
+                <ul className="flex flex-wrap gap-1.5">
+                  {p.ordenesCompra.map((oc) => (
+                    <li key={oc.id}>
+                      <Badge size="sm" variant={oc.naturaleza === 'REPOSICION' ? 'warning' : oc.naturaleza === 'ADICIONAL' ? 'violet' : 'default'}>
+                        {oc.numero} · {ETIQUETA_NATURALEZA[oc.naturaleza]} · {oc.estado}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
             {p.notas && (
               <div>
                 <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Notas</h4>
@@ -143,19 +213,14 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
                     <label htmlFor="pend-etapa" className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
                       Etapa
                     </label>
-                    <select
-                      id="pend-etapa"
-                      value={etapaSeleccionada}
-                      onChange={(e) => setEtapaElegida(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-brand-600"
-                    >
+                    <SelectCompacto id="pend-etapa" value={etapaSeleccionada} onChange={(e) => setEtapaElegida(e.target.value)} className="w-full">
                       <option value="">{p.estado === 'EN_CURSO' ? '— sin etapa —' : '— primera etapa —'}</option>
                       {aplicables.map((e) => (
                         <option key={e.id} value={e.id}>
                           {e.nombre}
                         </option>
                       ))}
-                    </select>
+                    </SelectCompacto>
                   </div>
                   <Button
                     size="sm"
@@ -177,14 +242,13 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
               {p.puedeResolver ? (
                 <div className="space-y-2">
                   {p.estado !== 'RESUELTO' && (
-                    <textarea
+                    <Textarea
                       value={comentario}
                       onChange={(e) => setComentario(e.target.value)}
                       rows={2}
                       maxLength={500}
                       placeholder="Nota al resolver, ej. recibido en obra (opcional)"
                       aria-label="Nota de resolución"
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-brand-600"
                     />
                   )}
                   <div className="flex flex-wrap gap-2">
@@ -209,8 +273,8 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
                         variant="ghost"
                         leftIcon={<Trash2 className="w-3.5 h-3.5" />}
                         disabled={ocupado}
-                        onClick={() => {
-                          if (window.confirm(`¿Eliminar el pendiente ${codigoPendiente(p.numero)}? No se puede deshacer.`)) eliminar.mutate();
+                        onClick={async () => {
+                          if (await confirmar({ titulo: `¿Eliminar el pendiente ${codigoPendiente(p.numero)}?`, mensaje: `No se puede deshacer.`, confirmar: 'Eliminar', peligro: true })) eliminar.mutate();
                         }}
                       >
                         Eliminar
@@ -246,7 +310,31 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
             </div>
           </>
         )}
-      </div>
-    </div>
+    </Modal>
+      {p && cotizandoAdicional && (
+        <NuevoAdicionalModal
+          proyectoId={proyectoId}
+          obraPendiente={p}
+          onClose={() => setCotizandoAdicional(false)}
+          onCreado={(a) => {
+            setCotizandoAdicional(false);
+            onClose();
+            actualizarParams({ seccion: 'adicionales', adicional: a.id });
+          }}
+        />
+      )}
+      {p && comprando && (
+        <NuevaOrdenCompraModal
+          origen="obra"
+          isOpen
+          onClose={() => {
+            setComprando(false);
+            refrescar();
+          }}
+          proyectoIdFijo={proyectoId}
+          obraPendiente={p}
+        />
+      )}
+    </>
   );
 };

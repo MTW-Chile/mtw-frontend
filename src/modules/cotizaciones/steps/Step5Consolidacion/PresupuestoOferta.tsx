@@ -1,24 +1,32 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileDown, Loader2, Pencil, Check } from 'lucide-react';
+import { FileDown, Pencil, Check } from 'lucide-react';
 import type { Proyecto, ProyectoVersion, Ventana } from '../../../../types';
 import { formatNumber } from '../../../../lib/utils';
-import { useMonedas } from '../../../../lib/monedas';
-import { updatePresupuestoConfig, updateVentanaPresupuesto, renderPdf, getConfiguracionEmpresa } from '../../../../api/client';
+import {
+  updatePresupuestoConfig,
+  updateVentanaPresupuesto,
+  renderPdf,
+  getPlantillaDeProyecto,
+  getPlantillasOferta,
+  getConfiguracionEmpresa,
+} from '../../../../api/client';
+import { useParametrosGenerales } from '../../../../lib/parametrosGenerales';
 import { WindowRendererSvg } from '../../components/drawing/WindowRendererSvg';
 import { buildProtexDoorSvg } from '../../components/drawing/protexDoorSvg';
 import { toWindowLine } from '../../components/drawing/ventanaAdapter';
 import { createFinish, getAcabadoLabel } from '../../components/drawing/colorSystem';
 import * as core from '../../components/drawing/geometryCore';
-import {
-  computeMaterialesConsolidados,
-  computeCostoTotalYVenta,
-  computeCostoVentanaCLP,
-  computeCostoMaterialesPersonalizadosCLP,
-} from '../../lib/materialesConsolidados';
-import { computePreciosVenta } from '../../lib/presupuesto';
-import { loadImageDataUrl } from '../../lib/pdfTheme';
+import { useAnalitica } from '../../lib/useAnalitica';
+import { cargarLogoDocumentos, loadImageDataUrl } from '../../lib/pdfTheme';
 import { ufLabel, rasterizarDibujos, buildDocumentoHtml, buildHeaderFooterTemplates } from './presupuestoPdf';
+import { Button } from '../../../../components/ui/Button';
+import { IconButton } from '../../../../components/ui/IconButton';
+import { Select } from '../../../../components/ui/Select';
+import { InputCompacto, Textarea } from '../../../../components/ui/Campos';
+import { ActivadorEdicion } from '../../../../components/ui/ActivadorEdicion';
+import { mostrarToast } from '../../../../lib/toast';
+import { useConfirmar } from '../../../../components/ui/Confirmar';
 
 interface PresupuestoOfertaProps {
   proyecto: Proyecto;
@@ -27,21 +35,6 @@ interface PresupuestoOfertaProps {
   uf: string;
   euro: string;
 }
-
-// Piso final si NI el proyecto tiene texto propio NI Configuración tiene un
-// default cargado (p.ej. la primera vez que corre esto, antes de que un
-// administrador entre a Configuración a llenarlo). El default real y
-// editable vive en ConfiguracionEmpresa (ver getConfiguracionEmpresa más
-// abajo) -- esto ya NO es "el texto por defecto", es el fallback del
-// fallback.
-const FALLBACK_CONDICIONES = `Se considera provisión e instalación de ventanas de PVC y termopaneles según especificación del proyecto.
-Validez de la oferta 30 días.
-Valores expresados en Unidades de Fomento (UF) más IVA.
-Se considera anticipo del 10% del valor del contrato.
-No se considera ningún elemento de terminación como junquillos, tubulares, remates de estuco y otros que no estén debidamente indicados en el Presupuesto.
-Este presupuesto contiene las ventanas detalladas en el plano enviado por el cliente y que es parte integrante del proyecto; cualquier modificación de este deberá cotizarse nuevamente incorporando los cambios o adicionales al proyecto.`;
-
-const FALLBACK_TEXTO = 'De acuerdo a sus requerimientos y solicitud de cotización, presentamos propuesta de Ventanas MTW con las líneas adecuadas para su proyecto.';
 
 // BORRADOR es el valor historico de la columna antes del flujo de estado
 // comercial; se trata igual que EN_COTIZACION (ver relay-api).
@@ -64,35 +57,24 @@ const NombreEditable: React.FC<{ ventana: Ventana; onGuardado: (v: Partial<Venta
 
   if (!editando) {
     return (
-      <button
-        type="button"
-        disabled={congelado}
-        onClick={() => setEditando(true)}
-        className="flex items-center gap-1.5 text-left group/edit disabled:cursor-default"
-      >
+      <ActivadorEdicion disabled={congelado} onClick={() => setEditando(true)} etiqueta="Editar el nombre">
         <h4 className="text-sm font-black text-slate-900">{ventana.modelo}</h4>
-        {!congelado && <Pencil className="w-3 h-3 text-slate-300 group-hover/edit:text-brand-600 shrink-0" />}
-      </button>
+      </ActivadorEdicion>
     );
   }
 
   return (
     <div className="flex items-center gap-1.5">
-      <input
+      <InputCompacto
+        aria-label="Nombre de la ventana"
         autoFocus
         value={valor}
         onChange={(e) => setValor(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && mutation.mutate()}
         maxLength={220}
-        className="text-sm font-black text-slate-900 border-b border-brand-600 outline-none bg-transparent min-w-0"
+        className="text-sm! font-black min-w-0"
       />
-      <button
-        type="button"
-        onClick={() => mutation.mutate()}
-        disabled={mutation.isPending}
-        className="shrink-0 w-5 h-5 rounded bg-brand-600 text-white flex items-center justify-center"
-      >
-        {mutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-      </button>
+      <IconButton icono={Check} tono="marca" etiqueta="Guardar nombre" onClick={() => mutation.mutate()} cargando={mutation.isPending} />
     </div>
   );
 };
@@ -114,53 +96,40 @@ const ObservacionEditable: React.FC<{ ventana: Ventana; onGuardado: (v: Partial<
 
   if (!editando && !ventana.comentarioPresupuesto) {
     return congelado ? null : (
-      <button type="button" onClick={() => setEditando(true)} className="text-[11px] text-slate-400 hover:text-brand-600">
+      <Button variant="link" size="sm" className="text-[11px]! font-semibold!" onClick={() => setEditando(true)}>
         + Agregar observación
-      </button>
+      </Button>
     );
   }
 
   if (!editando) {
     return (
-      <button type="button" disabled={congelado} onClick={() => setEditando(true)} className="text-left group/edit w-full">
+      <div className="w-full">
         <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Observación</span>
-        <p className="text-xs text-slate-700 flex items-start gap-1">
-          {ventana.comentarioPresupuesto}
-          {!congelado && <Pencil className="w-3 h-3 text-slate-300 group-hover/edit:text-brand-600 shrink-0 mt-0.5" />}
-        </p>
-      </button>
+        <ActivadorEdicion disabled={congelado} onClick={() => setEditando(true)} etiqueta="Editar la observación" className="w-full">
+          <p className="text-xs text-slate-700">{ventana.comentarioPresupuesto}</p>
+        </ActivadorEdicion>
+      </div>
     );
   }
 
   return (
     <div className="space-y-1">
-      <textarea
-        autoFocus
-        value={valor}
-        onChange={(e) => setValor(e.target.value)}
-        rows={2}
-        maxLength={2000}
-        className="w-full text-xs border border-slate-200 rounded-lg p-1.5 outline-none focus:border-brand-600"
-      />
-      <button
-        type="button"
-        onClick={() => mutation.mutate()}
-        disabled={mutation.isPending}
-        className="px-2 py-1 rounded-md bg-brand-600 text-white text-[11px] font-bold flex items-center gap-1"
-      >
-        {mutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+      <Textarea aria-label="Observación" autoFocus value={valor} onChange={(e) => setValor(e.target.value)} rows={2} maxLength={2000} />
+      <Button size="sm" onClick={() => mutation.mutate()} isLoading={mutation.isPending} leftIcon={<Check className="w-3 h-3" />}>
         Guardar
-      </button>
+      </Button>
     </div>
   );
 };
 
 export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, activeVersion, dolar, uf, euro }) => {
+  const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
-  const monedas = useMonedas();
-  const tasaDolar = Number(dolar) || 950;
-  const tasaUf = Number(uf) || 38500;
-  const tasaEuro = Number(euro) || 1030;
+  const parametros = useParametrosGenerales();
+  const tasaDolar = Number(dolar) || parametros?.tasasRespaldo.dolar || 0;
+  const tasaUf = Number(uf) || parametros?.tasasRespaldo.uf || 0;
+  const tasaEuro = Number(euro) || parametros?.tasasRespaldo.euro || 0;
   // Igual que en Step3Materiales/Step4Fijaciones: el read-only sigue el
   // estado comercial, no esCongelado -- ese flag ahora se activa al asignar
   // cliente (Paso 1) y solo bloquea el resync con HETMO.
@@ -174,64 +143,59 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
     [activeVersion?.ventanas, ventanasLocal]
   );
 
-  const materialesConsolidados = useMemo(
-    () => computeMaterialesConsolidados(activeVersion, tasaDolar, tasaEuro, tasaUf, monedas),
-    [activeVersion, tasaDolar, tasaEuro, tasaUf, monedas]
-  );
-  const aprobacionesPorFamilia = useMemo(
-    () => new Map((activeVersion?.familiaAprobaciones || []).map((f) => [f.familia, f])),
-    [activeVersion?.familiaAprobaciones]
-  );
-  const { venta, costoTotal } = useMemo(
-    () => computeCostoTotalYVenta(activeVersion, materialesConsolidados, aprobacionesPorFamilia),
-    [activeVersion, materialesConsolidados, aprobacionesPorFamilia]
-  );
-  const ajustesPorMaterial = useMemo(
-    () => new Map((activeVersion?.materialAjustes || []).map((a) => [a.materialId, a])),
-    [activeVersion?.materialAjustes]
-  );
+  // Venta y precio por línea los calcula mtw-api (el mismo prorrateo con que
+  // se congelan al aceptar la cotización).
+  const { data: analitica } = useAnalitica(proyecto.id, versionId, { dolar: tasaDolar, euro: tasaEuro, uf: tasaUf });
+  const venta = analitica?.totales.venta ?? 0;
   const preciosVenta = useMemo(
-    () =>
-      computePreciosVenta(
-        ventanas,
-        activeVersion?.sumaTotalLineas,
-        venta,
-        (v) => computeCostoVentanaCLP(v, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas),
-        costoTotal,
-        tasaUf,
-        (v) => computeCostoMaterialesPersonalizadosCLP(v, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas)
-      ),
-    [ventanas, activeVersion?.sumaTotalLineas, venta, costoTotal, ajustesPorMaterial, tasaDolar, tasaEuro, tasaUf, monedas]
+    () => new Map((analitica?.preciosVenta ?? []).map(({ ventanaId, ...p }) => [ventanaId, p])),
+    [analitica]
   );
-  const ivaPct = 19;
+  // Vidrios de cada linea: los materiales que se miden por area (segun su tipo de producto).
+  const materialesPorArea = useMemo(
+    () => new Set((analitica?.materiales ?? []).filter((m) => m.medicion === 'AREA').map((m) => m.materialId)),
+    [analitica]
+  );
+  // IVA de Configuración > Comercial.
+  const ivaPct = parametros?.ivaPct ?? 0;
   const iva = venta * (ivaPct / 100);
   const totalConIva = venta + iva;
 
+  // Textos: los guardados en la version o, si no hay, los de la plantilla
+  // por defecto de su tipo de proyecto (Configuración > Comercial).
   const config = activeVersion?.presupuestoConfig;
-  const [texto, setTexto] = useState(config?.textoPresentacion ?? FALLBACK_TEXTO);
-  const [condiciones, setCondiciones] = useState(config?.condicionesComerciales ?? FALLBACK_CONDICIONES);
+  const [texto, setTexto] = useState(config?.textoPresentacion ?? '');
+  const [condiciones, setCondiciones] = useState(config?.condicionesComerciales ?? '');
   const [editandoTexto, setEditandoTexto] = useState(false);
   const [editandoCondiciones, setEditandoCondiciones] = useState(false);
 
-  // Default global editable desde Configuración -- reemplaza el fallback
-  // hardcodeado en cuanto carga, pero SOLO si este proyecto no tiene su
-  // propio texto guardado (config?.textoPresentacion) y el campo sigue
-  // exactamente en el valor de fallback (todavía nadie lo tocó a mano acá).
-  const { data: configuracionEmpresaData } = useQuery({
-    queryKey: ['configuracionEmpresa'],
-    queryFn: () => getConfiguracionEmpresa(),
+  const { data: plantillaPorDefecto } = useQuery({
+    queryKey: ['plantillaProyecto', proyecto.id, 'COTIZACION', proyecto.tipoProyectoId],
+    queryFn: () => getPlantillaDeProyecto(proyecto.id, 'COTIZACION'),
   });
-  const configuracionEmpresa = configuracionEmpresaData?.configuracionEmpresa;
+  const { data: plantillas = [] } = useQuery({ queryKey: ['plantillasOferta', 'COTIZACION'], queryFn: () => getPlantillasOferta('COTIZACION') });
+  const plantillasDisponibles = plantillas.filter((p) => p.activa && (!p.tipoProyectoId || p.tipoProyectoId === proyecto.tipoProyectoId));
   useEffect(() => {
-    if (!configuracionEmpresa) return;
-    if (!config?.textoPresentacion && configuracionEmpresa.textoPresentacionDefault && texto === FALLBACK_TEXTO) {
-      setTexto(configuracionEmpresa.textoPresentacionDefault);
-    }
-    if (!config?.condicionesComerciales && configuracionEmpresa.condicionesComercialesDefault && condiciones === FALLBACK_CONDICIONES) {
-      setCondiciones(configuracionEmpresa.condicionesComercialesDefault);
-    }
+    if (!plantillaPorDefecto) return;
+    if (!config?.textoPresentacion) setTexto((t) => t || plantillaPorDefecto.textoPresentacion);
+    if (!config?.condicionesComerciales) setCondiciones((c) => c || plantillaPorDefecto.condicionesComerciales);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [configuracionEmpresa]);
+  }, [plantillaPorDefecto?.id]);
+
+  // Elegir otra plantilla copia sus textos a esta version (se pueden seguir editando).
+  const plantillaMutation = useMutation({
+    mutationFn: (plantillaOfertaId: string) => updatePresupuestoConfig(versionId!, { plantillaOfertaId }),
+    onSuccess: (res) => {
+      setTexto(res.presupuestoConfig.textoPresentacion ?? '');
+      setCondiciones(res.presupuestoConfig.condicionesComerciales ?? '');
+      queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyecto.id] });
+    },
+  });
+  const plantillaActual = config?.plantillaOfertaId ?? plantillaPorDefecto?.id ?? '';
+
+  // Redes sociales del pie del PDF (Configuración > Presupuesto).
+  const { data: configuracionEmpresaData } = useQuery({ queryKey: ['configuracionEmpresa'], queryFn: () => getConfiguracionEmpresa() });
+  const configuracionEmpresa = configuracionEmpresaData?.configuracionEmpresa;
 
   const guardarTextoMutation = useMutation({
     mutationFn: () => updatePresupuestoConfig(versionId!, { textoPresentacion: texto }),
@@ -256,7 +220,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
       let logoDataUrl: string | null = null;
       let logoMuchtekDataUrl: string | null = null;
       try {
-        logoDataUrl = await loadImageDataUrl('/mtw-logo.png');
+        logoDataUrl = await cargarLogoDocumentos();
       } catch {
         // El logo es decorativo -- si falla la carga, el PDF sigue sin él.
       }
@@ -299,7 +263,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
     } catch (error: any) {
       // Antes fallaba en silencio: el usuario se llevaba un PDF en blanco
       // sin ninguna pista de qué pasó. Mejor un error visible que adivinar.
-      window.alert(`No se pudo generar el PDF: ${error?.message || error}`);
+      mostrarToast('No se pudo generar el PDF.', { detalle: String(error?.message || error) });
     } finally {
       setExportando(false);
     }
@@ -317,43 +281,45 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
           </h3>
           <p className="text-xs text-slate-500">{proyecto.obra} · {proyecto.cliente?.nombre || proyecto.clienteNombreRaw}</p>
         </div>
-        <button
-          type="button"
-          onClick={exportarPDF}
-          disabled={exportando}
-          className="px-4 py-2.5 rounded-xl bg-brand-600 text-white text-xs font-bold flex items-center gap-2 hover:bg-brand-700 transition-colors disabled:opacity-50"
-        >
-          {exportando ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+        <Button onClick={exportarPDF} isLoading={exportando} leftIcon={<FileDown className="w-4 h-4" />}>
           Exportar PDF
-        </button>
+        </Button>
       </div>
+
+      {plantillasDisponibles.length > 1 && (
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-800 shrink-0">Plantilla de textos</span>
+          <div className="flex-1">
+            <Select
+              aria-label="Plantilla de textos"
+              value={plantillaActual}
+              disabled={congelado || plantillaMutation.isPending}
+              onChange={async (e) => {
+                const id = e.target.value;
+                const ok = await confirmar({ titulo: '¿Cambiar la plantilla?', mensaje: 'Se reemplazan el texto de presentación y las condiciones por los de esta plantilla.', confirmar: 'Reemplazar' });
+                if (ok) plantillaMutation.mutate(id);
+              }}
+              options={plantillasDisponibles.map((p) => ({ value: p.id, label: `${p.nombre}${p.tipoProyecto ? ` (${p.tipoProyecto.nombre})` : ' (general)'}` }))}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
         <div className="flex items-center justify-between">
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">Texto de presentación</h4>
           {!congelado && !editandoTexto && (
-            <button type="button" onClick={() => setEditandoTexto(true)} className="text-[11px] text-slate-400 hover:text-brand-600 flex items-center gap-1">
-              <Pencil className="w-3 h-3" /> Editar
-            </button>
+            <Button variant="ghost" size="sm" leftIcon={<Pencil className="w-3 h-3" />} onClick={() => setEditandoTexto(true)}>
+              Editar
+            </Button>
           )}
         </div>
         {editandoTexto ? (
           <div className="space-y-2">
-            <textarea
-              value={texto}
-              onChange={(e) => setTexto(e.target.value)}
-              rows={4}
-              className="w-full text-xs border border-slate-200 rounded-lg p-2 outline-none focus:border-brand-600"
-            />
-            <button
-              type="button"
-              onClick={() => guardarTextoMutation.mutate()}
-              disabled={guardarTextoMutation.isPending}
-              className="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-bold flex items-center gap-1.5"
-            >
-              {guardarTextoMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            <Textarea aria-label="Texto de presentación" value={texto} onChange={(e) => setTexto(e.target.value)} rows={4} />
+            <Button size="sm" onClick={() => guardarTextoMutation.mutate()} isLoading={guardarTextoMutation.isPending}>
               Guardar
-            </button>
+            </Button>
           </div>
         ) : (
           <p className="text-xs text-slate-600 whitespace-pre-line">{texto}</p>
@@ -372,7 +338,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
           const finish = createFinish(line?.acabadoCodigo, line?.acabadoDescripcion, line?.acabadoPatron);
           const finishLabel = getAcabadoLabel(v.acabadoCodigo, v.acabadoDescripcion);
           const vidrio = Array.from(
-            new Set((v.materiales || []).filter((m) => !m.excluido && (m.material?.familia || '').toUpperCase().trim() === 'VIDRIOS').map((m) => m.material?.descripcion || ''))
+            new Set((v.materiales || []).filter((m) => !m.excluido && materialesPorArea.has(m.materialId)).map((m) => m.material?.descripcion || ''))
           ).filter(Boolean).join(' + ');
 
           return (
@@ -398,7 +364,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
               <div className="p-4 grid grid-cols-1 sm:grid-cols-[180px_1fr] gap-4 flex-1">
                 {/* Dibujo con sus medidas */}
                 <div className="space-y-2">
-                  <div className="w-full h-40 rounded-xl bg-[#f8fafc] border border-slate-100 flex items-center justify-center overflow-hidden p-2">
+                  <div className="w-full h-40 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden p-2">
                     {v.tipoLineaManual === 'PROTEX' ? (
                       <div
                         className="w-full h-full"
@@ -474,29 +440,17 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
         <div className="flex items-center justify-between">
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">Condiciones comerciales</h4>
           {!congelado && !editandoCondiciones && (
-            <button type="button" onClick={() => setEditandoCondiciones(true)} className="text-[11px] text-slate-400 hover:text-brand-600 flex items-center gap-1">
-              <Pencil className="w-3 h-3" /> Editar
-            </button>
+            <Button variant="ghost" size="sm" leftIcon={<Pencil className="w-3 h-3" />} onClick={() => setEditandoCondiciones(true)}>
+              Editar
+            </Button>
           )}
         </div>
         {editandoCondiciones ? (
           <div className="space-y-2">
-            <textarea
-              value={condiciones}
-              onChange={(e) => setCondiciones(e.target.value)}
-              rows={8}
-              className="w-full text-xs border border-slate-200 rounded-lg p-2 outline-none focus:border-brand-600 font-mono"
-            />
-            <p className="text-[10px] text-slate-400">Una condición por línea.</p>
-            <button
-              type="button"
-              onClick={() => guardarCondicionesMutation.mutate()}
-              disabled={guardarCondicionesMutation.isPending}
-              className="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-bold flex items-center gap-1.5"
-            >
-              {guardarCondicionesMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            <Textarea aria-label="Condiciones comerciales" value={condiciones} onChange={(e) => setCondiciones(e.target.value)} rows={8} className="font-mono" helperText="Una condición por línea." />
+            <Button size="sm" onClick={() => guardarCondicionesMutation.mutate()} isLoading={guardarCondicionesMutation.isPending}>
               Guardar
-            </button>
+            </Button>
           </div>
         ) : (
           <ul className="text-xs text-slate-600 space-y-1 list-disc list-inside">

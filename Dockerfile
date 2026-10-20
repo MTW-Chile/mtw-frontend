@@ -9,9 +9,7 @@ COPY . .
 
 # Build arguments for Vite environment variables
 ARG VITE_API_URL
-ARG VITE_SERVICE_TOKEN
 ENV VITE_API_URL=$VITE_API_URL
-ENV VITE_SERVICE_TOKEN=$VITE_SERVICE_TOKEN
 
 RUN npm run build
 
