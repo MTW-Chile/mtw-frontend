@@ -1735,6 +1735,23 @@ export async function crearDeptosCubicacion(proyectoId: string, payload: { torre
   await apiClient.post(`${rutaEstructura(proyectoId)}/deptos`, payload);
 }
 
+// Mueve una ventana a otra unidad (arrastrarla). `ubicacion` es el recinto donde cayó; sin ella, en un
+// edificio se conserva la que tenía y en una casa pasa a ser el nombre del recinto.
+export async function moverVentanaCubicacion(proyectoId: string, payload: { ventanaId: string; unidadId: string; ubicacion?: string | null }): Promise<void> {
+  await apiClient.post(`${rutaEstructura(proyectoId)}/mover-ventana`, payload);
+}
+
+// Ubicaciones (recintos) dentro de un departamento: DORM 1, ESTAR... Una ventana puesta en una toma su nombre.
+export async function crearUbicacionesCubicacion(proyectoId: string, payload: { unidadId: string; nombres: string[] }): Promise<{ ubicaciones: number }> {
+  const response = await apiClient.post<{ ubicaciones: number }>(`${rutaEstructura(proyectoId)}/ubicaciones`, payload);
+  return response.data;
+}
+
+export async function eliminarUbicacionCubicacion(proyectoId: string, recintoId: string): Promise<{ ventanasSinUbicacion: number }> {
+  const response = await apiClient.post<{ ventanasSinUbicacion: number }>(`${rutaEstructura(proyectoId)}/ubicaciones/eliminar`, { recintoId });
+  return response.data;
+}
+
 // Recintos con nombre propio en un piso de una casa (Living, Dormitorio 1...).
 export async function crearRecintosCubicacion(proyectoId: string, payload: { torre: string; piso: number; nombres: string[] }): Promise<{ recintos: number }> {
   const response = await apiClient.post<{ recintos: number }>(`${rutaEstructura(proyectoId)}/recintos`, payload);

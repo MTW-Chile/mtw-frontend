@@ -9,6 +9,7 @@ import {
   crearPisosCubicacion,
   crearRecintosCubicacion,
   crearTorreCubicacion,
+  crearUbicacionesCubicacion,
   crearUnidadEspecialCubicacion,
   renombrarTorreCubicacion,
 } from '../../../api/client';
@@ -330,12 +331,14 @@ export const CopiarPisoModal: React.FC<Base & { torre: NodoTorreCubicacion; piso
 const RECINTOS = ['DORM 1', 'DORM 2', 'DORM 3', 'ESTAR', 'COMEDOR', 'COCINA', 'BAÑO 1', 'BAÑO 2', 'LOGGIA', 'TERRAZA', 'PASILLO'];
 
 // ---- Asignar ventanas a un departamento (o unidad especial) ----
-export const AsignarModal: React.FC<Base & { unidadId: string; torre: string; nombreUnidad: string; tipos: TipoCubicacion[]; tipoInicial?: string }> = ({
+export const AsignarModal: React.FC<Base & { unidadId: string; torre: string; nombreUnidad: string; recintos?: string[]; ubicacionInicial?: string; tipos: TipoCubicacion[]; tipoInicial?: string }> = ({
   proyectoId,
   voc,
   unidadId,
   torre,
   nombreUnidad,
+  recintos = [],
+  ubicacionInicial = '',
   tipos,
   tipoInicial,
   onClose,
@@ -344,7 +347,7 @@ export const AsignarModal: React.FC<Base & { unidadId: string; torre: string; no
   const disponibles = tipos.filter((t) => !t.esAreaComun);
   const [tipoId, setTipoId] = useState(tipoInicial ?? '');
   const [cantidad, setCantidad] = useState('1');
-  const [ubicacion, setUbicacion] = useState('');
+  const [ubicacion, setUbicacion] = useState(ubicacionInicial);
   const [exceder, setExceder] = useState(false);
   const tipo = disponibles.find((t) => t.id === tipoId);
   const n = leerEntero(cantidad);
@@ -377,14 +380,27 @@ export const AsignarModal: React.FC<Base & { unidadId: string; torre: string; no
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Campo id="asignar-cantidad" etiquetaTexto="Cantidad" valor={cantidad} onCambio={setCantidad} mono invalido={n === null || n < 1} />
-        <div>
-          <Input label="Ubicación" id="asignar-ubicacion" list="recintos-cubicacion" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} maxLength={100} placeholder="DORM 1, ESTAR…" />
-          <datalist id="recintos-cubicacion">
-            {RECINTOS.map((r) => (
-              <option key={r} value={r} />
+        {voc.modo === 'EDIFICIO' && recintos.length > 0 ? (
+          <Select label="Ubicación" id="asignar-ubicacion" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} className={campo}>
+            <option value="">Sin ubicación</option>
+            {recintos.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
             ))}
-          </datalist>
-        </div>
+          </Select>
+        ) : voc.modo === 'EDIFICIO' ? (
+          <div>
+            <Input label="Ubicación" id="asignar-ubicacion" list="recintos-cubicacion" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} maxLength={100} placeholder="DORM 1, ESTAR…" />
+            <datalist id="recintos-cubicacion">
+              {RECINTOS.map((r) => (
+                <option key={r} value={r} />
+              ))}
+            </datalist>
+          </div>
+        ) : (
+          <p className="text-[11px] text-slate-500 self-end pb-2">La ubicación es el recinto: {nombreUnidad}.</p>
+        )}
       </div>
       {pasa && (
         <Casilla checked={exceder} onChange={setExceder} label={<><span>
@@ -507,6 +523,32 @@ export const CopiarCasaModal: React.FC<Base & { torre: NodoTorreCubicacion }> = 
       </p>
       <Campo id="copiar-casas" etiquetaTexto="Nombres de las casas nuevas" valor={texto} onCambio={setTexto} placeholder="C2, C3, C4" max={200} ayuda="Separados por coma. Cada nombre es corto y nuevo." />
       {destinos.length > 0 && <p className="text-xs text-slate-700 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">Se crearán {destinos.length} casa(s): {destinos.join(', ')}.</p>}
+    </Marco>
+  );
+};
+
+// ---- Ubicaciones (recintos) dentro de un departamento ----
+export const UbicacionesModal: React.FC<Base & { unidadId: string; torre: string; nombreUnidad: string }> = ({ proyectoId, voc, unidadId, torre, nombreUnidad, onClose, onHecho }) => {
+  const [texto, setTexto] = useState('');
+  const nombres = leerLista(texto);
+  const crear = useMutation({
+    mutationFn: () => crearUbicacionesCubicacion(proyectoId, { unidadId, nombres }),
+    onSuccess: () => {
+      onHecho();
+      onClose();
+    },
+    onError: avisoError,
+  });
+  return (
+    <Marco titulo={`Agregar ubicaciones · ${voc.textoTorre(torre)}, ${voc.unidadCorta} ${nombreUnidad}`} textoEnviar="Agregar" puedeEnviar={nombres.length > 0} cargando={crear.isPending} onEnviar={() => crear.mutate()} onClose={onClose}>
+      <Campo
+        id="ubicaciones-nombres"
+        etiquetaTexto="Ubicaciones"
+        valor={texto}
+        onCambio={setTexto}
+        placeholder={RECINTOS_SUGERIDOS.slice(3, 7).join(', ')}
+        ayuda="Separadas por coma: DORM 1, ESTAR… Al poner una ventana en una ubicación, esta se anota como su ubicación."
+      />
     </Marco>
   );
 };

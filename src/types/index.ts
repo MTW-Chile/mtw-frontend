@@ -1686,6 +1686,8 @@ export interface TipoCubicacion {
 export interface NodoDeptoCubicacion {
   id: string;
   nombre: string;
+  // Ubicaciones (recintos) dentro del departamento: DORM 1, ESTAR...
+  recintos: { id: string; nombre: string }[];
   ventanas: UnidadCubicacion[];
 }
 export interface NodoPisoCubicacion {

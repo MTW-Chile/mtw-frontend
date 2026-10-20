@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Copy, Home, Layers, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
-import { asignarVentanasCubicacion, editarUnidadCubicacion, eliminarLugarCubicacion, getEstructuraCubicacion, quitarPosicionVentanaCubicacion } from '../../../api/client';
+import { asignarVentanasCubicacion, eliminarLugarCubicacion, eliminarUbicacionCubicacion, getEstructuraCubicacion, moverVentanaCubicacion, quitarPosicionVentanaCubicacion } from '../../../api/client';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import type { ConfigCubicacion, NodoDeptoCubicacion, NodoTorreCubicacion, TipoCubicacion, UnidadCubicacion } from '../../../types';
 import { formatoMm } from '../fabricacion/utils';
 import { CrearFaseDesdeCubicacionModal } from './CrearFaseDesdeCubicacionModal';
-import { ArmarCasaModal, AsignarModal, ArmarEdificioModal, CopiarCasaModal, CopiarPisoModal, DeptosModal, PisosModal, RecintosModal, RenombrarTorreModal, TorreModal, UnidadEspecialModal } from './EstructuraModales';
+import { ArmarCasaModal, AsignarModal, ArmarEdificioModal, CopiarCasaModal, CopiarPisoModal, DeptosModal, PisosModal, RecintosModal, RenombrarTorreModal, TorreModal, UbicacionesModal, UnidadEspecialModal } from './EstructuraModales';
 import { UnidadModal } from './UnidadModal';
 import { mensajeAsignacion } from './utils';
 import { vocabulario, type Vocabulario } from './vocabulario';
@@ -28,7 +28,7 @@ interface Props {
 }
 
 // Destino de asignar/mover una ventana: siempre una Unidad (depto o especial) ya existente en el arbol.
-type Destino = { unidadId: string; torre: string; nombreUnidad: string };
+type Destino = { unidadId: string; torre: string; nombreUnidad: string; recintos?: string[]; ubicacion?: string };
 // Objetivo de "quitar": una torre, un piso, o un depto/unidad especial puntual.
 type Objetivo = { torreId: string; pisoId?: string; unidadId?: string };
 
@@ -43,6 +43,7 @@ type ModalAbierto =
   | { tipo: 'especial'; torreId: string }
   | { tipo: 'copiar'; torre: NodoTorreCubicacion; pisoNumero: number }
   | { tipo: 'asignar'; destino: Destino }
+  | { tipo: 'ubicaciones'; destino: Destino }
   | { tipo: 'ventana'; unidad: UnidadCubicacion }
   | { tipo: 'crearFase' };
 
@@ -60,59 +61,115 @@ const TarjetaUnidad: React.FC<{
   nodo: NodoDeptoCubicacion;
   torre: string;
   tipoActivo: TipoCubicacion | null;
-  sobre: boolean;
-  onDragOver: () => void;
-  onDragLeave: () => void;
-  onDrop: (e: React.DragEvent) => void;
-  onAgregarUna: () => void;
-  onAbrirAsignar: () => void;
+  sobre: string | null;
+  onSobre: (id: string | null) => void;
+  // `ubicacion`: el recinto del departamento donde cayó o se agregó (undefined = el departamento entero).
+  onDrop: (e: React.DragEvent, ubicacion?: string) => void;
+  onAgregarUna: (ubicacion?: string) => void;
+  onAbrirAsignar: (ubicacion?: string) => void;
+  onNuevaUbicacion: () => void;
+  onQuitarUbicacion: (recintoId: string) => void;
   onQuitar: () => void;
   onEditarVentana: (v: UnidadCubicacion) => void;
   onQuitarVentana: (id: string) => void;
-}> = ({ voc, nodo, torre, tipoActivo, sobre, onDragOver, onDragLeave, onDrop, onAgregarUna, onAbrirAsignar, onQuitar, onEditarVentana, onQuitarVentana }) => (
-  <div
-    onDragOver={(e) => {
-      e.preventDefault();
-      onDragOver();
-    }}
-    onDragLeave={onDragLeave}
-    onDrop={onDrop}
-    data-testid={`depto-${torre || 'sin'}-${nodo.nombre}`}
-    className={`rounded-xl border p-2 min-w-0 ${sobre ? 'border-brand-400 bg-brand-50/50 ring-2 ring-brand-100' : 'border-slate-200 bg-slate-50/50'}`}
-  >
-    <div className="flex items-center justify-between gap-1 mb-1.5">
-      <span className={`text-xs font-black text-slate-800 ${voc.modo === 'CASA' ? '' : 'font-mono'}`}>{nodo.nombre}</span>
-      <div className="flex items-center gap-0.5">
-        {tipoActivo && (
-          <Button size="sm" onClick={onAgregarUna} title={`Agregar una ${tipoActivo.codigo} a este ${voc.unidad}`}>+ 1 {tipoActivo.codigo}</Button>
-        )}
-        <IconButton icono={Plus} etiqueta={`Agregar ventanas a ${nodo.nombre} (${voc.textoTorre(torre)})`} tono="marca" onClick={onAbrirAsignar} />
-        <IconButton icono={X} etiqueta={`Quitar ${nodo.nombre} (${voc.textoTorre(torre)})`} tono="peligro" onClick={onQuitar} />
+}> = ({ voc, nodo, torre, tipoActivo, sobre, onSobre, onDrop, onAgregarUna, onAbrirAsignar, onNuevaUbicacion, onQuitarUbicacion, onQuitar, onEditarVentana, onQuitarVentana }) => {
+  // Un departamento puede tener ubicaciones (recintos); una casa no: ahí el recinto es la unidad misma.
+  const conUbicaciones = voc.modo === 'EDIFICIO' && nodo.recintos.length > 0;
+  const nombresRecintos = new Set(nodo.recintos.map((r) => r.nombre.toLowerCase()));
+  const chip = (v: UnidadCubicacion, mostrarUbicacion: boolean) => (
+    <div
+      key={v.id}
+      draggable
+      onDragStart={(e) => e.dataTransfer.setData('text/plain', `ventana:${v.id}`)}
+      data-testid="ventana-chip"
+      title={`${v.nomenclatura ?? ''} · ${v.sistema}${v.rectificada ? ` · fabricación ${formatoMm(v.anchoFabricacionMm)} × ${formatoMm(v.altoFabricacionMm)}` : ' · sin rectificar'}`}
+      className={`group inline-flex items-center gap-1 rounded-lg border pl-1.5 pr-0.5 py-0.5 text-[11px] cursor-grab active:cursor-grabbing select-none ${
+        v.rectificada ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-slate-200 bg-white text-slate-700'
+      }`}
+    >
+      <ActivadorEdicion onClick={() => onEditarVentana(v)} etiqueta={`Editar ${v.nomenclatura ?? v.codigo}`} className="items-baseline!">
+        <b className="font-mono">{v.nomenclatura ?? v.codigo}</b>
+        {mostrarUbicacion && v.ubicacion && <span className="text-slate-500 max-w-[5.5rem] truncate ml-1">{v.ubicacion}</span>}
+      </ActivadorEdicion>
+      <IconButton icono={X} etiqueta={`Sacar ${v.nomenclatura ?? v.codigo}`} tono="peligro" onClick={() => onQuitarVentana(v.id)} />
+    </div>
+  );
+  // Una zona donde se pueden soltar ventanas y tipos: el departamento entero o uno de sus recintos.
+  const zona = (clave: string, titulo: string | null, ventanas: UnidadCubicacion[], ubicacion: string | undefined, quitar?: () => void) => (
+    <div
+      key={clave}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onSobre(clave);
+      }}
+      onDragLeave={() => onSobre(null)}
+      onDrop={(e) => {
+        e.stopPropagation();
+        onDrop(e, ubicacion);
+      }}
+      data-testid={`ubicacion-${nodo.nombre}-${titulo ?? 'sin'}`}
+      className={`rounded-lg border border-dashed p-1.5 min-w-0 ${sobre === clave ? 'border-brand-400 bg-brand-50/60' : 'border-slate-200 bg-white/60'}`}
+    >
+      <div className="flex items-center justify-between gap-1 mb-1">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{titulo ?? 'Sin ubicación'}</span>
+        <div className="flex items-center gap-0.5">
+          {tipoActivo && titulo !== null && (
+            <Button size="sm" onClick={() => onAgregarUna(ubicacion)} title={`Agregar una ${tipoActivo.codigo} en ${titulo}`}>+ 1 {tipoActivo.codigo}</Button>
+          )}
+          {titulo !== null && <IconButton icono={Plus} etiqueta={`Agregar ventanas a ${titulo} (${nodo.nombre})`} tono="marca" onClick={() => onAbrirAsignar(ubicacion)} />}
+          {quitar && <IconButton icono={X} etiqueta={`Quitar la ubicación ${titulo} de ${nodo.nombre}`} tono="peligro" onClick={quitar} />}
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {ventanas.length === 0 && <span className="text-[11px] text-slate-400">arrastra ventanas aquí</span>}
+        {ventanas.map((v) => chip(v, false))}
       </div>
     </div>
-    <div className="flex flex-wrap gap-1">
-      {nodo.ventanas.length === 0 && <span className="text-[11px] text-slate-400">arrastra ventanas aquí</span>}
-      {nodo.ventanas.map((v) => (
-        <div
-          key={v.id}
-          draggable
-          onDragStart={(e) => e.dataTransfer.setData('text/plain', `ventana:${v.id}`)}
-          data-testid="ventana-chip"
-          title={`${v.nomenclatura ?? ''} · ${v.sistema}${v.rectificada ? ` · fabricación ${formatoMm(v.anchoFabricacionMm)} × ${formatoMm(v.altoFabricacionMm)}` : ' · sin rectificar'}`}
-          className={`group inline-flex items-center gap-1 rounded-lg border pl-1.5 pr-0.5 py-0.5 text-[11px] cursor-grab active:cursor-grabbing select-none ${
-            v.rectificada ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-slate-200 bg-white text-slate-700'
-          }`}
-        >
-          <ActivadorEdicion onClick={() => onEditarVentana(v)} etiqueta={`Editar ${v.nomenclatura ?? v.codigo}`} className="items-baseline!">
-            <b className="font-mono">{v.nomenclatura ?? v.codigo}</b>
-            {v.ubicacion && <span className="text-slate-500 max-w-[5.5rem] truncate ml-1">{v.ubicacion}</span>}
-          </ActivadorEdicion>
-          <IconButton icono={X} etiqueta={`Sacar ${v.nomenclatura ?? v.codigo}`} tono="peligro" onClick={() => onQuitarVentana(v.id)} />
+  );
+  return (
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        onSobre(nodo.id);
+      }}
+      onDragLeave={() => onSobre(null)}
+      onDrop={(e) => onDrop(e)}
+      data-testid={`depto-${torre || 'sin'}-${nodo.nombre}`}
+      className={`rounded-xl border p-2 min-w-0 ${sobre === nodo.id ? 'border-brand-400 bg-brand-50/50 ring-2 ring-brand-100' : 'border-slate-200 bg-slate-50/50'}`}
+    >
+      <div className="flex items-center justify-between gap-1 mb-1.5">
+        <span className={`text-xs font-black text-slate-800 ${voc.modo === 'CASA' ? '' : 'font-mono'}`}>{nodo.nombre}</span>
+        <div className="flex items-center gap-0.5">
+          {tipoActivo && !conUbicaciones && (
+            <Button size="sm" onClick={() => onAgregarUna()} title={`Agregar una ${tipoActivo.codigo} a este ${voc.unidad}`}>+ 1 {tipoActivo.codigo}</Button>
+          )}
+          {!conUbicaciones && <IconButton icono={Plus} etiqueta={`Agregar ventanas a ${nodo.nombre} (${voc.textoTorre(torre)})`} tono="marca" onClick={() => onAbrirAsignar()} />}
+          <IconButton icono={X} etiqueta={`Quitar ${nodo.nombre} (${voc.textoTorre(torre)})`} tono="peligro" onClick={onQuitar} />
         </div>
-      ))}
+      </div>
+      {conUbicaciones ? (
+        <div className="space-y-1.5">
+          {nodo.recintos.map((r) => zona(`${nodo.id}:${r.id}`, r.nombre, nodo.ventanas.filter((v) => (v.ubicacion ?? '').toLowerCase() === r.nombre.toLowerCase()), r.nombre, () => onQuitarUbicacion(r.id)))}
+          {(() => {
+            const otras = nodo.ventanas.filter((v) => !v.ubicacion || !nombresRecintos.has(v.ubicacion.toLowerCase()));
+            return otras.length > 0 ? zona(`${nodo.id}:sin`, null, otras, undefined) : null;
+          })()}
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-1">
+          {nodo.ventanas.length === 0 && <span className="text-[11px] text-slate-400">arrastra ventanas aquí</span>}
+          {nodo.ventanas.map((v) => chip(v, voc.modo === 'EDIFICIO'))}
+        </div>
+      )}
+      {voc.modo === 'EDIFICIO' && (
+        <Button variant="link" size="sm" onClick={onNuevaUbicacion} title="Dividir el departamento en ubicaciones (DORM 1, ESTAR…)">
+          + ubicación
+        </Button>
+      )}
     </div>
-  </div>
-);
+  );
+};
 
 // Cubicador visual: se arma el edificio (torres -> pisos -> departamentos) y se le van asignando las ventanas
 // del presupuesto. Escribe las mismas unidades que la planilla Excel (torre, piso, depto, ubicacion), asi que
@@ -142,16 +199,26 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
 
   const asignarUna = useMutation({
     mutationFn: ({ destino, tipo, exceder }: { destino: Destino; tipo: TipoCubicacion; exceder: boolean }) =>
-      asignarVentanasCubicacion(proyectoId, { unidadId: destino.unidadId, tipoId: tipo.id, cantidad: 1, excederContratadas: exceder }),
+      asignarVentanasCubicacion(proyectoId, { unidadId: destino.unidadId, tipoId: tipo.id, cantidad: 1, ubicacion: destino.ubicacion ?? null, excederContratadas: exceder }),
     onSuccess: (r, v) => {
       if (r.faltan > 0) mostrarToast(mensajeAsignacion(r, v.tipo.codigo), { tipo: 'info' });
       refrescar();
     },
     onError: aviso,
   });
+  // Arrastrar una ventana a otro lugar (o a otra ubicación del mismo departamento).
   const mover = useMutation({
-    mutationFn: ({ id, destino }: { id: string; destino: Destino }) => editarUnidadCubicacion(id, { torre: destino.torre || null, piso: null, nombreUnidad: destino.nombreUnidad }),
+    mutationFn: ({ id, destino }: { id: string; destino: Destino }) =>
+      moverVentanaCubicacion(proyectoId, { ventanaId: id, unidadId: destino.unidadId, ...(destino.ubicacion !== undefined ? { ubicacion: destino.ubicacion } : {}) }),
     onSuccess: refrescar,
+    onError: aviso,
+  });
+  const quitarUbicacion = useMutation({
+    mutationFn: (recintoId: string) => eliminarUbicacionCubicacion(proyectoId, recintoId),
+    onSuccess: (r) => {
+      if (r.ventanasSinUbicacion > 0) mostrarToast(`${r.ventanasSinUbicacion} ventana(s) quedaron sin ubicación (siguen en el departamento).`, { tipo: 'info' });
+      refrescar();
+    },
     onError: aviso,
   });
   const quitar = useMutation({ mutationFn: (id: string) => quitarPosicionVentanaCubicacion(id), onSuccess: refrescar, onError: aviso });
@@ -170,7 +237,8 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
     asignarUna.mutate({ destino, tipo, exceder });
   };
 
-  const soltarEnDepto = (e: React.DragEvent, destino: Destino) => {
+  const soltarEnDepto = (e: React.DragEvent, destino: Destino, ubicacion?: string) => {
+    destino = ubicacion === undefined ? destino : { ...destino, ubicacion };
     e.preventDefault();
     setSobre(null);
     const dato = e.dataTransfer.getData('text/plain');
@@ -344,12 +412,13 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                           voc={voc}
                           torre={torre.nombre}
                           tipoActivo={tipoActivo}
-                          sobre={sobre === u.id}
-                          onDragOver={() => setSobre(u.id)}
-                          onDragLeave={() => setSobre((s) => (s === u.id ? null : s))}
-                          onDrop={(e) => soltarEnDepto(e, { unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre })}
-                          onAgregarUna={() => tipoActivo && agregarUna({ unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre }, tipoActivo)}
-                          onAbrirAsignar={() => setModal({ tipo: 'asignar', destino: { unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre } })}
+                          sobre={sobre}
+                          onSobre={setSobre}
+                          onDrop={(e, ubicacion) => soltarEnDepto(e, { unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre }, ubicacion)}
+                          onAgregarUna={(ubicacion) => tipoActivo && agregarUna({ unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre, ubicacion }, tipoActivo)}
+                          onAbrirAsignar={(ubicacion) => setModal({ tipo: 'asignar', destino: { unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre, recintos: u.recintos.map((r) => r.nombre), ubicacion } })}
+                          onNuevaUbicacion={() => setModal({ tipo: 'ubicaciones', destino: { unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre } })}
+                          onQuitarUbicacion={(id) => quitarUbicacion.mutate(id)}
                           onQuitar={() => confirmarEliminar(`¿Quitar la unidad "${u.nombre}"?`, { torreId: torre.id, unidadId: u.id })}
                           onEditarVentana={(v) => setModal({ tipo: 'ventana', unidad: v })}
                           onQuitarVentana={(id) => quitar.mutate(id)}
@@ -390,12 +459,13 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                                 voc={voc}
                                 torre={torre.nombre}
                                 tipoActivo={tipoActivo}
-                                sobre={sobre === depto.id}
-                                onDragOver={() => setSobre(depto.id)}
-                                onDragLeave={() => setSobre((s) => (s === depto.id ? null : s))}
-                                onDrop={(e) => soltarEnDepto(e, { unidadId: depto.id, torre: torre.nombre, nombreUnidad: depto.nombre })}
-                                onAgregarUna={() => tipoActivo && agregarUna({ unidadId: depto.id, torre: torre.nombre, nombreUnidad: depto.nombre }, tipoActivo)}
-                                onAbrirAsignar={() => setModal({ tipo: 'asignar', destino: { unidadId: depto.id, torre: torre.nombre, nombreUnidad: depto.nombre } })}
+                                sobre={sobre}
+                                onSobre={setSobre}
+                                onDrop={(e, ubicacion) => soltarEnDepto(e, { unidadId: depto.id, torre: torre.nombre, nombreUnidad: depto.nombre }, ubicacion)}
+                                onAgregarUna={(ubicacion) => tipoActivo && agregarUna({ unidadId: depto.id, torre: torre.nombre, nombreUnidad: depto.nombre, ubicacion }, tipoActivo)}
+                                onAbrirAsignar={(ubicacion) => setModal({ tipo: 'asignar', destino: { unidadId: depto.id, torre: torre.nombre, nombreUnidad: depto.nombre, recintos: depto.recintos.map((r) => r.nombre), ubicacion } })}
+                                onNuevaUbicacion={() => setModal({ tipo: 'ubicaciones', destino: { unidadId: depto.id, torre: torre.nombre, nombreUnidad: depto.nombre } })}
+                                onQuitarUbicacion={(id) => quitarUbicacion.mutate(id)}
                                 onQuitar={() => confirmarEliminar(`¿Quitar el ${voc.unidad} ${depto.nombre}?`, { torreId: torre.id, pisoId: piso.id, unidadId: depto.id })}
                                 onEditarVentana={(v) => setModal({ tipo: 'ventana', unidad: v })}
                                 onQuitarVentana={(id) => quitar.mutate(id)}
@@ -425,7 +495,8 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
       {modal?.tipo === 'copiarCasa' && <CopiarCasaModal {...base} torre={modal.torre} />}
       {modal?.tipo === 'especial' && <UnidadEspecialModal {...base} torreId={modal.torreId} />}
       {modal?.tipo === 'copiar' && <CopiarPisoModal {...base} torre={modal.torre} piso={modal.pisoNumero} />}
-      {modal?.tipo === 'asignar' && <AsignarModal {...base} unidadId={modal.destino.unidadId} torre={modal.destino.torre} nombreUnidad={modal.destino.nombreUnidad} tipos={tipos} tipoInicial={activo ?? undefined} />}
+      {modal?.tipo === 'asignar' && <AsignarModal {...base} unidadId={modal.destino.unidadId} torre={modal.destino.torre} nombreUnidad={modal.destino.nombreUnidad} recintos={modal.destino.recintos} ubicacionInicial={modal.destino.ubicacion} tipos={tipos} tipoInicial={activo ?? undefined} />}
+      {modal?.tipo === 'ubicaciones' && <UbicacionesModal {...base} unidadId={modal.destino.unidadId} torre={modal.destino.torre} nombreUnidad={modal.destino.nombreUnidad} />}
       {modal?.tipo === 'ventana' && <UnidadModal proyectoId={proyectoId} cubicacion={cubicacion} tipos={tipos} unidad={modal.unidad} onClose={() => setModal(null)} />}
       {modal?.tipo === 'crearFase' && versionId && <CrearFaseDesdeCubicacionModal proyectoId={proyectoId} versionId={versionId} onClose={() => setModal(null)} />}
     </div>
