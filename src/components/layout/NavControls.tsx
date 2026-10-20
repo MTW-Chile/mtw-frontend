@@ -123,7 +123,7 @@ export const MigasDePan: React.FC<{ seccion: string; titulo: string }> = ({ secc
         ))}
         {anteriores.length > 0 && <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />}
         <span className="flex items-center gap-1.5 min-w-0 shrink-0 max-w-[24rem]">
-          <span className="text-[13px] font-bold text-slate-900 truncate" title={actual.label}>
+          <span className="text-xs font-bold text-slate-900 truncate" title={actual.label}>
             {actual.label}
           </span>
           {codigo(actual)}
@@ -144,7 +144,7 @@ export const MigasDePan: React.FC<{ seccion: string; titulo: string }> = ({ secc
           </div>
         )}
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-[13px] font-bold text-slate-900 truncate" title={actual.label}>
+          <span className="text-xs font-bold text-slate-900 truncate" title={actual.label}>
             {actual.label}
           </span>
           {codigo(actual)}

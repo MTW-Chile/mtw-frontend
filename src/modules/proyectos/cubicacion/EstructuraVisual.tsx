@@ -81,7 +81,7 @@ const TarjetaUnidad: React.FC<{
     className={`rounded-xl border p-2 min-w-0 ${sobre ? 'border-brand-400 bg-brand-50/50 ring-2 ring-brand-100' : 'border-slate-200 bg-slate-50/50'}`}
   >
     <div className="flex items-center justify-between gap-1 mb-1.5">
-      <span className="text-xs font-black text-slate-800 font-mono">{nodo.nombre}</span>
+      <span className={`text-xs font-black text-slate-800 ${voc.modo === 'CASA' ? '' : 'font-mono'}`}>{nodo.nombre}</span>
       <div className="flex items-center gap-0.5">
         {tipoActivo && (
           <Button size="sm" onClick={onAgregarUna} title={`Agregar una ${tipoActivo.codigo} a este ${voc.unidad}`}>+ 1 {tipoActivo.codigo}</Button>
@@ -125,6 +125,8 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
   const [sobre, setSobre] = useState<string | null>(null);
   const [buscar, setBuscar] = useState('');
   const voc = vocabulario(cubicacion.modo);
+  // Casa cuando se cubica por casa; edificio si no.
+  const IconoEstructura = voc.modo === 'CASA' ? Home : Building2;
 
   const { data, isLoading, isError } = useQuery({ queryKey: ['cubicacion', proyectoId, 'estructura'], queryFn: () => getEstructuraCubicacion(proyectoId) });
 
@@ -211,7 +213,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
           {voc.ayuda}
         </p>
         <div className="flex flex-wrap gap-2">
-          <Button variant="primary" size="sm" leftIcon={<Building2 className="w-3.5 h-3.5" />} onClick={() => setModal({ tipo: 'armar' })}>
+          <Button variant="primary" size="sm" leftIcon={<IconoEstructura className="w-3.5 h-3.5" />} onClick={() => setModal({ tipo: 'armar' })}>
             {vacia ? voc.armar : voc.ampliar}
           </Button>
           <Button variant="outline" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setModal({ tipo: 'torre' })}>
@@ -297,11 +299,11 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
         <div className="space-y-4 min-w-0">
           {vacia ? (
             <div className="p-10 text-center rounded-2xl bg-white border border-dashed border-slate-300 text-slate-500 text-xs space-y-3" data-testid="estructura-vacia">
-              <Building2 className="w-6 h-6 text-slate-300 mx-auto" />
+              <IconoEstructura className="w-6 h-6 text-slate-300 mx-auto" />
               <p className="font-bold text-slate-700">{voc.tituloVacio}</p>
               <p className="max-w-md mx-auto">{voc.textoVacio}</p>
               <div className="flex flex-wrap justify-center gap-2">
-                <Button variant="primary" size="sm" leftIcon={<Building2 className="w-3.5 h-3.5" />} onClick={() => setModal({ tipo: 'armar' })}>
+                <Button variant="primary" size="sm" leftIcon={<IconoEstructura className="w-3.5 h-3.5" />} onClick={() => setModal({ tipo: 'armar' })}>
                   {voc.armar}
                 </Button>
               </div>
@@ -313,7 +315,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                 <section key={torre.id} className="rounded-2xl bg-white border border-slate-200 shadow-sm" data-testid={`torre-${torre.nombre || 'sin'}`}>
                   <header className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-100 bg-slate-50/70 rounded-t-2xl">
                     <div className="flex items-center gap-2">
-                      {voc.modo === 'CASA' ? <Home className="w-4 h-4 text-slate-400" /> : <Building2 className="w-4 h-4 text-slate-400" />}
+                      <IconoEstructura className="w-4 h-4 text-slate-400" />
                       <h3 className="text-sm font-black text-slate-900">{voc.textoTorre(torre.nombre)}</h3>
                       <span className="text-[11px] text-slate-500">
                         {torre.pisos.length} piso(s) · {contarVentanas(torre)} ventana(s)
