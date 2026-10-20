@@ -22,13 +22,14 @@ export const Aviso: React.FC<{ tono?: keyof typeof TONOS; titulo?: React.ReactNo
 }) => {
   const { caja, Icono } = TONOS[tono];
   return (
-    <div role={tono === 'peligro' ? 'alert' : undefined} className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${caja}`}>
+    // El botón (accion) baja bajo el texto cuando no caben lado a lado, en vez de apretarlo.
+    <div role={tono === 'peligro' ? 'alert' : undefined} className={`p-3 rounded-xl border text-xs flex flex-wrap items-start gap-2 ${caja}`}>
       {!sinIcono && <Icono className="w-4 h-4 shrink-0 mt-0.5" />}
-      <div className="min-w-0 flex-1 space-y-0.5">
+      <div className="min-w-0 flex-1 basis-56 space-y-0.5">
         {titulo && <p className="font-bold">{titulo}</p>}
         {children && <div className="leading-relaxed">{children}</div>}
       </div>
-      {accion && <div className="shrink-0">{accion}</div>}
+      {accion && <div className="shrink-0 ml-auto">{accion}</div>}
     </div>
   );
 };

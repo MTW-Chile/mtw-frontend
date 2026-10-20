@@ -92,11 +92,12 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
         {proyecto && (
           <>
             {proyecto.clienteNombreRaw && proyecto.clienteNombreRaw.trim().toLowerCase() !== proyecto.obra.trim().toLowerCase() && (
-              <span className="hidden @3xl:inline text-xs text-slate-500 truncate max-w-[220px]" title="Cliente">
+              <span className="hidden @6xl:inline text-xs text-slate-500 truncate max-w-[220px]" title="Cliente">
                 {proyecto.clienteNombreRaw}
               </span>
             )}
-            <div className="ml-auto hidden sm:block">
+            {/* Solo con espacio para una línea; si no, va en Información General. */}
+            <div className="ml-auto hidden @5xl:block">
               <ClayCentroCostoEditor proyectoId={proyecto.id} valor={proyecto.clayCentroCosto} />
             </div>
           </>

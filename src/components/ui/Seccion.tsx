@@ -17,9 +17,11 @@ export const Seccion: React.FC<{
   cuerpoClassName?: string;
   children?: React.ReactNode;
 }> = ({ titulo, descripcion, icono: Icono, acciones, sinRelleno, className = '', cuerpoClassName = '', children }) => (
-  <section className={`rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden ${className}`}>
+  <section className={`@container rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden ${className}`}>
     {(titulo || acciones) && (
-      <div className={`px-5 py-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3 ${children ? 'border-b border-slate-100' : ''}`}>
+      // Las acciones van a la derecha del título cuando la sección es ancha
+      // (@4xl); si no caben, bajan a su propia fila y se reparten en varias.
+      <div className={`px-4 py-3.5 @md:px-5 @md:py-4 flex flex-col @4xl:flex-row @4xl:items-start justify-between gap-3 ${children ? 'border-b border-slate-100' : ''}`}>
         <div className="flex items-start gap-3 min-w-0">
           {Icono && (
             <div className="w-9 h-9 rounded-xl bg-brand-50 border border-brand-100 text-brand-600 flex items-center justify-center shrink-0">
@@ -31,7 +33,7 @@ export const Seccion: React.FC<{
             {descripcion && <div className="text-[11px] text-slate-500 mt-0.5">{descripcion}</div>}
           </div>
         </div>
-        {acciones && <div className="flex flex-wrap items-center gap-2 shrink-0">{acciones}</div>}
+        {acciones && <div className="flex flex-wrap items-center gap-2 @4xl:shrink-0 @4xl:justify-end">{acciones}</div>}
       </div>
     )}
     {children !== undefined && <div className={`${sinRelleno ? '' : 'p-5'} ${cuerpoClassName}`}>{children}</div>}

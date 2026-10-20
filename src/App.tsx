@@ -261,7 +261,6 @@ const AppContent: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         <Header
           onOpenSidebar={() => setIsSidebarOpen(true)}
-          onNavigateHome={() => handleNavigate('inicio')}
           moduleTitle={MODULE_TITLES[activeTab] || 'Inicio'}
           onNavigate={handleNavigate}
         />

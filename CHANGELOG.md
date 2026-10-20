@@ -7,6 +7,14 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - **Canal y versión mayor** (Alpha → Beta, v2 → v3): los decide Alfredo.
 - **Versión menor** (2.0 → 2.1): un conjunto grande de funciones nuevas.
 - **Parche** (2.0.0 → 2.0.1): ajustes y mejoras acotadas, cada despliegue.
+- **Corrección urgente** sobre un parche (2.0.4 → 2.0.4.1; en package.json, 2.0.4-1): la decide Alfredo.
+
+## Alpha v2.0.4.1 — 2026-10-20
+
+**Correcciones urgentes**
+- Hoja de Fijación: "Solicitar aprobación gerencial" exigía aprobar partidas que solo tienen costos de la hoja (Instalación, Flete, Sin asignar) y que no se aprueban en ningún lado; ahora usa el mismo criterio que la Analítica (Casa Las Palmas).
+- Encabezado en pantallas angostas y móviles: migas de pan en dos líneas cuando no caben en una (también en móvil, donde no aparecían), encabezado más bajo, menú de usuario a lo ancho de la pantalla, botones del encabezado solo con ícono, centro de costo de Clay en Información General cuando no cabe.
+- Las acciones de cada sección bajan a su propia fila cuando no caben junto al título; los avisos con botón ya no aprietan el texto; métricas de a dos en móvil.
 
 ## Alpha v2.0.4 — 2026-10-19
 

@@ -195,8 +195,6 @@ export const CotizacionesPage: React.FC<{
     <div className={PAGE_CONTAINER_CLASS}>
       {/* Titulo, contador y acciones viven en el Header del sitio (portal), no en una cabecera propia. */}
       <HeaderSlot>
-        {/* Las migas del Header se ocultan bajo md: ahí el título va aquí. */}
-        <span className="hidden sm:inline md:hidden text-sm font-bold text-slate-900 truncate min-w-0">Presupuestos</span>
         <Badge size="sm" variant="default" className="hidden min-[420px]:inline-flex font-mono font-bold text-slate-600" title={`${proyectos.length} presupuestos`}>
           {proyectos.length}
         </Badge>

@@ -217,7 +217,11 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
   });
 
   const partidas = base?.partidas ?? [];
-  const todasLasPartidasAprobadas = partidas.length > 0 && partidas.every((p) => p.aprobada);
+  // Mismo criterio que el Paso 3 y que el API (partidasDeVersion): se
+  // aprueban las partidas con materiales. Una partida que solo recibe costos
+  // de esta hoja (Instalación, Flete, Sin asignar) no se aprueba en ningún lado.
+  const partidasConMateriales = partidas.filter((p) => p.tieneMateriales);
+  const todasLasPartidasAprobadas = partidasConMateriales.length > 0 && partidasConMateriales.every((p) => p.aprobada);
   const puedeCongelar = !congelado && todasLasPartidasAprobadas;
 
   // Congelar el presupuesto: guarda la Hoja de Fijacion (si hay cambios sin

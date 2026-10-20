@@ -108,6 +108,20 @@
   }
 }
 
+/* Header del sitio angosto (es un @container, ver Header.tsx): los botones
+   con ícono que las pantallas ponen en su contexto muestran solo el ícono;
+   el texto queda para lectores de pantalla. */
+@container (max-width: 47.99rem) {
+  #header-contexto button:has(> span.shrink-0) > .boton-etiqueta {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 8px;

@@ -1,7 +1,7 @@
 {
   "name": "mtw-frontend",
   "private": true,
-  "version": "2.0.4",
+  "version": "2.0.4-1",
   "canal": "Alpha",
   "type": "module",
   "scripts": {

@@ -10,6 +10,7 @@ import { usePermisos } from '../../lib/permisos';
 import type { Proyecto, ProyectoVersion } from '../../types';
 import { ControlPresupuestoTab } from './ControlPresupuestoTab';
 import { DocumentosObraTab } from './documentos/DocumentosObraTab';
+import { ClayCentroCostoEditor } from './ClayCentroCostoEditor';
 
 const clp = (v: number) => v.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
@@ -22,6 +23,10 @@ export const InformacionGeneralTab: React.FC<{ proyecto: Proyecto; activeVersion
   const cotizada = proyecto.origen !== 'MANUAL_OBRA';
   return (
     <div className="space-y-5">
+      {/* En pantallas angostas el centro de costo no cabe en el header: va aquí. */}
+      <div className="flex xl:hidden justify-end">
+        <ClayCentroCostoEditor proyectoId={proyecto.id} valor={proyecto.clayCentroCosto} />
+      </div>
       <MetricasObra proyecto={proyecto} activeVersion={activeVersion} cotizada={cotizada} />
       {cotizada && <ControlPresupuestoTab proyecto={proyecto} activeVersion={activeVersion} />}
       <Seccion icono={FolderOpen} titulo="Documentos" descripcion="Carpeta de OneDrive de la obra.">
@@ -52,7 +57,7 @@ const MetricasObra: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVersi
   const pctProducidas = totalUnidades > 0 ? Math.round((producidas / totalUnidades) * 100) : 0;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-2 sm:gap-3">
       <StatCard title="Venta neta" value={t ? clp(t.venta) : '—'} subtitle={activeVersion ? `Versión v${activeVersion.versionNumero}` : undefined} icon={TrendingUp} />
       <StatCard
         title="Ventanas"

@@ -8,7 +8,6 @@ import { getMisPermisos, getMisAprobacionesPendientes } from '../../api/client';
 
 interface HeaderProps {
   onOpenSidebar: () => void;
-  onNavigateHome: () => void;
   moduleTitle?: string;
   // Navegación genérica (ej. al Centro de Notificaciones desde el menú de usuario).
   onNavigate?: (tab: string, search?: string) => void;
@@ -16,7 +15,6 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenSidebar,
-  onNavigateHome,
   moduleTitle = 'Inicio',
   onNavigate,
 }) => {
@@ -82,9 +80,9 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="@container sticky top-0 z-30 h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-2.5 sm:px-6 flex items-center justify-between gap-3">
+    <header className="@container sticky top-0 z-30 h-14 sm:h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-2 sm:px-6 flex items-center justify-between gap-2 sm:gap-3">
       {/* Lado Izquierdo */}
-      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink">
+      <div className="flex items-center gap-1 sm:gap-3 min-w-0 flex-1">
         {/* Móvil: Menú Hamburguesa */}
         <button
           onClick={onOpenSidebar}
@@ -94,34 +92,22 @@ export const Header: React.FC<HeaderProps> = ({
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* Móvil/tablet: Solo el logo en imagen con enlace a Inicio (en
-            pantallas muy angostas cede su lugar a Atrás/Actualizar). */}
-        <button
-          onClick={onNavigateHome}
-          className="hidden min-[400px]:flex md:hidden items-center group cursor-pointer shrink-0"
-          title="Ir al Inicio de MTW ERP"
-        >
-          <img
-            src={`${import.meta.env.BASE_URL}mtw-logo.png`}
-            alt="MTW"
-            className="h-6 w-auto object-contain transition-transform group-hover:scale-105"
-          />
-        </button>
 
         {/* Navegación dentro de la app: Atrás + Actualizar datos + migas
             de pan (sección › obra abierta). Ver NavControls.tsx. */}
-        <div className="flex items-center gap-0.5 shrink-0 border-l border-slate-200 pl-1.5 md:border-0 md:pl-0 md:-ml-2">
+        <div className="flex items-center gap-0 sm:gap-0.5 shrink-0 md:-ml-2">
           <BotonAtras />
           <BotonRecargar />
         </div>
-        <div className="hidden md:flex min-w-0 overflow-hidden pl-1">
+        {/* Migas en todos los anchos: en una línea con espacio, en dos sin él (ver MigasDePan). */}
+        <div className="flex min-w-0 overflow-hidden pl-0.5 sm:pl-1">
           <MigasDePan seccion={seccionActual} titulo={moduleTitle} />
         </div>
       </div>
 
       {/* Contexto de la pantalla abierta (ej. selector de paso y estado del
           cotizador, ver HeaderContexto.tsx): cada pantalla lo llena por portal. */}
-      <div id="header-contexto" className="grow min-w-0 flex items-center gap-2 empty:hidden" />
+      <div id="header-contexto" className="min-w-0 flex items-center gap-2 empty:hidden" />
 
       {/* Lado derecho: el menú de usuario (con Notificaciones) es el último elemento. */}
       <div className="relative flex items-center gap-2 shrink-0">
@@ -129,7 +115,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="relative shrink-0" ref={menuRef}>
         <button
           onClick={() => setIsMenuOpen((prev) => !prev)}
-          className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border transition-all cursor-pointer focus:outline-none max-w-[56px] sm:max-w-[220px] ${
+          className={`flex items-center gap-2 p-1 sm:px-3 sm:py-1.5 rounded-full sm:rounded-xl border transition-all cursor-pointer focus:outline-none sm:max-w-[220px] ${
             isMenuOpen
               ? 'bg-slate-100 border-slate-300 shadow-xs ring-2 ring-brand-600/20'
               : 'bg-slate-50 hover:bg-slate-100/80 border-slate-200/80 shadow-2xs'
@@ -138,8 +124,8 @@ export const Header: React.FC<HeaderProps> = ({
           aria-haspopup="true"
           title={`Sesión iniciada como: ${nombreUsuario}`}
         >
-          <div className="w-6 h-6 rounded-full bg-brand-600/10 text-brand-600 flex items-center justify-center text-xs font-bold shrink-0">
-            <User className="w-3.5 h-3.5" />
+          <div className="w-7 h-7 sm:w-6 sm:h-6 rounded-full bg-brand-600/10 text-brand-600 flex items-center justify-center text-xs font-bold shrink-0">
+            <User className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
           </div>
           <div className="hidden sm:block text-xs text-slate-600 font-medium truncate text-left">
             <strong className="text-slate-900 font-bold truncate">
@@ -147,7 +133,7 @@ export const Header: React.FC<HeaderProps> = ({
             </strong>
           </div>
           <ChevronDown
-            className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${
+            className={`hidden sm:block w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${
               isMenuOpen ? 'rotate-180 text-slate-700' : ''
             }`}
           />
@@ -155,7 +141,8 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Dropdown flotante */}
         {isMenuOpen && (
-          <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-white border border-slate-200 shadow-xl p-1.5 z-50 animate-fade-in divide-y divide-slate-100">
+          // En móvil, a lo ancho de la pantalla bajo el header; desde sm, colgando del botón.
+          <div className="fixed left-2 right-2 top-14 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-64 rounded-2xl bg-white border border-slate-200 shadow-xl p-1.5 z-50 animate-fade-in divide-y divide-slate-100">
             {/* Header del dropdown con info de usuario */}
             <div className="px-3 py-2.5 pb-2">
               <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">

@@ -31,7 +31,7 @@ export const ClayCentroCostoEditor: React.FC<{ proyectoId: string; valor: string
     return (
       <ActivadorEdicion
         etiqueta="Centro de costo de esta obra en Clay: se usa al contabilizar las facturas de sus OC"
-        className="px-2.5 py-1 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-[11px]"
+        className="px-2.5 py-1 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-[11px] whitespace-nowrap"
         onClick={() => {
           setTexto(valor ?? '');
           setEditando(true);

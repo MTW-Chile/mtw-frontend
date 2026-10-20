@@ -107,7 +107,7 @@ export const ControlPresupuestoTab: React.FC<{ proyecto: Proyecto; activeVersion
         </>
       }
     >
-      <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="p-4 sm:p-5 grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <StatCard
           title="Presupuestado"
           value={formatCLP(totales.presupuestado)}
