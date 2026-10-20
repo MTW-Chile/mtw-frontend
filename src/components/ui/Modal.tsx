@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-const ANCHO = { sm: 'sm:max-w-md', md: 'sm:max-w-lg', lg: 'sm:max-w-2xl', xl: 'sm:max-w-4xl', completo: 'sm:max-w-7xl sm:h-[94vh]' } as const;
+const ANCHO = { sm: 'sm:max-w-md', md: 'sm:max-w-lg', lg: 'sm:max-w-2xl', xl: 'sm:max-w-4xl', completo: 'sm:max-w-7xl sm:h-[94dvh]' } as const;
 
 export interface ModalProps {
   titulo: React.ReactNode;
@@ -47,7 +47,7 @@ export const Modal: React.FC<ModalProps> & { Pie: typeof Pie } = ({ titulo, subt
         role="dialog"
         aria-modal="true"
         aria-labelledby={idTitulo}
-        className={`w-full ${ANCHO[ancho]} bg-white rounded-t-2xl sm:rounded-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[94vh] sm:max-h-[88vh] animate-slide-up sm:animate-none`}
+        className={`w-full ${ANCHO[ancho]} bg-white rounded-t-2xl sm:rounded-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[94dvh] sm:max-h-[88dvh] animate-slide-up sm:animate-none`}
       >
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3 bg-slate-50/70 shrink-0">
           <div className="flex items-center gap-3 min-w-0">

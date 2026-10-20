@@ -246,7 +246,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
             </Badge>
           </div>
           <Buscador compacto valor={buscar} onChange={setBuscar} placeholder="Buscar V01, corredera…" etiqueta="Buscar tipo de ventana" />
-          <div className="max-h-[60vh] overflow-y-auto space-y-1.5 pr-0.5">
+          <div className="max-h-[60dvh] overflow-y-auto space-y-1.5 pr-0.5">
             {visibles.length === 0 && <p className="text-xs text-slate-400 py-3 text-center">No hay tipos.</p>}
             {visibles.map((t) => {
               const completo = t.saldo <= 0;

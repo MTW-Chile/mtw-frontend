@@ -247,7 +247,7 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <div className="h-screen overflow-hidden flex bg-slate-50 text-slate-900 font-sans">
+    <div className="h-dvh overflow-hidden flex bg-slate-50 text-slate-900 font-sans">
       <Sidebar
         activeTab={activeTab}
         setActiveTab={handleNavigate}
@@ -265,7 +265,7 @@ const AppContent: React.FC = () => {
           onNavigate={handleNavigate}
         />
 
-        <main className="flex-1 overflow-y-auto flex flex-col min-h-0">
+        <main className="flex-1 overflow-y-auto overscroll-contain flex flex-col min-h-0">
           {activeTab === 'inicio' && (
             <InicioPage onNavigate={handleNavigate} />
           )}

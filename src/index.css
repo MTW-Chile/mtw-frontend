@@ -85,6 +85,7 @@
     font-family: var(--font-sans);
     font-feature-settings: 'cv11', 'ss01', 'tnum';
     min-height: 100vh;
+    min-height: 100dvh;
     overflow-x: hidden;
   }
 

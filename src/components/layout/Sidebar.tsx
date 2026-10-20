@@ -158,7 +158,7 @@ export const Sidebar: React.FC<{
       {/* Columna que el menú ocupa en el layout (solo md+): riel o menú fijado */}
       <div
         aria-hidden="true"
-        className={`hidden md:block shrink-0 h-screen transition-[width] duration-200 ease-in-out ${fijado ? 'w-64' : 'w-16'}`}
+        className={`hidden md:block shrink-0 h-dvh transition-[width] duration-200 ease-in-out ${fijado ? 'w-64' : 'w-16'}`}
       />
 
       <aside
