@@ -60,9 +60,24 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
   if (isError || !data) {
     return <div className="p-4 text-xs text-rose-600">No se pudo cargar la cubicación.</div>;
   }
-  if (data.torres.length === 0) {
-    return <p className="p-4 text-xs text-slate-400">Esta obra todavía no tiene nada cubicado -- arma el edificio en el Cubicador visual primero.</p>;
+  const unica = data.unica ?? [];
+  if (data.torres.length === 0 && unica.length === 0) {
+    return (
+      <p className="p-4 text-xs text-slate-400">
+        Esta obra todavía no tiene nada cubicado: arma el edificio o las casas en el cubicador visual, o crea la cubicación única, en la pestaña Cubicación.
+      </p>
+    );
   }
+  // Cubicación única: las ventanas con nombre pero sin torre/piso/depto se eligen todas juntas o una a una.
+  const todasUnica = unica.length > 0 && unica.every((v) => ventanaIds.has(v.id));
+  const alternarTodasUnica = () => {
+    const next = new Set(ventanaIds);
+    for (const v of unica) {
+      if (todasUnica) next.delete(v.id);
+      else next.add(v.id);
+    }
+    setVentanaIds(next);
+  };
 
   const filaUnidad = (nodo: NodoDeptoCubicacion) => (
     <div key={nodo.id} className="pl-4 border-l border-slate-100">
@@ -95,6 +110,35 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
 
   return (
     <div className="space-y-1 max-h-80 overflow-auto rounded-xl border border-slate-200 bg-white p-2">
+      {unica.length > 0 && (
+        <div>
+          <div className="flex items-center gap-1.5 py-1">
+            <IconButton icono={expandidas.has('unica') ? ChevronDown : ChevronRight} etiqueta="Expandir la cubicación única" onClick={() => expandir('unica')} />
+            <Casilla
+              checked={todasUnica}
+              onChange={alternarTodasUnica}
+              label={
+                <>
+                  <span className="font-bold text-slate-800">Cubicación única</span> <span className="text-slate-400">({unica.length} ventana(s))</span>
+                </>
+              }
+            />
+          </div>
+          {expandidas.has('unica') && (
+            <div className="pl-10 pb-1 space-y-0.5">
+              {unica.map((v) => (
+                <Casilla
+                  key={v.id}
+                  className="flex! text-[11px]! text-slate-600"
+                  checked={ventanaIds.has(v.id)}
+                  onChange={() => alternar(ventanaIds, setVentanaIds, v.id)}
+                  label={<span className="font-mono">{v.nomenclatura}</span>}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {data.torres.map((torre) => (
         <div key={torre.id}>
           <div className="flex items-center gap-1.5 py-1">

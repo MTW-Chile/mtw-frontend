@@ -76,6 +76,7 @@ import type {
   UnidadCubicacion,
   ReporteImportacionCubicacion,
   ReporteSincronizacionCubicacion,
+  ReporteCubicacionUnica,
   InfoPresupuestoCubicacion,
   FiltroUnidadesCubicacion,
   EstructuraCubicacion,
@@ -403,11 +404,8 @@ export async function createFase(
     descripcion?: string;
     fechaInicio?: string;
     fechaEntrega?: string;
-    // Una u otra, nunca las dos: "ventanas" es el modo manual de siempre
-    // (línea + cantidad); "seleccionCubicacion" arma lo mismo a partir de
-    // torres/pisos/deptos/ventanas ya cubicadas (ver SeleccionFaseCubicacion).
-    ventanas?: { ventanaId: string; unidades: number; notas?: string }[];
-    seleccionCubicacion?: SeleccionFaseCubicacion;
+    // Siempre desde la cubicación: torres/pisos/deptos/ventanas ya nombradas (ver SeleccionFaseCubicacion).
+    seleccionCubicacion: SeleccionFaseCubicacion;
   }
 ): Promise<{ success: boolean; fase: Fase; avisos: ExclusionFaseCubicacion[] }> {
   const response = await apiClient.post<{ success: boolean; fase: Fase; avisos: ExclusionFaseCubicacion[] }>(
@@ -417,9 +415,7 @@ export async function createFase(
   return response.data;
 }
 
-// Edita nombre/estado/fechas de una fase existente y, si se manda
-// "ventanas", reemplaza por completo su reparto de unidades (no es un
-// merge -- manda la lista completa de lo que esa fase debe tener).
+// Edita la ficha de una fase existente (nombre, estado, fechas). Sus ventanas se eligen al crearla, desde la cubicación.
 export async function updateFase(
   faseId: string,
   payload: {
@@ -428,7 +424,6 @@ export async function updateFase(
     estado?: Fase['estado'];
     fechaInicio?: string | null;
     fechaEntrega?: string | null;
-    ventanas?: { ventanaId: string; unidades: number; notas?: string }[];
   }
 ): Promise<{ success: boolean; fase: Fase }> {
   const response = await apiClient.patch<{ success: boolean; fase: Fase }>(`/fases/${faseId}`, payload);
@@ -1587,6 +1582,21 @@ export async function getCubicacion(
 export async function sincronizarCubicacion(proyectoId: string) {
   const response = await apiClient.post<{ reporte: ReporteSincronizacionCubicacion; cubicacion: ConfigCubicacion; resumen: ResumenCubicacion }>(
     `/proyectos/${proyectoId}/cubicacion/sincronizar`
+  );
+  return response.data;
+}
+
+// Cubicación única: nombra todas las ventanas sin repartirlas por torre/piso/depto (y lee el presupuesto si hace falta).
+export async function crearCubicacionUnica(proyectoId: string) {
+  const response = await apiClient.post<{ reporte: ReporteCubicacionUnica; cubicacion: ConfigCubicacion; resumen: ResumenCubicacion }>(
+    `/proyectos/${proyectoId}/cubicacion/unica`
+  );
+  return response.data;
+}
+
+export async function quitarCubicacionUnica(proyectoId: string) {
+  const response = await apiClient.post<{ reporte: { quitadas: number }; cubicacion: ConfigCubicacion; resumen: ResumenCubicacion }>(
+    `/proyectos/${proyectoId}/cubicacion/unica/quitar`
   );
   return response.data;
 }

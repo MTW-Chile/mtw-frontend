@@ -41,6 +41,20 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
   const queryClient = useQueryClient();
   const [ancho, setAncho] = useState(mmATexto(unidad.rasgoAnchoMm));
   const [alto, setAlto] = useState(mmATexto(unidad.rasgoAltoMm));
+  const [ubicacion, setUbicacion] = useState(unidad.ubicacion ?? '');
+
+  // La ubicación (recinto: Dormitorio 1, Living...) también se escribe en la fila y se guarda al salir del campo.
+  const guardarUbicacion = useMutation({
+    mutationFn: (texto: string) => editarUnidadCubicacion(unidad.id, { ubicacion: texto.trim() || null }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cubicacionUnidades', proyectoId] }),
+    onError: (e) => {
+      aviso(e);
+      setUbicacion(unidad.ubicacion ?? '');
+    },
+  });
+  const salirUbicacion = () => {
+    if (ubicacion.trim() !== (unidad.ubicacion ?? '')) guardarUbicacion.mutate(ubicacion);
+  };
 
   const guardar = useMutation({
     mutationFn: (datos: { rasgoAnchoMm: number | null; rasgoAltoMm: number | null }) => editarUnidadCubicacion(unidad.id, datos),
@@ -80,12 +94,23 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
         {unidad.nomenclatura ? (
           <span className="font-mono font-bold text-xs text-slate-800">{unidad.nomenclatura}</span>
         ) : (
-          <span className="font-mono text-xs text-slate-400" title="Aún sin unidad asignada">
-            {unidad.codigo} <Badge size="sm" variant="outline">sin posición</Badge>
+          <span className="font-mono text-xs text-slate-400" title="Aún sin unidad asignada ni cubicación única">
+            {unidad.codigo} <Badge size="sm" variant="outline">sin nomenclatura</Badge>
           </span>
         )}
       </Td>
-      <Td className="text-xs text-slate-600 whitespace-nowrap">{unidad.ubicacion || '—'}</Td>
+      <Td>
+        <InputCompacto
+          aria-label={`Ubicación de ${unidad.nomenclatura ?? unidad.codigo}`}
+          placeholder="Ej. Dormitorio 1"
+          maxLength={100}
+          value={ubicacion}
+          onChange={(e) => setUbicacion(e.target.value)}
+          onBlur={salirUbicacion}
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+          className="min-w-[8rem]"
+        />
+      </Td>
       <Td className="text-[11px] text-slate-500 max-w-[14rem] truncate" title={unidad.sistema}>
         {unidad.sistema}
       </Td>

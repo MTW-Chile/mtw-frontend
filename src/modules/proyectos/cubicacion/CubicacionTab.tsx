@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Download, FileSpreadsheet, Loader2, RefreshCw, Ruler, Settings2, Upload, X } from 'lucide-react';
-import { descargarPlantillaCubicacion, getCubicacion, importarPlanillaCubicacion, sincronizarCubicacion } from '../../../api/client';
+import { AlertTriangle, Download, FileSpreadsheet, Layers, Loader2, RefreshCw, Ruler, Settings2, Undo2, Upload, X } from 'lucide-react';
+import { crearCubicacionUnica, descargarPlantillaCubicacion, getCubicacion, importarPlanillaCubicacion, quitarCubicacionUnica, sincronizarCubicacion } from '../../../api/client';
 import { SubTabs } from '../../../components/ui/PageHeader';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
@@ -35,7 +35,7 @@ const Dato: React.FC<{ titulo: string; valor: React.ReactNode; detalle?: React.R
 
 const Resumen: React.FC<{ r: ResumenCubicacion }> = ({ r }) => (
   <div className="grid grid-cols-2 lg:grid-cols-4 gap-2" data-testid="resumen-cubicacion">
-    <Dato titulo="Ventanas con posición" valor={`${r.posicionadas} de ${r.ventanas}`} detalle={r.sinPosicion > 0 ? `${r.sinPosicion} sin unidad asignada` : 'todas tienen su lugar'} />
+    <Dato titulo="Ventanas con nomenclatura" valor={`${r.posicionadas} de ${r.ventanas}`} detalle={r.sinPosicion > 0 ? `${r.sinPosicion} sin ubicar ni nombre` : 'todas tienen su nombre'} />
     <Dato titulo="Rectificadas" valor={r.rectificadas} detalle={r.ventanas ? `${Math.round((r.rectificadas / r.ventanas) * 100)} % de las ventanas` : '—'} />
     <Dato titulo="Superficie" valor={`${r.m2.toLocaleString('es-CL', { maximumFractionDigits: 1 })} m²`} detalle="fabricación si ya se rectificó; si no, plano" />
     <Dato titulo="Contratado" valor={formatoMonto(r.precio.contratado, r.moneda ?? 'UF')} detalle={`Saldo por posicionar ${formatoMonto(r.precio.saldo, r.moneda ?? 'UF')}`} />
@@ -51,11 +51,11 @@ const panelDeImportacion = (r: ReporteImportacionCubicacion): ResultadoPanel => 
 });
 const panelDeSincronizacion = (r: ReporteSincronizacionCubicacion, titulo: string): ResultadoPanel => ({ titulo, lineas: [lineaReporteSincronizacion(r)], advertencias: r.avisos });
 
-// Cubicacion de la obra: paso previo y OPCIONAL de las fases. Toda obra tiene cubicador implicito (no hay
-// paso de "crear"). TODO lo que ya sabemos (el presupuesto de HETMO: codigo, sistema, medidas, cantidades y
-// precios) se lee solo; la persona completa lo que falta -- donde va cada ventana y su rasgo medido en obra --
-// en pantalla o en una planilla Excel que descarga, llena y vuelve a subir. Sin cubicacion, las fases se crean
-// con el modal de siempre.
+// Cubicacion de la obra: paso previo de las fases (toda fase se arma desde aqui, asi cada ventana tiene
+// nomenclatura y medida rectificada). Toda obra tiene cubicador implicito (no hay paso de "crear"). TODO lo que
+// ya sabemos (el presupuesto de HETMO: codigo, sistema, medidas, cantidades y precios) se lee solo; la persona
+// completa lo que falta -- donde va cada ventana y su rasgo medido en obra -- en pantalla o en una planilla Excel
+// que descarga, llena y vuelve a subir. Una obra que no se reparte por torre/piso/depto usa la "cubicacion unica".
 export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
   const queryClient = useQueryClient();
   const entrada = useRef<HTMLInputElement>(null);
@@ -81,6 +81,37 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
     onSuccess: (r) => {
       setPanel(panelDeSincronizacion(r.reporte, resumen && resumen.tipos > 0 ? 'Presupuesto leído de nuevo' : 'Cubicación completada desde el presupuesto'));
       refrescar();
+    },
+    onError: aviso,
+  });
+  // Cubicación única: sin torres ni pisos, todas las ventanas reciben su nomenclatura (V01, o V01-1, V01-2...).
+  const cubicarUnica = useMutation({
+    mutationFn: () => crearCubicacionUnica(proyecto.id),
+    onSuccess: (r) => {
+      setPanel({
+        titulo: 'Cubicación única creada',
+        lineas: [
+          `${r.reporte.nombradas} ventana(s) con nomenclatura nueva${r.reporte.yaTenian ? `; ${r.reporte.yaTenian} ya tenían la suya` : ''}.`,
+          'Ya puedes rectificar sus medidas en la pestaña Ventanas y armar fases con ellas.',
+        ],
+        advertencias: [],
+      });
+      refrescar();
+      queryClient.invalidateQueries({ queryKey: ['cubicacionEstructura', proyecto.id] });
+      setVista('ventanas');
+    },
+    onError: aviso,
+  });
+  const quitarUnica = useMutation({
+    mutationFn: () => quitarCubicacionUnica(proyecto.id),
+    onSuccess: (r) => {
+      setPanel({
+        titulo: 'Cubicación única deshecha',
+        lineas: [`${r.reporte.quitadas} ventana(s) vuelven a quedar sin nomenclatura. Las que ya están en una fase se dejaron como estaban.`],
+        advertencias: [],
+      });
+      refrescar();
+      queryClient.invalidateQueries({ queryKey: ['cubicacionEstructura', proyecto.id] });
     },
     onError: aviso,
   });
@@ -128,8 +159,8 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
         <div>
           <h2 className="text-sm font-black text-slate-900">Cubicación</h2>
           <p className="text-xs text-slate-500 max-w-2xl">
-            Paso previo y opcional de las fases. Lo que ya sabemos del presupuesto de HETMO (tipos, descripción, medidas, cantidades y precios) se lee solo: aquí solo se completa dónde va
-            cada ventana y su rasgo medido en obra. Sin cubicación, las fases se crean con el modal de siempre.
+            Paso previo de las fases: cada ventana necesita su nomenclatura y su medida rectificada. Lo que ya sabemos del presupuesto de HETMO (tipos, descripción, medidas, cantidades y
+            precios) se lee solo: aquí solo se completa dónde va cada ventana y su rasgo medido en obra. Si la obra no se reparte por torres y pisos, usa la cubicación única.
           </p>
         </div>
         {resumen.tipos > 0 && (
@@ -140,6 +171,16 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
             <Button variant="outline" size="sm" leftIcon={<Upload className="w-3.5 h-3.5" />} isLoading={subir.isPending} onClick={() => entrada.current?.click()}>
               Subir planilla completada
             </Button>
+            {resumen.sinPosicion > 0 && (
+              <Button variant="outline" size="sm" leftIcon={<Layers className="w-3.5 h-3.5" />} isLoading={cubicarUnica.isPending} onClick={() => cubicarUnica.mutate()} title="Nombra las ventanas sin repartirlas por torre, piso y departamento: V01, o V01-1, V01-2 si hay más de una.">
+                Crear cubicación única
+              </Button>
+            )}
+            {resumen.cubicacionUnica > 0 && (
+              <Button variant="ghost" size="sm" leftIcon={<Undo2 className="w-3.5 h-3.5" />} isLoading={quitarUnica.isPending} onClick={() => quitarUnica.mutate()} title="Quita el nombre a las ventanas que no tienen torre, piso ni departamento (las que ya están en una fase se respetan).">
+                Deshacer cubicación única
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -182,6 +223,9 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
                 <Button variant="primary" size="sm" leftIcon={<RefreshCw className="w-3.5 h-3.5" />} isLoading={sincronizar.isPending} onClick={() => sincronizar.mutate()}>
                   Completar desde el presupuesto
                 </Button>
+                <Button variant="outline" size="sm" leftIcon={<Layers className="w-3.5 h-3.5" />} isLoading={cubicarUnica.isPending} onClick={() => cubicarUnica.mutate()} title="Lee el presupuesto y nombra todas las ventanas sin repartirlas por torre, piso y departamento.">
+                  Crear cubicación única
+                </Button>
               </div>
               <p className="text-[11px] text-slate-400">
                 ¿Ya tienes una planilla de cubicación (la de siempre)?{' '}
@@ -210,8 +254,8 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
           <Resumen r={resumen} />
           {resumen.sinPosicion > 0 && (
             <p className="text-xs text-slate-600 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2" data-testid="siguiente-paso">
-              <b>Siguiente paso:</b> faltan {resumen.sinPosicion} ventana(s) por ubicar. Arma el edificio en el cubicador visual y arrastra cada ventana a su departamento, o descarga la planilla,
-              complétala (torre, piso, depto y rasgo) y súbela: las dos formas escriben lo mismo.
+              <b>Siguiente paso:</b> faltan {resumen.sinPosicion} ventana(s) por ubicar. Arma el edificio (o las casas) en el cubicador visual y arrastra cada ventana a su lugar, descarga la planilla,
+              complétala (torre, piso, depto y rasgo) y súbela, o usa «Crear cubicación única» si la obra no se reparte.
             </p>
           )}
           <SubTabs

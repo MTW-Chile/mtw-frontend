@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Layers, Plus, Pencil, Trash2, AlertCircle, X as XIcon, Search, Sparkles, ShoppingCart, Package, FileSpreadsheet } from 'lucide-react';
+import { Loader2, Layers, Plus, Pencil, Trash2, AlertCircle, X as XIcon, ShoppingCart, Package, FileSpreadsheet } from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -15,10 +15,8 @@ import type { Fase, Proyecto, ProyectoVersion, SeleccionFaseCubicacion } from '.
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
 import { useConfirmar } from '../../components/ui/Confirmar';
 import { BotonColapsar } from '../../components/ui/BotonColapsar';
-import { Segmentado } from '../../components/ui/Segmentado';
 import { IconButton } from '../../components/ui/IconButton';
 import { Aviso } from '../../components/ui/Aviso';
-import { InputCompacto } from '../../components/ui/Campos';
 
 const formatoMoneda = (valor: number) => valor.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
@@ -59,15 +57,10 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
   const [nombre, setNombre] = useState('');
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaEntrega, setFechaEntrega] = useState('');
-  const [cantidades, setCantidades] = useState<Record<string, string>>({});
-  // Por defecto se crea seleccionando desde la cubicación (mas preciso: sabe
-  // exactamente que ventana fisica queda en la fase, no solo "cuantas" de
-  // la linea). El modo manual (linea+cantidad) sigue disponible como
-  // alternativa, y es el unico modo al editar una fase ya creada.
-  const [modoCreacion, setModoCreacion] = useState<'cubicacion' | 'manual'>('cubicacion');
+  // Una fase se arma siempre desde la cubicación (así cada ventana tiene nomenclatura y medidas rectificadas);
+  // al editarla solo cambia su ficha: nombre y fechas.
   const [seleccionCubicacion, setSeleccionCubicacion] = useState<SeleccionFaseCubicacion>({});
   const [resumenSeleccion, setResumenSeleccion] = useState('nada seleccionado todavía');
-  const [busqueda, setBusqueda] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [expandidas, setExpandidas] = useState<Set<string>>(new Set());
   // partida: codigo de la partida cuyos items precarga la solicitud.
@@ -78,15 +71,12 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
   const faseBase = todasLasFases.find((f) => f.numeroFase === 0);
   const fasesReales = todasLasFases.filter((f) => f.numeroFase > 0).sort((a, b) => a.numeroFase - b.numeroFase);
 
-  // Cuanto de cada ventana ya esta asignado en OTRAS fases reales (para
-  // saber cuanto queda disponible al crear/editar la fase actual).
+  // Cuanto de cada linea ya esta asignado a fases reales (para el resumen de arriba).
   const asignadoOtrasFasesPorVentana = useMemo(() => {
     const map = new Map<string, number>();
-    fasesReales
-      .filter((f) => f.id !== editando)
-      .forEach((f) => (f.ventanasFase || []).forEach((vf) => map.set(vf.ventanaId, (map.get(vf.ventanaId) || 0) + Number(vf.unidades))));
+    fasesReales.forEach((f) => (f.ventanasFase || []).forEach((vf) => map.set(vf.ventanaId, (map.get(vf.ventanaId) || 0) + Number(vf.unidades))));
     return map;
-  }, [fasesReales, editando]);
+  }, [fasesReales]);
 
   const filas: FilaVentana[] = useMemo(
     () =>
@@ -103,14 +93,6 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
     [ventanas, asignadoOtrasFasesPorVentana]
   );
 
-  const filasFiltradas = useMemo(() => {
-    if (!busqueda.trim()) return filas;
-    const term = busqueda.toLowerCase();
-    return filas.filter((f) => f.modelo.toLowerCase().includes(term) || String(f.lineaHetmo).includes(term));
-  }, [filas, busqueda]);
-
-  // Resumen global: cuanto del proyecto ya quedo repartido en alguna fase
-  // real, contra el total de unidades del presupuesto.
   const resumen = useMemo(() => {
     const totalUnidades = filas.reduce((sum, f) => sum + f.unidadesTotal, 0);
     const planificado = filas.reduce((sum, f) => sum + f.asignadoOtrasFases, 0);
@@ -172,11 +154,8 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
     setNombre('');
     setFechaInicio('');
     setFechaEntrega('');
-    setCantidades({});
-    setModoCreacion('cubicacion');
     setSeleccionCubicacion({});
     setResumenSeleccion('nada seleccionado todavía');
-    setBusqueda('');
     setError(null);
   };
 
@@ -190,45 +169,22 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
     setNombre(fase.nombre);
     setFechaInicio(fase.fechaInicio ? fase.fechaInicio.slice(0, 10) : '');
     setFechaEntrega(fase.fechaEntrega ? fase.fechaEntrega.slice(0, 10) : '');
-    const iniciales: Record<string, string> = {};
-    (fase.ventanasFase || []).forEach((vf) => (iniciales[vf.ventanaId] = String(vf.unidades)));
-    setCantidades(iniciales);
-    setModoCreacion('manual'); // editar siempre reemplaza por linea+cantidad, igual que antes
-    setBusqueda('');
     setError(null);
   };
 
-  const ventanasPayload = () =>
-    Object.entries(cantidades)
-      .filter(([, v]) => Number(v) > 0)
-      .map(([ventanaId, v]) => ({ ventanaId, unidades: Number(v) }));
-
   const esNueva = editando === 'nueva' || editando === null;
-  const usaModoCubicacion = esNueva && modoCreacion === 'cubicacion';
 
   const guardarMutation = useMutation({
     mutationFn: () => {
       if (esNueva) {
-        return usaModoCubicacion
-          ? createFase(activeVersion!.id, {
-              nombre: nombre.trim(),
-              fechaInicio: fechaInicio || undefined,
-              fechaEntrega: fechaEntrega || undefined,
-              seleccionCubicacion,
-            })
-          : createFase(activeVersion!.id, {
-              nombre: nombre.trim(),
-              fechaInicio: fechaInicio || undefined,
-              fechaEntrega: fechaEntrega || undefined,
-              ventanas: ventanasPayload(),
-            });
+        return createFase(activeVersion!.id, {
+          nombre: nombre.trim(),
+          fechaInicio: fechaInicio || undefined,
+          fechaEntrega: fechaEntrega || undefined,
+          seleccionCubicacion,
+        });
       }
-      return updateFase(editando!, {
-        nombre: nombre.trim(),
-        fechaInicio: fechaInicio || undefined,
-        fechaEntrega: fechaEntrega || undefined,
-        ventanas: ventanasPayload(),
-      });
+      return updateFase(editando!, { nombre: nombre.trim(), fechaInicio: fechaInicio || undefined, fechaEntrega: fechaEntrega || undefined });
     },
     onSuccess: (resultado: { success: boolean; fase: Fase; avisos?: { nivel: string; nombre: string }[] }) => {
       queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyecto.id] });
@@ -259,21 +215,6 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
     },
   });
 
-  // Atajo para proyectos que no necesitan repartir por etapas: una sola
-  // fase con TODO lo que todavia no este asignado a otra fase (no
-  // necesariamente el 100% de cada linea -- si ya hay fases planificadas,
-  // esto solo completa el resto sin pisarlas).
-  const crearFaseUnicaMutation = useMutation({
-    mutationFn: () => {
-      const ventanasPayload = filas
-        .map((f) => ({ ventanaId: f.ventanaId, unidades: f.unidadesTotal - f.asignadoOtrasFases }))
-        .filter((v) => v.unidades > 0);
-      return createFase(activeVersion!.id, { nombre: 'Fase única', ventanas: ventanasPayload });
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyecto.id] }),
-    onError: (err: any) => setError(err?.response?.data?.error || 'No se pudo crear la fase única.'),
-  });
-
   if (!activeVersion) {
     return <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">Sin versión activa.</div>;
   }
@@ -292,20 +233,6 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
         </div>
         {!formAbierto && (
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              leftIcon={crearFaseUnicaMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-              disabled={resumen.sinPlanificar <= 0 || crearFaseUnicaMutation.isPending}
-              title={
-                resumen.sinPlanificar <= 0
-                  ? 'Ya no queda ninguna unidad sin asignar a una fase.'
-                  : 'Crea una fase con todo lo que todavía no esté asignado a otra fase.'
-              }
-              onClick={() => crearFaseUnicaMutation.mutate()}
-            >
-              Crear fase única
-            </Button>
             <Button size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={abrirNueva}>
               Nueva fase
             </Button>
@@ -359,21 +286,9 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
               <Input label="Fecha entrega" type="date" value={fechaEntrega} onChange={(e) => setFechaEntrega(e.target.value)} />
             </div>
 
-            {esNueva && (
-              <Segmentado
-                tamano="xs"
-                etiqueta="Cómo elegir las ventanas"
-                valor={modoCreacion}
-                onChange={setModoCreacion}
-                opciones={[
-                  { value: 'cubicacion', label: 'Desde la cubicación' },
-                  { value: 'manual', label: 'Ventanas individuales (sin cubicar)' },
-                ]}
-              />
-            )}
           </div>
 
-          {usaModoCubicacion ? (
+          {esNueva && (
             <div className="p-4 space-y-2">
               <SelectorFaseDesdeCubicacion
                 proyectoId={proyecto.id}
@@ -384,69 +299,6 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
               />
               <p className="text-[11px] text-slate-500">Seleccionado: {resumenSeleccion}. Una ventana que ya esté en otra fase se excluye sola, con aviso.</p>
             </div>
-          ) : (
-            <>
-              <div className="p-3 border-b border-slate-100">
-                <Input
-                  placeholder="Buscar línea por modelo o N°..."
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                  leftIcon={<Search className="w-3.5 h-3.5" />}
-                />
-              </div>
-
-              <div className="max-h-96 overflow-hidden">
-                <Tabla>
-                  <Thead>
-                    <Tr className="border-b border-slate-100 text-left text-slate-500 uppercase tracking-wider text-[10px]">
-                      <Th className="font-bold">Línea</Th>
-                      <Th alinear="derecha" className="font-bold">Total</Th>
-                      <Th alinear="derecha" className="font-bold">En otras fases</Th>
-                      <Th alinear="derecha" className="font-bold">Restante</Th>
-                      <Th alinear="derecha" className="font-bold w-28">En esta fase</Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {filasFiltradas.map((f) => {
-                      const asignadaAqui = Number(cantidades[f.ventanaId]) || 0;
-                      const restante = f.unidadesTotal - f.asignadoOtrasFases;
-                      const excedida = asignadaAqui > restante;
-                      return (
-                        <Tr key={f.ventanaId} className="border-b border-slate-50 hover:bg-slate-50/50">
-                          <Td className="text-slate-700">
-                            <span className="font-mono text-slate-400 mr-1.5">#{f.lineaHetmo}</span>
-                            {f.modelo}
-                            {f.descripcionCorta && <span className="text-slate-400"> · {f.descripcionCorta}</span>}
-                          </Td>
-                          <Td alinear="derecha" className="font-mono text-slate-600">{f.unidadesTotal}</Td>
-                          <Td alinear="derecha" className="font-mono text-slate-500">{f.asignadoOtrasFases}</Td>
-                          <Td className={`px-4 py-2 text-right font-mono font-semibold ${restante <= 0 ? 'text-slate-300' : 'text-slate-700'}`}>
-                            {restante}
-                          </Td>
-                          <Td alinear="derecha">
-                            <InputCompacto
-                              aria-label="Cantidad en esta fase"
-                              type="number"
-                              min={0}
-                              value={cantidades[f.ventanaId] || ''}
-                              onChange={(e) => setCantidades((prev) => ({ ...prev, [f.ventanaId]: e.target.value }))}
-                              className={`w-20 text-right ${excedida ? 'border-rose-400 bg-rose-50 text-rose-700' : ''}`}
-                            />
-                          </Td>
-                        </Tr>
-                      );
-                    })}
-                    {filasFiltradas.length === 0 && (
-                      <Tr>
-                        <Td colSpan={5} alinear="centro" className="py-8 text-slate-400">
-                          Sin líneas que calcen con la búsqueda.
-                        </Td>
-                      </Tr>
-                    )}
-                  </Tbody>
-                </Tabla>
-              </div>
-            </>
           )}
 
           <div className="p-3.5 flex items-center justify-end gap-2 bg-slate-50/70">
@@ -458,7 +310,7 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
               isLoading={guardarMutation.isPending}
               disabled={
                 !nombre.trim() ||
-                (usaModoCubicacion &&
+                (esNueva &&
                   (seleccionCubicacion.torreIds?.length || 0) +
                     (seleccionCubicacion.pisoIds?.length || 0) +
                     (seleccionCubicacion.unidadIds?.length || 0) +

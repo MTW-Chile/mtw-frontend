@@ -1645,7 +1645,7 @@ export interface OneDriveEstado {
   error?: string;
 }
 
-// ---- Cubicador (paso previo y opcional de las fases) ----
+// ---- Cubicador (paso previo de las fases) ----
 // La config (holgura/formato de nomenclatura) vive en Proyecto: toda obra tiene cubicador
 // implicito, no hay un objeto "Cubicacion" propio ni un paso de "activarlo".
 
@@ -1698,6 +1698,8 @@ export interface EstructuraCubicacion {
   torres: NodoTorreCubicacion[];
   // Ventanas que aun no tienen unidad asignada.
   sinPosicion: number;
+  // Cubicacion unica: ventanas con nombre final pero sin torre/piso/depto.
+  unica: { id: string; codigo: string; nomenclatura: string }[];
 }
 export interface TorreConPisos {
   id: string;
@@ -1736,11 +1738,18 @@ export interface ResultadoCopiaPisoCubicacion {
   faltan: { codigo: string; cantidad: number }[];
 }
 
+export interface ReporteCubicacionUnica {
+  nombradas: number;
+  yaTenian: number;
+}
+
 export interface ResumenCubicacion {
   tipos: number;
   ventanas: number;
   posicionadas: number;
   sinPosicion: number;
+  // Ventanas con nombre propio pero sin torre/piso/depto (cubicación única).
+  cubicacionUnica: number;
   rectificadas: number;
   m2: number;
   moneda: string | null;
