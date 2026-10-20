@@ -8,7 +8,7 @@ import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import type { ConfigCubicacion, NodoDeptoCubicacion, NodoTorreCubicacion, TipoCubicacion, UnidadCubicacion } from '../../../types';
 import { formatoMm } from '../fabricacion/utils';
 import { CrearFaseDesdeCubicacionModal } from './CrearFaseDesdeCubicacionModal';
-import { ArmarCasaModal, AsignarModal, ArmarEdificioModal, CopiarCasaModal, CopiarPisoModal, DeptosModal, PisosModal, RecintosModal, RenombrarTorreModal, TorreModal, UbicacionesModal, UnidadEspecialModal } from './EstructuraModales';
+import { ArmarCasaModal, AsignarModal, ArmarEdificioModal, CopiarCasaModal, CopiarPisoModal, DeptosModal, PisosModal, RecintosModal, RenombrarModal, RenombrarTorreModal, TorreModal, UbicacionesModal, UnidadEspecialModal } from './EstructuraModales';
 import { UnidadModal } from './UnidadModal';
 import { mensajeAsignacion } from './utils';
 import { vocabulario, type Vocabulario } from './vocabulario';
@@ -44,6 +44,7 @@ type ModalAbierto =
   | { tipo: 'copiar'; torre: NodoTorreCubicacion; pisoNumero: number }
   | { tipo: 'asignar'; destino: Destino }
   | { tipo: 'ubicaciones'; destino: Destino }
+  | { tipo: 'renombrar-lugar'; que: 'unidad' | 'ubicacion'; id: string; nombreActual: string }
   | { tipo: 'ventana'; unidad: UnidadCubicacion }
   | { tipo: 'crearFase' };
 
@@ -69,10 +70,12 @@ const TarjetaUnidad: React.FC<{
   onAbrirAsignar: (ubicacion?: string) => void;
   onNuevaUbicacion: () => void;
   onQuitarUbicacion: (recintoId: string) => void;
+  onRenombrar: () => void;
+  onRenombrarUbicacion: (recinto: { id: string; nombre: string }) => void;
   onQuitar: () => void;
   onEditarVentana: (v: UnidadCubicacion) => void;
   onQuitarVentana: (id: string) => void;
-}> = ({ voc, nodo, torre, tipoActivo, sobre, onSobre, onDrop, onAgregarUna, onAbrirAsignar, onNuevaUbicacion, onQuitarUbicacion, onQuitar, onEditarVentana, onQuitarVentana }) => {
+}> = ({ voc, nodo, torre, tipoActivo, sobre, onSobre, onDrop, onAgregarUna, onAbrirAsignar, onNuevaUbicacion, onQuitarUbicacion, onRenombrar, onRenombrarUbicacion, onQuitar, onEditarVentana, onQuitarVentana }) => {
   // Un departamento puede tener ubicaciones (recintos); una casa no: ahí el recinto es la unidad misma.
   const conUbicaciones = voc.modo === 'EDIFICIO' && nodo.recintos.length > 0;
   const nombresRecintos = new Set(nodo.recintos.map((r) => r.nombre.toLowerCase()));
@@ -95,7 +98,7 @@ const TarjetaUnidad: React.FC<{
     </div>
   );
   // Una zona donde se pueden soltar ventanas y tipos: el departamento entero o uno de sus recintos.
-  const zona = (clave: string, titulo: string | null, ventanas: UnidadCubicacion[], ubicacion: string | undefined, quitar?: () => void) => (
+  const zona = (clave: string, titulo: string | null, ventanas: UnidadCubicacion[], ubicacion: string | undefined, quitar?: () => void, renombrar?: () => void) => (
     <div
       key={clave}
       onDragOver={(e) => {
@@ -118,6 +121,7 @@ const TarjetaUnidad: React.FC<{
             <Button size="sm" onClick={() => onAgregarUna(ubicacion)} title={`Agregar una ${tipoActivo.codigo} en ${titulo}`}>+ 1 {tipoActivo.codigo}</Button>
           )}
           {titulo !== null && <IconButton icono={Plus} etiqueta={`Agregar ventanas a ${titulo} (${nodo.nombre})`} tono="marca" onClick={() => onAbrirAsignar(ubicacion)} />}
+          {renombrar && <IconButton icono={Pencil} etiqueta={`Cambiar nombre de la ubicación ${titulo} de ${nodo.nombre}`} tono="marca" onClick={renombrar} />}
           {quitar && <IconButton icono={X} etiqueta={`Quitar la ubicación ${titulo} de ${nodo.nombre}`} tono="peligro" onClick={quitar} />}
         </div>
       </div>
@@ -145,12 +149,13 @@ const TarjetaUnidad: React.FC<{
             <Button size="sm" onClick={() => onAgregarUna()} title={`Agregar una ${tipoActivo.codigo} a este ${voc.unidad}`}>+ 1 {tipoActivo.codigo}</Button>
           )}
           {!conUbicaciones && <IconButton icono={Plus} etiqueta={`Agregar ventanas a ${nodo.nombre} (${voc.textoTorre(torre)})`} tono="marca" onClick={() => onAbrirAsignar()} />}
+          <IconButton icono={Pencil} etiqueta={`Cambiar nombre de ${nodo.nombre} (${voc.textoTorre(torre)})`} tono="marca" onClick={onRenombrar} />
           <IconButton icono={X} etiqueta={`Quitar ${nodo.nombre} (${voc.textoTorre(torre)})`} tono="peligro" onClick={onQuitar} />
         </div>
       </div>
       {conUbicaciones ? (
         <div className="space-y-1.5">
-          {nodo.recintos.map((r) => zona(`${nodo.id}:${r.id}`, r.nombre, nodo.ventanas.filter((v) => (v.ubicacion ?? '').toLowerCase() === r.nombre.toLowerCase()), r.nombre, () => onQuitarUbicacion(r.id)))}
+          {nodo.recintos.map((r) => zona(`${nodo.id}:${r.id}`, r.nombre, nodo.ventanas.filter((v) => (v.ubicacion ?? '').toLowerCase() === r.nombre.toLowerCase()), r.nombre, () => onQuitarUbicacion(r.id), () => onRenombrarUbicacion(r)))}
           {(() => {
             const otras = nodo.ventanas.filter((v) => !v.ubicacion || !nombresRecintos.has(v.ubicacion.toLowerCase()));
             return otras.length > 0 ? zona(`${nodo.id}:sin`, null, otras, undefined) : null;
@@ -419,6 +424,8 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                           onAbrirAsignar={(ubicacion) => setModal({ tipo: 'asignar', destino: { unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre, recintos: u.recintos.map((r) => r.nombre), ubicacion } })}
                           onNuevaUbicacion={() => setModal({ tipo: 'ubicaciones', destino: { unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre } })}
                           onQuitarUbicacion={(id) => quitarUbicacion.mutate(id)}
+                          onRenombrar={() => setModal({ tipo: 'renombrar-lugar', que: 'unidad', id: u.id, nombreActual: u.nombre })}
+                          onRenombrarUbicacion={(r) => setModal({ tipo: 'renombrar-lugar', que: 'ubicacion', id: r.id, nombreActual: r.nombre })}
                           onQuitar={() => confirmarEliminar(`¿Quitar la unidad "${u.nombre}"?`, { torreId: torre.id, unidadId: u.id })}
                           onEditarVentana={(v) => setModal({ tipo: 'ventana', unidad: v })}
                           onQuitarVentana={(id) => quitar.mutate(id)}
@@ -466,6 +473,8 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                                 onAbrirAsignar={(ubicacion) => setModal({ tipo: 'asignar', destino: { unidadId: depto.id, torre: torre.nombre, nombreUnidad: depto.nombre, recintos: depto.recintos.map((r) => r.nombre), ubicacion } })}
                                 onNuevaUbicacion={() => setModal({ tipo: 'ubicaciones', destino: { unidadId: depto.id, torre: torre.nombre, nombreUnidad: depto.nombre } })}
                                 onQuitarUbicacion={(id) => quitarUbicacion.mutate(id)}
+                                onRenombrar={() => setModal({ tipo: 'renombrar-lugar', que: 'unidad', id: depto.id, nombreActual: depto.nombre })}
+                                onRenombrarUbicacion={(r) => setModal({ tipo: 'renombrar-lugar', que: 'ubicacion', id: r.id, nombreActual: r.nombre })}
                                 onQuitar={() => confirmarEliminar(`¿Quitar el ${voc.unidad} ${depto.nombre}?`, { torreId: torre.id, pisoId: piso.id, unidadId: depto.id })}
                                 onEditarVentana={(v) => setModal({ tipo: 'ventana', unidad: v })}
                                 onQuitarVentana={(id) => quitar.mutate(id)}
@@ -496,6 +505,9 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
       {modal?.tipo === 'especial' && <UnidadEspecialModal {...base} torreId={modal.torreId} />}
       {modal?.tipo === 'copiar' && <CopiarPisoModal {...base} torre={modal.torre} piso={modal.pisoNumero} />}
       {modal?.tipo === 'asignar' && <AsignarModal {...base} unidadId={modal.destino.unidadId} torre={modal.destino.torre} nombreUnidad={modal.destino.nombreUnidad} recintos={modal.destino.recintos} ubicacionInicial={modal.destino.ubicacion} tipos={tipos} tipoInicial={activo ?? undefined} />}
+      {modal?.tipo === 'renombrar-lugar' && (
+        <RenombrarModal {...base} que={modal.que} id={modal.id} nombreActual={modal.nombreActual} etiquetaTexto={modal.que === 'ubicacion' ? 'Nombre de la ubicación' : `Nombre del ${voc.unidad}`} />
+      )}
       {modal?.tipo === 'ubicaciones' && <UbicacionesModal {...base} unidadId={modal.destino.unidadId} torre={modal.destino.torre} nombreUnidad={modal.destino.nombreUnidad} />}
       {modal?.tipo === 'ventana' && <UnidadModal proyectoId={proyectoId} cubicacion={cubicacion} tipos={tipos} unidad={modal.unidad} onClose={() => setModal(null)} />}
       {modal?.tipo === 'crearFase' && versionId && <CrearFaseDesdeCubicacionModal proyectoId={proyectoId} versionId={versionId} onClose={() => setModal(null)} />}

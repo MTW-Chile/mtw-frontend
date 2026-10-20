@@ -1752,6 +1752,18 @@ export async function eliminarUbicacionCubicacion(proyectoId: string, recintoId:
   return response.data;
 }
 
+// Renombra una unidad (departamento, recinto de una casa o unidad especial): sus ventanas recalculan su nombre.
+export async function renombrarUnidadCubicacion(proyectoId: string, payload: { unidadId: string; nombre: string }): Promise<{ ventanas: number }> {
+  const response = await apiClient.post<{ ventanas: number }>(`${rutaEstructura(proyectoId)}/renombrar-unidad`, payload);
+  return response.data;
+}
+
+// Renombra una ubicación de un departamento: las ventanas que la tenían pasan a la nueva.
+export async function renombrarUbicacionCubicacion(proyectoId: string, payload: { recintoId: string; nombre: string }): Promise<{ ventanas: number }> {
+  const response = await apiClient.post<{ ventanas: number }>(`${rutaEstructura(proyectoId)}/ubicaciones/renombrar`, payload);
+  return response.data;
+}
+
 // Recintos con nombre propio en un piso de una casa (Living, Dormitorio 1...).
 export async function crearRecintosCubicacion(proyectoId: string, payload: { torre: string; piso: number; nombres: string[] }): Promise<{ recintos: number }> {
   const response = await apiClient.post<{ recintos: number }>(`${rutaEstructura(proyectoId)}/recintos`, payload);

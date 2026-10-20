@@ -12,6 +12,8 @@ import {
   crearUbicacionesCubicacion,
   crearUnidadEspecialCubicacion,
   renombrarTorreCubicacion,
+  renombrarUbicacionCubicacion,
+  renombrarUnidadCubicacion,
 } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
@@ -548,6 +550,32 @@ export const UbicacionesModal: React.FC<Base & { unidadId: string; torre: string
         onCambio={setTexto}
         placeholder={RECINTOS_SUGERIDOS.slice(3, 7).join(', ')}
         ayuda="Separadas por coma: DORM 1, ESTAR… Al poner una ventana en una ubicación, esta se anota como su ubicación."
+      />
+    </Marco>
+  );
+};
+
+// ---- Renombrar un departamento, un recinto de una casa o una ubicación de un departamento ----
+export const RenombrarModal: React.FC<Base & { que: 'unidad' | 'ubicacion'; id: string; nombreActual: string; etiquetaTexto: string }> = ({ proyectoId, que, id, nombreActual, etiquetaTexto, onClose, onHecho }) => {
+  const [nombre, setNombre] = useState(nombreActual);
+  const cambio = nombre.trim() !== '' && nombre.trim() !== nombreActual;
+  const renombrar = useMutation({
+    mutationFn: () => (que === 'unidad' ? renombrarUnidadCubicacion(proyectoId, { unidadId: id, nombre: nombre.trim() }) : renombrarUbicacionCubicacion(proyectoId, { recintoId: id, nombre: nombre.trim() })),
+    onSuccess: () => {
+      onHecho();
+      onClose();
+    },
+    onError: avisoError,
+  });
+  return (
+    <Marco titulo={`Cambiar nombre · ${nombreActual}`} textoEnviar="Guardar" puedeEnviar={cambio} cargando={renombrar.isPending} onEnviar={() => renombrar.mutate()} onClose={onClose}>
+      <Campo
+        id="renombrar-lugar"
+        etiquetaTexto={etiquetaTexto}
+        valor={nombre}
+        onCambio={setNombre}
+        max={60}
+        ayuda={que === 'unidad' ? 'Las ventanas de este lugar recalculan su nomenclatura con el nombre nuevo.' : 'Las ventanas que tenían esta ubicación pasan a la nueva.'}
       />
     </Marco>
   );
