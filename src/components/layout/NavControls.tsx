@@ -111,19 +111,19 @@ export const MigasDePan: React.FC<{ seccion: string; titulo: string }> = ({ secc
   // pantalla actual en negrita abajo, cada una recortada sin desarmarse.
   return (
     <nav aria-label="Ruta" className="min-w-0">
-      <div className="hidden @5xl:flex items-center gap-1.5 min-w-0 text-sm">
+      <div className="hidden @5xl:flex items-center gap-1.5 min-w-0 text-xs">
         {anteriores.map((m, i) => (
           <React.Fragment key={`${i}-${m.label}`}>
-            {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />}
+            {i > 0 && <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />}
             <span className="flex items-center gap-1.5 min-w-0 max-w-[16rem]">
               {anterior(m, 'font-semibold text-slate-500 min-w-0')}
               {codigo(m)}
             </span>
           </React.Fragment>
         ))}
-        {anteriores.length > 0 && <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />}
+        {anteriores.length > 0 && <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />}
         <span className="flex items-center gap-1.5 min-w-0 shrink-0 max-w-[24rem]">
-          <span className="font-bold text-slate-900 truncate" title={actual.label}>
+          <span className="text-[13px] font-bold text-slate-900 truncate" title={actual.label}>
             {actual.label}
           </span>
           {codigo(actual)}
@@ -144,7 +144,7 @@ export const MigasDePan: React.FC<{ seccion: string; titulo: string }> = ({ secc
           </div>
         )}
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-sm font-bold text-slate-900 truncate" title={actual.label}>
+          <span className="text-[13px] font-bold text-slate-900 truncate" title={actual.label}>
             {actual.label}
           </span>
           {codigo(actual)}
