@@ -4,10 +4,10 @@ import { Plus, Save, X } from 'lucide-react';
 import { createTipoProyecto, getTiposProyecto, updateTipoProyecto } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
-import type { TipoProyecto } from '../../../types';
+import type { ModoCubicacion, TipoProyecto } from '../../../types';
 import { IconButton } from '../../../components/ui/IconButton';
 import { Seccion } from '../../../components/ui/Seccion';
-import { InputCompacto, Interruptor } from '../../../components/ui/Campos';
+import { InputCompacto, Interruptor, SelectCompacto } from '../../../components/ui/Campos';
 import { Cargando, ErrorCarga } from '../../../components/ui/Estados';
 import { avisarError } from '../catalogo/comun';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
@@ -21,7 +21,7 @@ export const TiposProyectoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
   const queryClient = useQueryClient();
   const { data: tipos = [], isLoading, isError, refetch } = useQuery({ queryKey: ['tiposProyecto'], queryFn: getTiposProyecto });
   const [nombres, setNombres] = useState<Record<string, string>>({});
-  const [nuevo, setNuevo] = useState<{ codigo: string; nombre: string } | null>(null);
+  const [nuevo, setNuevo] = useState<{ codigo: string; nombre: string; modo: ModoCubicacion } | null>(null);
 
   const invalidar = () => queryClient.invalidateQueries({ queryKey: ['tiposProyecto'] });
   const guardar = useMutation({
@@ -33,7 +33,7 @@ export const TiposProyectoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
     onError: avisarError,
   });
   const crear = useMutation({
-    mutationFn: (n: { codigo: string; nombre: string }) => createTipoProyecto({ codigo: n.codigo.trim(), nombre: n.nombre.trim(), orden: tipos.length + 1 }),
+    mutationFn: (n: { codigo: string; nombre: string; modo: ModoCubicacion }) => createTipoProyecto({ codigo: n.codigo.trim(), nombre: n.nombre.trim(), orden: tipos.length + 1, modoCubicacion: n.modo }),
     onSuccess: () => {
       invalidar();
       setNuevo(null);
@@ -49,11 +49,11 @@ export const TiposProyectoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
   return (
     <Seccion
       titulo="Tipos de proyecto"
-      descripcion="Cada proyecto tiene un tipo; define sus plantillas de textos por defecto. El tipo por defecto lo recibe todo proyecto nuevo de HETMO."
+      descripcion="Cada proyecto tiene un tipo; define sus plantillas de textos por defecto y cómo se cubica: por edificio (torres, pisos y departamentos) o por casa (casas, pisos y recintos). El tipo por defecto lo recibe todo proyecto nuevo de HETMO."
       sinRelleno
       acciones={
         puedeEditar && !nuevo ? (
-          <Button size="sm" variant="outline" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setNuevo({ codigo: '', nombre: '' })}>
+          <Button size="sm" variant="outline" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setNuevo({ codigo: '', nombre: '', modo: 'EDIFICIO' })}>
             Nuevo tipo
           </Button>
         ) : undefined
@@ -64,6 +64,7 @@ export const TiposProyectoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
           <Tr>
             <Th>Código</Th>
             <Th>Nombre</Th>
+            <Th>Cubica como</Th>
             <Th alinear="derecha">Proyectos</Th>
             <Th alinear="centro">Por defecto</Th>
             <Th alinear="centro">Activo</Th>
@@ -79,7 +80,13 @@ export const TiposProyectoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
               <Td>
                 <InputCompacto aria-label="Nombre" placeholder="Nombre" value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} className="w-full" />
               </Td>
-              <Td colSpan={3}  />
+              <Td>
+                <SelectCompacto aria-label="Cubica como" value={nuevo.modo} onChange={(e) => setNuevo({ ...nuevo, modo: e.target.value as ModoCubicacion })}>
+                  <option value="EDIFICIO">Edificio</option>
+                  <option value="CASA">Casa</option>
+                </SelectCompacto>
+              </Td>
+              <Td colSpan={3} />
               <Td alinear="derecha" className="whitespace-nowrap">
                 <Button size="sm" onClick={() => crear.mutate(nuevo)} disabled={!nuevo.codigo.trim() || !nuevo.nombre.trim()} isLoading={crear.isPending}>
                   Crear
@@ -98,6 +105,22 @@ export const TiposProyectoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
                     <InputCompacto aria-label="Nombre" value={nombreDe(t)} onChange={(e) => setNombres((p) => ({ ...p, [t.id]: e.target.value }))} className="w-full" />
                   ) : (
                     t.nombre
+                  )}
+                </Td>
+                <Td>
+                  {puedeEditar ? (
+                    <SelectCompacto
+                      aria-label={`Cubica como (${t.nombre})`}
+                      value={t.modoCubicacion}
+                      onChange={(e) => guardar.mutate({ id: t.id, payload: { modoCubicacion: e.target.value as ModoCubicacion } })}
+                    >
+                      <option value="EDIFICIO">Edificio</option>
+                      <option value="CASA">Casa</option>
+                    </SelectCompacto>
+                  ) : t.modoCubicacion === 'CASA' ? (
+                    'Casa'
+                  ) : (
+                    'Edificio'
                   )}
                 </Td>
                 <Td numero>{t._count?.proyectos ?? 0}</Td>

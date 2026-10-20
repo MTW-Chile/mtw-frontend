@@ -6,6 +6,7 @@ import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import type { SeleccionFaseCubicacion } from '../../../types';
 import { etiqueta } from './estilos';
 import { SelectorFaseDesdeCubicacion } from './SelectorFaseDesdeCubicacion';
+import { useVocabulario } from './useVocabulario';
 import { Modal } from '../../../components/ui/Modal';
 import { Input } from '../../../components/ui/Input';
 
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export const CrearFaseDesdeCubicacionModal: React.FC<Props> = ({ proyectoId, versionId, onClose }) => {
+  const voc = useVocabulario(proyectoId);
   const queryClient = useQueryClient();
   const [nombre, setNombre] = useState('');
   const [seleccion, setSeleccion] = useState<SeleccionFaseCubicacion>({});
@@ -61,7 +63,7 @@ export const CrearFaseDesdeCubicacionModal: React.FC<Props> = ({ proyectoId, ver
       </div>
 
       <div>
-        <p className={etiqueta}>Selecciona torres, pisos, deptos o ventanas sueltas</p>
+        <p className={etiqueta}>Selecciona {voc.contenedor}s, pisos, {voc.unidades} o ventanas sueltas</p>
         <SelectorFaseDesdeCubicacion
           proyectoId={proyectoId}
           onChange={(s, resumen) => {

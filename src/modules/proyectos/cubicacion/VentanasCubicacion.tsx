@@ -9,7 +9,8 @@ import type { ConfigCubicacion, TipoCubicacion, UnidadCubicacion } from '../../.
 import { formatoMm } from '../fabricacion/utils';
 import { leerMilimetros } from '../pendientes/utils';
 import { UnidadModal } from './UnidadModal';
-import { formatoMonto, mmATexto, textoTorre } from './utils';
+import { formatoMonto, mmATexto } from './utils';
+import { vocabulario } from './vocabulario';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
 import { useConfirmar } from '../../../components/ui/Confirmar';
 import { IconButton } from '../../../components/ui/IconButton';
@@ -145,6 +146,7 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
 
 // Ventanas fisicas de la cubicacion (por torre / piso / depto) y sus areas comunes.
 export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, moneda, tipos, filtro, onFiltro }) => {
+  const voc = vocabulario(cubicacion.modo);
   const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
   const [texto, setTexto] = useState('');
@@ -182,11 +184,11 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <Buscador className="flex-1 min-w-[12rem]" valor={texto} onChange={setTexto} placeholder="Buscar por nomenclatura, código o ubicación…" etiqueta="Buscar ventanas" />
-        <SelectCompacto value={filtro.torreId} onChange={(e) => onFiltro({ torreId: e.target.value, pisoId: '' })} aria-label="Filtrar por torre">
-          <option value="">Todas las torres</option>
+        <SelectCompacto value={filtro.torreId} onChange={(e) => onFiltro({ torreId: e.target.value, pisoId: '' })} aria-label={`Filtrar por ${voc.contenedor}`}>
+          <option value="">{voc.modo === 'CASA' ? 'Todas las casas' : 'Todas las torres'}</option>
           {(ubicaciones.data ?? []).map((t) => (
             <option key={t.id} value={t.id}>
-              {textoTorre(t.nombre)}
+              {voc.textoTorre(t.nombre)}
             </option>
           ))}
         </SelectCompacto>

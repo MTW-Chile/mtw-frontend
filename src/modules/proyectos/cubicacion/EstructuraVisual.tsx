@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, Copy, Layers, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Building2, Copy, Home, Layers, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { asignarVentanasCubicacion, editarUnidadCubicacion, eliminarLugarCubicacion, getEstructuraCubicacion, quitarPosicionVentanaCubicacion } from '../../../api/client';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
@@ -8,9 +8,10 @@ import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import type { ConfigCubicacion, NodoDeptoCubicacion, NodoTorreCubicacion, TipoCubicacion, UnidadCubicacion } from '../../../types';
 import { formatoMm } from '../fabricacion/utils';
 import { CrearFaseDesdeCubicacionModal } from './CrearFaseDesdeCubicacionModal';
-import { AsignarModal, ArmarEdificioModal, CopiarPisoModal, DeptosModal, PisosModal, RenombrarTorreModal, TorreModal, UnidadEspecialModal } from './EstructuraModales';
+import { ArmarCasaModal, AsignarModal, ArmarEdificioModal, CopiarCasaModal, CopiarPisoModal, DeptosModal, PisosModal, RecintosModal, RenombrarTorreModal, TorreModal, UnidadEspecialModal } from './EstructuraModales';
 import { UnidadModal } from './UnidadModal';
-import { mensajeAsignacion, textoTorre } from './utils';
+import { mensajeAsignacion } from './utils';
+import { vocabulario, type Vocabulario } from './vocabulario';
 import { useConfirmar } from '../../../components/ui/Confirmar';
 import { IconButton } from '../../../components/ui/IconButton';
 import { ActivadorEdicion } from '../../../components/ui/ActivadorEdicion';
@@ -37,6 +38,8 @@ type ModalAbierto =
   | { tipo: 'renombrar'; torreId: string; nombreActual: string }
   | { tipo: 'pisos'; torreId: string; nombreTorre: string; sugerido: number }
   | { tipo: 'deptos'; torreId: string; nombreTorre: string; pisoNumero?: number }
+  | { tipo: 'recintos'; nombreTorre: string; pisoNumero: number }
+  | { tipo: 'copiarCasa'; torre: NodoTorreCubicacion }
   | { tipo: 'especial'; torreId: string }
   | { tipo: 'copiar'; torre: NodoTorreCubicacion; pisoNumero: number }
   | { tipo: 'asignar'; destino: Destino }
@@ -53,6 +56,7 @@ const contarVentanas = (t: NodoTorreCubicacion) =>
 
 // Una carpeta (depto o unidad especial): misma tarjeta para ambos.
 const TarjetaUnidad: React.FC<{
+  voc: Vocabulario;
   nodo: NodoDeptoCubicacion;
   torre: string;
   tipoActivo: TipoCubicacion | null;
@@ -65,7 +69,7 @@ const TarjetaUnidad: React.FC<{
   onQuitar: () => void;
   onEditarVentana: (v: UnidadCubicacion) => void;
   onQuitarVentana: (id: string) => void;
-}> = ({ nodo, torre, tipoActivo, sobre, onDragOver, onDragLeave, onDrop, onAgregarUna, onAbrirAsignar, onQuitar, onEditarVentana, onQuitarVentana }) => (
+}> = ({ voc, nodo, torre, tipoActivo, sobre, onDragOver, onDragLeave, onDrop, onAgregarUna, onAbrirAsignar, onQuitar, onEditarVentana, onQuitarVentana }) => (
   <div
     onDragOver={(e) => {
       e.preventDefault();
@@ -80,10 +84,10 @@ const TarjetaUnidad: React.FC<{
       <span className="text-xs font-black text-slate-800 font-mono">{nodo.nombre}</span>
       <div className="flex items-center gap-0.5">
         {tipoActivo && (
-          <Button size="sm" onClick={onAgregarUna} title={`Agregar una ${tipoActivo.codigo} a este departamento`}>+ 1 {tipoActivo.codigo}</Button>
+          <Button size="sm" onClick={onAgregarUna} title={`Agregar una ${tipoActivo.codigo} a este ${voc.unidad}`}>+ 1 {tipoActivo.codigo}</Button>
         )}
-        <IconButton icono={Plus} etiqueta={`Agregar ventanas a ${nodo.nombre} (${textoTorre(torre)})`} tono="marca" onClick={onAbrirAsignar} />
-        <IconButton icono={X} etiqueta={`Quitar ${nodo.nombre} (${textoTorre(torre)})`} tono="peligro" onClick={onQuitar} />
+        <IconButton icono={Plus} etiqueta={`Agregar ventanas a ${nodo.nombre} (${voc.textoTorre(torre)})`} tono="marca" onClick={onAbrirAsignar} />
+        <IconButton icono={X} etiqueta={`Quitar ${nodo.nombre} (${voc.textoTorre(torre)})`} tono="peligro" onClick={onQuitar} />
       </div>
     </div>
     <div className="flex flex-wrap gap-1">
@@ -120,6 +124,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
   const [activo, setActivo] = useState<string | null>(null);
   const [sobre, setSobre] = useState<string | null>(null);
   const [buscar, setBuscar] = useState('');
+  const voc = vocabulario(cubicacion.modo);
 
   const { data, isLoading, isError } = useQuery({ queryKey: ['cubicacion', proyectoId, 'estructura'], queryFn: () => getEstructuraCubicacion(proyectoId) });
 
@@ -197,21 +202,20 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
   }
 
   const vacia = data.torres.length === 0;
-  const base = { proyectoId, onClose: () => setModal(null), onHecho: refrescar };
+  const base = { proyectoId, voc, onClose: () => setModal(null), onHecho: refrescar };
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-slate-500 max-w-3xl">
-          Arma el edificio y ubica cada ventana. Arrastra un tipo de la izquierda a un departamento (o elige uno y usa <b>+ 1</b>); arrastra una ventana a otro departamento para moverla, o de vuelta a la
-          izquierda para sacarla. Es la misma información que la planilla Excel.
+          {voc.ayuda}
         </p>
         <div className="flex flex-wrap gap-2">
           <Button variant="primary" size="sm" leftIcon={<Building2 className="w-3.5 h-3.5" />} onClick={() => setModal({ tipo: 'armar' })}>
-            {vacia ? 'Armar el edificio' : 'Ampliar el edificio'}
+            {vacia ? voc.armar : voc.ampliar}
           </Button>
           <Button variant="outline" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setModal({ tipo: 'torre' })}>
-            Agregar torre
+            {voc.agregarContenedor}
           </Button>
           {versionId && (
             <Button
@@ -219,7 +223,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
               size="sm"
               leftIcon={<Layers className="w-3.5 h-3.5" />}
               onClick={() => setModal({ tipo: 'crearFase' })}
-              title="Selecciona torres, pisos, deptos o ventanas ya cubicadas para crear una fase de fabricación"
+              title={`Selecciona ${voc.contenedor}s, pisos, ${voc.unidades} o ventanas ya cubicadas para crear una fase de fabricación`}
             >
               Crear fase con selección
             </Button>
@@ -284,7 +288,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
           </div>
           {tipoActivo && (
             <p className="text-[11px] text-brand-700">
-              Elegido: <b className="font-mono">{tipoActivo.codigo}</b>. Usa <b>+ 1</b> en un departamento para agregarla.
+              Elegido: <b className="font-mono">{tipoActivo.codigo}</b>. Usa <b>+ 1</b> en {voc.modo === 'CASA' ? 'un recinto' : 'un departamento'} para agregarla.
             </p>
           )}
         </aside>
@@ -294,11 +298,11 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
           {vacia ? (
             <div className="p-10 text-center rounded-2xl bg-white border border-dashed border-slate-300 text-slate-500 text-xs space-y-3" data-testid="estructura-vacia">
               <Building2 className="w-6 h-6 text-slate-300 mx-auto" />
-              <p className="font-bold text-slate-700">Aún no hay torres, pisos ni departamentos.</p>
-              <p className="max-w-md mx-auto">Crea la estructura de una vez (por ejemplo 2 torres de 12 pisos con 6 departamentos) y luego ve ubicando las ventanas.</p>
+              <p className="font-bold text-slate-700">{voc.tituloVacio}</p>
+              <p className="max-w-md mx-auto">{voc.textoVacio}</p>
               <div className="flex flex-wrap justify-center gap-2">
                 <Button variant="primary" size="sm" leftIcon={<Building2 className="w-3.5 h-3.5" />} onClick={() => setModal({ tipo: 'armar' })}>
-                  Armar el edificio
+                  {voc.armar}
                 </Button>
               </div>
             </div>
@@ -309,18 +313,23 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                 <section key={torre.id} className="rounded-2xl bg-white border border-slate-200 shadow-sm" data-testid={`torre-${torre.nombre || 'sin'}`}>
                   <header className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-100 bg-slate-50/70 rounded-t-2xl">
                     <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-slate-400" />
-                      <h3 className="text-sm font-black text-slate-900">{textoTorre(torre.nombre)}</h3>
+                      {voc.modo === 'CASA' ? <Home className="w-4 h-4 text-slate-400" /> : <Building2 className="w-4 h-4 text-slate-400" />}
+                      <h3 className="text-sm font-black text-slate-900">{voc.textoTorre(torre.nombre)}</h3>
                       <span className="text-[11px] text-slate-500">
                         {torre.pisos.length} piso(s) · {contarVentanas(torre)} ventana(s)
                       </span>
                     </div>
                     <div className="flex flex-wrap items-center gap-1 text-xs">
                       <Button variant="ghost" size="sm" onClick={() => setModal({ tipo: 'pisos', torreId: torre.id, nombreTorre: torre.nombre, sugerido: ultimo + 1 })}>+ Pisos</Button>
-                      <Button variant="ghost" size="sm" onClick={() => setModal({ tipo: 'deptos', torreId: torre.id, nombreTorre: torre.nombre })}>+ Deptos en todos los pisos</Button>
-                      <Button variant="ghost" size="sm" onClick={() => setModal({ tipo: 'especial', torreId: torre.id })}>+ Unidad especial</Button>
-                      <IconButton icono={Pencil} etiqueta={`Cambiar nombre de ${textoTorre(torre.nombre)}`} tono="marca" onClick={() => setModal({ tipo: 'renombrar', torreId: torre.id, nombreActual: torre.nombre })} />
-                      <IconButton icono={Trash2} etiqueta={`Quitar ${textoTorre(torre.nombre)}`} tono="peligro" onClick={() => confirmarEliminar(`¿Quitar ${textoTorre(torre.nombre).toLowerCase()} con todos sus pisos y departamentos?`, { torreId: torre.id })} />
+                      {voc.modo === 'EDIFICIO' && (
+                        <Button variant="ghost" size="sm" onClick={() => setModal({ tipo: 'deptos', torreId: torre.id, nombreTorre: torre.nombre })}>+ Deptos en todos los pisos</Button>
+                      )}
+                      {voc.modo === 'CASA' && torre.pisos.length > 0 && (
+                        <Button variant="ghost" size="sm" leftIcon={<Copy className="w-3.5 h-3.5" />} onClick={() => setModal({ tipo: 'copiarCasa', torre })} title="Crear casas nuevas iguales a esta">Copiar casa</Button>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={() => setModal({ tipo: 'especial', torreId: torre.id })}>{voc.modo === 'CASA' ? '+ Exterior' : '+ Unidad especial'}</Button>
+                      <IconButton icono={Pencil} etiqueta={`Cambiar nombre de ${voc.textoTorre(torre.nombre)}`} tono="marca" onClick={() => setModal({ tipo: 'renombrar', torreId: torre.id, nombreActual: torre.nombre })} />
+                      <IconButton icono={Trash2} etiqueta={`Quitar ${voc.textoTorre(torre.nombre)}`} tono="peligro" onClick={() => confirmarEliminar(`¿Quitar ${voc.textoTorre(torre.nombre).toLowerCase()} con todos sus pisos y ${voc.unidades}?`, { torreId: torre.id })} />
                     </div>
                   </header>
 
@@ -330,6 +339,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                         <TarjetaUnidad
                           key={u.id}
                           nodo={u}
+                          voc={voc}
                           torre={torre.nombre}
                           tipoActivo={tipoActivo}
                           sobre={sobre === u.id}
@@ -347,7 +357,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                   )}
 
                   {torre.pisos.length === 0 ? (
-                    <p className="px-4 py-5 text-xs text-slate-400">Esta torre aún no tiene pisos.</p>
+                    <p className="px-4 py-5 text-xs text-slate-400">Esta {voc.contenedor} aún no tiene pisos.</p>
                   ) : (
                     <div className="divide-y divide-slate-100">
                       {[...torre.pisos].reverse().map((piso) => (
@@ -355,20 +365,27 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                           <div className="sm:w-28 shrink-0">
                             <p className="text-sm font-black text-slate-800">Piso {piso.numero}</p>
                             <div className="flex flex-wrap gap-x-2 text-[11px]">
-                              <Button variant="link" size="sm" onClick={() => setModal({ tipo: 'deptos', torreId: torre.id, nombreTorre: torre.nombre, pisoNumero: piso.numero })}>+ depto</Button>
+                              <Button
+                                variant="link"
+                                size="sm"
+                                onClick={() => setModal(voc.modo === 'CASA' ? { tipo: 'recintos', nombreTorre: torre.nombre, pisoNumero: piso.numero } : { tipo: 'deptos', torreId: torre.id, nombreTorre: torre.nombre, pisoNumero: piso.numero })}
+                              >
+                                + {voc.unidadCorta}
+                              </Button>
                               {piso.deptos.length > 0 && (
                                 <Button variant="link" size="sm" leftIcon={<Copy className="w-3.5 h-3.5" />} onClick={() => setModal({ tipo: 'copiar', torre, pisoNumero: piso.numero })} title="Copiar este piso a otros">copiar</Button>
                               )}
-                              <Button variant="ghost" size="sm" onClick={() => confirmarEliminar(`¿Quitar el piso ${piso.numero} de la ${textoTorre(torre.nombre).toLowerCase()}?`, { torreId: torre.id, pisoId: piso.id })} aria-label={`Quitar el piso ${piso.numero} (${textoTorre(torre.nombre)})`} className="text-rose-600! hover:bg-rose-50!">quitar</Button>
+                              <Button variant="ghost" size="sm" onClick={() => confirmarEliminar(`¿Quitar el piso ${piso.numero} de ${voc.elContenedor}?`, { torreId: torre.id, pisoId: piso.id })} aria-label={`Quitar el piso ${piso.numero} (${voc.textoTorre(torre.nombre)})`} className="text-rose-600! hover:bg-rose-50!">quitar</Button>
                             </div>
                           </div>
 
                           <div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-2 flex-1 min-w-0 content-start">
-                            {piso.deptos.length === 0 && <p className="text-xs text-slate-400 py-2">Sin departamentos.</p>}
+                            {piso.deptos.length === 0 && <p className="text-xs text-slate-400 py-2">Sin {voc.unidades}.</p>}
                             {piso.deptos.map((depto) => (
                               <TarjetaUnidad
                                 key={depto.id}
                                 nodo={depto}
+                                voc={voc}
                                 torre={torre.nombre}
                                 tipoActivo={tipoActivo}
                                 sobre={sobre === depto.id}
@@ -377,7 +394,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                                 onDrop={(e) => soltarEnDepto(e, { unidadId: depto.id, torre: torre.nombre, nombreUnidad: depto.nombre })}
                                 onAgregarUna={() => tipoActivo && agregarUna({ unidadId: depto.id, torre: torre.nombre, nombreUnidad: depto.nombre }, tipoActivo)}
                                 onAbrirAsignar={() => setModal({ tipo: 'asignar', destino: { unidadId: depto.id, torre: torre.nombre, nombreUnidad: depto.nombre } })}
-                                onQuitar={() => confirmarEliminar(`¿Quitar el departamento ${depto.nombre}?`, { torreId: torre.id, pisoId: piso.id, unidadId: depto.id })}
+                                onQuitar={() => confirmarEliminar(`¿Quitar el ${voc.unidad} ${depto.nombre}?`, { torreId: torre.id, pisoId: piso.id, unidadId: depto.id })}
                                 onEditarVentana={(v) => setModal({ tipo: 'ventana', unidad: v })}
                                 onQuitarVentana={(id) => quitar.mutate(id)}
                               />
@@ -397,11 +414,13 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
         </div>
       </div>
 
-      {modal?.tipo === 'armar' && <ArmarEdificioModal {...base} />}
+      {modal?.tipo === 'armar' && (voc.modo === 'CASA' ? <ArmarCasaModal {...base} casas={data.torres.map((t) => t.nombre)} /> : <ArmarEdificioModal {...base} />)}
       {modal?.tipo === 'torre' && <TorreModal {...base} />}
       {modal?.tipo === 'renombrar' && <RenombrarTorreModal {...base} torreId={modal.torreId} nombreActual={modal.nombreActual} />}
       {modal?.tipo === 'pisos' && <PisosModal {...base} torre={modal.nombreTorre} sugerido={modal.sugerido} />}
       {modal?.tipo === 'deptos' && <DeptosModal {...base} torre={modal.nombreTorre} piso={modal.pisoNumero} />}
+      {modal?.tipo === 'recintos' && <RecintosModal {...base} torre={modal.nombreTorre} piso={modal.pisoNumero} />}
+      {modal?.tipo === 'copiarCasa' && <CopiarCasaModal {...base} torre={modal.torre} />}
       {modal?.tipo === 'especial' && <UnidadEspecialModal {...base} torreId={modal.torreId} />}
       {modal?.tipo === 'copiar' && <CopiarPisoModal {...base} torre={modal.torre} piso={modal.pisoNumero} />}
       {modal?.tipo === 'asignar' && <AsignarModal {...base} unidadId={modal.destino.unidadId} torre={modal.destino.torre} nombreUnidad={modal.destino.nombreUnidad} tipos={tipos} tipoInicial={activo ?? undefined} />}

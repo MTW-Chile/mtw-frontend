@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { FORMATO_NOMENCLATURA_DEFECTO, estadoSaldo, formatoMonto, generarNomenclatura, leerEntero, leerTorres, lineaReporteSincronizacion, lineasReporteImportacion, mensajeAsignacion, mensajeCopiaPiso, mmATexto, rangoPisos, textoTorre, validarFormato } from './utils';
+import { FORMATO_NOMENCLATURA_CASA, FORMATO_NOMENCLATURA_DEFECTO, estadoSaldo, formatoMonto, generarNomenclatura, leerEntero, leerTorres, lineaReporteSincronizacion, lineasReporteImportacion, mensajeAsignacion, mensajeCopiaPiso, mmATexto, leerLista, rangoPisos, validarFormato } from './utils';
+import { vocabulario } from './vocabulario';
+
+describe('nomenclatura por casa', () => {
+  it('V01, casa C3, recinto DORM 1 -> V01_C3_DORM1 (sin espacios)', () => {
+    expect(generarNomenclatura(FORMATO_NOMENCLATURA_CASA, { codigo: 'V01', torre: 'c3', nombreUnidad: 'DORM 1' })).toBe('V01_C3_DORM1');
+  });
+  it('la única casa de la obra no deja guiones bajos dobles', () => {
+    expect(generarNomenclatura(FORMATO_NOMENCLATURA_CASA, { codigo: 'V01', torre: '', nombreUnidad: 'ESTAR' })).toBe('V01_ESTAR');
+  });
+});
 
 describe('generarNomenclatura', () => {
   it('el código original va primero: V01, unidad "101", torre A -> V01_101A', () => {
@@ -79,9 +89,18 @@ describe('cubicador visual', () => {
     expect(leerTorres('a, b  c;a')).toEqual(['A', 'B', 'C']);
     expect(leerTorres('  ')).toEqual(['']);
   });
-  it('textoTorre y rangoPisos', () => {
-    expect(textoTorre('A')).toBe('Torre A');
-    expect(textoTorre('')).toBe('Sin torre');
+  it('el vocabulario del edificio habla de torres y el de la casa, de casas', () => {
+    expect(vocabulario('EDIFICIO').textoTorre('A')).toBe('Torre A');
+    expect(vocabulario('EDIFICIO').textoTorre('')).toBe('Sin torre');
+    expect(vocabulario('CASA').textoTorre('C2')).toBe('Casa C2');
+    expect(vocabulario('CASA').textoTorre('')).toBe('Casa única');
+    expect(vocabulario(undefined).modo).toBe('EDIFICIO');
+  });
+  it('leerLista separa por coma, punto y coma o línea y no repite', () => {
+    expect(leerLista('estar, cocina;DORM 1\n estar')).toEqual(['estar', 'cocina', 'DORM 1']);
+    expect(leerLista('  ')).toEqual([]);
+  });
+  it('rangoPisos', () => {
     expect(rangoPisos(2, 4)).toEqual([2, 3, 4]);
     expect(rangoPisos(5, 2)).toEqual([]);
   });

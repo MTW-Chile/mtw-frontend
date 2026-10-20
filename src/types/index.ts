@@ -360,6 +360,9 @@ export interface ParametrosGenerales {
   conciliacion: { toleranciaCuadre: number; toleranciaSugerencia: number; toleranciaFiltro: number };
 }
 
+// Cómo se cubican las obras de un tipo: por torre/piso/departamento o por casa/piso/recinto.
+export type ModoCubicacion = 'EDIFICIO' | 'CASA';
+
 export interface TipoProyecto {
   id: string;
   codigo: string;
@@ -367,6 +370,7 @@ export interface TipoProyecto {
   orden: number;
   activo: boolean;
   porDefecto: boolean;
+  modoCubicacion: ModoCubicacion;
   _count?: { proyectos: number };
 }
 
@@ -1654,6 +1658,8 @@ export interface ConfigCubicacion {
   holguraMm: number;
   // Tokens {codigo} {nombreUnidad} {torre}; el codigo va siempre al principio.
   formatoNomenclatura: string;
+  // Del tipo de proyecto: EDIFICIO (torre/piso/depto) o CASA (casa/piso/recinto).
+  modo: ModoCubicacion;
 }
 
 export interface TipoCubicacion {

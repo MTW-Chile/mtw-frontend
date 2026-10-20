@@ -5,6 +5,8 @@ import type { ReporteImportacionCubicacion, ReporteSincronizacionCubicacion } fr
 // nomenclatura para mostrar un ejemplo en vivo al editar el formato.
 
 export const FORMATO_NOMENCLATURA_DEFECTO = '{codigo}_{nombreUnidad}{torre}';
+// Por casa: V01, casa C3, recinto Dorm1 -> V01_C3_Dorm1 (una sola casa: V01_Dorm1).
+export const FORMATO_NOMENCLATURA_CASA = '{codigo}_{torre}_{nombreUnidad}';
 
 const TOKENS = ['codigo', 'nombreUnidad', 'torre'];
 
@@ -30,12 +32,15 @@ export interface PosicionEjemplo {
 /** V01, unidad "101", torre A -> "V01_101A". null si falta la unidad. */
 export function generarNomenclatura(formato: string, p: PosicionEjemplo): string | null {
   if (!p.nombreUnidad) return null;
+  // Sin espacios (el nombre se usa como nombre de linea en HETMO): "Dormitorio 1" -> "Dormitorio1".
+  const sinEspacios = (t: string) => t.replace(/\s+/g, '');
   const partes: Record<string, string> = {
     codigo: p.codigo,
-    nombreUnidad: p.nombreUnidad,
-    torre: (p.torre ?? '').trim().toUpperCase(),
+    nombreUnidad: sinEspacios(p.nombreUnidad),
+    torre: sinEspacios((p.torre ?? '').trim().toUpperCase()),
   };
-  return formato.replace(/\{(codigo|nombreUnidad|torre)\}/g, (_, k: string) => partes[k]);
+  // Una casa sin nombre (la unica de la obra) deja la torre vacia: "V01__Dorm1" -> "V01_Dorm1".
+  return formato.replace(/\{(codigo|nombreUnidad|torre)\}/g, (_, k: string) => partes[k]).replace(/_{2,}/g, '_');
 }
 
 /** "1.234,56 UF": hasta 2 decimales, separadores chilenos. */
@@ -92,14 +97,14 @@ export function lineaReporteSincronizacion(r: ReporteSincronizacionCubicacion): 
 /** Entero escrito en un campo de texto (con signo); null si esta vacio o no es un entero. */
 export const leerEntero = (t: string): number | null => (/^-?\d+$/.test(t.trim()) ? Number(t.trim()) : null);
 
-/** "Torre A" o, para la obra sin torres (nombre vacio), "Sin torre". */
-export const textoTorre = (nombre: string): string => (nombre === '' ? 'Sin torre' : `Torre ${nombre}`);
-
 /** Nombres de torre separados por coma o espacio: "a, b" -> ["A","B"]; vacio = obra sin torres ([""]). */
 export function leerTorres(texto: string): string[] {
   const nombres = [...new Set(texto.split(/[,;\s]+/).map((x) => x.trim().toUpperCase()).filter(Boolean))];
   return nombres.length ? nombres : [''];
 }
+
+/** Lista separada por coma, punto y coma o salto de linea: "estar, cocina" -> ["estar","cocina"] (sin repetidos). */
+export const leerLista = (texto: string): string[] => [...new Set(texto.split(/[,;\n]+/).map((x) => x.trim()).filter(Boolean))];
 
 /** Pisos desde..hasta, ambos incluidos; [] si el rango no es valido. */
 export const rangoPisos = (desde: number, hasta: number): number[] => (hasta < desde ? [] : Array.from({ length: hasta - desde + 1 }, (_, i) => desde + i));

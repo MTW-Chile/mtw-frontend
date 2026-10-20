@@ -1735,6 +1735,21 @@ export async function crearDeptosCubicacion(proyectoId: string, payload: { torre
   await apiClient.post(`${rutaEstructura(proyectoId)}/deptos`, payload);
 }
 
+// Recintos con nombre propio en un piso de una casa (Living, Dormitorio 1...).
+export async function crearRecintosCubicacion(proyectoId: string, payload: { torre: string; piso: number; nombres: string[] }): Promise<{ recintos: number }> {
+  const response = await apiClient.post<{ recintos: number }>(`${rutaEstructura(proyectoId)}/recintos`, payload);
+  return response.data;
+}
+
+// Copia una casa entera (pisos, recintos y ventanas) a casas nuevas con los nombres indicados.
+export async function copiarCasaCubicacion(
+  proyectoId: string,
+  payload: { torreId: string; destinos: string[] }
+): Promise<{ casas: number; ventanas: number; faltan: { codigo: string; cantidad: number }[] }> {
+  const response = await apiClient.post<{ casas: number; ventanas: number; faltan: { codigo: string; cantidad: number }[] }>(`${rutaEstructura(proyectoId)}/copiar-casa`, payload);
+  return response.data;
+}
+
 export async function renombrarTorreCubicacion(proyectoId: string, payload: { torreId: string; nombre: string }): Promise<void> {
   await apiClient.post(`${rutaEstructura(proyectoId)}/renombrar-torre`, payload);
 }
@@ -1780,14 +1795,14 @@ export async function getTiposProyecto(): Promise<TipoProyecto[]> {
   return response.data.data;
 }
 
-export async function createTipoProyecto(payload: { codigo: string; nombre: string; orden?: number }): Promise<TipoProyecto> {
+export async function createTipoProyecto(payload: { codigo: string; nombre: string; orden?: number; modoCubicacion?: TipoProyecto['modoCubicacion'] }): Promise<TipoProyecto> {
   const response = await apiClient.post<{ data: TipoProyecto }>('/tipos-proyecto', payload);
   return response.data.data;
 }
 
 export async function updateTipoProyecto(
   id: string,
-  payload: Partial<Pick<TipoProyecto, 'nombre' | 'orden' | 'activo' | 'porDefecto'>>
+  payload: Partial<Pick<TipoProyecto, 'nombre' | 'orden' | 'activo' | 'porDefecto' | 'modoCubicacion'>>
 ): Promise<TipoProyecto> {
   const response = await apiClient.patch<{ data: TipoProyecto }>(`/tipos-proyecto/${id}`, payload);
   return response.data.data;

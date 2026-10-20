@@ -3,9 +3,11 @@ import { useMutation } from '@tanstack/react-query';
 import { X } from 'lucide-react';
 import {
   asignarVentanasCubicacion,
+  copiarCasaCubicacion,
   copiarPisoCubicacion,
   crearDeptosCubicacion,
   crearPisosCubicacion,
+  crearRecintosCubicacion,
   crearTorreCubicacion,
   crearUnidadEspecialCubicacion,
   renombrarTorreCubicacion,
@@ -15,7 +17,8 @@ import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import type { NodoTorreCubicacion, TipoCubicacion } from '../../../types';
 import { formatoMm } from '../fabricacion/utils';
 import { cajaModal, campo, etiqueta, fondoModal } from './estilos';
-import { leerEntero, leerTorres, mensajeAsignacion, mensajeCopiaPiso, rangoPisos, textoTorre } from './utils';
+import { leerEntero, leerLista, leerTorres, mensajeAsignacion, mensajeCopiaPiso, rangoPisos } from './utils';
+import { RECINTOS_SUGERIDOS, type Vocabulario } from './vocabulario';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
 import { IconButton } from '../../../components/ui/IconButton';
@@ -78,13 +81,14 @@ const Campo: React.FC<{ id: string; etiquetaTexto: string; valor: string; onCamb
     <label htmlFor={id} className={etiqueta}>
       {etiquetaTexto}
     </label>
-    <InputCompacto id={id} value={valor} onChange={(e) => onCambio(e.target.value)} placeholder={placeholder} maxLength={max} inputMode={mono ? 'numeric' : undefined} className={`${invalido ? 'border-rose-300' : ''}`} />
+    <InputCompacto id={id} value={valor} onChange={(e) => onCambio(e.target.value)} placeholder={placeholder} maxLength={max} inputMode={mono ? 'numeric' : undefined} className={`w-full ${invalido ? 'border-rose-300' : ''}`} />
     {ayuda && <p className="text-[11px] text-slate-500 mt-1">{ayuda}</p>}
   </div>
 );
 
 interface Base {
   proyectoId: string;
+  voc: Vocabulario;
   onClose: () => void;
   onHecho: () => void;
 }
@@ -135,7 +139,7 @@ export const ArmarEdificioModal: React.FC<Base> = ({ proyectoId, onClose, onHech
 };
 
 // ---- Torre nueva ----
-export const TorreModal: React.FC<Base> = ({ proyectoId, onClose, onHecho }) => {
+export const TorreModal: React.FC<Base> = ({ proyectoId, voc, onClose, onHecho }) => {
   const [nombre, setNombre] = useState('');
   const crear = useMutation({
     mutationFn: () => crearTorreCubicacion(proyectoId, nombre.trim().toUpperCase()),
@@ -146,13 +150,13 @@ export const TorreModal: React.FC<Base> = ({ proyectoId, onClose, onHecho }) => 
     onError: avisoError,
   });
   return (
-    <Marco titulo="Agregar torre" textoEnviar="Agregar" puedeEnviar={nombre.trim() !== ''} cargando={crear.isPending} onEnviar={() => crear.mutate()} onClose={onClose}>
-      <Campo id="torre-nombre" etiquetaTexto="Nombre de la torre" valor={nombre} onCambio={setNombre} placeholder="A" max={10} />
+    <Marco titulo={voc.agregarContenedor} textoEnviar="Agregar" puedeEnviar={nombre.trim() !== ''} cargando={crear.isPending} onEnviar={() => crear.mutate()} onClose={onClose}>
+      <Campo id="torre-nombre" etiquetaTexto={`Nombre de ${voc.elContenedor}`} valor={nombre} onCambio={setNombre} placeholder={voc.modo === 'CASA' ? 'C2' : 'A'} max={10} ayuda={voc.modo === 'CASA' ? 'Corto: forma parte del nombre de cada ventana (V01_C2_ESTAR).' : undefined} />
     </Marco>
   );
 };
 
-export const RenombrarTorreModal: React.FC<Base & { torreId: string; nombreActual: string }> = ({ proyectoId, torreId, nombreActual, onClose, onHecho }) => {
+export const RenombrarTorreModal: React.FC<Base & { torreId: string; nombreActual: string }> = ({ proyectoId, voc, torreId, nombreActual, onClose, onHecho }) => {
   const [nombre, setNombre] = useState('');
   const renombrar = useMutation({
     mutationFn: () => renombrarTorreCubicacion(proyectoId, { torreId, nombre: nombre.trim().toUpperCase() }),
@@ -164,20 +168,20 @@ export const RenombrarTorreModal: React.FC<Base & { torreId: string; nombreActua
   });
   return (
     <Marco
-      titulo={nombreActual === '' ? 'Ponerle nombre a la torre' : `Cambiar nombre de la ${textoTorre(nombreActual).toLowerCase()}`}
+      titulo={nombreActual === '' ? `Ponerle nombre a ${voc.elContenedor}` : `Cambiar nombre de ${voc.textoTorre(nombreActual).toLowerCase()}`}
       textoEnviar="Guardar"
       puedeEnviar={nombre.trim() !== ''}
       cargando={renombrar.isPending}
       onEnviar={() => renombrar.mutate()}
       onClose={onClose}
     >
-      <Campo id="renombrar-nombre" etiquetaTexto="Nombre nuevo" valor={nombre} onCambio={setNombre} placeholder="A" max={10} ayuda="Las nomenclaturas de sus ventanas se recalculan con el nombre nuevo." />
+      <Campo id="renombrar-nombre" etiquetaTexto="Nombre nuevo" valor={nombre} onCambio={setNombre} placeholder={voc.modo === 'CASA' ? 'C1' : 'A'} max={10} ayuda="Las nomenclaturas de sus ventanas se recalculan con el nombre nuevo." />
     </Marco>
   );
 };
 
 // ---- Unidad especial sin piso (areas comunes, fachada...) ----
-export const UnidadEspecialModal: React.FC<Base & { torreId: string }> = ({ proyectoId, torreId, onClose, onHecho }) => {
+export const UnidadEspecialModal: React.FC<Base & { torreId: string }> = ({ proyectoId, voc, torreId, onClose, onHecho }) => {
   const [nombre, setNombre] = useState('');
   const crear = useMutation({
     mutationFn: () => crearUnidadEspecialCubicacion(proyectoId, { torreId, nombre: nombre.trim() }),
@@ -188,14 +192,22 @@ export const UnidadEspecialModal: React.FC<Base & { torreId: string }> = ({ proy
     onError: avisoError,
   });
   return (
-    <Marco titulo="Agregar unidad especial" textoEnviar="Agregar" puedeEnviar={nombre.trim() !== ''} cargando={crear.isPending} onEnviar={() => crear.mutate()} onClose={onClose}>
-      <Campo id="especial-nombre" etiquetaTexto="Nombre" valor={nombre} onCambio={setNombre} placeholder="Áreas comunes" max={60} ayuda="Una unidad sin piso, para ventanas que no van en un depto puntual (fachada, áreas comunes...)." />
+    <Marco titulo={voc.modo === 'CASA' ? 'Agregar exterior' : 'Agregar unidad especial'} textoEnviar="Agregar" puedeEnviar={nombre.trim() !== ''} cargando={crear.isPending} onEnviar={() => crear.mutate()} onClose={onClose}>
+      <Campo
+        id="especial-nombre"
+        etiquetaTexto="Nombre"
+        valor={nombre}
+        onCambio={setNombre}
+        placeholder={voc.modo === 'CASA' ? 'Quincho' : 'Áreas comunes'}
+        max={60}
+        ayuda={voc.modo === 'CASA' ? 'Un lugar sin piso, para ventanas que no van dentro de la casa (quincho, bodega exterior...).' : 'Una unidad sin piso, para ventanas que no van en un depto puntual (fachada, áreas comunes...).'}
+      />
     </Marco>
   );
 };
 
 // ---- Pisos de una torre ----
-export const PisosModal: React.FC<Base & { torre: string; sugerido: number }> = ({ proyectoId, torre, sugerido, onClose, onHecho }) => {
+export const PisosModal: React.FC<Base & { torre: string; sugerido: number }> = ({ proyectoId, voc, torre, sugerido, onClose, onHecho }) => {
   const [desde, setDesde] = useState(String(sugerido));
   const [hasta, setHasta] = useState('');
   const d = leerEntero(desde);
@@ -210,7 +222,7 @@ export const PisosModal: React.FC<Base & { torre: string; sugerido: number }> = 
     onError: avisoError,
   });
   return (
-    <Marco titulo={`Agregar pisos · ${textoTorre(torre)}`} textoEnviar="Agregar" puedeEnviar={valido} cargando={crear.isPending} onEnviar={() => crear.mutate()} onClose={onClose}>
+    <Marco titulo={`Agregar pisos · ${voc.textoTorre(torre)}`} textoEnviar="Agregar" puedeEnviar={valido} cargando={crear.isPending} onEnviar={() => crear.mutate()} onClose={onClose}>
       <div className="grid grid-cols-2 gap-3">
         <Campo id="pisos-desde" etiquetaTexto="Piso inicial" valor={desde} onCambio={setDesde} mono invalido={d === null} />
         <Campo id="pisos-hasta" etiquetaTexto="Piso final" valor={hasta} onCambio={setHasta} mono placeholder="solo uno" invalido={hasta !== '' && (h === null || (d !== null && h < d))} />
@@ -220,7 +232,7 @@ export const PisosModal: React.FC<Base & { torre: string; sugerido: number }> = 
 };
 
 // ---- Departamentos de un piso (o de todos los de la torre) ----
-export const DeptosModal: React.FC<Base & { torre: string; piso?: number }> = ({ proyectoId, torre, piso, onClose, onHecho }) => {
+export const DeptosModal: React.FC<Base & { torre: string; piso?: number }> = ({ proyectoId, voc, torre, piso, onClose, onHecho }) => {
   const [desde, setDesde] = useState('1');
   const [hasta, setHasta] = useState('');
   const [todos, setTodos] = useState(piso === undefined);
@@ -237,7 +249,7 @@ export const DeptosModal: React.FC<Base & { torre: string; piso?: number }> = ({
   });
   return (
     <Marco
-      titulo={piso === undefined ? `Agregar departamentos · ${textoTorre(torre)}` : `Agregar departamentos · ${textoTorre(torre)}, piso ${piso}`}
+      titulo={piso === undefined ? `Agregar departamentos · ${voc.textoTorre(torre)}` : `Agregar departamentos · ${voc.textoTorre(torre)}, piso ${piso}`}
       textoEnviar="Agregar"
       puedeEnviar={valido}
       cargando={crear.isPending}
@@ -256,7 +268,7 @@ export const DeptosModal: React.FC<Base & { torre: string; piso?: number }> = ({
 };
 
 // ---- Copiar un piso (piso tipo) a otros ----
-export const CopiarPisoModal: React.FC<Base & { torre: NodoTorreCubicacion; piso: number }> = ({ proyectoId, torre, piso, onClose, onHecho }) => {
+export const CopiarPisoModal: React.FC<Base & { torre: NodoTorreCubicacion; piso: number }> = ({ proyectoId, voc, torre, piso, onClose, onHecho }) => {
   const otros = torre.pisos.map((p) => p.numero).filter((p) => p !== piso);
   const [elegidos, setElegidos] = useState<number[]>([]);
   const [desde, setDesde] = useState('');
@@ -284,13 +296,13 @@ export const CopiarPisoModal: React.FC<Base & { torre: NodoTorreCubicacion; piso
   return (
     <Marco titulo={`Copiar el piso ${piso} a otros pisos`} textoEnviar="Copiar" puedeEnviar={elegidos.length > 0} cargando={copiar.isPending} onEnviar={() => copiar.mutate()} onClose={onClose}>
       <p className="text-xs text-slate-500">
-        Copia los {origen?.deptos.length ?? 0} departamento(s) y sus ventanas (tipo y ubicación) usando las ventanas contratadas que aún no tienen lugar. No copia el rasgo: se mide ventana por ventana. Los
-        departamentos que ya tienen ventanas no se tocan.
+        Copia los {origen?.deptos.length ?? 0} {voc.unidad}(s) y sus ventanas (tipo y ubicación) usando las ventanas contratadas que aún no tienen lugar. No copia el rasgo: se mide ventana por ventana. Los
+        {voc.unidades} que ya tienen ventanas no se tocan.
       </p>
       <div>
         <p className={etiqueta}>Pisos de destino</p>
         {otros.length === 0 ? (
-          <p className="text-xs text-slate-500">La torre no tiene más pisos: crea primero los pisos de destino.</p>
+          <p className="text-xs text-slate-500">{voc.elContenedor[0].toUpperCase() + voc.elContenedor.slice(1)} no tiene más pisos: crea primero los pisos de destino.</p>
         ) : (
           <div className="flex flex-wrap gap-1.5">
             {otros.map((p) => (
@@ -320,6 +332,7 @@ const RECINTOS = ['DORM 1', 'DORM 2', 'DORM 3', 'ESTAR', 'COMEDOR', 'COCINA', 'B
 // ---- Asignar ventanas a un departamento (o unidad especial) ----
 export const AsignarModal: React.FC<Base & { unidadId: string; torre: string; nombreUnidad: string; tipos: TipoCubicacion[]; tipoInicial?: string }> = ({
   proyectoId,
+  voc,
   unidadId,
   torre,
   nombreUnidad,
@@ -350,7 +363,7 @@ export const AsignarModal: React.FC<Base & { unidadId: string; torre: string; no
   });
 
   return (
-    <Marco titulo={`Agregar ventanas · ${textoTorre(torre)}, depto ${nombreUnidad}`} textoEnviar="Agregar" puedeEnviar={valido} cargando={asignar.isPending} onEnviar={() => asignar.mutate()} onClose={onClose}>
+    <Marco titulo={`Agregar ventanas · ${voc.textoTorre(torre)}, ${voc.unidadCorta} ${nombreUnidad}`} textoEnviar="Agregar" puedeEnviar={valido} cargando={asignar.isPending} onEnviar={() => asignar.mutate()} onClose={onClose}>
       <div>
         <Select label="Tipo de ventana" id="asignar-tipo" value={tipoId} onChange={(e) => setTipoId(e.target.value)} className={campo}>
           <option value="">— elegir tipo —</option>
@@ -378,6 +391,122 @@ export const AsignarModal: React.FC<Base & { unidadId: string; torre: string; no
             Solo quedan {saldo} {tipo!.codigo} sin ubicar (contratadas {tipo!.cantidadContratada}). Marca esto para agregar igualmente las {n! - saldo} de más; quedarán por sobre lo contratado.
           </span></>} />
       )}
+    </Marco>
+  );
+};
+
+// ---- Armar una casa de una vez: sus pisos y los recintos de cada piso ----
+export const ArmarCasaModal: React.FC<Base & { casas: string[] }> = ({ proyectoId, casas, onClose, onHecho }) => {
+  const [nombre, setNombre] = useState('');
+  const [pisos, setPisos] = useState('1');
+  const [recintos, setRecintos] = useState<Record<number, string>>({ 1: ['ESTAR', 'COMEDOR', 'COCINA', 'DORM 1', 'BAÑO 1'].join(', ') });
+  const n = leerEntero(pisos);
+  const valido = n !== null && n >= 1 && n <= 6;
+  const numeros = valido ? Array.from({ length: n! }, (_, i) => i + 1) : [];
+  const torre = nombre.trim().toUpperCase();
+  const yaExiste = casas.includes(torre);
+  const totalRecintos = numeros.reduce((s, p) => s + leerLista(recintos[p] ?? '').length, 0);
+
+  const armar = useMutation({
+    mutationFn: async () => {
+      await crearPisosCubicacion(proyectoId, { torre, desde: 1, hasta: n! });
+      for (const piso of numeros) {
+        const nombres = leerLista(recintos[piso] ?? '');
+        if (nombres.length) await crearRecintosCubicacion(proyectoId, { torre, piso, nombres });
+      }
+    },
+    onSuccess: () => {
+      onHecho();
+      onClose();
+    },
+    onError: avisoError,
+  });
+
+  return (
+    <Marco titulo="Armar la casa" textoEnviar="Crear estructura" puedeEnviar={valido && totalRecintos > 0} cargando={armar.isPending} onEnviar={() => armar.mutate()} onClose={onClose}>
+      <p className="text-xs text-slate-500">
+        Crea los pisos y los recintos de la casa (vacíos). Después ubicas las ventanas en cada recinto. Si ya había estructura, solo agrega lo que falte.
+      </p>
+      <Campo
+        id="casa-nombre"
+        etiquetaTexto="Nombre de la casa"
+        valor={nombre}
+        onCambio={setNombre}
+        placeholder="C1"
+        max={10}
+        ayuda={yaExiste ? 'Esa casa ya existe: se le agregarán los pisos y recintos que falten.' : 'Déjalo vacío si la obra es una sola casa. Si hay más, ponle un nombre corto (C1, C2…).'}
+      />
+      <Campo id="casa-pisos" etiquetaTexto="Pisos de la casa" valor={pisos} onCambio={setPisos} mono invalido={pisos !== '' && !valido} ayuda="De 1 a 6." />
+      {numeros.map((p) => (
+        <Campo
+          key={p}
+          id={`casa-recintos-${p}`}
+          etiquetaTexto={`Recintos del piso ${p}`}
+          valor={recintos[p] ?? ''}
+          onCambio={(v) => setRecintos((r) => ({ ...r, [p]: v }))}
+          placeholder={RECINTOS_SUGERIDOS.slice(0, 4).join(', ')}
+          ayuda={p === 1 ? 'Separados por coma. Nombres cortos: forman parte del nombre de cada ventana.' : undefined}
+        />
+      ))}
+      {valido && totalRecintos > 0 && (
+        <p className="text-xs text-slate-700 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2" data-testid="armar-resumen">
+          Se creará {torre ? `la casa ${torre}` : 'la casa'} con {n} piso(s) y <b>{totalRecintos} recinto(s)</b>.
+        </p>
+      )}
+    </Marco>
+  );
+};
+
+// ---- Recintos nuevos en un piso de una casa ----
+export const RecintosModal: React.FC<Base & { torre: string; piso: number }> = ({ proyectoId, voc, torre, piso, onClose, onHecho }) => {
+  const [texto, setTexto] = useState('');
+  const nombres = leerLista(texto);
+  const crear = useMutation({
+    mutationFn: () => crearRecintosCubicacion(proyectoId, { torre, piso, nombres }),
+    onSuccess: () => {
+      onHecho();
+      onClose();
+    },
+    onError: avisoError,
+  });
+  return (
+    <Marco titulo={`Agregar recintos · ${voc.textoTorre(torre)}, piso ${piso}`} textoEnviar="Agregar" puedeEnviar={nombres.length > 0} cargando={crear.isPending} onEnviar={() => crear.mutate()} onClose={onClose}>
+      <Campo
+        id="recintos-nombres"
+        etiquetaTexto="Recintos"
+        valor={texto}
+        onCambio={setTexto}
+        placeholder="DORM 2, BAÑO 2"
+        ayuda="Separados por coma. Nombres cortos: forman parte del nombre de cada ventana (V01_C1_DORM2)."
+      />
+    </Marco>
+  );
+};
+
+// ---- Copiar una casa entera a casas nuevas (un condominio es la misma casa repetida) ----
+export const CopiarCasaModal: React.FC<Base & { torre: NodoTorreCubicacion }> = ({ proyectoId, voc, torre, onClose, onHecho }) => {
+  const [texto, setTexto] = useState('');
+  const destinos = leerTorres(texto).filter(Boolean);
+  const copiar = useMutation({
+    mutationFn: () => copiarCasaCubicacion(proyectoId, { torreId: torre.id, destinos }),
+    onSuccess: (r) => {
+      const partes = [`${r.casas} casa(s) nueva(s) con ${r.ventanas} ventana(s) copiada(s)`];
+      if (r.faltan.length > 0) partes.push(`faltaron por ubicar: ${r.faltan.map((f) => `${f.cantidad} ${f.codigo}`).join(', ')} (no quedaban contratadas libres)`);
+      mostrarToast(partes.join(' · ') + '.', { tipo: 'info', duracionMs: 15000 });
+      onHecho();
+      onClose();
+    },
+    onError: avisoError,
+  });
+  const recintos = torre.pisos.reduce((s, p) => s + p.deptos.length, 0);
+  return (
+    <Marco titulo={`Copiar ${voc.textoTorre(torre.nombre).toLowerCase()}`} textoEnviar="Copiar" puedeEnviar={destinos.length > 0} cargando={copiar.isPending} onEnviar={() => copiar.mutate()} onClose={onClose}>
+      <p className="text-xs text-slate-500">
+        Crea casas nuevas iguales a esta: {torre.pisos.length} piso(s) y {recintos} recinto(s), con sus ventanas (tipo y ubicación) tomadas de las contratadas que aún no tienen lugar. No copia el rasgo: se mide
+        ventana por ventana.
+      </p>
+      <Campo id="copiar-casas" etiquetaTexto="Nombres de las casas nuevas" valor={texto} onCambio={setTexto} placeholder="C2, C3, C4" max={200} ayuda="Separados por coma. Cada nombre es corto y nuevo." />
+      {destinos.length > 0 && <p className="text-xs text-slate-700 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">Se crearán {destinos.length} casa(s): {destinos.join(', ')}.</p>}
     </Marco>
   );
 };

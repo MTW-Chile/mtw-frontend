@@ -8,6 +8,7 @@ import { formatoMm } from '../fabricacion/utils';
 import { leerMilimetros } from '../pendientes/utils';
 import { campo } from './estilos';
 import { generarNomenclatura, mmATexto } from './utils';
+import { vocabulario } from './vocabulario';
 import { Modal } from '../../../components/ui/Modal';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
@@ -30,6 +31,8 @@ const entero = (t: string): number | null => (t.trim() !== '' && /^-?\d+$/.test(
 export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, unidad, inicial, onClose }) => {
   const queryClient = useQueryClient();
   const editando = !!unidad;
+  const voc = vocabulario(cubicacion.modo);
+  const casa = voc.modo === 'CASA';
   const tiposVentana = tipos.filter((t) => !t.esAreaComun);
   const [tipoId, setTipoId] = useState(unidad?.tipoId ?? '');
   const [torre, setTorre] = useState(unidad?.torre ?? inicial?.torre ?? '');
@@ -113,19 +116,19 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
 
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <Input label="Torre" id="uni-torre" value={torre} onChange={(e) => setTorre(e.target.value.toUpperCase())} maxLength={10} placeholder="A" />
+          <Input label={casa ? 'Casa' : 'Torre'} id="uni-torre" value={torre} onChange={(e) => setTorre(e.target.value.toUpperCase())} maxLength={10} placeholder={casa ? 'C1' : 'A'} />
         </div>
         <div>
           <Input label="Piso" id="uni-piso" inputMode="numeric" value={piso} onChange={(e) => setPiso(e.target.value)} className={`${piso.trim() !== '' && pisoNum === null ? 'border-rose-300' : ''}`} />
         </div>
         <div>
-          <Input label="Depto" id="uni-dpto" value={nombreUnidad} onChange={(e) => setNombreUnidad(e.target.value)} maxLength={40} placeholder="204" />
+          <Input label={casa ? 'Recinto' : 'Depto'} id="uni-dpto" value={nombreUnidad} onChange={(e) => setNombreUnidad(e.target.value)} maxLength={40} placeholder={casa ? 'DORM 1' : '204'} />
         </div>
       </div>
       <p className="text-[11px] text-slate-500 -mt-2">
         Nomenclatura:{' '}
         <b className="font-mono text-slate-800" data-testid="nomenclatura-vista">
-          {nomenclatura ?? (tipo ? `${tipo.codigo} (sin posición: falta el depto)` : '—')}
+          {nomenclatura ?? (tipo ? `${tipo.codigo} (sin posición: falta el ${voc.unidadCorta})` : '—')}
         </b>
       </p>
 

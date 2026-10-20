@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { getEstructuraCubicacion } from '../../../api/client';
 import type { NodoDeptoCubicacion, SeleccionFaseCubicacion } from '../../../types';
-import { textoTorre } from './utils';
+import { useVocabulario } from './useVocabulario';
 import { IconButton } from '../../../components/ui/IconButton';
 import { Casilla } from '../../../components/ui/Campos';
 
@@ -19,6 +19,7 @@ interface Props {
 // marca la intención; por eso casillas en distintos niveles pueden
 // superponerse sin problema (el backend las une sin duplicar).
 export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onChange }) => {
+  const voc = useVocabulario(proyectoId);
   const { data, isLoading, isError } = useQuery({ queryKey: ['cubicacionEstructura', proyectoId], queryFn: () => getEstructuraCubicacion(proyectoId) });
   const [torreIds, setTorreIds] = useState<Set<string>>(new Set());
   const [pisoIds, setPisoIds] = useState<Set<string>>(new Set());
@@ -42,9 +43,9 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
       ventanaIndividualizadaIds: [...ventanaIds],
     };
     const partes: string[] = [];
-    if (torreIds.size) partes.push(`${torreIds.size} torre(s)`);
+    if (torreIds.size) partes.push(`${torreIds.size} ${voc.contenedor}(s)`);
     if (pisoIds.size) partes.push(`${pisoIds.size} piso(s)`);
-    if (unidadIds.size) partes.push(`${unidadIds.size} depto(s)/unidad(es)`);
+    if (unidadIds.size) partes.push(`${unidadIds.size} ${voc.unidadCorta}(s)/unidad(es)`);
     if (ventanaIds.size) partes.push(`${ventanaIds.size} ventana(s) suelta(s)`);
     onChange(seleccion, partes.length ? partes.join(', ') : 'nada seleccionado todavía');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -142,8 +143,8 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
       {data.torres.map((torre) => (
         <div key={torre.id}>
           <div className="flex items-center gap-1.5 py-1">
-            <IconButton icono={expandidas.has(torre.id) ? ChevronDown : ChevronRight} etiqueta="Expandir torre" onClick={() => expandir(torre.id)} />
-            <Casilla checked={torreIds.has(torre.id)} onChange={() => alternar(torreIds, setTorreIds, torre.id)} label={<>{textoTorre(torre.nombre)}</>} />
+            <IconButton icono={expandidas.has(torre.id) ? ChevronDown : ChevronRight} etiqueta={`Expandir ${voc.contenedor}`} onClick={() => expandir(torre.id)} />
+            <Casilla checked={torreIds.has(torre.id)} onChange={() => alternar(torreIds, setTorreIds, torre.id)} label={<>{voc.textoTorre(torre.nombre)}</>} />
           </div>
           {expandidas.has(torre.id) && (
             <div className="pl-4">
@@ -152,7 +153,7 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
                   <div className="flex items-center gap-1.5 py-1">
                     <IconButton icono={expandidas.has(piso.id) ? ChevronDown : ChevronRight} etiqueta="Expandir piso" onClick={() => expandir(piso.id)} />
                     <Casilla checked={pisoIds.has(piso.id)} onChange={() => alternar(pisoIds, setPisoIds, piso.id)} label={<><span className="font-bold text-slate-800">Piso {piso.numero}</span>
-                      <span className="text-slate-400">({piso.deptos.length} depto(s))</span></>} />
+                      <span className="text-slate-400">({piso.deptos.length} {voc.unidadCorta}(s))</span></>} />
                   </div>
                   {expandidas.has(piso.id) && <div className="pl-4">{piso.deptos.map(filaUnidad)}</div>}
                 </div>
