@@ -9,6 +9,25 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - **Parche** (2.0.0 → 2.0.1): ajustes y mejoras acotadas, cada despliegue.
 - **Corrección urgente** sobre un parche (2.0.4 → 2.0.4.1; en package.json, 2.0.4-1): la decide Alfredo.
 
+## Alpha v2.0.5 — 2026-10-21
+
+**Cubicación por casa (Retail y Condominio)**
+- El tipo de proyecto define cómo se cubica: por edificio (torres, pisos y departamentos) o por casa (casas, pisos y recintos). Retail queda por casa y se crea el tipo Condominio; en Configuración › Comercial › Tipos de proyecto hay una columna "Cubica como" para elegirlo.
+- Obras por casa: «Armar la casa» (pisos y recintos de una vez), «+ recinto», «Copiar casa» (para condominios con la misma casa repetida) y «+ Exterior». La nomenclatura queda `V01_C3_DORM1` (una sola casa: `V01_DORM1`), sin espacios.
+- La ubicación de cada ventana se llena sola: en una casa es el nombre del recinto; en un departamento se pueden crear ubicaciones (DORM 1, ESTAR…) con «+ ubicación» y soltar la ventana en una.
+- Lápiz para renombrar departamentos, recintos y ubicaciones: las ventanas recalculan su nomenclatura y ubicación.
+- Corregido: arrastrar una ventana a otro departamento la dejaba sin ubicar.
+
+**Cubicación única y fases**
+- Toda fase se arma desde la cubicación, para que cada ventana tenga nomenclatura y medida rectificada: se quitó crear fases con líneas y cantidades a mano y el botón «Crear fase única». Editar una fase solo cambia su nombre y fechas.
+- Nuevo botón «Crear cubicación única» (y «Deshacer»): para una obra que no se reparte por torre, piso y departamento, nombra todas las ventanas (`V01`, o `V01-1`, `V01-2`… si hay más de una) y se rectifican y arman fases igual. En la lista de Ventanas la ubicación se edita en la misma fila.
+
+**Pantallas**
+- iPhone, iPad y Android: el encabezado y la barra de abajo (Presupuestos) quedan fijos; ya no se esconden al hacer scroll.
+- El anuncio de Inicio es una franja más delgada y con letra más chica; las migas de pan también son más chicas.
+
+**Para desplegar:** correr las migraciones `20261020000100_modo_cubicacion` y `20261020000200_recintos_de_unidad`.
+
 ## Alpha v2.0.4.1 — 2026-10-20
 
 **Correcciones urgentes**
