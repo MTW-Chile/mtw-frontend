@@ -15,6 +15,7 @@ import { ProveedoresPage } from './modules/proveedores/ProveedoresPage';
 import { MaestroMaterialesPage } from './modules/abastecimiento/MaestroMaterialesPage';
 import { PendientesPage } from './modules/proyectos/pendientes/PendientesPage';
 import { EnConstruccionPage } from './modules/en-construccion/EnConstruccionPage';
+import { InstalacionPage } from './modules/instalacion/InstalacionPage';
 import { getProyectos } from './api/client';
 import { clavePresupuestos, consultarPresupuestos } from './modules/cotizaciones/presupuestosQuery';
 import { esPresupuestoPrincipal } from './lib/estadosHetmo';
@@ -281,6 +282,11 @@ const AppContent: React.FC = () => {
             <ProyectosPage />
           )}
 
+          {/* Fabricación: las mismas obras en curso, con las pestañas del taller (ver ProyectosPage). */}
+          {activeTab === 'fabricacion' && <ProyectosPage modo="fabricacion" />}
+
+          {activeTab === 'instalacion' && <InstalacionPage />}
+
           {activeTab === 'compras' && <ComprasPage />}
 
           {activeTab === 'bodega' && <BodegaPage />}
@@ -291,7 +297,7 @@ const AppContent: React.FC = () => {
 
           {activeTab === 'pendientes' && <PendientesPage />}
 
-          {(activeTab === 'fabricacion' || activeTab === 'contabilidad') && <EnConstruccionPage seccion={activeTab} titulo={MODULE_TITLES[activeTab]} />}
+          {activeTab === 'contabilidad' && <EnConstruccionPage seccion={activeTab} titulo={MODULE_TITLES[activeTab]} />}
 
           {activeTab === 'configuracion' && (
             <ConfiguracionPage />

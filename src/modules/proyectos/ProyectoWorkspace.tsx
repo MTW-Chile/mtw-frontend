@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { actualizarParams } from '../../lib/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, LayoutDashboard, ShoppingCart, Warehouse, Factory, ClipboardList, Ruler, FilePlus2 } from 'lucide-react';
+import { Loader2, LayoutDashboard, ShoppingCart, Warehouse, Factory, ClipboardList, Ruler, FilePlus2, Truck, Receipt } from 'lucide-react';
 import { HeaderSlot } from '../../components/layout/HeaderSlot';
 import { actualizarFabricacionesObra, getProyectoById } from '../../api/client';
 import { OrdenesCompraList } from '../abastecimiento/OrdenesCompraList';
@@ -13,8 +13,10 @@ import { CubicacionTab } from './cubicacion/CubicacionTab';
 import { FabricacionTab } from './fabricacion/FabricacionTab';
 import { PendientesTab } from './pendientes/PendientesTab';
 import { AdicionalesTab } from './adicionales/AdicionalesTab';
+import { DespachosTab } from './despachos/DespachosTab';
+import { EstadosPagoTab } from './estados-pago/EstadosPagoTab';
 import { ClayCentroCostoEditor } from './ClayCentroCostoEditor';
-import { seccionDisponible, seccionEfectiva, type SeccionObra } from './seccionesObra';
+import { seccionDisponible, seccionEfectiva, seccionesDelModo, type ModoWorkspace, type SeccionObra } from './seccionesObra';
 import { usePermisos } from '../../lib/permisos';
 import { BarraPestanas } from '../../components/ui/PageHeader';
 import { useMigas } from '../../lib/migas';
@@ -28,18 +30,24 @@ type Seccion = SeccionObra;
 const SECCIONES: { id: Seccion; label: string; hint: string; icon: React.ElementType }[] = [
   { id: 'general', label: 'Información General', hint: 'Métricas, control de presupuesto por partida y documentos', icon: LayoutDashboard },
   { id: 'cubicacion', label: 'Cubicación', hint: 'Reparto por piso y departamento, rectificación y nomenclatura (opcional)', icon: Ruler },
-  { id: 'fabricacion', label: 'Fabricación', hint: 'Documentos de fabricación de HETMO', icon: Factory },
+  { id: 'fabricacion', label: 'Fabricación', hint: 'Fases y documentos de fabricación de HETMO', icon: Factory },
+  { id: 'despachos', label: 'Despachos', hint: 'Ventanas fabricadas que salen a obra, con su guía de despacho', icon: Truck },
   { id: 'abastecimiento', label: 'Abastecimiento', hint: 'Generación y gestión de OC', icon: ShoppingCart },
   { id: 'pendientes', label: 'Control de pendientes', hint: 'Lo que falta o falló en la obra', icon: ClipboardList },
   { id: 'adicionales', label: 'Adicionales', hint: 'Ventas o cargos fuera del presupuesto aceptado', icon: FilePlus2 },
+  { id: 'estados-pago', label: 'Estados de pago', hint: 'Cobros parciales al cliente por fases o ventanas', icon: Receipt },
   { id: 'bodega', label: 'Bodega', hint: 'Requisiciones, stock y movimientos', icon: Warehouse },
 ];
 
-export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: string; onVolver: () => void }> = ({
+// modo 'fabricacion': la misma obra vista desde el taller (seccion Fabricacion del menu):
+// solo Cubicacion, Fabricacion y Despachos (ver seccionesDelModo).
+export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: string; onVolver: () => void; modo?: ModoWorkspace }> = ({
   proyectoId,
   seccionInicial,
+  modo = 'obra',
 }) => {
   const { tiene } = usePermisos();
+  const seccionesVisibles = seccionesDelModo(modo);
   // La seccion activa vive en la URL (?seccion=...) -- Atras del navegador
   // vuelve a la seccion anterior. replace: cambiar de pestaña dentro del
   // proyecto no llena el historial (Atras sale del proyecto al listado).
@@ -73,7 +81,7 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
   // Una obra manual nunca se cotizo: las secciones que dependen del
   // presupuesto se ven en gris (ver seccionesObra.ts) y un enlace a una de
   // ellas cae a Información General. Mientras carga la obra no se sabe su origen.
-  const seccion: Seccion = seccionEfectiva(seccionInicial, proyecto?.origen);
+  const seccion: Seccion = seccionEfectiva(seccionInicial, proyecto?.origen, modo);
   // Volver a la sección cierra lo abierto dentro de ella (ej. un adicional).
   useMigas(1, [{ label: SECCIONES.find((x) => x.id === seccion)?.label ?? '', alHacerClic: () => actualizarParams({ seccion, adicional: null }) }]);
 
@@ -113,7 +121,10 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
         <BarraPestanas
             active={seccion}
             onChange={(id) => setSeccion(id)}
-            tabs={SECCIONES.filter((s) => s.id !== 'adicionales' || tiene('adicionales.ver')).map((s) => {
+            tabs={SECCIONES.filter((s) => seccionesVisibles.includes(s.id))
+              .filter((s) => s.id !== 'adicionales' || tiene('adicionales.ver'))
+              .filter((s) => s.id !== 'estados-pago' || tiene('estados_pago.ver'))
+              .map((s) => {
               const disponible = seccionDisponible(s.id, proyecto?.origen);
               return { id: s.id, label: s.label, icon: s.icon, disabled: !disponible, title: disponible ? s.hint : 'No disponible: esta obra se creó a mano y no fue cotizada' };
             })}
@@ -132,6 +143,8 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
               {seccion === 'cubicacion' && <CubicacionTab proyecto={proyecto} activeVersion={activeVersion} />}
               {seccion === 'abastecimiento' && <OrdenesCompraList proyectoId={proyectoId} proyectoLabel={proyecto.obra} />}
               {seccion === 'fabricacion' && <FabricacionTab proyecto={proyecto} activeVersion={activeVersion} />}
+              {seccion === 'despachos' && <DespachosTab proyecto={proyecto} />}
+              {seccion === 'estados-pago' && <EstadosPagoTab proyecto={proyecto} />}
               {seccion === 'pendientes' && <PendientesTab proyecto={proyecto} />}
               {seccion === 'adicionales' && <AdicionalesTab proyecto={proyecto} />}
               {seccion === 'bodega' && (

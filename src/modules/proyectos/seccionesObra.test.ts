@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { seccionDisponible, seccionEfectiva, SECCIONES_OBRA, SECCIONES_QUE_REQUIEREN_PRESUPUESTO } from './seccionesObra';
+import { seccionDisponible, seccionEfectiva, seccionesDelModo, SECCIONES_OBRA, SECCIONES_QUE_REQUIEREN_PRESUPUESTO } from './seccionesObra';
 
 describe('seccionDisponible', () => {
   it('una obra manual solo tiene disponible lo que no requiere presupuesto', () => {
@@ -20,8 +20,15 @@ describe('seccionDisponible', () => {
   it('Información General, Fabricacion, Cubicacion y Control de pendientes nunca requieren presupuesto', () => {
     for (const s of ['general', 'cubicacion', 'fabricacion', 'pendientes'] as const) expect(SECCIONES_QUE_REQUIEREN_PRESUPUESTO).not.toContain(s);
   });
-  it('Fabricación va después de Cubicación', () => {
+  it('Fabricación va después de Cubicación, y Despachos después de Fabricación', () => {
     expect(SECCIONES_OBRA.indexOf('fabricacion')).toBe(SECCIONES_OBRA.indexOf('cubicacion') + 1);
+    expect(SECCIONES_OBRA.indexOf('despachos')).toBe(SECCIONES_OBRA.indexOf('fabricacion') + 1);
+  });
+  it('la vista de Fabricación (taller) solo tiene cubicación, fabricación y despachos', () => {
+    expect(seccionesDelModo('fabricacion')).toEqual(['cubicacion', 'fabricacion', 'despachos']);
+    expect(seccionEfectiva('despachos', 'HETMO', 'fabricacion')).toBe('despachos');
+    expect(seccionEfectiva('bodega', 'HETMO', 'fabricacion')).toBe('fabricacion');
+    expect(seccionEfectiva(undefined, 'MANUAL_OBRA', 'fabricacion')).toBe('fabricacion');
   });
 });
 

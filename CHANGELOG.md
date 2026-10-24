@@ -9,6 +9,25 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - **Parche** (2.0.0 → 2.0.1): ajustes y mejoras acotadas, cada despliegue.
 - **Corrección urgente** sobre un parche (2.0.4 → 2.0.4.1; en package.json, 2.0.4-1): la decide Alfredo.
 
+## Alpha v2.1.0 — 2026-10-24
+
+**Fabricación → Despachos a obra**
+- La sección Fabricación del menú ya es real: lista las obras en curso y abre cada una con las pestañas del taller (Cubicación, Fases y documentos de fabricación, y la nueva pestaña **Despachos**).
+- Un despacho toma las ventanas fabricadas de una fase (o algunas, o separadas en marco y hoja cuando la ventana tiene hojas) y al emitirlo salen de fábrica: la obra lo ve como recepción pendiente. Guía de despacho electrónica en **Bsale** (código SII 52), guía manual o sin guía; si Bsale falla el despacho queda emitido y la guía se reintenta.
+- Cada ventana lleva su estado en obra, derivado de lo que pasó: cubicada → en fabricación → fabricada (HETMO) → despachada → recibida → instalada.
+
+**Instalación (nueva sección, rol Supervisor de Instalación)**
+- Lista de obras en curso con el avance y los despachos por recibir. Al entrar, la cubicación del edificio (torre › piso › departamento) con cada ventana coloreada por estado; pensada para el celular.
+- **Recibir** un despacho como se recibe una OC en bodega: se marca lo que llegó, con observaciones; lo demás queda pendiente en el mismo despacho.
+- Tocar una ventana abre su ficha con el **dibujo**, medidas, lote de HETMO, historial y pendientes. Desde ahí: **Marcar instalada** (pide la foto, que va a OneDrive en `Instalacion/<nomenclatura>`), o **Pendiente** (el modal de pendientes de siempre, ya ligado a la ventana cubicada).
+- Los modales de pendientes muestran el dibujo de la ventana.
+
+**Estados de pago (Comercial, pestaña de la obra)**
+- Fases o elementos de la cubicación (ventanas enteras, o **marco y hoja** por separado según el porcentaje de Configuración › Comercial), adicionales aceptados e ítems libres componen cada estado de pago. Montos en UF al precio congelado del presupuesto; retención, anticipo y descuentos.
+- Ciclo: borrador → presentado → aprobado → facturado (UF del día) → pagado; rechazado vuelve a borrador; anulado libera sus ítems.
+
+**Para desplegar:** correr la migración `20261024000000_despacho_instalacion_estados_pago` (crea el rol Supervisor de Instalación y los permisos nuevos). Para la guía electrónica, configurar `BSALE_ACCESS_TOKEN` y, si aplica, `BSALE_OFFICE_ID` / `BSALE_SHIPPING_TYPE_ID` en mtw-api.
+
 ## Alpha v2.0.5 — 2026-10-21
 
 **Cubicación por casa (Retail y Condominio)**

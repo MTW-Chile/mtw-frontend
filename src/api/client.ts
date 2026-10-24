@@ -1986,3 +1986,162 @@ export async function desvincularDocumentoHetmo(id: string): Promise<Adicional> 
   const response = await apiClient.post<{ data: Adicional }>(`/adicionales/${id}/hetmo/desvincular`);
   return response.data.data;
 }
+
+// ==========================================
+// Despacho a obra (Fabricación > Despachos)
+// ==========================================
+import type {
+  DatosDespacho,
+  DatosEstadoPago,
+  DespachoObra,
+  DespachoObraDetalle,
+  DisponiblesEstadoPago,
+  EstadoBsale,
+  EstadoEstadoPago,
+  EstadoPago,
+  EstadoPagoDetalle,
+  InstalacionObra,
+  InstalacionVentana,
+  ItemDespachoEntrada,
+  ObraInstalacion,
+  ParteVentana,
+  ResultadoGuiaBsale,
+  TipoGuiaDespacho,
+  VentanaInstalacionDetalle,
+  VentanaObra,
+  AdjuntoInstalacion,
+} from '../types';
+
+export async function getEstadoBsale(): Promise<EstadoBsale> {
+  const response = await apiClient.get<EstadoBsale>('/bsale/estado');
+  return response.data;
+}
+
+export async function getDespachosProyecto(proyectoId: string): Promise<DespachoObra[]> {
+  const response = await apiClient.get<DespachoObra[]>(`/proyectos/${proyectoId}/despachos`);
+  return response.data;
+}
+
+export async function getVentanasParaDespacho(
+  proyectoId: string,
+  faseId?: string | null
+): Promise<{ ventanas: VentanaObra[]; fases: { id: string; numeroFase: number; nombre: string; estado: string; _count: { ventanasIndividualizadas: number } }[] }> {
+  const response = await apiClient.get(`/proyectos/${proyectoId}/despachos/disponibles`, { params: { faseId: faseId || undefined } });
+  return response.data;
+}
+
+export async function crearDespacho(proyectoId: string, payload: DatosDespacho & { items: ItemDespachoEntrada[]; forzar?: boolean }): Promise<{ despacho: DespachoObraDetalle; avisos: string[] }> {
+  const response = await apiClient.post(`/proyectos/${proyectoId}/despachos`, payload);
+  return response.data;
+}
+
+export async function getDespacho(id: string): Promise<DespachoObraDetalle> {
+  const response = await apiClient.get<DespachoObraDetalle>(`/despachos/${id}`);
+  return response.data;
+}
+
+export async function editarDespacho(id: string, payload: DatosDespacho & { items?: ItemDespachoEntrada[]; forzar?: boolean }): Promise<{ despacho: DespachoObraDetalle; avisos: string[] }> {
+  const response = await apiClient.patch(`/despachos/${id}`, payload);
+  return response.data;
+}
+
+export async function emitirDespacho(id: string, payload: { tipoGuia: TipoGuiaDespacho; numeroGuia?: string | null; fechaDespacho?: string | null }): Promise<{ despacho: DespachoObraDetalle; guia: ResultadoGuiaBsale | null }> {
+  const response = await apiClient.post(`/despachos/${id}/emitir`, payload);
+  return response.data;
+}
+
+export async function reintentarGuiaBsale(id: string): Promise<{ despacho: DespachoObraDetalle; guia: ResultadoGuiaBsale }> {
+  const response = await apiClient.post(`/despachos/${id}/guia-bsale`);
+  return response.data;
+}
+
+export async function anularDespacho(id: string, motivo: string): Promise<{ despacho: DespachoObraDetalle }> {
+  const response = await apiClient.post(`/despachos/${id}/anular`, { motivo });
+  return response.data;
+}
+
+// ==========================================
+// Instalación en obra
+// ==========================================
+
+export async function getObrasInstalacion(): Promise<ObraInstalacion[]> {
+  const response = await apiClient.get<ObraInstalacion[]>('/instalacion/obras');
+  return response.data;
+}
+
+export async function getInstalacionObra(proyectoId: string): Promise<InstalacionObra> {
+  const response = await apiClient.get<InstalacionObra>(`/proyectos/${proyectoId}/instalacion`);
+  return response.data;
+}
+
+export async function getVentanaInstalacion(ventanaId: string): Promise<VentanaInstalacionDetalle> {
+  const response = await apiClient.get<VentanaInstalacionDetalle>(`/instalacion/ventanas/${ventanaId}`);
+  return response.data;
+}
+
+export async function registrarRecepcionObra(
+  despachoId: string,
+  payload: { fechaRecepcion?: string; notas?: string | null; items: { despachoItemId: string; cantidadRecibida: number; observacion?: string | null }[] }
+): Promise<{ recepcionId: string; despacho: DespachoObraDetalle }> {
+  const response = await apiClient.post(`/despachos/${despachoId}/recepciones`, payload);
+  return response.data;
+}
+
+export async function certificarInstalacion(
+  ventanaId: string,
+  payload: { parte?: ParteVentana; notas?: string | null; fechaInstalacion?: string; forzar?: boolean }
+): Promise<{ instalacion: InstalacionVentana; ventana: VentanaObra }> {
+  const response = await apiClient.post(`/instalacion/ventanas/${ventanaId}/instalar`, payload);
+  return response.data;
+}
+
+export async function subirFotoInstalacion(instalacionId: string, archivo: Blob, nombre: string, mime: string): Promise<AdjuntoInstalacion> {
+  const response = await apiClient.post<AdjuntoInstalacion>(`/instalaciones/${instalacionId}/adjuntos`, archivo, {
+    params: { nombre },
+    headers: { 'Content-Type': mime },
+    timeout: 120000,
+  });
+  return response.data;
+}
+
+export async function getContenidoFotoInstalacion(instalacionId: string, adjuntoId: string): Promise<Blob> {
+  const response = await apiClient.get<Blob>(`/instalaciones/${instalacionId}/adjuntos/${adjuntoId}/contenido`, { responseType: 'blob', timeout: 120000 });
+  return response.data;
+}
+
+// ==========================================
+// Estados de pago (Comercial)
+// ==========================================
+
+export async function getEstadosPago(proyectoId: string): Promise<EstadoPago[]> {
+  const response = await apiClient.get<EstadoPago[]>(`/proyectos/${proyectoId}/estados-pago`);
+  return response.data;
+}
+
+export async function getDisponiblesEstadoPago(proyectoId: string, excluir?: string): Promise<DisponiblesEstadoPago> {
+  const response = await apiClient.get<DisponiblesEstadoPago>(`/proyectos/${proyectoId}/estados-pago/disponibles`, { params: { excluir } });
+  return response.data;
+}
+
+export async function crearEstadoPago(proyectoId: string, payload: DatosEstadoPago): Promise<{ estadoPago: EstadoPagoDetalle; avisos: string[] }> {
+  const response = await apiClient.post(`/proyectos/${proyectoId}/estados-pago`, payload);
+  return response.data;
+}
+
+export async function getEstadoPago(id: string): Promise<EstadoPagoDetalle> {
+  const response = await apiClient.get<EstadoPagoDetalle>(`/estados-pago/${id}`);
+  return response.data;
+}
+
+export async function editarEstadoPago(id: string, payload: Partial<DatosEstadoPago>): Promise<{ estadoPago: EstadoPagoDetalle; avisos: string[] }> {
+  const response = await apiClient.patch(`/estados-pago/${id}`, payload);
+  return response.data;
+}
+
+export async function cambiarEstadoEstadoPago(
+  id: string,
+  payload: { estado: EstadoEstadoPago; comentario?: string | null; numeroFactura?: string | null; valorUf?: number | null; fecha?: string | null }
+): Promise<{ estadoPago: EstadoPagoDetalle }> {
+  const response = await apiClient.patch(`/estados-pago/${id}/estado`, payload);
+  return response.data;
+}
