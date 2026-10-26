@@ -161,6 +161,16 @@ export const ParametrosSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdi
             onChange={(v) => set('conciliacion', { ...form.conciliacion, toleranciaFiltro: (v ?? 0) / 100 })}
           />
         </Grupo>
+        <Grupo titulo="Estados de pago" columnas={3}>
+          <Numero
+            etiqueta="Marco (cuando se cobra separado de la hoja)"
+            sufijo="%"
+            ayuda="Porcentaje del precio de la ventana que corresponde al marco; el resto es la hoja."
+            valor={form.estadoPago?.pctMarco ?? 40}
+            disabled={dis}
+            onChange={(v) => set('estadoPago', { pctMarco: Math.min(100, Math.max(0, v ?? 0)) })}
+          />
+        </Grupo>
       </div>
     </Seccion>
   );

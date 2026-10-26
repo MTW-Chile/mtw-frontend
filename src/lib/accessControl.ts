@@ -1,5 +1,5 @@
 import type { ElementType } from 'react';
-import { LayoutDashboard, Building, Building2, FolderKanban, Settings, FileText, DoorClosed, ShieldCheck, Warehouse, ShoppingCart, Users, ListChecks, Cloud, Boxes, SlidersHorizontal, Tags, Calculator, Ruler, Workflow, ClipboardList, Factory, Briefcase, Hammer, Truck, Megaphone } from 'lucide-react';
+import { LayoutDashboard, Building, Building2, FolderKanban, Settings, FileText, DoorClosed, ShieldCheck, Warehouse, ShoppingCart, Users, ListChecks, Cloud, Boxes, SlidersHorizontal, Tags, Calculator, Ruler, Workflow, ClipboardList, Factory, Briefcase, Hammer, Truck, Megaphone, HardHat } from 'lucide-react';
 import type { Permiso } from '../types';
 
 export interface EntradaAcceso {
@@ -69,7 +69,11 @@ export const SECCIONES_FRONTEND: EntradaAcceso[] = [
   // Igual: el id sigue siendo 'proyectos'.
   { id: 'proyectos', label: 'Obras en curso', icon: FolderKanban, permisos: ['obras.ver'] },
   { id: 'pendientes', label: 'Pendientes en obra', icon: ClipboardList, permisos: ['pendientes.ver'] },
-  { id: 'fabricacion', label: 'Fabricación', icon: Factory, permisos: PERMISOS_GENERALES, enConstruccion: true },
+  // Fabricación: las obras en curso vistas desde el taller (cubicación, fases,
+  // documentos de fabricación y despachos a obra).
+  { id: 'fabricacion', label: 'Fabricación', icon: Factory, permisos: ['obras.ver'] },
+  // Instalación: el Supervisor de Instalación recibe despachos y certifica la instalación.
+  { id: 'instalacion', label: 'Instalación', icon: HardHat, permisos: ['instalacion.ver'] },
   { id: 'compras', label: 'Compras', icon: ShoppingCart, permisos: ['compras.ver'] },
   { id: 'bodega', label: 'Bodega', icon: Warehouse, permisos: ['bodega.ver'] },
   { id: 'maestro', label: 'Maestro de materiales', icon: Boxes, permisos: ['catalogo.ver'] },
@@ -87,7 +91,7 @@ export type EntradaMenu = { tipo: 'seccion'; id: string } | { tipo: 'grupo'; id:
 export const MENU_LATERAL: EntradaMenu[] = [
   { tipo: 'seccion', id: 'inicio' },
   { tipo: 'grupo', id: 'comercial', titulo: 'Comercial', icon: Briefcase, secciones: ['clientes', 'proveedores', 'cotizaciones', 'proyectos', 'pendientes'] },
-  { tipo: 'grupo', id: 'taller', titulo: 'Taller', icon: Hammer, secciones: ['fabricacion', 'pendientes'] },
+  { tipo: 'grupo', id: 'taller', titulo: 'Taller', icon: Hammer, secciones: ['fabricacion', 'instalacion', 'pendientes'] },
   { tipo: 'grupo', id: 'abastecimiento', titulo: 'Abastecimiento', icon: Truck, secciones: ['compras', 'bodega', 'maestro'] },
   { tipo: 'seccion', id: 'contabilidad' },
 ];

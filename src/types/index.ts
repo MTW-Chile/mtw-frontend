@@ -358,6 +358,8 @@ export interface ParametrosGenerales {
   adicional: { requiereAprobacion: boolean; umbralAprobacionUf: number | null };
   // Conciliacion de facturas (fracciones: 0.005 = 0,5%).
   conciliacion: { toleranciaCuadre: number; toleranciaSugerencia: number; toleranciaFiltro: number };
+  // Estados de pago: % del precio de la ventana que corresponde al marco cuando se cobra separado de la hoja.
+  estadoPago: { pctMarco: number };
 }
 
 // Cómo se cubican las obras de un tipo: por torre/piso/departamento o por casa/piso/recinto.
@@ -1525,9 +1527,11 @@ export interface ObraPendiente {
   altoRectificadoMm: string | null;
   ventanaRef: string | null;
   fabricacionVentanaId: string | null;
-  fabricacionVentana?: { id: string; hetmoVentanaId: number; orden: number; modelo: string } | null;
+  fabricacionVentana?: { id: string; hetmoVentanaId: number; hetmoVentanaMadreId?: number | null; orden: number; modelo: string } | null;
   fabricacionCuadroId: string | null;
   fabricacionCuadro?: { id: string; numeroCuadro: number; tipo: 'MARCO' | 'HOJA' } | null;
+  ventanaIndividualizadaId?: string | null;
+  ventanaIndividualizada?: { id: string; nomenclatura: string | null; ubicacion: string | null; tipo: { codigo: string } } | null;
   materialId: string | null;
   material?: { id: string; skuInterno: string; descripcion: string } | null;
   fechaRequerida: string | null;
@@ -1627,6 +1631,8 @@ export interface NuevoPendientePayload {
   fabricacionVentanaId?: string;
   fabricacionCuadroId?: string;
   materialId?: string;
+  // Pendiente levantado desde Instalacion sobre una ventana cubicada.
+  ventanaIndividualizadaId?: string;
   fechaRequerida?: string;
 }
 
@@ -1943,4 +1949,326 @@ export interface PorClasificar {
     adicional: { id: string; numero: number; titulo: string; estado: EstadoAdicional; proyecto: { id: string; obra: string; codigoInterno: string | null } };
   }[];
   total: number;
+}
+
+// ==========================================
+// Despacho a obra, instalación y estados de pago (mtw-api schema bloque 12)
+// ==========================================
+
+export type ParteVentana = 'COMPLETA' | 'MARCO' | 'HOJA';
+export type EstadoVentanaObra = 'SIN_POSICION' | 'CUBICADA' | 'EN_FABRICACION' | 'FABRICADA' | 'DESPACHADA' | 'RECIBIDA' | 'INSTALADA';
+export type EstadoDespacho = 'BORRADOR' | 'EMITIDO' | 'RECIBIDO_PARCIAL' | 'RECIBIDO' | 'ANULADO';
+export type TipoGuiaDespacho = 'BSALE' | 'MANUAL' | 'SIN_GUIA';
+
+export const ETIQUETA_PARTE: Record<ParteVentana, string> = { COMPLETA: 'Completa', MARCO: 'Marco', HOJA: 'Hoja' };
+
+/** Ventana cubicada con su estado en obra (derivado en la API). Extiende UnidadCubicacion. */
+export interface VentanaObra extends UnidadCubicacion {
+  ventanaId: string | null;
+  lineaHetmo: number | null;
+  estado: EstadoVentanaObra;
+  separada: boolean;
+  partes: { parte: ParteVentana; estado: EstadoVentanaObra }[];
+  admiteSeparacion: boolean;
+  disponible: Record<ParteVentana, boolean>;
+  pendientesAbiertos: number;
+  fase: { id: string; numeroFase: number; nombre: string; estado: Fase['estado'] } | null;
+  lote: { fabricacionVentanaId: string; orden: number; modelo: string; fabricacionId: string; hetmoId: number; descripcion: string | null; estadoHetmo: number; estadoGlosa: string | null } | null;
+  despachos: { itemId: string; parte: ParteVentana; cantidad: number; cantidadRecibida: number; despachoId: string; numero: number; estado: EstadoDespacho; fechaDespacho: string | null; tipoGuia: TipoGuiaDespacho; numeroGuia: string | null }[];
+  instalaciones: { id: string; parte: ParteVentana; fechaInstalacion: string; notas: string | null; instaladoPor: { id: string; nombre: string } | null; fotos: number }[];
+}
+
+export interface UsuarioRef {
+  id: string;
+  nombre: string;
+}
+
+export interface DespachoObra {
+  id: string;
+  numero: number;
+  codigo: string;
+  proyectoId: string;
+  proyecto: { id: string; obra: string; codigoInterno: string | null; numeroPresupuesto: number };
+  faseId: string | null;
+  fase: { id: string; numeroFase: number; nombre: string; estado: Fase['estado'] } | null;
+  estado: EstadoDespacho;
+  fechaDespacho: string | null;
+  direccionEntrega: string | null;
+  comunaEntrega: string | null;
+  ciudadEntrega: string | null;
+  destinatario: string | null;
+  transportista: string | null;
+  patente: string | null;
+  notas: string | null;
+  tipoGuia: TipoGuiaDespacho;
+  numeroGuia: string | null;
+  bsaleDespachoId: number | null;
+  bsaleDocumentoId: number | null;
+  bsaleUrlPdf: string | null;
+  bsaleUrlPublica: string | null;
+  bsaleEmitidaEn: string | null;
+  bsaleError: string | null;
+  creadoPor: UsuarioRef | null;
+  emitidoPor: UsuarioRef | null;
+  anuladoPor: UsuarioRef | null;
+  anuladoEn: string | null;
+  motivoAnulacion: string | null;
+  creadoEn: string;
+  actualizadoEn: string;
+  _count: { items: number; recepciones: number };
+}
+
+export interface DespachoObraItem {
+  id: string;
+  parte: ParteVentana;
+  cantidad: number;
+  cantidadRecibida: number;
+  descripcion: string;
+  ventana: VentanaObra;
+}
+
+export interface RecepcionObra {
+  id: string;
+  despachoId: string;
+  fechaRecepcion: string;
+  notas: string | null;
+  recibidoPor: UsuarioRef | null;
+  items: { id: string; despachoItemId: string; cantidadRecibida: number; observacion: string | null }[];
+}
+
+export interface DespachoObraDetalle extends DespachoObra {
+  items: DespachoObraItem[];
+  recepciones: RecepcionObra[];
+}
+
+export interface DatosDespacho {
+  faseId?: string | null;
+  fechaDespacho?: string | null;
+  direccionEntrega?: string | null;
+  comunaEntrega?: string | null;
+  ciudadEntrega?: string | null;
+  destinatario?: string | null;
+  transportista?: string | null;
+  patente?: string | null;
+  notas?: string | null;
+}
+
+export interface ItemDespachoEntrada {
+  ventanaIndividualizadaId: string;
+  parte?: ParteVentana;
+}
+
+export interface ResultadoGuiaBsale {
+  ok: boolean;
+  error: string | null;
+}
+
+export interface EstadoBsale {
+  configurado: boolean;
+  url: string | null;
+  officeId: number | null;
+  shippingTypeId: number | null;
+  declararSii: boolean | null;
+}
+
+/** Despacho emitido con lo que falta por recibir en obra. */
+export interface DespachoPorRecibir {
+  id: string;
+  numero: number;
+  codigo: string;
+  estado: EstadoDespacho;
+  fechaDespacho: string | null;
+  tipoGuia: TipoGuiaDespacho;
+  numeroGuia: string | null;
+  bsaleUrlPdf: string | null;
+  transportista: string | null;
+  notas: string | null;
+  fase: { id: string; numeroFase: number; nombre: string } | null;
+  totalItems: number;
+  itemsPendientes: number;
+  items: { id: string; parte: ParteVentana; cantidad: number; cantidadRecibida: number; descripcion: string; ventanaIndividualizadaId: string; pendiente: number }[];
+}
+
+export interface ObraInstalacion {
+  id: string;
+  obra: string;
+  codigoInterno: string | null;
+  numeroPresupuesto: number;
+  clienteNombreRaw: string;
+  clienteDireccionRaw: string | null;
+  clienteLocalidadRaw: string | null;
+  origen: Proyecto['origen'];
+  tipoProyecto: { nombre: string; modoCubicacion: ModoCubicacion };
+  ventanas: number;
+  instaladas: number;
+  despachosPorRecibir: number;
+  pendientesAbiertos: number;
+}
+
+export interface NodoUnidadInstalacion {
+  id: string;
+  nombre: string;
+  recintos: { id: string; nombre: string }[];
+  ventanas: VentanaObra[];
+}
+
+export interface InstalacionObra {
+  proyecto: { id: string; obra: string; codigoInterno: string | null; numeroPresupuesto: number; cliente: string; direccion: string | null; tieneCarpetaOneDrive: boolean; versionActivaId: string | null } | null;
+  modo: ModoCubicacion;
+  torres: { id: string; nombre: string; pisos: { id: string; numero: number; unidades: NodoUnidadInstalacion[] }[]; especiales: NodoUnidadInstalacion[] }[];
+  unica: VentanaObra[];
+  areasComunes: VentanaObra[];
+  sinPosicion: number;
+  resumen: Record<EstadoVentanaObra, number> & { total: number; conPendiente: number };
+  despachosPorRecibir: DespachoPorRecibir[];
+}
+
+export interface AdjuntoInstalacion {
+  id: string;
+  instalacionId: string;
+  nombre: string;
+  mime: string;
+  tamano: number;
+  webUrl: string | null;
+  subidoPor: UsuarioRef | null;
+  creadoEn: string;
+}
+
+export interface InstalacionVentana {
+  id: string;
+  ventanaIndividualizadaId: string;
+  parte: ParteVentana;
+  fechaInstalacion: string;
+  notas: string | null;
+  instaladoPor: UsuarioRef | null;
+  adjuntos: AdjuntoInstalacion[];
+}
+
+export interface VentanaEvento {
+  id: string;
+  estadoAnterior: EstadoVentanaObra | null;
+  estadoNuevo: EstadoVentanaObra;
+  parte: ParteVentana;
+  comentario: string | null;
+  usuario: UsuarioRef | null;
+  despacho: { id: string; numero: number; codigo: string } | null;
+  creadoEn: string;
+}
+
+export interface VentanaInstalacionDetalle {
+  ventana: VentanaObra;
+  proyecto: { id: string; obra: string };
+  eventos: VentanaEvento[];
+  pendientes: { id: string; numero: number; tipo: TipoElementoPendiente; motivo: MotivoPendiente; estado: EstadoPendiente; descripcion: string; fechaReporte: string; etapa: { nombre: string } | null }[];
+  instalaciones: InstalacionVentana[];
+}
+
+// ---- Estados de pago ----
+
+export type EstadoEstadoPago = 'BORRADOR' | 'PRESENTADO' | 'APROBADO' | 'RECHAZADO' | 'FACTURADO' | 'PAGADO' | 'ANULADO';
+
+export interface TotalesEstadoPago {
+  montoBrutoUF: number;
+  retencionUF: number;
+  anticipoUF: number;
+  descuentoUF: number;
+  montoNetoUF: number;
+}
+
+export interface EstadoPago {
+  id: string;
+  proyectoId: string;
+  numero: number;
+  codigo: string;
+  titulo: string;
+  estado: EstadoEstadoPago;
+  periodoDesde: string | null;
+  periodoHasta: string | null;
+  montoBrutoUF: string | number;
+  retencionPct: string | number;
+  anticipoPct: string | number;
+  descuentoUF: string | number;
+  montoNetoUF: string | number;
+  valorUfFactura: string | number | null;
+  montoCLP: string | number | null;
+  fechaPresentacion: string | null;
+  fechaAprobacion: string | null;
+  fechaFactura: string | null;
+  numeroFactura: string | null;
+  fechaPago: string | null;
+  motivoRechazo: string | null;
+  observaciones: string | null;
+  creadoPor: UsuarioRef | null;
+  aprobadoPor: UsuarioRef | null;
+  totales: TotalesEstadoPago;
+  creadoEn: string;
+  actualizadoEn: string;
+  _count: { items: number };
+}
+
+export interface EstadoPagoItem {
+  id: string;
+  orden: number;
+  ventanaIndividualizadaId: string | null;
+  ventanaIndividualizada: { id: string; nomenclatura: string | null; ubicacion: string | null; tipo: { codigo: string; ventanaId: string | null } } | null;
+  parte: ParteVentana;
+  faseId: string | null;
+  fase: { id: string; numeroFase: number; nombre: string } | null;
+  adicionalId: string | null;
+  adicional: { id: string; numero: number; titulo: string; estado: EstadoAdicional } | null;
+  descripcion: string;
+  cantidad: string | number;
+  porcentaje: string | number;
+  precioUnitarioUF: string | number;
+  montoUF: string | number;
+}
+
+export interface EstadoPagoEvento {
+  id: string;
+  estadoAnterior: EstadoEstadoPago | null;
+  estadoNuevo: EstadoEstadoPago;
+  comentario: string | null;
+  usuario: UsuarioRef | null;
+  creadoEn: string;
+}
+
+export interface EstadoPagoDetalle extends EstadoPago {
+  items: EstadoPagoItem[];
+  eventos: EstadoPagoEvento[];
+}
+
+export type ItemEstadoPagoEntrada =
+  | { tipo: 'VENTANA'; ventanaIndividualizadaId: string; parte?: ParteVentana }
+  | { tipo: 'FASE'; faseId: string; parte?: ParteVentana }
+  | { tipo: 'ADICIONAL'; adicionalId: string }
+  | { tipo: 'LIBRE'; descripcion: string; cantidad?: number; precioUnitarioUF: number };
+
+export interface DatosEstadoPago {
+  titulo: string;
+  periodoDesde?: string | null;
+  periodoHasta?: string | null;
+  retencionPct?: number;
+  anticipoPct?: number;
+  descuentoUF?: number;
+  observaciones?: string | null;
+  items?: ItemEstadoPagoEntrada[];
+}
+
+export interface VentanaCobrable extends VentanaObra {
+  precioUnitarioUF: number | null;
+  montoCompletaUF: number | null;
+  montoMarcoUF: number | null;
+  montoHojaUF: number | null;
+  cobrada: { parte: ParteVentana; estadoPago: string; estado: EstadoEstadoPago }[];
+  cobrable: Record<ParteVentana, boolean>;
+}
+
+export interface DisponiblesEstadoPago {
+  pctMarco: number;
+  moneda: string;
+  tipoCambioUF: number;
+  ventaTotalUF: number | null;
+  ventanas: VentanaCobrable[];
+  fases: { id: string; numeroFase: number; nombre: string; estado: Fase['estado']; ventanas: number; instaladas: number; cobrables: number; montoCobrableUF: number }[];
+  adicionales: { id: string; numero: number; titulo: string; estado: EstadoAdicional; montoUF: number; cobradoEn: string | null }[];
 }

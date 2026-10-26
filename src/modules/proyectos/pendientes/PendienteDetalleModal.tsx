@@ -9,6 +9,7 @@ import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { formatoFechaHora } from '../fabricacion/utils';
 import { AdjuntosDetalle } from './adjuntos/AdjuntosDetalle';
+import { DibujoVentana } from '../obra/DibujoVentana';
 import { NuevaOrdenCompraModal } from '../../abastecimiento/NuevaOrdenCompraModal';
 import { usePermisos } from '../../../lib/permisos';
 import { ETIQUETA_CARGO, ETIQUETA_NATURALEZA } from '../../../types';
@@ -121,6 +122,16 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
         ) : (
           <>
 
+            {(p.ventanaIndividualizada || p.fabricacionVentana) && (
+              <div className="flex gap-3 items-center">
+                <DibujoVentana proyectoId={proyectoId} ventanaId={undefined} lineaHetmo={p.fabricacionVentana?.hetmoVentanaMadreId ?? null} className="h-24 w-32 shrink-0" />
+                <div className="text-xs text-slate-600">
+                  <p className="font-bold font-mono text-slate-900">{p.ventanaIndividualizada?.nomenclatura ?? p.ventanaIndividualizada?.tipo.codigo ?? p.fabricacionVentana?.modelo}</p>
+                  {p.ventanaIndividualizada?.ubicacion && <p>{p.ventanaIndividualizada.ubicacion}</p>}
+                  {p.fabricacionVentana && <p className="text-[11px] text-slate-500">Pos {p.fabricacionVentana.orden} · {p.fabricacionVentana.modelo}</p>}
+                </div>
+              </div>
+            )}
             <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3 rounded-xl bg-slate-50 border border-slate-200 p-3">
               <Dato etiqueta="Qué">{ETIQUETA_TIPO[p.tipo]}</Dato>
               <Dato etiqueta="Motivo">{ETIQUETA_MOTIVO[p.motivo]}</Dato>

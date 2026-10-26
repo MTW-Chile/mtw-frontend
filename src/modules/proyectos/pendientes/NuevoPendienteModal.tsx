@@ -8,7 +8,9 @@ import type {
   MotivoPendiente,
   Proyecto,
   TipoElementoPendiente,
+  VentanaObra,
 } from '../../../types';
+import { DibujoVentana } from '../obra/DibujoVentana';
 import { ETIQUETA_CARGO } from '../../../types';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import { formatoMm } from '../fabricacion/utils';
@@ -39,6 +41,8 @@ interface Props {
   proyecto: Proyecto;
   onClose: () => void;
   onCreado: () => void;
+  /** Desde Instalación: el pendiente es de ESTA ventana cubicada (queda preseleccionada). */
+  ventanaCubicada?: VentanaObra;
 }
 
 const etiqueta = 'block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5';
@@ -47,14 +51,14 @@ const etiqueta = 'block text-xs font-bold text-slate-700 uppercase tracking-wide
 // elige el documento y la ventana, y para un vidrio, hoja o material el sistema
 // ofrece los de ESA ventana tal como se fabricaron (con su medida real: una
 // ventana rectificada pide el vidrio rectificado) y arma la descripcion.
-export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCreado }) => {
+export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCreado, ventanaCubicada }) => {
   const queryClient = useQueryClient();
 
-  const [tipo, setTipo] = useState<TipoElementoPendiente>('VIDRIO');
-  const [motivo, setMotivo] = useState<MotivoPendiente>('FALLA');
-  const [fabElegida, setFabElegida] = useState('');
+  const [tipo, setTipo] = useState<TipoElementoPendiente>(ventanaCubicada ? 'VENTANA' : 'VIDRIO');
+  const [motivo, setMotivo] = useState<MotivoPendiente>(ventanaCubicada ? 'DANO_INSTALACION' : 'FALLA');
+  const [fabElegida, setFabElegida] = useState(ventanaCubicada?.lote?.fabricacionId ?? '');
   const [filtroVentana, setFiltroVentana] = useState('');
-  const [ventanaId, setVentanaId] = useState('');
+  const [ventanaId, setVentanaId] = useState(ventanaCubicada?.lote?.fabricacionVentanaId ?? '');
   const [elementoId, setElementoId] = useState(''); // vidrio / hoja / material elegido de la ventana
   const [notas, setNotas] = useState('');
   const [responsable, setResponsable] = useState('');
@@ -171,8 +175,9 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
           rectificando && rectificacionValida && medidaOriginal
             ? { anchoMm: nuevoAncho!, altoMm: nuevoAlto!, anchoOriginalMm: medidaOriginal.ancho, altoOriginalMm: medidaOriginal.alto }
             : undefined,
-        ventanaRef: ventana ? `Pos ${ventana.orden} · ${ventana.modelo}` : undefined,
+        ventanaRef: ventanaCubicada ? ventanaCubicada.nomenclatura ?? ventanaCubicada.codigo : ventana ? `Pos ${ventana.orden} · ${ventana.modelo}` : undefined,
         fabricacionVentanaId: ventana?.id,
+        ventanaIndividualizadaId: ventanaCubicada?.id,
         fabricacionCuadroId: tipo === 'HOJA' && elementoId ? elementoId : undefined,
         fechaRequerida: fechaRequerida || undefined,
       });
@@ -217,6 +222,18 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
         </Modal.Pie>
       }
     >
+      {/* Imagen de la ventana para referencia: la cubicada (Instalación) o la línea madre de la ventana de fabricación elegida. */}
+      {(ventanaCubicada || ventana) && (
+        <div className="flex gap-3 items-stretch">
+          <DibujoVentana proyectoId={proyecto.id} ventanaId={ventanaCubicada?.ventanaId} lineaHetmo={ventanaCubicada ? undefined : ventana?.hetmoVentanaMadreId} className="h-28 w-36 shrink-0" />
+          <div className="text-xs text-slate-600 space-y-0.5 min-w-0">
+            <p className="font-bold text-slate-900 font-mono">{ventanaCubicada ? ventanaCubicada.nomenclatura ?? ventanaCubicada.codigo : ventana?.modelo}</p>
+            {ventanaCubicada && <p className="truncate">{ventanaCubicada.sistema}{ventanaCubicada.nombreUnidad ? ` · ${ventanaCubicada.torre ? `${ventanaCubicada.torre} ` : ''}${ventanaCubicada.nombreUnidad}` : ''}{ventanaCubicada.ubicacion ? ` · ${ventanaCubicada.ubicacion}` : ''}</p>}
+            {ventana && <p>Pos {ventana.orden} · {formatoMm(ventana.anchoMm)} × {formatoMm(ventana.altoMm)} mm</p>}
+            {ventanaCubicada && !ventanaCubicada.lote && <p className="text-[11px] text-amber-700">Sin documento de fabricación vinculado: el pendiente queda ligado a la ventana cubicada.</p>}
+          </div>
+        </div>
+      )}
       <div className="grid sm:grid-cols-2 gap-3">
         <div>
           <Select label="Qué falta" id="pend-tipo" value={tipo} onChange={(e) => cambiarTipo(e.target.value as TipoElementoPendiente)}>

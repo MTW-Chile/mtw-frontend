@@ -42,7 +42,11 @@ const formatoMonto = (valor: number, simbolo?: string | null) =>
 // arranca la ejecucion real: comprar, guardar en bodega, controlar el
 // gasto contra el presupuesto). Cotizaciones sigue siendo el modulo
 // aparte para lo que todavia se esta negociando.
-export const ProyectosPage: React.FC = () => {
+// modo 'fabricacion' (seccion Fabricacion del menu): la misma lista, pero la
+// obra se abre con las pestañas del taller (cubicacion, fabricacion, despachos)
+// y sin crear obras manuales.
+export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ modo = 'obra' }) => {
+  const esFabricacion = modo === 'fabricacion';
   // Proyecto abierto y su seccion viven en la URL (?proyecto=<id>&seccion=...)
   // -- ver lib/navigation.ts. Atras del navegador vuelve al listado.
   const [proyectoId] = useUrlParam('proyecto');
@@ -76,13 +80,14 @@ export const ProyectosPage: React.FC = () => {
         proyectoId={proyectoId}
         seccionInicial={seccionUrl ?? undefined}
         onVolver={() => setProyectoId(null)}
+        modo={modo}
       />
     );
   }
 
   // Una obra manual no tiene presupuesto ni fases planificadas: entra directo a
   // Fabricacion, que es donde se le vinculan sus documentos.
-  const abrir = (p: Proyecto) => actualizarParams({ proyecto: p.id, seccion: p.origen === 'MANUAL_OBRA' ? 'fabricacion' : null });
+  const abrir = (p: Proyecto) => actualizarParams({ proyecto: p.id, seccion: esFabricacion || p.origen === 'MANUAL_OBRA' ? 'fabricacion' : null });
 
   const filaFases = (p: Proyecto) => {
     const resumen = p.fasesResumen;
@@ -94,12 +99,14 @@ export const ProyectosPage: React.FC = () => {
     <div className={PAGE_CONTAINER_CLASS}>
       {/* Título, contador y acciones viven en el Header del sitio (portal), igual que Presupuestos. */}
       <HeaderSeccion
-        titulo="Obras en curso"
+        titulo={esFabricacion ? 'Fabricación' : 'Obras en curso'}
         count={isLoading ? undefined : proyectosEnCurso.length}
         acciones={
-          <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setCreandoObraManual(true)}>
-            Nueva obra manual
-          </Button>
+          esFabricacion ? undefined : (
+            <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setCreandoObraManual(true)}>
+              Nueva obra manual
+            </Button>
+          )
         }
       />
 
