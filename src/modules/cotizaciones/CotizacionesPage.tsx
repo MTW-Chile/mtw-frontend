@@ -193,12 +193,8 @@ export const CotizacionesPage: React.FC<{
 
   return (
     <div className={PAGE_CONTAINER_CLASS}>
-      {/* Titulo, contador y acciones viven en el Header del sitio (portal), no en una cabecera propia. */}
+      {/* Titulo y acciones viven en el Header del sitio (portal), no en una cabecera propia. */}
       <HeaderSlot>
-        <Badge size="sm" variant="default" className="hidden min-[420px]:inline-flex font-mono font-bold text-slate-600" title={`${proyectos.length} presupuestos`}>
-          {proyectos.length}
-        </Badge>
-
         <div className="ml-auto flex items-center gap-2 shrink-0">
           <div className="hidden @5xl:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs bg-white border border-slate-200 text-slate-600 shadow-xs">
             <Clock className="w-3.5 h-3.5 text-brand-600" />
