@@ -1,5 +1,5 @@
 import type { BadgeVariant } from '../../../components/ui/Badge';
-import type { FabricacionCuadro, ReporteVinculacionCubicacion } from '../../../types';
+import type { FabricacionCuadro, ReporteVinculacionCubicacion, ResultadoVinculoFabricacion } from '../../../types';
 
 // Estados del documento de fabricacion en HETMO (catalogo "lote", plantilla
 // 50001): 0 generando, 1 cerrado, 2 optimizado, 3 autorizado, 4 en
@@ -55,4 +55,19 @@ export function formatoFechaHora(valor: string | null | undefined): string {
   if (!valor) return '—';
   const d = new Date(valor);
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+// Resumen de una tanda de vinculos para el aviso: documentos, ventanas leidas
+// y cuantas calzaron con la cubicacion.
+export function textoVinculosMultiples(resultados: ResultadoVinculoFabricacion[], fallidos: string[]): string {
+  const partes: string[] = [];
+  if (resultados.length) {
+    const ventanas = resultados.reduce((s, r) => s + r.ventanas.nuevas, 0);
+    const conCubicacion = resultados.reduce((s, r) => s + (r.vinculacionCubicacion?.vinculadas ?? 0), 0);
+    partes.push(`${resultados.length} documento(s) vinculado(s): ${ventanas} ventana(s) leída(s)${conCubicacion ? `, ${conCubicacion} conectada(s) con la cubicación` : ''}.`);
+    const advertencias = resultados.flatMap((r) => r.advertencias);
+    if (advertencias.length) partes.push(advertencias.join(' '));
+  }
+  if (fallidos.length) partes.push(`${fallidos.length} no se pudo vincular: ${fallidos.join('; ')}`);
+  return partes.join(' ');
 }

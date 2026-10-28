@@ -44,7 +44,7 @@ export const Header: React.FC<HeaderProps> = ({
     // global refetchOnWindowFocus:false, ver App.tsx) -- ademas se
     // invalida al toque desde las mutaciones que crean/resuelven un
     // pendiente (ver useCotizadorWorkspace, OrdenesCompraList,
-    // NuevaOrdenCompraModal), este poll es la red de seguridad para
+    // OrdenCompraModal), este poll es la red de seguridad para
     // cuando el cambio lo hizo OTRO usuario mientras este navega.
     refetchInterval: 1000 * 20,
     refetchOnWindowFocus: true,
@@ -124,8 +124,14 @@ export const Header: React.FC<HeaderProps> = ({
           aria-haspopup="true"
           title={`Sesión iniciada como: ${nombreUsuario}`}
         >
-          <div className="w-7 h-7 sm:w-6 sm:h-6 rounded-full bg-brand-600/10 text-brand-600 flex items-center justify-center text-xs font-bold shrink-0">
+          {/* El contador de notificaciones va tambien aqui, siempre visible (el detalle esta en el menu y en el Centro). */}
+          <div className="relative w-7 h-7 sm:w-6 sm:h-6 rounded-full bg-brand-600/10 text-brand-600 flex items-center justify-center text-xs font-bold shrink-0">
             <User className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+            {!!pendientes?.total && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-signal ring-2 ring-white text-white text-[9px] font-bold flex items-center justify-center" aria-label={`${pendientes.total} notificaciones pendientes`}>
+                {pendientes.total > 9 ? '9+' : pendientes.total}
+              </span>
+            )}
           </div>
           <div className="hidden sm:block text-xs text-slate-600 font-medium truncate text-left">
             <strong className="text-slate-900 font-bold truncate">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { QueryClient, QueryClientProvider, QueryCache, MutationCache, useQuery } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { InicioPage } from './modules/inicio/InicioPage';
@@ -16,9 +16,7 @@ import { MaestroMaterialesPage } from './modules/abastecimiento/MaestroMateriale
 import { PendientesPage } from './modules/proyectos/pendientes/PendientesPage';
 import { EnConstruccionPage } from './modules/en-construccion/EnConstruccionPage';
 import { InstalacionPage } from './modules/instalacion/InstalacionPage';
-import { getProyectos } from './api/client';
-import { clavePresupuestos, consultarPresupuestos } from './modules/cotizaciones/presupuestosQuery';
-import { esPresupuestoPrincipal } from './lib/estadosHetmo';
+import { DespachosPage } from './modules/despachos/DespachosPage';
 import { useCloudflareAccessSession, SessionContext } from './lib/useCloudflareAccessSession';
 import { SECCIONES_FRONTEND, entradaVisible } from './lib/accessControl';
 import { usePermisos } from './lib/permisos';
@@ -155,27 +153,6 @@ const AppContent: React.FC = () => {
     document.title = `MTW ERP - ${title}`;
   }, [activeTab]);
 
-  // Insignia de Presupuestos: cuenta SOLO lo del filtro por defecto (cerrados
-  // de HETMO + presupuestos manuales). Misma clave y consulta que la lista
-  // (ver presupuestosQuery.ts) -- comparten cache y siempre coinciden.
-  const { data: presupuestosData } = useQuery({
-    queryKey: clavePresupuestos('PRINCIPAL'),
-    queryFn: () => consultarPresupuestos('PRINCIPAL'),
-    staleTime: 1000 * 30,
-    enabled: puedeVer('cotizaciones'),
-  });
-  const totalPresupuestos = (presupuestosData?.data ?? []).filter(esPresupuestoPrincipal).length;
-
-  // Mismo queryKey que ProyectosPage (['proyectos', 'en-curso']) para
-  // compartir el cache -- el badge del Sidebar no dispara un fetch extra.
-  const { data: proyectosEnCursoData } = useQuery({
-    queryKey: ['proyectos', 'en-curso'],
-    queryFn: () => getProyectos({ limit: 200 }),
-    enabled: puedeVer('proyectos'),
-  });
-  const totalProyectosEnCurso = (proyectosEnCursoData?.data || []).filter(
-    (p) => p.versiones[0]?.estadoAprobacion === 'ACEPTADO_CLIENTE'
-  ).length;
 
   const handleNavigate = (tab: string, query?: string) => {
     setActiveTabState(tab);
@@ -254,8 +231,6 @@ const AppContent: React.FC = () => {
         setActiveTab={handleNavigate}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
-        totalProyectos={totalPresupuestos}
-        totalProyectosEnCurso={totalProyectosEnCurso}
         seccionesPermitidas={seccionesPermitidas}
       />
 
@@ -285,6 +260,8 @@ const AppContent: React.FC = () => {
           {/* Fabricación: las mismas obras en curso, con las pestañas del taller (ver ProyectosPage). */}
           {activeTab === 'fabricacion' && <ProyectosPage modo="fabricacion" />}
 
+          {activeTab === 'despachos' && <DespachosPage />}
+
           {activeTab === 'instalacion' && <InstalacionPage />}
 
           {activeTab === 'compras' && <ComprasPage />}
@@ -297,7 +274,7 @@ const AppContent: React.FC = () => {
 
           {activeTab === 'pendientes' && <PendientesPage />}
 
-          {activeTab === 'contabilidad' && <EnConstruccionPage seccion={activeTab} titulo={MODULE_TITLES[activeTab]} />}
+          {(activeTab === 'contabilidad' || activeTab === 'reportes') && <EnConstruccionPage seccion={activeTab} titulo={MODULE_TITLES[activeTab]} />}
 
           {activeTab === 'configuracion' && (
             <ConfiguracionPage />

@@ -84,11 +84,11 @@ export function useRequerimientoFase(proyectoId: string, faseId: string | undefi
   });
 }
 
-export function useRequerimientosFases(proyectoId: string, faseIds: string[]) {
+export function useRequerimientosFases(proyectoId: string, faseIds: string[], descontarStock = true) {
   return useQueries({
     queries: faseIds.map((faseId) => ({
-      queryKey: requerimientoKey(proyectoId, faseId),
-      queryFn: () => getRequerimientoFase(faseId),
+      queryKey: requerimientoKey(proyectoId, faseId, descontarStock),
+      queryFn: () => getRequerimientoFase(faseId, descontarStock),
     })),
   });
 }

@@ -7,7 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Buscador } from '../../components/ui/Buscador';
 import { BotonColapsar } from '../../components/ui/BotonColapsar';
-import { FiltroChips } from '../../components/ui/FiltroChips';
+import { Segmentado } from '../../components/ui/Segmentado';
 import { Cargando, EstadoVacio, ErrorCarga } from '../../components/ui/Estados';
 import { usePermisos } from '../../lib/permisos';
 import { useMigas } from '../../lib/migas';
@@ -37,13 +37,14 @@ const pasaFiltro = (v: VentanaObra, f: FiltroEstado, q: string): boolean => {
 };
 
 // Chip de una ventana: el color dice el estado de un vistazo; tocarla abre su ficha.
+// pointer-coarse: en tablets y celulares (dedo) el chip mide al menos 44 px, cualquiera sea el ancho.
 const ChipVentana: React.FC<{ v: VentanaObra; onClick: () => void }> = ({ v, onClick }) => (
   // eslint-disable-next-line react/forbid-elements -- chip táctil propio del plano (mínimo 44 px de alto en móvil)
   <button
     type="button"
     onClick={onClick}
     title={`${nombreVentana(v)} · ${v.sistema} · ${ETIQUETA_ESTADO_VENTANA[v.estado]}`}
-    className={`relative inline-flex min-h-11 sm:min-h-8 items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-mono font-bold leading-tight transition-colors hover:brightness-95 active:scale-[0.98] cursor-pointer ${CLASE_CHIP_ESTADO[v.estado]}`}
+    className={`relative inline-flex min-h-11 sm:min-h-8 pointer-coarse:min-h-11 pointer-coarse:px-3 items-center gap-1 rounded-lg border px-2 py-1 text-[11px] pointer-coarse:text-xs font-mono font-bold leading-tight transition-colors hover:brightness-95 active:scale-[0.98] cursor-pointer ${CLASE_CHIP_ESTADO[v.estado]}`}
   >
     {v.estado === 'INSTALADA' ? '✓ ' : ''}
     {nombreVentana(v)}
@@ -67,7 +68,7 @@ const TarjetaUnidad: React.FC<{ nodo: NodoUnidadInstalacion; ventanas: VentanaOb
           {instaladas}/{ventanas.length}
         </span>
       </div>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-1.5 pointer-coarse:gap-2">
         {ventanas.map((v) => (
           <ChipVentana key={v.id} v={v} onClick={() => onVentana(v.id)} />
         ))}
@@ -167,14 +168,14 @@ export const InstalacionObra: React.FC<{ proyectoId: string }> = ({ proyectoId }
                     {d.transportista ? ` · ${d.transportista}` : ''}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 max-sm:[&>*]:flex-1">
                   {d.bsaleUrlPdf && (
-                    <Button size="sm" variant="ghost" onClick={() => window.open(d.bsaleUrlPdf!, '_blank', 'noopener')}>
+                    <Button size="sm" variant="ghost" className="pointer-coarse:min-h-11" onClick={() => window.open(d.bsaleUrlPdf!, '_blank', 'noopener')}>
                       Guía
                     </Button>
                   )}
                   {tiene('instalacion.recibir') && (
-                    <Button size="sm" variant="primary" leftIcon={<PackageCheck className="w-3.5 h-3.5" />} onClick={() => setRecibiendo(d)}>
+                    <Button size="sm" variant="primary" className="pointer-coarse:min-h-11" leftIcon={<PackageCheck className="w-3.5 h-3.5" />} onClick={() => setRecibiendo(d)}>
                       Recibir
                     </Button>
                   )}
@@ -188,7 +189,7 @@ export const InstalacionObra: React.FC<{ proyectoId: string }> = ({ proyectoId }
       {/* Filtros */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-2">
         <div className="flex-1">
-          <FiltroChips etiqueta="Filtrar ventanas" opciones={resumenChips} valor={filtro} onChange={setFiltro} />
+          <Segmentado etiqueta="Filtrar ventanas" opciones={resumenChips.map((c) => ({ value: c.id, label: c.label, contador: c.total }))} valor={filtro} onChange={setFiltro} />
         </div>
         <div className="sm:w-64">
           <Buscador compacto valor={busqueda} onChange={setBusqueda} placeholder="Buscar ventana…" etiqueta="Buscar ventana" />
@@ -213,7 +214,7 @@ export const InstalacionObra: React.FC<{ proyectoId: string }> = ({ proyectoId }
                 sinRelleno
               >
                 {torre.especiales.length > 0 && (
-                  <div className="px-4 py-3 border-b border-slate-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  <div className="px-4 py-3 border-b border-slate-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 pointer-coarse:gap-3">
                     {torre.especiales.map((u) => (
                       <TarjetaUnidad key={u.id} nodo={u} ventanas={filtrar(u.ventanas)} etiqueta="" onVentana={setVentanaAbierta} />
                     ))}
@@ -228,7 +229,7 @@ export const InstalacionObra: React.FC<{ proyectoId: string }> = ({ proyectoId }
                     const cerrado = cerrados.has(piso.id);
                     return (
                       <div key={piso.id} className="px-3 py-2">
-                        <BotonColapsar abierto={!cerrado} onClick={() => alternarPiso(piso.id)} className="w-full">
+                        <BotonColapsar abierto={!cerrado} onClick={() => alternarPiso(piso.id)} className="w-full pointer-coarse:min-h-11">
                           <span className="flex items-center justify-between gap-2 flex-1 text-left">
                             <span className="text-xs font-bold text-slate-800">Piso {piso.numero}</span>
                             <span className={`text-[11px] font-mono tabular-nums ${inst === delPiso.length && delPiso.length > 0 ? 'text-emerald-700' : 'text-slate-500'}`}>
@@ -237,7 +238,7 @@ export const InstalacionObra: React.FC<{ proyectoId: string }> = ({ proyectoId }
                           </span>
                         </BotonColapsar>
                         {!cerrado && (
-                          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+                          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 pointer-coarse:gap-3">
                             {piso.unidades.map((u) => (
                               <TarjetaUnidad key={u.id} nodo={u} ventanas={filtrar(u.ventanas)} etiqueta={voc.unidadCorta} onVentana={setVentanaAbierta} />
                             ))}

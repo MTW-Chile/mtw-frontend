@@ -97,11 +97,14 @@ export const Modal: React.FC<ModalProps> & { Pie: typeof Pie } = ({ titulo, subt
   );
 };
 
-/** Pie del modal: acciones a la derecha (Cancelar a la izquierda de la principal). `inicio`: algo a la izquierda (ej. un total). */
+/**
+ * Pie del modal: acciones a la derecha (Cancelar a la izquierda de la principal). `inicio`: algo a la izquierda (ej. un total).
+ * En pantallas angostas (celular, tablet vertical) las acciones pasan debajo y se reparten el ancho, con alto táctil.
+ */
 const Pie: React.FC<{ children: React.ReactNode; inicio?: React.ReactNode }> = ({ children, inicio }) => (
-  <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between gap-2.5 shrink-0">
+  <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/70 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
     <div className="text-[11px] text-slate-500 min-w-0">{inicio}</div>
-    <div className="flex items-center gap-2.5 shrink-0">{children}</div>
+    <div className="flex items-center gap-2.5 shrink-0 ml-auto max-sm:w-full max-sm:[&>*]:flex-1 max-sm:[&>*]:min-h-11 pointer-coarse:[&>*]:min-h-11">{children}</div>
   </div>
 );
 Modal.Pie = Pie;

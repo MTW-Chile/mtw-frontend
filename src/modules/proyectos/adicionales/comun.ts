@@ -21,13 +21,14 @@ export const clp = (v: number) => v.toLocaleString('es-CL', { style: 'currency',
 export const uf = (v: number) => `${v.toLocaleString('es-CL', { maximumFractionDigits: 2 })} UF`;
 
 /**
- * Divisas vigentes para cotizar un adicional: las del día (mindicador) y, si no
- * se pudieron obtener, las de respaldo de Configuración › Comercial.
+ * Divisas vigentes para cotizar un adicional: las del día (GET /api/indicadores)
+ * y, si no se pudieron obtener o vienen desactualizadas, las de respaldo de
+ * Configuración › Comercial.
  */
 export function useTasasVigentes(): { tasas: { dolar: number; euro: number; uf: number } | null; delDia: boolean } {
   const { indicadores } = useIndicadoresChile();
   const parametros = useParametrosGenerales();
-  if (indicadores?.dolar && indicadores.euro && indicadores.uf) {
+  if (indicadores && !indicadores.desactualizado && indicadores.dolar && indicadores.euro && indicadores.uf) {
     return { tasas: { dolar: indicadores.dolar, euro: indicadores.euro, uf: indicadores.uf }, delDia: true };
   }
   return { tasas: parametros?.tasasRespaldo ?? null, delDia: false };

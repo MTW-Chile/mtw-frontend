@@ -9,6 +9,38 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - **Parche** (2.0.0 → 2.0.1): ajustes y mejoras acotadas, cada despliegue.
 - **Corrección urgente** sobre un parche (2.0.4 → 2.0.4.1; en package.json, 2.0.4-1): la decide Alfredo.
 
+## Alpha v2.2.0 — 2026-10-28
+
+**Estados de pago por hitos (Comercial)**
+- Cada ventana se cobra en cuatro hitos: marco, hoja, R1 y RF. Los porcentajes, el anticipo y la retención se configuran **por obra** (Configuración de cobro en la pestaña Estados de pago); Configuración › Comercial guarda solo los valores por defecto para una obra nueva (45 / 45 / 5 / 5).
+- Los montos cobrados solo los ve quien tiene el permiso de ver estados de pago: sin él, las listas y la ficha de la obra no los muestran.
+- Los estados de pago anteriores (marco / hoja / completa) se conservan tal cual.
+
+**Abastecimiento: una pantalla por rol**
+- **Solicitud de materiales** (Obra › Abastecimiento, Fases y Pendientes): quien pide material ve el stock como columnas (Necesario · Obra · Obras Mayores · A pedir), sin proveedor ni precio. Un ítem de texto libre (flete, servicio) solo pide la partida.
+- **Completar solicitud / Nueva OC** (Compras): columnas de stock y traslado, y el último precio pagado a ese proveedor como sugerencia (se avisa si difiere del de la cotización; el precio acordado no se reemplaza).
+- **Recepción en bodega** como página pensada para tablet: filas de dos renglones, contador − / +, "Llegó todo" en un toque, observación por lote (llegó dañado o incompleto) y los códigos de rotulado en grande al terminar. El acuse de un despacho en obra usa la misma lista.
+- Corregido: el detalle de una OC con recepciones devolvía error; el código de lote sale ahora de la partida.
+
+**Despachos, Bsale e indicadores**
+- **Despachos** es una sección propia del menú (antes, pestaña de Fabricación), con las obras en curso y su avance de despacho.
+- El token y los parámetros de la guía electrónica de **Bsale** se cargan desde Configuración › Integraciones (quedan cifrados en la base); las variables del servidor pasan a ser solo respaldo.
+- **Indicadores económicos** del día (UF, dólar, euro, UTM) guardados por fecha, con la clave de la CMF en Configuración › Integraciones y respaldos si la CMF no responde.
+- La descripción de cada ventana en guías e ítems lleva un orden fijo: posición · medida · sistema (parte).
+
+**Inicio, menú y listas**
+- La **página de inicio** se configura por rol (qué módulos y en qué orden) en Configuración › Roles.
+- **Bodega** es un módulo propio (resumen, bodegas, recepciones de OC y requisiciones de las obras); **Pendientes** es el visor global de todas las obras; **Reportes** aparece como "Pronto".
+- Las listas de **Obras en curso** y **Fabricación** muestran lo suyo: venta contratada en UF, comprometido en OC y estados de pago en Comercial; ventanas cubicadas, fabricadas, despachadas e instaladas en el taller. La ficha de la obra parte en Información General en ambas.
+- Los filtros por estado de todas las listas usan la misma pieza (Todos primero, con el conteo de cada opción).
+
+**Obras manuales**
+- Al crear la obra se elige su **número de proyecto** (se comprueba que esté libre); queda con código PRJ-año-número, como las de HETMO, y así se detecta su carpeta de OneDrive.
+- **Vincular documentos de fabricación** admite marcar varios y vincularlos de una vez.
+- En Comercial, la obra manual tiene solo Información General: documentos de fabricación y sus ventanas, fabricadas, cubicadas, despachadas, instaladas y pendientes, más la carpeta de OneDrive.
+
+**Base de datos**: cinco migraciones (`hitos_cobro_por_obra`, `indicadores_economicos`, `inicio_y_clave_cmf`, `observacion_recepcion_oc`, `configuracion_bsale`), ensayadas sobre la copia de producción del 2026-10-26. Ver `mtw-api/docs/RUNBOOK-MIGRACIONES.md`.
+
 ## Alpha v2.1.0 — 2026-10-24
 
 **Fabricación → Despachos a obra**

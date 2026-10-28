@@ -6,6 +6,8 @@ import { PlantillasPuertasPanel } from './PlantillasPuertasPanel';
 import { RolesUsuarioPanel } from './RolesUsuarioPanel';
 import { EtapasPendientesPanel } from './EtapasPendientesPanel';
 import { OneDrivePanel } from './OneDrivePanel';
+import { IndicadoresPanel } from './IndicadoresPanel';
+import { BsalePanel } from './BsalePanel';
 import { PartidasSection } from './catalogo/PartidasSection';
 import { TiposProductoSection } from './catalogo/TiposProductoSection';
 import { UnidadesSection } from './catalogo/UnidadesSection';
@@ -41,6 +43,8 @@ const PANELES: Record<string, { Panel: React.ComponentType<{ puedeEditar: boolea
   'etapas-pendientes': { Panel: EtapasPendientesPanel },
   'roles-usuario': { Panel: RolesUsuarioPanel },
   onedrive: { Panel: OneDrivePanel },
+  indicadores: { Panel: IndicadoresPanel },
+  bsale: { Panel: BsalePanel },
 };
 
 /**

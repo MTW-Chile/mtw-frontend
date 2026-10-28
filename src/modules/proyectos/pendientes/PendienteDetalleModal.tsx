@@ -10,7 +10,7 @@ import { Button } from '../../../components/ui/Button';
 import { formatoFechaHora } from '../fabricacion/utils';
 import { AdjuntosDetalle } from './adjuntos/AdjuntosDetalle';
 import { DibujoVentana } from '../obra/DibujoVentana';
-import { NuevaOrdenCompraModal } from '../../abastecimiento/NuevaOrdenCompraModal';
+import { SolicitudMaterialesModal } from '../../abastecimiento/solicitud/SolicitudMaterialesModal';
 import { usePermisos } from '../../../lib/permisos';
 import { ETIQUETA_CARGO, ETIQUETA_NATURALEZA } from '../../../types';
 import type { CargoPendiente } from '../../../types';
@@ -335,15 +335,13 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
         />
       )}
       {p && comprando && (
-        <NuevaOrdenCompraModal
-          origen="obra"
-          isOpen
+        <SolicitudMaterialesModal
+          proyectoId={proyectoId}
+          obraPendiente={p}
           onClose={() => {
             setComprando(false);
             refrescar();
           }}
-          proyectoIdFijo={proyectoId}
-          obraPendiente={p}
         />
       )}
     </>

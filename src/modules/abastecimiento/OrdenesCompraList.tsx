@@ -7,7 +7,8 @@ import { getOrdenesCompra, updateOrdenCompraEstado, eliminarOrdenCompra, renderP
 import { cargarLogoDocumentos } from '../cotizaciones/lib/pdfTheme';
 import type { EstadoOC, OrdenCompra } from '../../types';
 import { ETIQUETA_NATURALEZA, pendienteConciliarItem, pendienteRecepcionarItem } from '../../types';
-import { NuevaOrdenCompraModal } from './NuevaOrdenCompraModal';
+import { OrdenCompraModal } from './OrdenCompraModal';
+import { SolicitudMaterialesModal } from './solicitud/SolicitudMaterialesModal';
 import { buildOrdenCompraHtml } from './ordenCompraPdf';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilters';
@@ -17,7 +18,7 @@ import { usePermisos } from '../../lib/permisos';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
 import { mostrarToast } from '../../lib/toast';
 import { useConfirmar } from '../../components/ui/Confirmar';
-import { FiltroChips } from '../../components/ui/FiltroChips';
+import { Segmentado } from '../../components/ui/Segmentado';
 import { InputCompacto } from '../../components/ui/Campos';
 import { BotonColapsar } from '../../components/ui/BotonColapsar';
 import { BotonFila } from '../../components/ui/Lista';
@@ -48,6 +49,13 @@ export const ESTADO_OC_VARIANT: Record<EstadoOC, BadgeVariant> = {
   CANCELADA: 'outline',
 };
 
+// El filtro del listado llega hasta "Recibida (total)": la conciliacion
+// con la factura tiene su propia pestaña (Compras > Conciliación) y una OC
+// conciliada cuenta aca como recibida. Las canceladas solo se ven en
+// "Todas". En la ficha de una obra ademas el Borrador se llama Solicitada.
+const ESTADOS_FILTRO: EstadoOC[] = ['BORRADOR', 'PENDIENTE_APROBACION', 'APROBADA', 'RECHAZADA', 'ENVIADA', 'RECIBIDA_PARCIAL', 'RECIBIDA_TOTAL'];
+const estadoParaObra = (estado: EstadoOC): EstadoOC => (estado === 'CONCILIADA' || estado === 'PARCIALMENTE_CONCILIADA' ? 'RECIBIDA_TOTAL' : estado);
+
 const totalOC = (oc: OrdenCompra) => oc.items.reduce((sum, i) => sum + Number(i.cantidad) * Number(i.precioUnitario ?? 0), 0);
 
 export const formatoMoneda = (valor: number, moneda: string) =>
@@ -66,6 +74,21 @@ export const DetalleItemsOC: React.FC<{ oc: OrdenCompra; mostrarConciliacion?: b
         <span className="font-bold text-slate-700">Comentarios: </span>
         {oc.comentarios}
       </p>
+    )}
+    {(oc.items.some((i) => (i.recepciones || []).length > 0)) && (
+      <div className="mb-2 pb-2 border-b border-slate-200 space-y-1">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Lotes recibidos</span>
+        <div className="flex flex-wrap gap-1.5">
+          {oc.items.flatMap((i) =>
+            (i.recepciones || []).map((r) => (
+              <span key={r.id} title={`${i.descripcion}${r.observacion ? ` · ${r.observacion}` : ''}`} className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[11px] font-mono ${r.observacion ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                <span className="font-bold">{r.codigo}</span>
+                <span className="text-slate-500">× {Number(r.cantidadRecibida).toLocaleString('es-CL', { maximumFractionDigits: 2 })}</span>
+              </span>
+            ))
+          )}
+        </div>
+      </div>
     )}
     {oc.items.length === 0 ? (
       <p className="text-[11px] text-slate-400">Esta OC no tiene items.</p>
@@ -195,10 +218,21 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
     }
   };
 
+  // Una sola consulta (todas las OC de la vista) y el filtro de estado en
+  // pantalla: asi el segmentado muestra cuantas hay en cada estado.
   const { data, isLoading } = useQuery({
-    queryKey: ['ordenesCompra', { proyectoId, estado: filtroEstado }],
-    queryFn: () => getOrdenesCompra({ proyectoId, estado: filtroEstado || undefined, limit: 100 }),
+    queryKey: ['ordenesCompra', { proyectoId }],
+    // Tope alto: los contadores del segmentado se calculan sobre esta pagina.
+    queryFn: () => getOrdenesCompra({ proyectoId, limit: 500 }),
   });
+  const estadoDe = (oc: OrdenCompra): EstadoOC => estadoParaObra(oc.estado);
+  const estadosFiltro = ESTADOS_FILTRO;
+  const conteoEstados = useMemo(() => {
+    const c = new Map<EstadoOC, number>();
+    for (const oc of data?.data ?? []) c.set(estadoDe(oc), (c.get(estadoDe(oc)) ?? 0) + 1);
+    return c;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, modoRestringido]);
 
   // mismo queryKey que App.tsx/Header.tsx -- sale del cache, no pega de
   // nuevo al backend.
@@ -236,7 +270,8 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
     },
   });
 
-  const ordenes = data?.data || [];
+  const todas = data?.data || [];
+  const ordenes = filtroEstado ? todas.filter((oc) => estadoDe(oc) === filtroEstado) : todas;
   const colSpan = proyectoId ? 6 : 7;
   const isDesktop = useMediaQuery(BREAKPOINT_DESKTOP);
 
@@ -422,16 +457,21 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="min-w-0 flex-1">
-          <FiltroChips
+          <Segmentado
             etiqueta="Filtrar por estado"
             valor={filtroEstado}
             onChange={setFiltroEstado}
-            opciones={[{ id: '' as const, label: 'Todas' }, ...(Object.keys(ESTADO_OC_LABEL) as EstadoOC[]).map((estado) => ({ id: estado, label: ESTADO_OC_LABEL[estado] }))]}
+            opciones={[
+              { value: '' as const, label: 'Todas', contador: todas.length },
+              ...estadosFiltro.map((estado) => ({ value: estado, label: modoRestringido && estado === 'BORRADOR' ? 'Solicitada' : ESTADO_OC_LABEL[estado], contador: conteoEstados.get(estado) ?? 0 })),
+            ]}
           />
         </div>
-        <Button leftIcon={<Plus className="w-4 h-4" />} onClick={() => setModalAbierto(true)}>
-          {puedeEmitir && !proyectoId ? 'Nueva OC' : 'Solicitar materiales'}
-        </Button>
+        {(proyectoId ? tiene('compras.oc.solicitar') : puedeEmitir) && (
+          <Button leftIcon={<Plus className="w-4 h-4" />} onClick={() => setModalAbierto(true)}>
+            {proyectoId ? 'Solicitar materiales' : 'Nueva OC'}
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -440,8 +480,9 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
         </div>
       ) : ordenes.length === 0 ? (
         <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
-          No hay Órdenes de Compra{filtroEstado ? ` en estado "${ESTADO_OC_LABEL[filtroEstado]}"` : ''}
-          {proyectoId ? ' para este proyecto' : ''} todavía.
+          {proyectoId ? 'No hay solicitudes de materiales' : 'No hay Órdenes de Compra'}
+          {filtroEstado ? ` en estado "${ESTADO_OC_LABEL[filtroEstado]}"` : ''}
+          {proyectoId ? ' para esta obra' : ''} todavía.
         </div>
       ) : ordenesFiltradas.length === 0 ? (
         <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
@@ -496,8 +537,8 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                       )}
                     </Td>
                     <Td>
-                      <Badge variant={ESTADO_OC_VARIANT[oc.estado]} size="sm">
-                        {ESTADO_OC_LABEL[oc.estado]}
+                      <Badge variant={ESTADO_OC_VARIANT[estadoDe(oc)]} size="sm">
+                        {ESTADO_OC_LABEL[estadoDe(oc)]}
                       </Badge>
                     </Td>
                     <Td alinear="derecha" className="font-semibold text-slate-900 whitespace-nowrap">{formatoMoneda(totalOC(oc), oc.moneda)}</Td>
@@ -549,8 +590,8 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                   </p>
                 </div>
                 <div className="text-right shrink-0 space-y-1">
-                  <Badge variant={ESTADO_OC_VARIANT[oc.estado]} size="sm">
-                    {ESTADO_OC_LABEL[oc.estado]}
+                  <Badge variant={ESTADO_OC_VARIANT[estadoDe(oc)]} size="sm">
+                    {ESTADO_OC_LABEL[estadoDe(oc)]}
                   </Badge>
                   <div className="text-xs font-bold text-slate-900">{formatoMoneda(totalOC(oc), oc.moneda)}</div>
                 </div>
@@ -573,19 +614,14 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
         </div>
       )}
 
-      <NuevaOrdenCompraModal
-        origen={proyectoId ? 'obra' : 'compras'}
-        isOpen={modalAbierto}
-        onClose={() => setModalAbierto(false)}
-        proyectoIdFijo={proyectoId}
-        proyectoLabelFijo={proyectoLabel}
-      />
-      <NuevaOrdenCompraModal
-        origen="compras"
-        isOpen={!!solicitudIdParaCompletar}
-        onClose={() => setSolicitudIdParaCompletar(null)}
-        solicitudId={solicitudIdParaCompletar || undefined}
-      />
+      {/* Desde la obra se piden materiales (Compras completa); desde Compras se arma la OC completa. */}
+      {modalAbierto &&
+        (proyectoId ? (
+          <SolicitudMaterialesModal proyectoId={proyectoId} proyectoLabel={proyectoLabel} onClose={() => setModalAbierto(false)} />
+        ) : (
+          <OrdenCompraModal modo="crear" onClose={() => setModalAbierto(false)} />
+        ))}
+      {solicitudIdParaCompletar && <OrdenCompraModal modo="completar" solicitudId={solicitudIdParaCompletar} onClose={() => setSolicitudIdParaCompletar(null)} />}
     </div>
   );
 };

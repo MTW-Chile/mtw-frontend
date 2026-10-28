@@ -1,13 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
+import { getIndicadores } from '../api/client';
+import type { IndicadoresEconomicos } from '../types';
 
-export interface IndicadoresChile {
-  uf: number;
-  dolar: number;
-  euro: number;
-  utm: number;
-  fecha: string;
-}
+export type IndicadoresChile = IndicadoresEconomicos;
 
 export interface FeriadoChile {
   nombre: string;
@@ -15,35 +11,23 @@ export interface FeriadoChile {
   irrenunciable?: boolean;
 }
 
+/**
+ * Indicadores economicos del dia y feriados de Chile.
+ *
+ * Los indicadores (UF, dolar, euro, UTM) los sirve mtw-api (GET /api/indicadores):
+ * ahi se elige el proveedor (CMF oficial si hay API key, si no gael.cloud o
+ * mindicador.cl), se guarda el valor por fecha y, si ningun proveedor responde,
+ * llega el ultimo dia guardado con `desactualizado`. Antes el navegador
+ * llamaba directo a mindicador.cl, que se caia seguido y dejaba la pantalla
+ * sin valor; ahora todas las pantallas usan el mismo numero que el backend.
+ */
 export function useIndicadoresChile() {
   const currentYear = new Date().getFullYear();
 
-  // Indicadores Económicos (UF, Dolar, Euro, UTM). Antes, cualquier falla
-  // (timeout, mindicador.cl caido, respuesta parcial) se tragaba en el
-  // catch y devolvia numeros de relleno fijos -- se veian como un valor
-  // real (mismo formato, mismo color) pero quedaban desactualizados apenas
-  // pasaba un dia, y como el catch nunca dejaba propagar el error,
-  // tampoco se disparaban los reintentos automaticos de react-query. Ahora
-  // el queryFn deja fallar de verdad (incluye validar que la API haya
-  // mandado los 4 numeros, no una respuesta parcial) para que react-query
-  // reintente solo y, si a la tercera sigue sin poder, el consumidor lo
-  // vea por isError en vez de mostrar un numero inventado.
   const indicadoresQuery = useQuery({
-    queryKey: ['indicadoresEconomicosChile'],
-    queryFn: async (): Promise<IndicadoresChile> => {
-      const res = await axios.get('https://mindicador.cl/api', { timeout: 4000 });
-      const uf = res.data?.uf?.valor;
-      const dolar = res.data?.dolar?.valor;
-      const euro = res.data?.euro?.valor;
-      const utm = res.data?.utm?.valor;
-      const valores = { uf, dolar, euro, utm };
-      const incompleta = Object.values(valores).some((v) => typeof v !== 'number' || !Number.isFinite(v) || v <= 0);
-      if (incompleta) {
-        throw new Error('mindicador.cl devolvió una respuesta incompleta.');
-      }
-      return { ...valores, fecha: res.data?.fecha || new Date().toISOString() };
-    },
-    staleTime: 1000 * 60 * 60, // 1 hora
+    queryKey: ['indicadoresEconomicos'],
+    queryFn: getIndicadores,
+    staleTime: 1000 * 60 * 10,
   });
 
   // Feriados de Chile (ChileDataAPI / Nager.Date)

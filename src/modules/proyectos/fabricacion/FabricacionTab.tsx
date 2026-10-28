@@ -35,7 +35,7 @@ type SubTab = 'fases' | 'documentos';
 export const FabricacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
   const [subTab, setSubTab] = useState<SubTab>('fases');
   const conSubpestanas = proyecto.origen !== 'MANUAL_OBRA' && !!activeVersion;
-  useMigas(2, [conSubpestanas && { label: subTab === 'fases' ? 'Fases' : 'Documentos de fabricación' }]);
+  useMigas(2, [conSubpestanas && { label: subTab === 'fases' ? 'Fases de Producción' : 'Documentos de fabricación' }]);
 
   if (proyecto.origen === 'MANUAL_OBRA' || !activeVersion) {
     return <DocumentosFabricacionSubTab proyecto={proyecto} />;
@@ -45,7 +45,7 @@ export const FabricacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => 
     <div className="space-y-4">
       <SubTabs
         tabs={[
-          { id: 'fases', label: 'Fases' },
+          { id: 'fases', label: 'Fases de Producción' },
           { id: 'documentos', label: 'Documentos de fabricación' },
         ]}
         active={subTab}
@@ -151,7 +151,7 @@ const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyect
             </Button>
           )}
           <Button variant="primary" size="sm" leftIcon={<Link2 className="w-3.5 h-3.5" />} onClick={() => setBuscando(true)}>
-            Vincular documento
+            Vincular documentos
           </Button>
         </div>
       </div>
@@ -170,8 +170,8 @@ const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyect
           <p className="font-bold text-slate-700">Esta obra aún no tiene documentos de fabricación.</p>
           <p>
             {tienePresupuestoHetmo
-              ? 'Usa "Detectar automáticamente" para traer los de su presupuesto, o "Vincular documento" para buscar uno a mano.'
-              : 'Usa "Vincular documento" para buscar en HETMO los documentos de esta obra (por ejemplo, uno por piso).'}
+              ? 'Usa "Detectar automáticamente" para traer los de su presupuesto, o "Vincular documentos" para buscarlos a mano.'
+              : 'Usa "Vincular documentos" para buscar en HETMO los de esta obra (por ejemplo, uno por piso) y vincularlos de una vez.'}
           </p>
         </div>
       ) : (

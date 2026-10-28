@@ -1,5 +1,5 @@
 import type { ElementType } from 'react';
-import { LayoutDashboard, Building, Building2, FolderKanban, Settings, FileText, DoorClosed, ShieldCheck, Warehouse, ShoppingCart, Users, ListChecks, Cloud, Boxes, SlidersHorizontal, Tags, Calculator, Ruler, Workflow, ClipboardList, Factory, Briefcase, Hammer, Truck, Megaphone, HardHat } from 'lucide-react';
+import { LayoutDashboard, Building, Building2, FolderKanban, Settings, FileText, DoorClosed, ShieldCheck, Warehouse, ShoppingCart, Users, ListChecks, Cloud, Boxes, SlidersHorizontal, Tags, Calculator, Ruler, Workflow, AlertTriangle, Factory, Briefcase, Hammer, Truck, Forklift, Megaphone, HardHat, BarChart3, TrendingUp, Receipt } from 'lucide-react';
 import type { Permiso } from '../types';
 
 export interface EntradaAcceso {
@@ -20,7 +20,7 @@ export interface EntradaAcceso {
 // Secciones de Configuración, agrupadas en su menú lateral (también definen
 // si se ve la sección Configuración). El id va en la URL (?tab=...).
 export interface SeccionConfig extends EntradaAcceso {
-  grupo: 'Empresa' | 'Comercial' | 'Catálogo' | 'Obras' | 'Sistema';
+  grupo: 'Empresa' | 'Comercial' | 'Catálogo' | 'Obras' | 'Integraciones' | 'Sistema';
   descripcion: string;
 }
 
@@ -38,7 +38,9 @@ export const CONFIG_SECCIONES: SeccionConfig[] = [
   { grupo: 'Catálogo', id: 'plantillas-puertas', label: 'Plantillas de puertas', icon: DoorClosed, permisos: ['config.catalogo'], descripcion: 'Recetas de herrajes Protex.' },
   { grupo: 'Obras', id: 'etapas-pendientes', label: 'Etapas de pendientes', icon: ListChecks, permisos: ['config.obras'], descripcion: 'Etapas por las que pasa un pendiente de obra.' },
   { grupo: 'Sistema', id: 'roles-usuario', label: 'Roles y usuarios', icon: ShieldCheck, permisos: ['usuarios.ver'], descripcion: 'Quién entra y qué puede hacer.' },
-  { grupo: 'Sistema', id: 'onedrive', label: 'OneDrive', icon: Cloud, permisos: ['config.integraciones'], descripcion: 'Conexión para guardar documentos de obra.' },
+  { grupo: 'Integraciones', id: 'indicadores', label: 'Indicadores (CMF)', icon: TrendingUp, permisos: ['config.integraciones'], descripcion: 'UF, dólar, euro y UTM del día: clave de la CMF y respaldos.' },
+  { grupo: 'Integraciones', id: 'bsale', label: 'Bsale', icon: Receipt, permisos: ['config.integraciones'], descripcion: 'Token y parámetros de la guía de despacho electrónica.' },
+  { grupo: 'Integraciones', id: 'onedrive', label: 'OneDrive', icon: Cloud, permisos: ['config.integraciones'], descripcion: 'Conexión para guardar documentos de obra.' },
 ];
 
 // URLs anteriores al menú agrupado (?tab=catalogo&sub=partidas, etc.).
@@ -68,32 +70,46 @@ export const SECCIONES_FRONTEND: EntradaAcceso[] = [
   { id: 'cotizaciones', label: 'Presupuestos', icon: Building2, permisos: ['presupuestos.ver'] },
   // Igual: el id sigue siendo 'proyectos'.
   { id: 'proyectos', label: 'Obras en curso', icon: FolderKanban, permisos: ['obras.ver'] },
-  { id: 'pendientes', label: 'Pendientes en obra', icon: ClipboardList, permisos: ['pendientes.ver'] },
-  // Fabricación: las obras en curso vistas desde el taller (cubicación, fases,
-  // documentos de fabricación y despachos a obra).
+  // Visor global de los pendientes de todas las obras: lo que falta o falló (de ahí el icono de alerta).
+  { id: 'pendientes', label: 'Pendientes', icon: AlertTriangle, permisos: ['pendientes.ver'] },
+  // Fabricación: las obras en curso vistas desde el taller (cubicación,
+  // fases, requisiciones a bodega y pendientes; ver modules/proyectos/seccionesObra.ts).
   { id: 'fabricacion', label: 'Fabricación', icon: Factory, permisos: ['obras.ver'] },
+  // Despachos: las ventanas fabricadas que salen a obra con su guía. Sección
+  // propia (antes era una pestaña de Fabricación): la ve quien ve las obras;
+  // emitir exige obras.despachar (lo controla la pantalla).
+  { id: 'despachos', label: 'Despachos', icon: Truck, permisos: ['obras.ver'] },
   // Instalación: el Supervisor de Instalación recibe despachos y certifica la instalación.
   { id: 'instalacion', label: 'Instalación', icon: HardHat, permisos: ['instalacion.ver'] },
   { id: 'compras', label: 'Compras', icon: ShoppingCart, permisos: ['compras.ver'] },
+  // Bodega: modulo propio (resumen, bodegas, recepciones de OC y requisiciones de las obras).
   { id: 'bodega', label: 'Bodega', icon: Warehouse, permisos: ['bodega.ver'] },
   { id: 'maestro', label: 'Maestro de materiales', icon: Boxes, permisos: ['catalogo.ver'] },
   { id: 'contabilidad', label: 'Contabilidad', icon: Calculator, permisos: PERMISOS_GENERALES, enConstruccion: true },
+  { id: 'reportes', label: 'Reportes', icon: BarChart3, permisos: PERMISOS_GENERALES, enConstruccion: true },
   { id: 'configuracion', label: 'Configuración', icon: Settings, permisos: CONFIG_SECCIONES.flatMap((t) => t.permisos) },
 ];
 
 /**
  * Menú lateral: entradas sueltas y grupos que se despliegan. Una sección puede
- * estar en más de un grupo (Pendientes en obra en Comercial y en Taller).
- * Configuración va siempre fijada abajo, fuera de esta lista.
+ * estar en más de un grupo (Pendientes en Comercial, Taller y Abastecimiento).
+ * Despachos, Instalación y Bodega van sueltas, debajo del grupo con el que
+ * trabajan (Taller y Abastecimiento), en el orden del flujo: se fabrica, se
+ * despacha, se instala. Configuración va siempre fijada abajo, fuera
+ * de esta lista.
  */
 export type EntradaMenu = { tipo: 'seccion'; id: string } | { tipo: 'grupo'; id: string; titulo: string; icon: ElementType; secciones: string[] };
 
 export const MENU_LATERAL: EntradaMenu[] = [
   { tipo: 'seccion', id: 'inicio' },
   { tipo: 'grupo', id: 'comercial', titulo: 'Comercial', icon: Briefcase, secciones: ['clientes', 'proveedores', 'cotizaciones', 'proyectos', 'pendientes'] },
-  { tipo: 'grupo', id: 'taller', titulo: 'Taller', icon: Hammer, secciones: ['fabricacion', 'instalacion', 'pendientes'] },
-  { tipo: 'grupo', id: 'abastecimiento', titulo: 'Abastecimiento', icon: Truck, secciones: ['compras', 'bodega', 'maestro'] },
+  { tipo: 'grupo', id: 'taller', titulo: 'Taller', icon: Hammer, secciones: ['fabricacion', 'pendientes'] },
+  { tipo: 'seccion', id: 'despachos' },
+  { tipo: 'seccion', id: 'instalacion' },
+  { tipo: 'grupo', id: 'abastecimiento', titulo: 'Abastecimiento', icon: Forklift, secciones: ['compras', 'maestro', 'pendientes'] },
+  { tipo: 'seccion', id: 'bodega' },
   { tipo: 'seccion', id: 'contabilidad' },
+  { tipo: 'seccion', id: 'reportes' },
 ];
 
 export function entradaVisible(entrada: EntradaAcceso, tieneAlguno: (...permisos: Permiso[]) => boolean): boolean {
