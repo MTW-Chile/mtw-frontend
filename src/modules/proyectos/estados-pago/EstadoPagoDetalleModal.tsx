@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pencil, Receipt } from 'lucide-react';
-import { cambiarEstadoEstadoPago, getEstadoPago } from '../../../api/client';
+import { cambiarEstadoEstadoPago, getEstadoPago, getIndicadores } from '../../../api/client';
 import { Modal } from '../../../components/ui/Modal';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
@@ -14,7 +14,7 @@ import { usePermisos } from '../../../lib/permisos';
 import { clp, fecha, fechaHora, porcentaje, uf } from '../../../lib/formato';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import type { EstadoEstadoPago, EstadoPagoDetalle, Proyecto } from '../../../types';
-import { ETIQUETA_ESTADO_PAGO, ETIQUETA_PARTE_CORTA, VARIANTE_ESTADO_PAGO, hoyIso } from '../obra/estadoVentana';
+import { ETIQUETA_ESTADO_PAGO, ETIQUETA_HITO, VARIANTE_ESTADO_PAGO, hoyIso } from '../obra/estadoVentana';
 import { NuevoEstadoPagoModal } from './NuevoEstadoPagoModal';
 
 interface Props {
@@ -39,6 +39,11 @@ export const EstadoPagoDetalleModal: React.FC<Props> = ({ proyecto, estadoPagoId
   const [fechaFactura, setFechaFactura] = useState(hoyIso());
 
   const { data: e, isLoading, isError, refetch } = useQuery({ queryKey: ['estadoPago', estadoPagoId], queryFn: () => getEstadoPago(estadoPagoId) });
+  // UF del dia (misma fuente que Inicio) para precargar la factura; se puede corregir a mano.
+  const { data: indicadores } = useQuery({ queryKey: ['indicadoresEconomicos'], queryFn: getIndicadores, staleTime: 1000 * 60 * 10 });
+  // Mientras no se escriba otro valor, el campo muestra la UF del dia (aunque llegue despues de abrir la factura).
+  const ufMostrada = valorUf || (indicadores?.uf != null ? String(indicadores.uf) : '');
+  const abrirFactura = () => setFacturando(true);
 
   const refrescar = () => {
     queryClient.invalidateQueries({ queryKey: ['estadoPago', estadoPagoId] });
@@ -99,7 +104,7 @@ export const EstadoPagoDetalleModal: React.FC<Props> = ({ proyecto, estadoPagoId
     }
     if (d.estado === 'APROBADO' && puedeCobrar) {
       lista.push(
-        <Button key="facturar" size="sm" variant="primary" onClick={() => setFacturando(true)}>
+        <Button key="facturar" size="sm" variant="primary" onClick={abrirFactura}>
           Registrar factura
         </Button>
       );
@@ -164,14 +169,27 @@ export const EstadoPagoDetalleModal: React.FC<Props> = ({ proyecto, estadoPagoId
                 <p className="text-[11px] font-bold uppercase tracking-wider text-brand-800">Registrar factura</p>
                 <div className="grid sm:grid-cols-3 gap-3">
                   <Input label="N° de factura" value={numeroFactura} onChange={(ev) => setNumeroFactura(ev.target.value)} maxLength={40} />
-                  <Input label="Valor UF del día" type="number" step="any" min={0} value={valorUf} onChange={(ev) => setValorUf(ev.target.value)} className="text-right tabular-nums" helperText={valorUf ? `Neto ${clp(Number(e.totales.montoNetoUF) * Number(valorUf))}` : 'Fija el monto en pesos.'} />
+                  <Input
+                    label="Valor UF del día"
+                    type="number"
+                    step="any"
+                    min={0}
+                    value={ufMostrada}
+                    onChange={(ev) => setValorUf(ev.target.value)}
+                    className="text-right tabular-nums"
+                    helperText={
+                      ufMostrada
+                        ? `Neto ${clp(Number(e.totales.montoNetoUF) * Number(ufMostrada))}${indicadores && String(indicadores.uf) === ufMostrada ? ` · UF ${indicadores.desactualizado ? `del ${indicadores.fecha}` : 'de hoy'} (${indicadores.fuente})` : ''}`
+                        : 'Fija el monto en pesos.'
+                    }
+                  />
                   <Input label="Fecha" type="date" value={fechaFactura} onChange={(ev) => setFechaFactura(ev.target.value)} />
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button size="sm" variant="outline" onClick={() => setFacturando(false)}>
                     Cancelar
                   </Button>
-                  <Button size="sm" variant="primary" isLoading={transicion.isPending} disabled={!Number(valorUf)} onClick={() => transicion.mutate({ estado: 'FACTURADO', numeroFactura: numeroFactura.trim() || null, valorUf: Number(valorUf), fecha: fechaFactura || null })}>
+                  <Button size="sm" variant="primary" isLoading={transicion.isPending} disabled={!Number(ufMostrada)} onClick={() => transicion.mutate({ estado: 'FACTURADO', numeroFactura: numeroFactura.trim() || null, valorUf: Number(ufMostrada), fecha: fechaFactura || null })}>
                     Guardar factura
                   </Button>
                 </div>
@@ -196,7 +214,7 @@ export const EstadoPagoDetalleModal: React.FC<Props> = ({ proyecto, estadoPagoId
                         <span className="text-xs text-slate-800">{i.descripcion}</span>
                         <span className="block text-[10px] text-slate-400">
                           {i.fase ? `Fase ${i.fase.numeroFase}` : i.adicional ? `Adicional A${i.adicional.numero}` : i.ventanaIndividualizada ? 'Ventana' : 'Ítem libre'}
-                          {i.parte !== 'COMPLETA' ? ` · ${ETIQUETA_PARTE_CORTA[i.parte]}` : ''}
+                          {i.hito ? ` · ${ETIQUETA_HITO[i.hito]}` : i.ventanaIndividualizada ? ' · completa' : ''}
                         </span>
                       </Td>
                       <Td alinear="derecha" numero>{Number(i.cantidad).toLocaleString('es-CL')}</Td>
@@ -212,8 +230,8 @@ export const EstadoPagoDetalleModal: React.FC<Props> = ({ proyecto, estadoPagoId
             <dl className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
               {[
                 ['Bruto', uf(e.totales.montoBrutoUF)],
+                [`Devolución de anticipo ${porcentaje(e.anticipoPct, 1)}`, `- ${uf(e.totales.anticipoUF)}`],
                 [`Retención ${porcentaje(e.retencionPct, 1)}`, `- ${uf(e.totales.retencionUF)}`],
-                [`Anticipo ${porcentaje(e.anticipoPct, 1)}`, `- ${uf(e.totales.anticipoUF)}`],
                 ['Descuentos', `- ${uf(e.totales.descuentoUF)}`],
                 ['Neto', uf(e.totales.montoNetoUF)],
               ].map(([k, v]) => (

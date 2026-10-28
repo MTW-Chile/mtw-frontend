@@ -6,6 +6,7 @@ import { navegar, useLocationHref, usePuedeVolver } from '../../lib/navigation';
 import { useMigasActuales, type Miga } from '../../lib/migas';
 import { useAnotarReciente } from '../../lib/recientes';
 import { usePermisos } from '../../lib/permisos';
+import { SECCIONES_FRONTEND } from '../../lib/accessControl';
 
 // Controles de navegacion "dentro de la app" del Header -- la app es una
 // sola pagina, asi que F5 recarga TODO (permisos, sesion, listados) solo
@@ -85,6 +86,9 @@ export const MigasDePan: React.FC<{ seccion: string; titulo: string }> = ({ secc
 
   const anteriores = migas.slice(0, -1);
   const actual = migas[migas.length - 1];
+  // Icono de la seccion (el mismo del menu), al inicio de la ruta, del tamano del texto.
+  const IconoSeccion = SECCIONES_FRONTEND.find((s) => s.id === seccion)?.icon;
+  const icono = IconoSeccion ? <IconoSeccion className="w-3.5 h-3.5 text-brand-600 shrink-0" aria-hidden="true" /> : null;
   // En dos líneas, con tres niveles o más, la sección (ya marcada en el menú)
   // cede su lugar: así el nombre de la obra no se aprieta hasta desaparecer.
   const compactas = anteriores.length > 2 ? anteriores.slice(1) : anteriores;
@@ -112,6 +116,7 @@ export const MigasDePan: React.FC<{ seccion: string; titulo: string }> = ({ secc
   return (
     <nav aria-label="Ruta" className="min-w-0">
       <div className="hidden @5xl:flex items-center gap-1.5 min-w-0 text-xs">
+        {icono}
         {anteriores.map((m, i) => (
           <React.Fragment key={`${i}-${m.label}`}>
             {i > 0 && <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />}
@@ -132,6 +137,7 @@ export const MigasDePan: React.FC<{ seccion: string; titulo: string }> = ({ secc
       <div className="flex @5xl:hidden flex-col min-w-0 leading-tight">
         {compactas.length > 0 && (
           <div className="flex items-center gap-1 min-w-0 text-[11px] text-slate-500">
+            {icono}
             {compactas.map((m, i) => (
               <React.Fragment key={`${i}-${m.label}`}>
                 {i > 0 && <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />}
@@ -144,6 +150,7 @@ export const MigasDePan: React.FC<{ seccion: string; titulo: string }> = ({ secc
           </div>
         )}
         <div className="flex items-center gap-1.5 min-w-0">
+          {compactas.length === 0 && icono}
           <span className="text-xs font-bold text-slate-900 truncate" title={actual.label}>
             {actual.label}
           </span>

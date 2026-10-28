@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { PackageCheck } from 'lucide-react';
 import { registrarRecepcionObra } from '../../api/client';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { Aviso } from '../../components/ui/Aviso';
-import { Casilla, InputCompacto, Textarea } from '../../components/ui/Campos';
+import { Textarea } from '../../components/ui/Campos';
 import { fecha } from '../../lib/formato';
 import { extraerErrorParaToast, mostrarToast } from '../../lib/toast';
 import type { DespachoPorRecibir } from '../../types';
 import { ETIQUETA_PARTE_CORTA, ETIQUETA_TIPO_GUIA } from '../proyectos/obra/estadoVentana';
+import { FilaRecepcion } from '../abastecimiento/recepcion/FilaRecepcion';
+import { estadoInicialRecepcion, itemsRecepcion, marcarTodas, resumenRecepcion, type EstadoRecepcion, type FilaRecepcion as Fila } from '../abastecimiento/recepcion/recepcion';
 
 interface Props {
   proyectoId: string;
@@ -18,39 +20,43 @@ interface Props {
 }
 
 /**
- * Acuse de recibo en obra de un despacho (misma lógica que recepcionar una OC
- * en bodega): se marca lo que llegó; lo que no, queda pendiente de recibir en
- * el mismo despacho. Pensado para el celular del supervisor.
+ * Acuse de recibo en obra de un despacho: misma lista de recepción que la OC
+ * en bodega (FilaRecepcion): se marca lo que llegó; lo que no, queda
+ * pendiente de recibir en el mismo despacho. Pensado para el celular o la
+ * tablet del supervisor.
  */
 export const RecibirDespachoModal: React.FC<Props> = ({ proyectoId, despacho, onClose }) => {
   const queryClient = useQueryClient();
-  const pendientes = despacho.items.filter((i) => i.pendiente > 0);
-  const [marcados, setMarcados] = useState<Set<string>>(() => new Set(pendientes.map((i) => i.id)));
-  const [cantidades, setCantidades] = useState<Record<string, string>>(() => Object.fromEntries(pendientes.map((i) => [i.id, String(i.pendiente)])));
-  const [observaciones, setObservaciones] = useState<Record<string, string>>({});
+  const filas = useMemo<Fila[]>(
+    () =>
+      despacho.items.map((i) => ({
+        id: i.id,
+        descripcion: i.descripcion,
+        detalle: i.parte !== 'COMPLETA' ? ETIQUETA_PARTE_CORTA[i.parte] : null,
+        unidad: 'un',
+        pedido: i.cantidad,
+        yaRecibido: i.cantidadRecibida,
+        pendiente: i.pendiente,
+        enteros: true,
+      })),
+    [despacho]
+  );
+  const [estado, setEstado] = useState<EstadoRecepcion>(() => estadoInicialRecepcion(filas));
   const [notas, setNotas] = useState('');
-
-  const alternar = (id: string) =>
-    setMarcados((s) => {
-      const n = new Set(s);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
-
-  const items = pendientes
-    .filter((i) => marcados.has(i.id))
-    .map((i) => ({ despachoItemId: i.id, cantidadRecibida: Math.min(i.pendiente, Math.max(0, Math.floor(Number(cantidades[i.id]) || 0))), observacion: observaciones[i.id]?.trim() || null }))
-    .filter((i) => i.cantidadRecibida > 0);
+  const resumen = resumenRecepcion(filas, estado);
 
   const recibir = useMutation({
-    mutationFn: () => registrarRecepcionObra(despacho.id, { notas: notas.trim() || null, items }),
+    mutationFn: () =>
+      registrarRecepcionObra(despacho.id, {
+        notas: notas.trim() || null,
+        items: itemsRecepcion(filas, estado).map((i) => ({ despachoItemId: i.id, cantidadRecibida: i.cantidad, observacion: i.observacion })),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['instalacion', proyectoId] });
       queryClient.invalidateQueries({ queryKey: ['instalacionObras'] });
       queryClient.invalidateQueries({ queryKey: ['despachos', proyectoId] });
       queryClient.invalidateQueries({ queryKey: ['despacho', despacho.id] });
-      mostrarToast(`Recepción registrada: ${items.length} ítem(s) de ${despacho.codigo}.`, { tipo: 'info' });
+      mostrarToast(`Recepción registrada: ${resumen.marcadas} ítem(s) de ${despacho.codigo}.`, { tipo: 'info' });
       onClose();
     },
     onError: (e) => {
@@ -68,11 +74,18 @@ export const RecibirDespachoModal: React.FC<Props> = ({ proyectoId, despacho, on
       onClose={onClose}
       cerrable={!recibir.isPending}
       pie={
-        <Modal.Pie inicio={<span>{items.length} de {pendientes.length} ítem(s)</span>}>
+        <Modal.Pie
+          inicio={
+            <span>
+              {resumen.marcadas} de {resumen.pendientes} ítem(s)
+              {resumen.quedaranPendientes > 0 ? ` · quedarán ${resumen.quedaranPendientes} pendientes` : ''}
+            </span>
+          }
+        >
           <Button type="button" variant="outline" size="sm" onClick={onClose}>
             Cancelar
           </Button>
-          <Button type="button" variant="primary" size="sm" disabled={items.length === 0} isLoading={recibir.isPending} onClick={() => recibir.mutate()}>
+          <Button type="button" variant="primary" size="sm" disabled={resumen.marcadas === 0} isLoading={recibir.isPending} onClick={() => recibir.mutate()}>
             Confirmar recepción
           </Button>
         </Modal.Pie>
@@ -80,40 +93,26 @@ export const RecibirDespachoModal: React.FC<Props> = ({ proyectoId, despacho, on
     >
       <div className="space-y-3">
         <Aviso tono="info" sinIcono>
-          Marca lo que llegó a la obra. Lo que no marques queda pendiente en este mismo despacho; si algo llegó dañado, recíbelo y después levanta el pendiente desde la ventana.
+          Marca lo que llegó a la obra. Lo que no marques queda pendiente en este mismo despacho; si algo llegó dañado, recíbelo, anótalo en la fila y después levanta el pendiente desde la ventana.
         </Aviso>
-        <div className="flex justify-end gap-2">
-          <Button size="sm" variant="ghost" onClick={() => setMarcados(new Set(pendientes.map((i) => i.id)))}>
-            Todo llegó
+        <div className="flex justify-end gap-2 max-sm:[&>*]:flex-1">
+          <Button size="sm" variant="outline" className="pointer-coarse:min-h-11" onClick={() => setEstado(marcarTodas(filas, estado, true))}>
+            Llegó todo
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => setMarcados(new Set())}>
-            Desmarcar
+          <Button size="sm" variant="ghost" className="pointer-coarse:min-h-11" onClick={() => setEstado(marcarTodas(filas, estado, false))}>
+            Nada
           </Button>
         </div>
         <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
-          {pendientes.map((i) => (
-            <li key={i.id} className="px-3 py-2 space-y-1.5">
-              <div className="flex items-center gap-3">
-                <Casilla checked={marcados.has(i.id)} onChange={() => alternar(i.id)} aria-label={`Recibir ${i.descripcion}`} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold text-slate-900 truncate">
-                    {i.descripcion}
-                    {i.parte !== 'COMPLETA' && <span className="text-slate-500 font-normal"> · {ETIQUETA_PARTE_CORTA[i.parte]}</span>}
-                  </p>
-                  {i.cantidad > 1 && (
-                    <p className="text-[11px] text-slate-500">
-                      despachadas {i.cantidad} · recibidas {i.cantidadRecibida} · pendientes {i.pendiente}
-                    </p>
-                  )}
-                </div>
-                {i.cantidad > 1 && marcados.has(i.id) && (
-                  <InputCompacto type="number" inputMode="numeric" min={1} max={i.pendiente} value={cantidades[i.id] ?? ''} onChange={(e) => setCantidades((c) => ({ ...c, [i.id]: e.target.value }))} className="w-16 text-right" aria-label={`Cantidad recibida de ${i.descripcion}`} />
-                )}
-              </div>
-              {marcados.has(i.id) && (
-                <InputCompacto placeholder="Observación (opcional): llegó rayada, falta un herraje…" value={observaciones[i.id] ?? ''} onChange={(e) => setObservaciones((o) => ({ ...o, [i.id]: e.target.value }))} maxLength={500} aria-label={`Observación de ${i.descripcion}`} className="w-full" />
-              )}
-            </li>
+          {filas.map((f) => (
+            <FilaRecepcion
+              key={f.id}
+              fila={f}
+              estado={estado[f.id]}
+              onChange={(e) => setEstado({ ...estado, [f.id]: e })}
+              etiquetaTotal="despachado"
+              textoNoLlego="No llegó: queda pendiente en este despacho."
+            />
           ))}
         </ul>
         <Textarea label="Notas de la recepción" value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} maxLength={1000} placeholder="Quién entregó, estado general de la carga…" />

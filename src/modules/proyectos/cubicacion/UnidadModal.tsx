@@ -12,6 +12,7 @@ import { vocabulario } from './vocabulario';
 import { Modal } from '../../../components/ui/Modal';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
+import { DibujoVentana } from '../obra/DibujoVentana';
 
 interface Props {
   proyectoId: string;
@@ -90,6 +91,7 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
   return (
     <Modal
       titulo={editando ? `Ventana ${unidad!.nomenclatura ?? unidad!.codigo}` : 'Nueva ventana'}
+      ancho="lg"
       onClose={onClose}
       pie={
         <Modal.Pie>
@@ -102,6 +104,10 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
         </Modal.Pie>
       }
     >
+      {/* Dibujo a la izquierda en pantallas anchas; arriba, a lo ancho, en el celular. */}
+      <div className="grid gap-4 md:grid-cols-[15rem_1fr]">
+      <DibujoVentana proyectoId={proyectoId} ventanaId={tipo?.ventanaId} lineaHetmo={tipo?.lineaHetmo} className="h-44 md:h-full md:min-h-72" etiqueta={tipo ? `Dibujo del tipo ${tipo.codigo}` : 'Dibujo de la ventana'} />
+      <div className="space-y-4 min-w-0">
       <div>
         <Select label="Tipo" id="uni-tipo" value={tipoId} onChange={(e) => setTipoId(e.target.value)} className={campo}>
           <option value="">— elegir tipo —</option>
@@ -153,6 +159,8 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
             {fab ? `${formatoMm(fab.ancho)} × ${formatoMm(fab.alto)} mm` : '—'}
           </b>
         </p>
+      </div>
+      </div>
       </div>
     </Modal>
   );

@@ -76,10 +76,11 @@ export const VentanaInstalacionModal: React.FC<Props> = ({ proyectoId, ventanaId
         icono={Square}
         titulo={v ? nombreVentana(v) : 'Ventana'}
         subtitulo={v ? `${v.sistema}${v.torre ? ` · ${v.torre}` : ''}${v.piso != null ? ` · piso ${v.piso}` : ''}${v.nombreUnidad ? ` · ${v.nombreUnidad}` : ''}${v.ubicacion ? ` · ${v.ubicacion}` : ''}` : undefined}
-        ancho="lg"
+        ancho="xl"
         onClose={onClose}
         pie={
           v && (
+            // Acciones del supervisor: en tablet y celular se reparten el ancho con alto táctil (ver Modal.Pie).
             <Modal.Pie>
               {tiene('pendientes.crear') && (
                 <Button type="button" variant="outline" size="sm" leftIcon={<ClipboardList className="w-3.5 h-3.5" />} onClick={() => setReportando(true)} disabled={!proyecto}>
@@ -106,10 +107,10 @@ export const VentanaInstalacionModal: React.FC<Props> = ({ proyectoId, ventanaId
           <ErrorCarga que="la ventana" onReintentar={refetch} />
         ) : (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-[14rem_1fr] gap-3">
-              <DibujoVentana proyectoId={proyectoId} ventanaId={v.ventanaId} className="h-44 sm:h-full min-h-40" />
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs content-start">
-                <div className="col-span-2 flex flex-wrap gap-1.5">
+            <div className="grid grid-cols-1 md:grid-cols-[16rem_1fr] lg:grid-cols-[18rem_1fr] gap-3">
+              <DibujoVentana proyectoId={proyectoId} ventanaId={v.ventanaId} className="h-48 md:h-full md:min-h-52" />
+              <dl className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 text-xs pointer-coarse:text-sm content-start">
+                <div className="col-span-2 lg:col-span-3 flex flex-wrap gap-1.5">
                   {v.separada ? (
                     v.partes.map((p) => (
                       <Badge key={p.parte} variant={VARIANTE_ESTADO_VENTANA[p.estado]}>
@@ -177,7 +178,7 @@ export const VentanaInstalacionModal: React.FC<Props> = ({ proyectoId, ventanaId
                           <AlertTriangle className="w-3 h-3" /> Sin foto.
                         </p>
                       ) : (
-                        <ul className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        <ul className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
                           {i.adjuntos.map((a) => (
                             <li key={a.id} className="aspect-square rounded-lg overflow-hidden border border-slate-200 bg-white flex items-center justify-center">
                               <FotoInstalacion instalacionId={i.id} adjunto={a} />

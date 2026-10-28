@@ -20,8 +20,9 @@ type Filtro = 'ABIERTOS' | 'TODOS';
 const ABIERTOS: EstadoDespacho[] = ['BORRADOR', 'EMITIDO', 'RECIBIDO_PARCIAL'];
 
 /**
- * Fabricación > Despachos: las ventanas fabricadas que salen a obra. Cada
- * despacho emitido genera la recepción pendiente en Instalación.
+ * Despachos > obra: las ventanas fabricadas que salen a obra. Cada despacho
+ * emitido genera la recepción pendiente en Instalación. Lo monta
+ * modules/despachos/DespachosPage (sección propia del menú).
  */
 export const DespachosTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }) => {
   const { tiene } = usePermisos();

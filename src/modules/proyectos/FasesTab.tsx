@@ -1,14 +1,17 @@
 import React, { useMemo, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Layers, Plus, Pencil, Trash2, AlertCircle, X as XIcon, ShoppingCart, Package, FileSpreadsheet } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Loader2, Layers, Plus, Pencil, Trash2, AlertCircle, X as XIcon, ShoppingCart, Package, FileSpreadsheet, PackageOpen } from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { StatCard } from '../../components/ui/StatCard';
-import { createFase, updateFase, deleteFase, descargarInformeHetmoFase } from '../../api/client';
+import { createFase, updateFase, deleteFase, descargarInformeHetmoFase, getBodegaProyecto, getOrdenesCompra, getSolicitudesMaterial } from '../../api/client';
+import { usePermisos } from '../../lib/permisos';
+import { actualizarParams } from '../../lib/navigation';
+import { estadoPartida } from './estadoSolicitudPartida';
 import { extraerErrorParaToast, mostrarToast } from '../../lib/toast';
 import { useRequerimientosFases } from '../cotizaciones/lib/useAnalitica';
-import { NuevaOrdenCompraModal } from '../abastecimiento/NuevaOrdenCompraModal';
+import { SolicitudMaterialesModal } from '../abastecimiento/solicitud/SolicitudMaterialesModal';
 import { SelectorFaseDesdeCubicacion } from './cubicacion/SelectorFaseDesdeCubicacion';
 import { descargarBlob } from './cubicacion/utils';
 import type { Fase, Proyecto, ProyectoVersion, SeleccionFaseCubicacion } from '../../types';
@@ -50,6 +53,7 @@ interface FilaVentana {
 // ventana nunca puede superar el total de esa linea (el backend lo valida
 // igual, esto es feedback antes de mandar el request).
 export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVersion }> = ({ proyecto, activeVersion }) => {
+  const { tiene } = usePermisos();
   const { confirmar } = useConfirmar();
   // Quien puede emitir OC genera la OC completa; si no, la solicita a Compras.
   const queryClient = useQueryClient();
@@ -65,6 +69,26 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
   const [expandidas, setExpandidas] = useState<Set<string>>(new Set());
   // partida: codigo de la partida cuyos items precarga la solicitud.
   const [ocParaFase, setOcParaFase] = useState<{ fase: Fase; partida: string } | null>(null);
+  // OC de la obra (misma consulta que Abastecimiento): el botón de cada
+  // partida sigue el estado de su solicitud (Solicitado → … → Recibida).
+  const { data: ordenesData } = useQuery({ queryKey: ['ordenesCompra', { proyectoId: proyecto.id }], queryFn: () => getOrdenesCompra({ proyectoId: proyecto.id, limit: 100 }) });
+  const ordenes = ordenesData?.data ?? [];
+  // Requisiciones a bodega de la obra (misma consulta que la pestaña Requisiciones).
+  const { data: requisicionesData } = useQuery({ queryKey: ['solicitudesMaterial', { proyectoId: proyecto.id }], queryFn: () => getSolicitudesMaterial({ proyectoId: proyecto.id }) });
+  const requisiciones = requisicionesData?.data ?? [];
+  // Stock de la obra + Obras Mayores: se muestra junto a cada material y decide si una partida ya está cubierta.
+  const { data: bodega } = useQuery({ queryKey: ['bodegaProyecto', proyecto.id], queryFn: () => getBodegaProyecto(proyecto.id) });
+  const stockPorMaterial = useMemo(() => {
+    const mapa = new Map<string, number>();
+    for (const s of [...(bodega?.stock ?? []), ...(bodega?.stockObrasMayores ?? [])]) mapa.set(s.materialId, (mapa.get(s.materialId) ?? 0) + Number(s.cantidad));
+    return mapa;
+  }, [bodega]);
+  // Solo la bodega de la obra: lo que esta en Obras Mayores necesita traslado antes de entregarse.
+  const stockObraPorMaterial = useMemo(() => {
+    const mapa = new Map<string, number>();
+    for (const s of bodega?.stock ?? []) mapa.set(s.materialId, (mapa.get(s.materialId) ?? 0) + Number(s.cantidad));
+    return mapa;
+  }, [bodega]);
 
   const ventanas = activeVersion?.ventanas || [];
   const todasLasFases = activeVersion?.fases || [];
@@ -99,13 +123,14 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
     return { totalUnidades, planificado, sinPlanificar: totalUnidades - planificado };
   }, [filas]);
 
-  // Materiales por fase real (GET /fases/:id/requerimiento de mtw-api, el
-  // mismo calculo que Abastecimiento > Nueva OC): cantidad prorrateada de la
-  // Analitica, ya neta del stock de la bodega de la obra y de Obras Mayores.
-  // Ojo: cada fase ve el mismo stock disponible sin "reservarlo" entre si
-  // (el traslado real solo ocurre cuando se genera una OC puntual). Se pide
-  // para todas las fases reales de una porque el resumen se muestra siempre.
+  // Materiales por fase real (GET /fases/:id/requerimiento de mtw-api): la
+  // necesidad BRUTA de la fase (sin descontar stock), para que una partida no
+  // desaparezca de aca cuando su material ya llego a bodega: la fila sigue
+  // mostrando en que va (solicitado, recibida, requisicion...). El stock se
+  // muestra al lado de cada material. Se pide para todas las fases reales de
+  // una porque el resumen se muestra siempre.
   type ItemFase = {
+    materialId: string;
     descripcion: string;
     proveedorNombre: string;
     unidad: string;
@@ -117,7 +142,8 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
   };
   const requerimientos = useRequerimientosFases(
     proyecto.id,
-    fasesReales.map((f) => f.id)
+    fasesReales.map((f) => f.id),
+    false
   );
   const materialesPorFase = useMemo(() => {
     const map = new Map<string, { montoTotal: number; partidas: { codigo: string; nombre: string; monto: number; items: ItemFase[] }[] }>();
@@ -417,24 +443,47 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                         {infoMateriales.partidas.map((c) => {
                           const key = `${fase.id}:${c.codigo}`;
                           const expandidaCat = expandidas.has(key);
+                          // Pieza a medida (vidrio) no se contrasta contra stock: nunca cuenta como cubierta.
+                          const cubiertaPorStock = c.items.every((it) => !it.referenciaVentana && (stockPorMaterial.get(it.materialId) ?? 0) >= it.cantidad - 0.0001);
+                          const cubiertaSoloObra = c.items.every((it) => !it.referenciaVentana && (stockObraPorMaterial.get(it.materialId) ?? 0) >= it.cantidad - 0.0001);
+                          const requiereTraslado = cubiertaPorStock && !cubiertaSoloObra;
+                          const estado = estadoPartida({ ordenes, requisiciones, faseId: fase.id, partidaCodigo: c.codigo, materialIds: c.items.map((it) => it.materialId), cubiertaPorStock, requiereTraslado });
+                          // Mismo permiso que exige la API: pedir a Compras (compras.oc.solicitar) y pedir a bodega (obras.fases.editar).
+                          const sinPermiso = estado.boton.accion === 'solicitar-materiales' ? !tiene('compras.oc.solicitar') : estado.boton.accion === 'solicitar-requisicion' ? !tiene('obras.fases.editar') : false;
+                          const accionar = () => {
+                            if (sinPermiso) return;
+                            if (estado.boton.accion === 'solicitar-materiales') setOcParaFase({ fase, partida: c.codigo });
+                            if (estado.boton.accion === 'solicitar-requisicion') actualizarParams({ seccion: 'requisiciones', nuevaFase: fase.id, partida: c.codigo });
+                          };
                           return (
                             <div key={c.codigo} className="bg-white">
                               <div className="flex items-center justify-between gap-2 px-3 py-2 flex-wrap">
-                                <BotonColapsar abierto={expandidaCat} onClick={() => toggleExpandida(key)} className="text-xs font-bold text-slate-700 hover:text-brand-600">
-                                  {c.nombre}
-                                  <span className="font-mono font-normal text-slate-400">
-                                    · {c.items.length} item{c.items.length === 1 ? '' : 's'}
-                                  </span>
-</BotonColapsar>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                  <BotonColapsar abierto={expandidaCat} onClick={() => toggleExpandida(key)} className="text-xs font-bold text-slate-700 hover:text-brand-600">
+                                    {c.nombre}
+                                    <span className="font-mono font-normal text-slate-400">
+                                      · {c.items.length} item{c.items.length === 1 ? '' : 's'}
+                                    </span>
+                                  </BotonColapsar>
+                                  {estado.badge && (
+                                    <Badge variant={estado.badge.variante} size="sm" title={estado.referencia ?? undefined}>
+                                      {estado.badge.etiqueta}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap">
                                   <span className="font-mono font-bold text-slate-800 text-[11px]">{formatoMoneda(c.monto)}</span>
+                                  {/* Siempre el mismo ancho: el botón avanza de estado sin mover la fila. */}
                                   <Button
                                     size="sm"
-                                    variant="outline"
-                                    leftIcon={<ShoppingCart className="w-3.5 h-3.5" />}
-                                    onClick={() => setOcParaFase({ fase, partida: c.codigo })}
+                                    variant={estado.boton.accion === 'solicitar-requisicion' ? 'primary' : estado.boton.accion ? 'outline' : 'subtle'}
+                                    disabled={!estado.boton.accion || sinPermiso}
+                                    leftIcon={estado.boton.accion === 'solicitar-requisicion' || estado.boton.etiqueta.includes('ntrega') ? <PackageOpen className="w-3.5 h-3.5" /> : <ShoppingCart className="w-3.5 h-3.5" />}
+                                    title={sinPermiso ? 'No tienes permiso para esta acción' : estado.referencia ? `${estado.referencia}` : estado.boton.accion === 'solicitar-requisicion' ? (requiereTraslado ? 'Parte del material está en Obras Mayores: pide a Bodega el traslado a la bodega de la obra antes de que se entregue la requisición' : 'Pedir a bodega los materiales de esta partida') : undefined}
+                                    className="w-48 justify-center"
+                                    onClick={accionar}
                                   >
-                                    Solicitar materiales
+                                    {estado.boton.etiqueta}
                                   </Button>
                                 </div>
                               </div>
@@ -465,9 +514,12 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                                           <Td className="text-slate-500">{it.proveedorNombre}</Td>
                                           <Td alinear="derecha" className="font-mono text-slate-700">
                                             {it.cantidad.toLocaleString('es-CL', { maximumFractionDigits: 2 })} {it.unidad}
-                                            {it.stockDisponible > 0 && (
+                                            {(stockPorMaterial.get(it.materialId) ?? 0) > 0 && (
                                               <span className="block text-[10px] text-emerald-600 font-normal">
-                                                ya tenías {it.stockDisponible.toLocaleString('es-CL', { maximumFractionDigits: 2 })} en stock
+                                                en bodega {(stockPorMaterial.get(it.materialId) ?? 0).toLocaleString('es-CL', { maximumFractionDigits: 2 })}
+                                                {(stockPorMaterial.get(it.materialId) ?? 0) - (stockObraPorMaterial.get(it.materialId) ?? 0) > 0.0001 && (
+                                                  <span className="text-amber-700"> ({((stockPorMaterial.get(it.materialId) ?? 0) - (stockObraPorMaterial.get(it.materialId) ?? 0)).toLocaleString('es-CL', { maximumFractionDigits: 2 })} en Obras Mayores)</span>
+                                                )}
                                               </span>
                                             )}
                                           </Td>
@@ -494,15 +546,9 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
         )}
       </div>
 
-      <NuevaOrdenCompraModal
-        origen="obra"
-        isOpen={!!ocParaFase}
-        onClose={() => setOcParaFase(null)}
-        proyectoIdFijo={proyecto.id}
-        proyectoLabelFijo={proyecto.obra}
-        faseIdInicial={ocParaFase?.fase.id}
-        partidaFiltro={ocParaFase?.partida}
-      />
+      {ocParaFase && (
+        <SolicitudMaterialesModal proyectoId={proyecto.id} proyectoLabel={proyecto.obra} faseIdInicial={ocParaFase.fase.id} partidaFiltro={ocParaFase.partida} onClose={() => setOcParaFase(null)} />
+      )}
     </div>
   );
 };

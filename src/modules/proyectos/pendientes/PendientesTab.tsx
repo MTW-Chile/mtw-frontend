@@ -85,7 +85,7 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-black text-slate-900">{central ? 'Pendientes en obra' : 'Control de pendientes'}</h2>
+          <h2 className="text-sm font-black text-slate-900">Pendientes</h2>
           <p className="text-xs text-slate-500 max-w-xl">
             {central
               ? 'Todos los pendientes de todas las obras: lo que falta o falló, su área, su estado y quién lo solicitó. Se crean desde cada obra.'

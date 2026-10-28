@@ -20,7 +20,7 @@ import { esPresupuestoPrincipal, etiquetaEstadoProyecto, varianteEstadoProyecto 
 import { clavePresupuestos, consultarPresupuestos } from './presupuestosQuery';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
 import { Buscador } from '../../components/ui/Buscador';
-import { FiltroChips } from '../../components/ui/FiltroChips';
+import { Segmentado } from '../../components/ui/Segmentado';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Aviso } from '../../components/ui/Aviso';
@@ -193,28 +193,9 @@ export const CotizacionesPage: React.FC<{
 
   return (
     <div className={PAGE_CONTAINER_CLASS}>
-      {/* Titulo, contador y acciones viven en el Header del sitio (portal), no en una cabecera propia. */}
+      {/* Titulo y acciones viven en el Header del sitio (portal), no en una cabecera propia. */}
       <HeaderSlot>
-        <Badge size="sm" variant="default" className="hidden min-[420px]:inline-flex font-mono font-bold text-slate-600" title={`${proyectos.length} presupuestos`}>
-          {proyectos.length}
-        </Badge>
-
-        <div className="ml-auto flex items-center gap-2 shrink-0">
-          <div className="hidden @5xl:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs bg-white border border-slate-200 text-slate-600 shadow-xs">
-            <Clock className="w-3.5 h-3.5 text-brand-600" />
-            <span>
-              Última importación:{' '}
-              <strong className="font-mono text-slate-900">
-                {lastSync?.finalizadoEn
-                  ? new Date(lastSync.finalizadoEn).toLocaleTimeString('es-CL', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })
-                  : 'Reciente'}
-              </strong>
-            </span>
-          </div>
-
+        <div className="ml-auto flex flex-col items-end gap-0.5 shrink-0">
           <Button
             variant="outline"
             size="sm"
@@ -225,6 +206,14 @@ export const CotizacionesPage: React.FC<{
           >
             <span className="hidden @3xl:inline">{isSyncing ? 'Sincronizando...' : 'Sincronizar HETMO'}</span>
           </Button>
+          {/* Ultima importacion: indicador chico bajo el boton, solo donde cabe. */}
+          <span className="hidden @3xl:flex items-center gap-1 text-[10px] leading-none text-slate-500" title="Última importación desde HETMO">
+            <Clock className="w-3 h-3 text-brand-600" />
+            Última importación{' '}
+            <strong className="font-mono text-slate-700">
+              {lastSync?.finalizadoEn ? new Date(lastSync.finalizadoEn).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : 'reciente'}
+            </strong>
+          </span>
         </div>
       </HeaderSlot>
 
@@ -248,7 +237,7 @@ export const CotizacionesPage: React.FC<{
             {/* FILA INFERIOR: filtros de estado a la izquierda, acción principal a la derecha */}
             <div className="flex items-center justify-between gap-3 pt-1">
               <div className="min-w-0 flex-1">
-                <FiltroChips etiqueta="Filtrar por estado" opciones={ESTADOS_FILTRO} valor={statusFilter} onChange={setStatusFilter} />
+                <Segmentado etiqueta="Filtrar por estado" opciones={ESTADOS_FILTRO.map((e) => ({ value: e.id, label: e.label }))} valor={statusFilter} onChange={setStatusFilter} />
               </div>
 
               <div className="ml-auto shrink-0">

@@ -1,7 +1,7 @@
 import type { BadgeVariant } from '../../../components/ui/Badge';
-import type { EstadoDespacho, EstadoEstadoPago, EstadoVentanaObra, ParteVentana, TipoGuiaDespacho } from '../../../types';
+import type { EstadoDespacho, EstadoEstadoPago, EstadoVentanaObra, HitoCobro, ParteVentana, TipoGuiaDespacho } from '../../../types';
 
-// Vocabulario compartido de Fabricación > Despachos, Instalación y Estados de
+// Vocabulario compartido de Despachos, Instalación y Estados de
 // pago. Las reglas (qué estado tiene cada ventana) las calcula la API; aquí
 // solo cómo se muestran.
 
@@ -52,6 +52,17 @@ export const CLASE_BARRA_ESTADO: Record<EstadoVentanaObra, string> = {
 export const nivelEstado = (e: EstadoVentanaObra) => ORDEN_ESTADO_VENTANA.indexOf(e);
 
 export const ETIQUETA_PARTE_CORTA: Record<ParteVentana, string> = { COMPLETA: '', MARCO: 'marco', HOJA: 'hoja' };
+
+// Hitos de cobro (la etiqueta exacta por ventana la manda la API: en una fija el segundo hito es "Vidrio").
+export const ETIQUETA_HITO: Record<HitoCobro, string> = { MARCO: 'Marco', HOJA: 'Hoja con vidrio', R1: 'Recepción R1', RF: 'Recepción final' };
+export const ETIQUETA_HITO_CORTA: Record<HitoCobro, string> = { MARCO: 'Marco', HOJA: 'Hoja / vidrio', R1: 'R1', RF: 'RF' };
+/** Qué habilita cada hito (para ayudas en pantalla). */
+export const AYUDA_HITO: Record<HitoCobro, string> = {
+  MARCO: 'Se cobra al instalar el marco.',
+  HOJA: 'Se cobra al instalar la hoja con su vidrio (en una ventana fija, el vidrio).',
+  R1: 'Se cobra al ingresar la recepción R1 del cliente, sin importar el resultado.',
+  RF: 'Se cobra cuando el cliente declara resueltas las observaciones.',
+};
 
 export const ETIQUETA_ESTADO_DESPACHO: Record<EstadoDespacho, string> = {
   BORRADOR: 'Borrador',

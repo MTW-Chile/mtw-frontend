@@ -16,7 +16,7 @@ import { ColumnFilterHeader } from '../../../components/ui/ColumnFilterHeader';
 import { BREAKPOINT_DESKTOP } from '../../../lib/designSystem';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
 import { Buscador } from '../../../components/ui/Buscador';
-import { FiltroChips } from '../../../components/ui/FiltroChips';
+import { Segmentado } from '../../../components/ui/Segmentado';
 import { IconButton } from '../../../components/ui/IconButton';
 import { Seccion } from '../../../components/ui/Seccion';
 
@@ -157,7 +157,7 @@ export const MaestroProductos: React.FC = () => {
       >
         <div className="space-y-3">
           <Buscador valor={searchTerm} onChange={setSearchTerm} placeholder="Buscar por SKU, descripción o tipo…" />
-          <FiltroChips etiqueta="Filtrar por tipo de producto" opciones={familiasChips} valor={selectedFamilia} onChange={setSelectedFamilia} />
+          <Segmentado etiqueta="Filtrar por tipo de producto" opciones={familiasChips.map((f) => ({ value: f.id, label: f.label, contador: f.total }))} valor={selectedFamilia} onChange={setSelectedFamilia} />
         </div>
       </Seccion>
 

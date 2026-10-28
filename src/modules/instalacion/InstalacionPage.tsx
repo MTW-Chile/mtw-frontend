@@ -37,7 +37,7 @@ export const InstalacionPage: React.FC = () => {
 
   return (
     <div className={PAGE_CONTAINER_CLASS}>
-      <HeaderSeccion titulo="Instalación" count={isLoading ? undefined : data?.length} />
+      <HeaderSeccion titulo="Instalación" />
       <Buscador valor={busqueda} onChange={setBusqueda} placeholder="Buscar obra…" etiqueta="Buscar obra" />
       {isLoading ? (
         <Cargando />
@@ -50,7 +50,7 @@ export const InstalacionPage: React.FC = () => {
           {obras.map((o) => {
             const pct = o.ventanas ? Math.round((o.instaladas / o.ventanas) * 100) : 0;
             return (
-              <BotonFila key={o.id} onClick={() => actualizarParams({ obra: o.id })} className="flex items-center gap-3">
+              <BotonFila key={o.id} onClick={() => actualizarParams({ obra: o.id })} className="flex items-center gap-3 pointer-coarse:min-h-16">
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-sm font-bold text-slate-900 truncate">{o.obra}</h3>

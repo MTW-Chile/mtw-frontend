@@ -5,8 +5,8 @@ import { EstadoVacio } from '../../components/ui/Estados';
 import { PAGE_CONTAINER_CLASS } from '../../lib/designSystem';
 
 const DESCRIPCION: Record<string, string> = {
-  fabricacion: 'La vista de Fabricación para el taller, según los permisos de su rol. Mientras tanto, los documentos de fabricación están en cada obra.',
   contabilidad: 'El módulo de Contabilidad. Mientras tanto, la conciliación de facturas con Clay está en Compras.',
+  reportes: 'Indicadores de producción, ventas, compras y obra calculados con lo que el ERP ya registra.',
 };
 
 /** Sección visible en el menú pero aún por construir. */

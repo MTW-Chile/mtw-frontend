@@ -10,8 +10,56 @@ export interface Rol {
   esAdministradorNegocio: boolean;
   // Permisos otorgados directamente (las implicaciones las resuelve el backend).
   permisos: Permiso[];
+  // Módulos de la página de inicio para este rol, en orden (ids de GET /api/inicio/modulos). Vacío = todos.
+  inicioModulos: string[];
   // Presente solo en GET /api/roles.
   _count?: { usuarios: number };
+}
+
+/** Un módulo de la página de inicio (catálogo en mtw-api, src/dominio/inicio/modulos.ts). */
+export interface ModuloInicio {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  permiso?: Permiso;
+}
+
+/** GET /api/inicio: los módulos que ve esta persona y los datos de cada uno. */
+export interface InicioData {
+  modulos: string[];
+  obras: {
+    id: string;
+    obra: string;
+    codigoInterno: string | null;
+    numeroPresupuesto: number;
+    clienteNombreRaw: string;
+    origen: Proyecto['origen'];
+    ventaTotalUF: number | null;
+    // Comprometido en OC, solo CLP (igual que la lista de Obras en curso).
+    montoComprometidoOC: number;
+    fases: { total: number; enProduccion: number };
+    resumen: ResumenObra | null;
+  }[];
+}
+
+/** Configuración › Indicadores (GET/PATCH /api/configuracion-indicadores). */
+export interface ConfiguracionIndicadores {
+  cmfConfigurada: boolean;
+  vigentes: IndicadoresEconomicos | null;
+  error: string | null;
+}
+
+// Configuración › Integraciones › Bsale (el token nunca vuelve al frontend).
+export interface ConfiguracionBsale {
+  configurada: boolean;
+  // De dónde sale el token: cargado en el ERP, variables del servidor, o nada.
+  origen: 'configuracion' | 'entorno' | null;
+  /** Hay token guardado pero no se pudo descifrar (cambió o falta CLAY_TOKEN_ENCRYPTION_KEY). */
+  error?: string | null;
+  url: string | null;
+  officeId: number | null;
+  shippingTypeId: number;
+  declararSii: boolean;
 }
 
 export interface Usuario {
@@ -358,8 +406,41 @@ export interface ParametrosGenerales {
   adicional: { requiereAprobacion: boolean; umbralAprobacionUf: number | null };
   // Conciliacion de facturas (fracciones: 0.005 = 0,5%).
   conciliacion: { toleranciaCuadre: number; toleranciaSugerencia: number; toleranciaFiltro: number };
-  // Estados de pago: % del precio de la ventana que corresponde al marco cuando se cobra separado de la hoja.
-  estadoPago: { pctMarco: number };
+  // Estados de pago: configuración de cobro por defecto para una obra nueva (cada obra guarda la suya).
+  estadoPago: ConfiguracionCobro;
+}
+
+/** Indicadores económicos del día (GET /api/indicadores). null = el proveedor no publicó ese indicador. */
+export interface IndicadoresEconomicos {
+  uf: number | null;
+  dolar: number | null;
+  euro: number | null;
+  utm: number | null;
+  /** Día al que corresponden (YYYY-MM-DD). */
+  fecha: string;
+  fuente: string;
+  /** true: no se pudo obtener hoy y se muestra el último día guardado. */
+  desactualizado: boolean;
+}
+
+/** Hitos de cobro de una ventana (estándar MTW 45 / 45 / 5 / 5, configurable por obra). */
+export type HitoCobro = 'MARCO' | 'HOJA' | 'R1' | 'RF';
+export const HITOS_COBRO: HitoCobro[] = ['MARCO', 'HOJA', 'R1', 'RF'];
+
+/** Cómo se le cobra al cliente en una obra: % de cada hito (suman 100), anticipo y retención del contrato. */
+export interface ConfiguracionCobro {
+  pctMarco: number;
+  pctHoja: number;
+  pctR1: number;
+  pctRF: number;
+  anticipoPct: number;
+  retencionPct: number;
+}
+
+export interface ConfiguracionCobroObra extends ConfiguracionCobro {
+  /** false: la obra todavía usa los valores por defecto de Configuración › Comercial. */
+  personalizada: boolean;
+  actualizadoEn: string | null;
 }
 
 // Cómo se cubican las obras de un tipo: por torre/piso/departamento o por casa/piso/recinto.
@@ -524,6 +605,10 @@ export interface ProyectoVersion {
     | 'APROBADO_GERENCIA'
     | 'ACEPTADO_CLIENTE';
   esCongelado: boolean;
+  // Precio real en UF fijado al aceptar el presupuesto (ver congelarPreciosVenta en mtw-api); null hasta aceptar.
+  ventaTotalUFCongelada?: number | string | null;
+  costoTotalCLPCongelado?: number | string | null;
+  preciosCongeladosEn?: string | null;
   fechaAprobacion: string | null;
   aprobadoPor: string | null;
   
@@ -584,6 +669,32 @@ export interface Proyecto {
   // montoComprometidoOC para no mezclar monedas distintas en un total).
   otrasMonedasOC?: string[];
   fasesResumen?: { total: number; enProduccionOCompletadas: number };
+  // Solo con getProyectos({ incluir: 'obra' }): avance físico, pendientes y
+  // estados de pago para las listas de Obras en curso y Fabricación.
+  resumenObra?: ResumenObra;
+}
+
+export interface ResumenObra {
+  ventanas: { contratadas: number; cubicadas: number; fabricadas: number; despachadas: number; instaladas: number };
+  pendientesAbiertos: number;
+  // Estados de pago vigentes (sin borradores ni anulados): cuántos y neto en UF; pagado aparte.
+  /** null: sin permiso estados_pago.ver (la API no manda los montos cobrados). */
+  estadosPago: { vigentes: number; netoUF: number; pagadoUF: number } | null;
+}
+
+// GET /api/proyectos/:id/resumen-obra: el ResumenObra de la lista más lo que
+// dicen los documentos de fabricación de HETMO vinculados (Información General
+// de una obra manual).
+export interface ResumenObraDetalle extends ResumenObra {
+  fabricacion: { documentos: number; ventanas: number; enFabricacion: number; fabricadas: number };
+}
+
+// GET /api/obras/manual/numero: número de proyecto para una obra manual nueva.
+export interface DisponibilidadNumeroProyecto {
+  numero: number | null;
+  disponible: boolean | null;
+  usadoPor: { id: string; obra: string; codigoInterno: string | null } | null;
+  siguiente: number;
 }
 
 export interface ProyectosResponse {
@@ -927,9 +1038,19 @@ export interface RecepcionOCItem {
   numero: number;
   codigo: string;
   cantidadRecibida: number;
+  // Lo que Bodega anoto al recibir este lote (llego danado, incompleto...).
+  observacion?: string | null;
   // Precio real/facturado de este lote si ya se conoce -- null mientras
   // se asuma el precio comprometido de OrdenCompraItem.precioUnitario.
   precioReal: number | null;
+}
+
+// Ultimo precio pagado a un proveedor por un material (GET
+// /api/ordenes-compra/ultimos-precios): sugerencia al armar una OC.
+export interface UltimoPrecioProveedor {
+  precioUnitario: number;
+  numeroOC: string;
+  fecha: string;
 }
 
 export interface TipoDocumento {
@@ -998,6 +1119,8 @@ export interface OrdenCompra {
   fechaEnvio: string | null;
   comentarios: string | null;
   creadoPorId: string | null;
+  // Solo en GET /ordenes-compra/:id.
+  creadoPor?: { id: string; nombre: string; email: string } | null;
   aprobadoPorId: string | null;
   fechaAprobacion: string | null;
   motivoRechazo: string | null;
@@ -2039,6 +2162,8 @@ export interface RecepcionObra {
 export interface DespachoObraDetalle extends DespachoObra {
   items: DespachoObraItem[];
   recepciones: RecepcionObra[];
+  // Solo en borrador: qué falta para emitir con guía electrónica (dirección, RUT, razón social).
+  faltaParaGuiaBsale?: string[];
 }
 
 export interface DatosDespacho {
@@ -2103,6 +2228,27 @@ export interface ObraInstalacion {
   instaladas: number;
   despachosPorRecibir: number;
   pendientesAbiertos: number;
+}
+
+/** Fila de Despachos (seccion del menu): una obra en curso con su avance de despacho. */
+export interface ObraDespachos {
+  id: string;
+  obra: string;
+  codigoInterno: string | null;
+  numeroPresupuesto: number;
+  clienteNombreRaw: string;
+  clienteDireccionRaw: string | null;
+  clienteLocalidadRaw: string | null;
+  origen: Proyecto['origen'];
+  /** Ventanas con posicion en la cubicacion. */
+  ventanas: number;
+  /** Ventanas distintas en algun despacho emitido o recibido. */
+  despachadas: number;
+  borradores: number;
+  /** Despachos emitidos o recibidos en parte, que la obra todavia debe acusar. */
+  porRecibir: number;
+  /** Despachos no anulados. */
+  despachos: number;
 }
 
 export interface NodoUnidadInstalacion {
@@ -2211,7 +2357,8 @@ export interface EstadoPagoItem {
   orden: number;
   ventanaIndividualizadaId: string | null;
   ventanaIndividualizada: { id: string; nomenclatura: string | null; ubicacion: string | null; tipo: { codigo: string; ventanaId: string | null } } | null;
-  parte: ParteVentana;
+  /** null con ventana: cobrada completa con el modelo anterior (100 %). */
+  hito: HitoCobro | null;
   faseId: string | null;
   fase: { id: string; numeroFase: number; nombre: string } | null;
   adicionalId: string | null;
@@ -2238,8 +2385,8 @@ export interface EstadoPagoDetalle extends EstadoPago {
 }
 
 export type ItemEstadoPagoEntrada =
-  | { tipo: 'VENTANA'; ventanaIndividualizadaId: string; parte?: ParteVentana }
-  | { tipo: 'FASE'; faseId: string; parte?: ParteVentana }
+  | { tipo: 'VENTANA'; ventanaIndividualizadaId: string; hitos: HitoCobro[] }
+  | { tipo: 'FASE'; faseId: string; hitos: HitoCobro[] }
   | { tipo: 'ADICIONAL'; adicionalId: string }
   | { tipo: 'LIBRE'; descripcion: string; cantidad?: number; precioUnitarioUF: number };
 
@@ -2247,6 +2394,7 @@ export interface DatosEstadoPago {
   titulo: string;
   periodoDesde?: string | null;
   periodoHasta?: string | null;
+  /** Si no se mandan, la API toma los de la configuración de cobro de la obra. */
   retencionPct?: number;
   anticipoPct?: number;
   descuentoUF?: number;
@@ -2254,21 +2402,44 @@ export interface DatosEstadoPago {
   items?: ItemEstadoPagoEntrada[];
 }
 
+/** Un hito de una ventana en la pantalla de armado: monto, si ya se puede cobrar y dónde se cobró. */
+export interface HitoVentanaCobrable {
+  etiqueta: string;
+  porcentaje: number;
+  montoUF: number | null;
+  /** Según el estado físico de la ventana (marco / hoja instalados; R1 y RF esperan las recepciones). */
+  disponible: boolean;
+  cobradoEn: { estadoPago: string; estado: EstadoEstadoPago } | null;
+  /** disponible y no cobrado. */
+  cobrable: boolean;
+}
+
 export interface VentanaCobrable extends VentanaObra {
   precioUnitarioUF: number | null;
   montoCompletaUF: number | null;
-  montoMarcoUF: number | null;
-  montoHojaUF: number | null;
-  cobrada: { parte: ParteVentana; estadoPago: string; estado: EstadoEstadoPago }[];
-  cobrable: Record<ParteVentana, boolean>;
+  hitos: Record<HitoCobro, HitoVentanaCobrable>;
+  cobradaCompletaEn: { estadoPago: string; estado: EstadoEstadoPago } | null;
+  montoCobrableUF: number;
 }
 
 export interface DisponiblesEstadoPago {
-  pctMarco: number;
+  configuracionCobro: ConfiguracionCobroObra;
+  ivaPct: number;
   moneda: string;
+  // UF del día (misma fuente que Inicio); si no se pudo obtener, la de respaldo y ufDelDia = null.
   tipoCambioUF: number;
+  ufDelDia: { valor: number | null; fecha: string; fuente: string; desactualizado: boolean } | null;
   ventaTotalUF: number | null;
   ventanas: VentanaCobrable[];
-  fases: { id: string; numeroFase: number; nombre: string; estado: Fase['estado']; ventanas: number; instaladas: number; cobrables: number; montoCobrableUF: number }[];
+  fases: {
+    id: string;
+    numeroFase: number;
+    nombre: string;
+    estado: Fase['estado'];
+    ventanas: number;
+    instaladas: number;
+    hitos: Record<HitoCobro, { cobrables: number; montoUF: number }>;
+    montoCobrableUF: number;
+  }[];
   adicionales: { id: string; numero: number; titulo: string; estado: EstadoAdicional; montoUF: number; cobradoEn: string | null }[];
 }

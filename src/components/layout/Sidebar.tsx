@@ -49,8 +49,6 @@ export const Sidebar: React.FC<{
   setActiveTab: (tab: string) => void;
   isOpen: boolean;
   onClose: () => void;
-  totalProyectos?: number;
-  totalProyectosEnCurso?: number;
   // Ids de SECCIONES_FRONTEND que el usuario puede ver (ver App.tsx).
   seccionesPermitidas: string[];
 }> = ({
@@ -58,8 +56,6 @@ export const Sidebar: React.FC<{
   setActiveTab,
   isOpen,
   onClose,
-  totalProyectos = 0,
-  totalProyectosEnCurso = 0,
   seccionesPermitidas,
 }) => {
   const [fijado, setFijado] = useState(leerFijado);
@@ -72,10 +68,8 @@ export const Sidebar: React.FC<{
     guardarFijado(siguiente);
   };
 
-  const menuItems = SECCIONES_FRONTEND.filter((s) => seccionesPermitidas.includes(s.id)).map((s) => ({
-    ...s,
-    count: s.id === 'cotizaciones' ? totalProyectos : s.id === 'proyectos' ? totalProyectosEnCurso : undefined,
-  }));
+  // Sin insignias numericas: el menu solo navega.
+  const menuItems = SECCIONES_FRONTEND.filter((s) => seccionesPermitidas.includes(s.id));
   const item = (id: string) => menuItems.find((m) => m.id === id);
 
   // Un solo grupo desplegado: abrir uno cierra el otro. Por defecto, el de la sección activa.
@@ -114,7 +108,7 @@ export const Sidebar: React.FC<{
             aria-current={isActive ? 'page' : undefined}
             aria-label={item.label}
             title={item.label}
-            className={`relative w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors cursor-pointer ${
+            className={`relative w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
               isActive
                 ? 'bg-white/10 text-white font-semibold before:absolute before:left-0 before:top-2 before:bottom-2 before:w-[3px] before:rounded-r before:bg-brand-400'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -131,15 +125,6 @@ export const Sidebar: React.FC<{
               <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-white/8 text-slate-500 ${ocultarEnRiel}`}>Pronto</span>
             )}
 
-            {item.count !== undefined && item.count > 0 && (
-              <span
-                className={`px-1.5 py-0.5 rounded-md text-[11px] font-mono font-semibold ${ocultarEnRiel} ${
-                  isActive ? 'bg-brand-400/20 text-brand-100' : 'bg-white/8 text-slate-400'
-                }`}
-              >
-                {item.count}
-              </span>
-            )}
           </button>
         );
   };
@@ -233,7 +218,7 @@ export const Sidebar: React.FC<{
                     <button
                       onClick={() => alternarGrupo(entrada.id)}
                       aria-expanded={abierto === entrada.id}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors cursor-pointer hover:bg-white/5 ${
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-colors cursor-pointer hover:bg-white/5 ${
                         contieneActiva && abierto !== entrada.id ? 'text-white' : 'text-slate-400 hover:text-white'
                       } ${expandido ? '' : 'md:hidden'}`}
                     >

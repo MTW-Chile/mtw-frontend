@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { varianteEstadoFabricacion, textoEstadoFabricacion, formatoMm, resumenCuadros } from './utils';
+import { varianteEstadoFabricacion, textoEstadoFabricacion, formatoMm, resumenCuadros, textoVinculosMultiples } from './utils';
 import type { FabricacionCuadro } from '../../../types';
 
 const cuadro = (tipo: 'MARCO' | 'HOJA', retirada = false): FabricacionCuadro => ({
@@ -54,5 +54,16 @@ describe('resumenCuadros', () => {
     expect(resumenCuadros([cuadro('HOJA', true)])).toBe('Sin cuadros');
     expect(resumenCuadros(undefined)).toBe('Sin cuadros');
     expect(resumenCuadros([cuadro('MARCO'), cuadro('MARCO')])).toBe('2 marcos');
+  });
+});
+
+describe('textoVinculosMultiples', () => {
+  const ok = (nuevas: number, vinculadas: number | null) =>
+    ({ fabricacionId: 'f', hetmoId: 1, ventanas: { nuevas, actualizadas: 0, retiradas: 0 }, cuadros: { nuevos: 0, actualizados: 0, retirados: 0 }, advertencias: [], vinculacionCubicacion: vinculadas === null ? null : { vinculadas, sinMatch: [], faseInferida: null, faseConflicto: false } }) as const;
+  it('suma documentos, ventanas leidas y las conectadas con la cubicacion', () => {
+    expect(textoVinculosMultiples([ok(3, 2), ok(4, null)], [])).toBe('2 documento(s) vinculado(s): 7 ventana(s) leída(s), 2 conectada(s) con la cubicación.');
+  });
+  it('lista los que fallaron sin ocultar los que sí se vincularon', () => {
+    expect(textoVinculosMultiples([ok(3, 0)], ['EX_P22: ya vinculado'])).toBe('1 documento(s) vinculado(s): 3 ventana(s) leída(s). 1 no se pudo vincular: EX_P22: ya vinculado');
   });
 });

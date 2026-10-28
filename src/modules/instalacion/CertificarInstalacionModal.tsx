@@ -83,7 +83,7 @@ export const CertificarInstalacionModal: React.FC<Props> = ({ proyectoId, ventan
       icono={CheckCircle2}
       titulo={`Certificar instalación · ${nombreVentana(ventana)}`}
       subtitulo={`${ventana.sistema}${ventana.ubicacion ? ` · ${ventana.ubicacion}` : ''}`}
-      ancho="md"
+      ancho="lg"
       onClose={onClose}
       cerrable={!certificar.isPending}
       pie={
@@ -98,7 +98,8 @@ export const CertificarInstalacionModal: React.FC<Props> = ({ proyectoId, ventan
       }
     >
       <div className="space-y-4">
-        <DibujoVentana proyectoId={proyectoId} ventanaId={ventana.ventanaId} className="h-36" />
+        {/* Dibujo a lo ancho en el celular; en tablet horizontal queda más alto para verlo de lejos. */}
+        <DibujoVentana proyectoId={proyectoId} ventanaId={ventana.ventanaId} className="h-36 md:h-48" />
 
         {partesPendientes.length > 1 && (
           <OpcionesTarjeta

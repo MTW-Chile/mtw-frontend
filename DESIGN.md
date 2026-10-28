@@ -96,9 +96,8 @@ Montos, fechas y unidades se formatean **siempre** con `src/lib/formato.ts`
 | Campo dentro de una tabla editable | `InputCompacto`, `SelectCompacto`, `NumeroInput` (siempre con `aria-label`) | |
 | Sí/no | `Interruptor` (ajuste; `label` + `enTarjeta` en grillas) o `Casilla` (selección en lista) | checkbox suelto |
 | Una opción entre pocas (formulario) | `OpcionesTarjeta` (radio en tarjetas); entre muchas, `Select` | radios sueltos |
-| Vista o filtro entre pocas opciones | `Segmentado` (con `contador` opcional) | botones de color a mano |
+| Vista, o filtro de un listado por estado o categoría | `Segmentado` (con `contador` por opción: "Todos 12 · Ingresado 3 · …") | chips, botones de color o selects a mano |
 | Buscar en una lista | `Buscador` | input con lupa a mano |
-| Filtrar un listado por estado o categoría | `FiltroChips` (chips en escritorio, selector en móvil) | chips y selects a mano |
 | Menú desde un botón (saltar a un paso, acciones) | `MenuDesplegable` | popovers a mano |
 | Resultado clicable en un buscador | `BotonFila` | |
 | Subir archivos | `InputArchivo` + un `Button` | `<input type="file">` suelto |
@@ -109,6 +108,8 @@ Montos, fechas y unidades se formatean **siempre** con `src/lib/formato.ts`
 | Herramienta activable (Espejar) | `BotonAlternar` | |
 | Texto que se edita en el lugar | `ActivadorEdicion` + su campo | |
 | Indicador numérico | `StatCard` | |
+| Contar en tablet (cuánto llegó) | `ContadorTactil` (− / + de 44 px, teclado numérico) | `<input type="number">` chico |
+| Marcar qué llegó de lo pedido | `FilaRecepcion` + helpers de `recepcion.ts` (OC en bodega, despacho en obra) | listas a mano |
 
 ### Reglas de uso
 
@@ -125,10 +126,21 @@ Montos, fechas y unidades se formatean **siempre** con `src/lib/formato.ts`
 - **Formularios:** etiqueta arriba, ayuda debajo, error en `rose`. Guardado
   explícito con un botón, o al salir del campo (`NumeroInput`) cuando la
   tabla es editable en línea; nunca en cada tecla.
+- **Filtros de un listado:** siempre `Segmentado`, en una sola fila que se
+  envuelve si no cabe, con "Todos" primero y el conteo de cada opción. Es la
+  misma pieza en Pendientes, Compras, Presupuestos, Maestro e Instalación:
+  el usuario la reconoce de una pantalla a otra.
 - **Estados "por revisar"** (sin asignar, por clasificar, sin medidas): ámbar,
   con el motivo en el `title` o en un `Aviso`.
 - **Permisos:** sin el permiso, el control no se muestra (o se muestra
   deshabilitado si ayuda a entender el flujo). La API valida igual.
+- **Formularios de abastecimiento** (solicitud, OC, recepción): una pantalla
+  por rol, no un modal con modos. Los números que deciden la acción van en
+  columnas con el mismo orden y nombres en todas (Necesario / Solicitado ·
+  Obra · Obras Mayores · Traslado · A pedir / A comprar), nunca en una nota
+  de 10 px. El resumen (ítems, unidades, total) y la acción principal van en
+  el pie. Lo que se usa en tablet (recepción) es página, no modal: filas de
+  dos renglones, `ContadorTactil`, "Llegó todo" en un toque.
 
 ## 6. Textos
 

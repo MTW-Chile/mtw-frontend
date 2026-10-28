@@ -1,14 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Link2 } from 'lucide-react';
 import { buscarFabricacionesHetmo, vincularFabricacion } from '../../../api/client';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
-import { mostrarToast } from '../../../lib/toast';
+import { Casilla } from '../../../components/ui/Campos';
+import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
 import { BREAKPOINT_DESKTOP } from '../../../lib/designSystem';
-import type { FabricacionHetmoBusqueda } from '../../../types';
-import { formatoFechaHora, textoEstadoFabricacion, textoVinculacionCubicacion, varianteEstadoFabricacion } from './utils';
+import type { FabricacionHetmoBusqueda, ResultadoVinculoFabricacion } from '../../../types';
+import { formatoFechaHora, textoEstadoFabricacion, textoVinculacionCubicacion, textoVinculosMultiples, varianteEstadoFabricacion } from './utils';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
 import { Modal } from '../../../components/ui/Modal';
 import { Buscador } from '../../../components/ui/Buscador';
@@ -21,11 +22,17 @@ interface Props {
 // Busca documentos de fabricacion de HETMO (los sueltos de una obra manual,
 // por ejemplo "EX_P21") y los vincula a esta obra. Sin texto, lista los mas
 // recientes. Un documento ya vinculado a otra obra no se puede vincular.
+// Una obra manual tiene varios documentos (uno por piso): se marcan los que
+// correspondan y se vinculan de una vez; cada uno se lee de HETMO por su
+// cuenta, asi que uno que falle no frena a los demas.
 export const BuscarFabricacionModal: React.FC<Props> = ({ proyectoId, onClose }) => {
   const queryClient = useQueryClient();
   const isDesktop = useMediaQuery(BREAKPOINT_DESKTOP);
   const [texto, setTexto] = useState('');
   const [busqueda, setBusqueda] = useState('');
+  const [seleccion, setSeleccion] = useState<number[]>([]);
+  // Mientras se vinculan, cual va (para la fila) y cuales ya quedaron.
+  const [enCurso, setEnCurso] = useState<number | null>(null);
 
   // Espera a que termine de escribir antes de consultar a HETMO.
   useEffect(() => {
@@ -40,20 +47,48 @@ export const BuscarFabricacionModal: React.FC<Props> = ({ proyectoId, onClose })
     refetchInterval: false,
   });
 
+  const lotes = useMemo(() => data ?? [], [data]);
+  const disponibles = useMemo(() => lotes.filter((l) => !l.vinculadoA).map((l) => l.hetmo), [lotes]);
+  // Solo cuentan los marcados que siguen en la lista y sin vincular (la busqueda puede cambiar).
+  const marcados = seleccion.filter((h) => disponibles.includes(h));
+
   const vincular = useMutation({
-    mutationFn: (hetmoId: number) => vincularFabricacion(proyectoId, hetmoId),
-    onSuccess: (r) => {
+    mutationFn: async (hetmoIds: number[]) => {
+      const resultados: ResultadoVinculoFabricacion[] = [];
+      const fallidos: string[] = [];
+      for (const hetmoId of hetmoIds) {
+        setEnCurso(hetmoId);
+        try {
+          resultados.push(await vincularFabricacion(proyectoId, hetmoId));
+          setSeleccion((s) => s.filter((h) => h !== hetmoId));
+        } catch (e) {
+          const lote = lotes.find((l) => l.hetmo === hetmoId);
+          fallidos.push(`${lote?.descripcion || `HETMO ${hetmoId}`}: ${extraerErrorParaToast(e).mensaje}`);
+        }
+      }
+      setEnCurso(null);
+      return { resultados, fallidos };
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['fabricaciones', proyectoId] });
       queryClient.invalidateQueries({ queryKey: ['hetmoFabricaciones'] });
-      mostrarToast(
-        `Documento vinculado: ${r.ventanas.nuevas} ventana(s) leídas${r.advertencias.length ? `. ${r.advertencias.join(' ')}` : ''}` +
-          (r.vinculacionCubicacion ? ` ${textoVinculacionCubicacion(r.vinculacionCubicacion)}` : '.'),
-        { tipo: 'info' }
-      );
+    },
+    onSuccess: ({ resultados, fallidos }) => {
+      if (resultados.length === 1 && fallidos.length === 0) {
+        const r = resultados[0];
+        mostrarToast(
+          `Documento vinculado: ${r.ventanas.nuevas} ventana(s) leídas${r.advertencias.length ? `. ${r.advertencias.join(' ')}` : ''}` +
+            (r.vinculacionCubicacion ? ` ${textoVinculacionCubicacion(r.vinculacionCubicacion)}` : '.'),
+          { tipo: 'info' }
+        );
+        return;
+      }
+      mostrarToast(textoVinculosMultiples(resultados, fallidos), { tipo: fallidos.length ? 'error' : 'info' });
     },
   });
 
-  const lotes = data ?? [];
+  const alternar = (hetmoId: number, marcar: boolean) => setSeleccion((s) => (marcar ? [...new Set([...s, hetmoId])] : s.filter((h) => h !== hetmoId)));
+  const todosMarcados = disponibles.length > 0 && disponibles.every((h) => marcados.includes(h));
 
   const accion = (l: FabricacionHetmoBusqueda) => {
     if (l.vinculadoA) {
@@ -64,18 +99,14 @@ export const BuscarFabricacionModal: React.FC<Props> = ({ proyectoId, onClose })
         </span>
       );
     }
-    const enCurso = vincular.isPending && vincular.variables === l.hetmo;
+    if (enCurso === l.hetmo) return <Loader2 className="w-4 h-4 animate-spin text-brand-600" aria-label="Vinculando" />;
     return (
-      <Button
-        size="sm"
-        variant="primary"
-        leftIcon={<Link2 className="w-3.5 h-3.5" />}
-        isLoading={enCurso}
+      <Casilla
+        checked={marcados.includes(l.hetmo)}
         disabled={vincular.isPending}
-        onClick={() => vincular.mutate(l.hetmo)}
-      >
-        Vincular
-      </Button>
+        onChange={(v) => alternar(l.hetmo, v)}
+        aria-label={`Marcar ${l.descripcion || `documento ${l.hetmo}`} para vincular`}
+      />
     );
   };
 
@@ -86,10 +117,40 @@ export const BuscarFabricacionModal: React.FC<Props> = ({ proyectoId, onClose })
 
   return (
     <Modal
-      titulo="Vincular documento de fabricación"
-      subtitulo="Busca por descripción (ej. EX_P21), referencia o número. Los datos se leen de HETMO; no se modifica nada allá."
+      titulo="Vincular documentos de fabricación"
+      subtitulo="Busca por descripción (ej. EX_P21), referencia o número, marca los documentos de esta obra y vincúlalos de una vez. Los datos se leen de HETMO; no se modifica nada allá."
       ancho="xl"
       onClose={onClose}
+      cuerpoClassName="flex flex-col flex-1 min-h-0 pt-4"
+      pie={
+        <Modal.Pie
+          inicio={
+            disponibles.length > 0 && (
+              <Casilla
+                checked={todosMarcados}
+                disabled={vincular.isPending}
+                onChange={(v) => setSeleccion(v ? disponibles : [])}
+                label={`Marcar los ${disponibles.length} disponibles de la lista`}
+              />
+            )
+          }
+        >
+          <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={vincular.isPending}>
+            {marcados.length ? 'Cancelar' : 'Cerrar'}
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            leftIcon={<Link2 className="w-3.5 h-3.5" />}
+            disabled={marcados.length === 0}
+            isLoading={vincular.isPending}
+            onClick={() => vincular.mutate(marcados)}
+          >
+            {marcados.length > 1 ? `Vincular ${marcados.length} documentos` : 'Vincular documento'}
+          </Button>
+        </Modal.Pie>
+      }
     >
       <div className="px-5 pb-3 shrink-0">
         <Buscador autoFocus valor={texto} onChange={setTexto} placeholder="Buscar documento de fabricación…" cargando={isFetching} />
@@ -112,16 +173,21 @@ export const BuscarFabricacionModal: React.FC<Props> = ({ proyectoId, onClose })
           <Tabla>
             <Thead>
               <Tr className="border-b border-slate-100 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                <Th className="pr-3 font-bold w-8"></Th>
                 <Th className="pr-3 font-bold">Documento</Th>
                 <Th className="pr-3 font-bold">Estado</Th>
                 <Th className="pr-3 font-bold">Documento de venta</Th>
                 <Th className="pr-3 font-bold">Fecha</Th>
-                <Th alinear="derecha" className="font-bold"></Th>
               </Tr>
             </Thead>
             <Tbody>
               {lotes.map((l) => (
-                <Tr key={l.hetmo} className="border-b border-slate-50 align-middle">
+                <Tr
+                  key={l.hetmo}
+                  className={`border-b border-slate-50 align-middle ${!l.vinculadoA && !vincular.isPending ? 'cursor-pointer hover:bg-slate-50/70' : ''} ${marcados.includes(l.hetmo) ? 'bg-brand-50/40' : ''}`}
+                  onClick={() => !l.vinculadoA && !vincular.isPending && alternar(l.hetmo, !marcados.includes(l.hetmo))}
+                >
+                  <Td className="pr-3 w-8" onClick={(e) => e.stopPropagation()}>{accion(l)}</Td>
                   <Td className="pr-3 min-w-0">
                     <div className="font-bold text-slate-900 truncate max-w-[16rem]" title={l.descripcion ?? ''}>
                       {l.descripcion || '(sin descripción)'}
@@ -138,7 +204,6 @@ export const BuscarFabricacionModal: React.FC<Props> = ({ proyectoId, onClose })
                   </Td>
                   <Td className="pr-3 text-[11px] text-slate-600">{etiquetaVenta(l)}</Td>
                   <Td className="pr-3 text-[11px] text-slate-500 whitespace-nowrap">{formatoFechaHora(l.fecha)}</Td>
-                  <Td alinear="derecha">{accion(l)}</Td>
                 </Tr>
               ))}
             </Tbody>
@@ -146,9 +211,10 @@ export const BuscarFabricacionModal: React.FC<Props> = ({ proyectoId, onClose })
         ) : (
           <div className="divide-y divide-slate-100">
             {lotes.map((l) => (
-              <div key={l.hetmo} className="py-3 space-y-1.5">
+              <div key={l.hetmo} className={`py-3 space-y-1.5 ${marcados.includes(l.hetmo) ? 'bg-brand-50/40 -mx-5 px-5' : ''}`}>
                 <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
+                  <div className="shrink-0 pt-0.5 min-w-6">{accion(l)}</div>
+                  <div className="min-w-0 flex-1">
                     <div className="text-sm font-bold text-slate-900 truncate">{l.descripcion || '(sin descripción)'}</div>
                     <div className="text-[11px] text-slate-500 font-mono">
                       N° {l.numero ?? '—'} · HETMO {l.hetmo}
@@ -158,8 +224,7 @@ export const BuscarFabricacionModal: React.FC<Props> = ({ proyectoId, onClose })
                     {textoEstadoFabricacion(l.estado_documento, l.estado_glosa_pantalla || l.estado_glosa)}
                   </Badge>
                 </div>
-                <div className="text-[11px] text-slate-500">{etiquetaVenta(l)}</div>
-                <div>{accion(l)}</div>
+                <div className="text-[11px] text-slate-500 pl-8">{etiquetaVenta(l)}</div>
               </div>
             ))}
           </div>

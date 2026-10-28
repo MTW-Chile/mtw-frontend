@@ -54,6 +54,8 @@ export const ParametrosSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdi
       queryClient.setQueryData(['configuracionGeneral'], p);
       // La Analítica sin Hoja guardada usa estos valores por defecto.
       queryClient.invalidateQueries({ queryKey: ['proyectoDetail'] });
+      // Los % de cobro por defecto los muestra la configuracion de cobro de cada obra no personalizada.
+      queryClient.invalidateQueries({ queryKey: ['configuracionCobro'] });
     },
     onError: avisarError,
   });
@@ -65,6 +67,7 @@ export const ParametrosSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdi
   const set = <K extends keyof ParametrosGenerales>(k: K, v: ParametrosGenerales[K]) => setForm((f) => (f ? { ...f, [k]: v } : f));
   const dis = !puedeEditar;
   const pct = (fraccion: number) => Math.round(fraccion * 10000) / 100;
+  const sumaHitos = Math.round((form.estadoPago.pctMarco + form.estadoPago.pctHoja + form.estadoPago.pctR1 + form.estadoPago.pctRF) * 100) / 100;
 
   return (
     <Seccion
@@ -72,7 +75,7 @@ export const ParametrosSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdi
       descripcion="Valores comerciales y operativos que usa todo el sistema. Cambiarlos no altera cotizaciones ya congeladas."
       acciones={
         puedeEditar ? (
-          <Button size="sm" leftIcon={<Save className="w-3.5 h-3.5" />} disabled={!sucio} isLoading={guardar.isPending} onClick={() => guardar.mutate(form)}>
+          <Button size="sm" leftIcon={<Save className="w-3.5 h-3.5" />} disabled={!sucio || sumaHitos !== 100} isLoading={guardar.isPending} onClick={() => guardar.mutate(form)}>
             Guardar
           </Button>
         ) : undefined
@@ -161,15 +164,30 @@ export const ParametrosSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdi
             onChange={(v) => set('conciliacion', { ...form.conciliacion, toleranciaFiltro: (v ?? 0) / 100 })}
           />
         </Grupo>
-        <Grupo titulo="Estados de pago" columnas={3}>
-          <Numero
-            etiqueta="Marco (cuando se cobra separado de la hoja)"
-            sufijo="%"
-            ayuda="Porcentaje del precio de la ventana que corresponde al marco; el resto es la hoja."
-            valor={form.estadoPago?.pctMarco ?? 40}
-            disabled={dis}
-            onChange={(v) => set('estadoPago', { pctMarco: Math.min(100, Math.max(0, v ?? 0)) })}
-          />
+        <Grupo titulo="Estados de pago · valores por defecto para una obra nueva (cada obra guarda los suyos)" columnas={3}>
+          {(
+            [
+              ['pctMarco', 'Hito marco', 'Se cobra al instalar el marco.'],
+              ['pctHoja', 'Hito hoja con vidrio', 'Al instalar la hoja (en una ventana fija, el vidrio).'],
+              ['pctR1', 'Hito recepción R1', 'Al ingresar la R1 del cliente.'],
+              ['pctRF', 'Hito recepción final', 'Cuando el cliente declara resueltas las observaciones.'],
+              ['anticipoPct', 'Devolución de anticipo', '% del avance que se descuenta en cada estado de pago.'],
+              ['retencionPct', 'Retención', '% del avance que el cliente retiene.'],
+            ] as const
+          ).map(([campo, etiqueta, ayuda]) => (
+            <Numero
+              key={campo}
+              etiqueta={etiqueta}
+              sufijo="%"
+              ayuda={ayuda}
+              valor={form.estadoPago[campo]}
+              disabled={dis}
+              onChange={(v) => set('estadoPago', { ...form.estadoPago, [campo]: Math.min(100, Math.max(0, v ?? 0)) })}
+            />
+          ))}
+          <p className={`sm:col-span-3 text-[11px] ${sumaHitos === 100 ? 'text-slate-500' : 'text-red-600 font-semibold'}`}>
+            Los cuatro hitos suman {sumaHitos.toLocaleString('es-CL')} % {sumaHitos === 100 ? '' : '· deben sumar 100 %'}
+          </p>
         </Grupo>
       </div>
     </Seccion>

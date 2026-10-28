@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, FileText, PackageCheck, RefreshCw, Send, Truck, XCircle } from 'lucide-react';
-import { anularDespacho, emitirDespacho, getDespacho, getEstadoBsale, reintentarGuiaBsale } from '../../../api/client';
+import { anularDespacho, editarDespacho, emitirDespacho, getDespacho, getEstadoBsale, reintentarGuiaBsale } from '../../../api/client';
 import { Modal } from '../../../components/ui/Modal';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
@@ -63,6 +63,8 @@ export const DespachoDetalleModal: React.FC<Props> = ({ despachoId, proyectoId, 
   const [tipoGuia, setTipoGuia] = useState<TipoGuiaDespacho>('SIN_GUIA');
   const [numeroGuia, setNumeroGuia] = useState('');
   const [fechaDespacho, setFechaDespacho] = useState(hoyIso());
+  // Entrega editable al emitir (la guía electrónica la exige): null = sin tocar, se usa lo del despacho.
+  const [entrega, setEntrega] = useState<{ direccionEntrega: string; comunaEntrega: string; ciudadEntrega: string; destinatario: string } | null>(null);
 
   const { data: d, isLoading, isError, refetch } = useQuery({ queryKey: ['despacho', despachoId], queryFn: () => getDespacho(despachoId) });
   const { data: bsale } = useQuery({ queryKey: ['bsaleEstado'], queryFn: getEstadoBsale, staleTime: 1000 * 60 * 10, enabled: puedeDespachar });
@@ -79,13 +81,27 @@ export const DespachoDetalleModal: React.FC<Props> = ({ despachoId, proyectoId, 
   };
 
   const emitir = useMutation({
-    mutationFn: () => emitirDespacho(despachoId, { tipoGuia, numeroGuia: tipoGuia === 'MANUAL' ? numeroGuia : null, fechaDespacho: fechaDespacho || null }),
+    mutationFn: async () => {
+      // Si se corrigió la entrega acá, se guarda antes de emitir.
+      if (entrega) {
+        await editarDespacho(despachoId, {
+          direccionEntrega: entrega.direccionEntrega.trim() || null,
+          comunaEntrega: entrega.comunaEntrega.trim() || null,
+          ciudadEntrega: entrega.ciudadEntrega.trim() || null,
+          destinatario: entrega.destinatario.trim() || null,
+        });
+      }
+      return emitirDespacho(despachoId, { tipoGuia, numeroGuia: tipoGuia === 'MANUAL' ? numeroGuia : null, fechaDespacho: fechaDespacho || null });
+    },
     onSuccess: ({ guia }) => {
       refrescar();
-      if (guia && !guia.ok) mostrarToast(`Despacho emitido, pero la guía no salió en Bsale: ${guia.error}`);
-      else mostrarToast(guia?.ok ? 'Despacho emitido y guía generada en Bsale.' : 'Despacho emitido. La obra ya lo ve como recepción pendiente.', { tipo: 'info' });
+      mostrarToast(guia?.ok ? 'Despacho emitido y guía generada en Bsale.' : 'Despacho emitido. La obra ya lo ve como recepción pendiente.', { tipo: 'info' });
     },
-    onError: alFallar,
+    // Con guía electrónica, si Bsale falla el despacho sigue en borrador: la API responde error.
+    onError: (e) => {
+      refrescar();
+      alFallar(e);
+    },
   });
   const reintentar = useMutation({
     mutationFn: () => reintentarGuiaBsale(despachoId),
@@ -105,9 +121,21 @@ export const DespachoDetalleModal: React.FC<Props> = ({ despachoId, proyectoId, 
     const motivo = await pedirTexto({ titulo: 'Anular despacho', mensaje: 'Las ventanas vuelven a quedar disponibles para otro despacho.', etiqueta: 'Motivo', requerido: true, peligro: true });
     if (motivo) anular.mutate(motivo);
   };
+  // Qué falta para poder emitir con la guía elegida (lo mismo que valida la API).
+  const direccionActual = entrega ? entrega.direccionEntrega.trim() : (d?.direccionEntrega ?? '');
+  const faltaParaEmitir: string[] =
+    tipoGuia === 'MANUAL'
+      ? numeroGuia.trim() ? [] : ['N° de guía']
+      : tipoGuia === 'BSALE'
+        ? [
+            ...(!bsale?.configurado ? ['Bsale configurado (Configuración › Integraciones)'] : []),
+            ...(d?.faltaParaGuiaBsale ?? []).filter((f) => f !== 'Dirección de entrega' || !direccionActual),
+          ]
+        : [];
+
   const pedirEmision = async () => {
-    if (tipoGuia === 'MANUAL' && !numeroGuia.trim()) {
-      mostrarToast('Indica el número de la guía manual.');
+    if (faltaParaEmitir.length) {
+      mostrarToast(`Para emitir falta: ${faltaParaEmitir.join(', ')}.`);
       return;
     }
     const ok = await confirmar({
@@ -147,7 +175,7 @@ export const DespachoDetalleModal: React.FC<Props> = ({ despachoId, proyectoId, 
               Cerrar
             </Button>
             {puedeDespachar && d.estado === 'BORRADOR' && (
-              <Button type="button" variant="primary" size="sm" leftIcon={<Send className="w-3.5 h-3.5" />} isLoading={emitir.isPending} disabled={tipoGuia === 'BSALE' && !bsale?.configurado} onClick={pedirEmision}>
+              <Button type="button" variant="primary" size="sm" leftIcon={<Send className="w-3.5 h-3.5" />} isLoading={emitir.isPending} disabled={faltaParaEmitir.length > 0} title={faltaParaEmitir.length ? `Falta: ${faltaParaEmitir.join(', ')}` : undefined} onClick={pedirEmision}>
                 Emitir despacho
               </Button>
             )}
@@ -204,10 +232,34 @@ export const DespachoDetalleModal: React.FC<Props> = ({ despachoId, proyectoId, 
               <OpcionesTarjeta columnas={3} valor={tipoGuia} onChange={setTipoGuia} opciones={opcionesGuia.map((o) => ({ ...o, icono: o.value === 'BSALE' ? <FileText className="w-4 h-4" /> : undefined }))} />
               <div className="grid sm:grid-cols-2 gap-3">
                 <Input label="Fecha de despacho" type="date" value={fechaDespacho} onChange={(e) => setFechaDespacho(e.target.value)} />
-                {tipoGuia === 'MANUAL' && <Input label="N° de guía" value={numeroGuia} onChange={(e) => setNumeroGuia(e.target.value)} maxLength={40} />}
+                {tipoGuia === 'MANUAL' && <Input label="N° de guía" required value={numeroGuia} onChange={(e) => setNumeroGuia(e.target.value)} maxLength={40} error={numeroGuia.trim() ? undefined : 'Obligatorio para emitir'} />}
               </div>
-              {tipoGuia === 'BSALE' && !bsale?.configurado && (
-                <Aviso tono="advertencia">Bsale no está configurado en la API (BSALE_ACCESS_TOKEN). Emite con guía manual o sin guía, o pide a un administrador configurarlo.</Aviso>
+              {tipoGuia === 'BSALE' && (
+                <div className="space-y-2">
+                  <p className="text-[11px] text-slate-600">La guía electrónica necesita la dirección de entrega y los datos tributarios del cliente (RUT y razón social, en Clientes).</p>
+                  {(() => {
+                    const e = entrega ?? { direccionEntrega: d.direccionEntrega ?? '', comunaEntrega: d.comunaEntrega ?? '', ciudadEntrega: d.ciudadEntrega ?? '', destinatario: d.destinatario ?? '' };
+                    const set = (campo: keyof typeof e, v: string) => setEntrega({ ...e, [campo]: v });
+                    return (
+                      <div className="grid sm:grid-cols-2 gap-3">
+                        <Input label="Dirección de entrega" required value={e.direccionEntrega} onChange={(ev) => set('direccionEntrega', ev.target.value)} maxLength={300} error={e.direccionEntrega.trim() ? undefined : 'Obligatoria para la guía'} />
+                        <Input label="Destinatario" value={e.destinatario} onChange={(ev) => set('destinatario', ev.target.value)} maxLength={200} placeholder="Quién recibe en obra" />
+                        <Input label="Comuna" value={e.comunaEntrega} onChange={(ev) => set('comunaEntrega', ev.target.value)} maxLength={100} />
+                        <Input label="Ciudad" value={e.ciudadEntrega} onChange={(ev) => set('ciudadEntrega', ev.target.value)} maxLength={100} />
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+              {faltaParaEmitir.length > 0 && (
+                <Aviso tono="advertencia" titulo="Para emitir falta">
+                  <ul className="list-disc pl-4">
+                    {faltaParaEmitir.map((f) => (
+                      <li key={f}>{f}</li>
+                    ))}
+                  </ul>
+                  {tipoGuia === 'BSALE' && faltaParaEmitir.some((f) => f.includes('cliente')) && <p className="mt-1">Los datos del cliente se completan en Comercial › Clientes.</p>}
+                </Aviso>
               )}
             </div>
           )}

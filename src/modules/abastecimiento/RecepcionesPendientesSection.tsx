@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, PackageCheck } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { getOrdenesCompra } from '../../api/client';
-import { RecepcionarOCModal } from './RecepcionarOCModal';
+import { usePermisos } from '../../lib/permisos';
+import { actualizarParams } from '../../lib/navigation';
 import type { OrdenCompra } from '../../types';
 
 const itemsPendientes = (oc: OrdenCompra) =>
@@ -17,14 +18,16 @@ const itemsPendientes = (oc: OrdenCompra) =>
  * OC en ENVIADA/RECIBIDA_PARCIAL -- lo que Bodega tiene pendiente de
  * recepcionar (marcar lo que efectivamente llego). Sin proyectoId: todas
  * las obras + "Obras Mayores" juntas (modulo Bodega global). Con
- * proyectoId: solo las de esa obra (ficha de proyecto).
+ * proyectoId: solo las de esa obra. Recepcionar exige bodega.recibir (la
+ * API lo valida igual); sin el permiso, la lista es solo lectura.
+ * "Recepcionar" abre la OC como página (?oc=<id>, ver RecepcionOCPage).
  */
 export const RecepcionesPendientesSection: React.FC<{ proyectoId?: string }> = ({ proyectoId }) => {
+  const { tiene } = usePermisos();
   const { data, isLoading } = useQuery({
     queryKey: ['ordenesCompra', 'pendientes-recepcion', proyectoId ?? 'global'],
     queryFn: () => getOrdenesCompra({ proyectoId, limit: 200 }),
   });
-  const [recepcionando, setRecepcionando] = useState<OrdenCompra | null>(null);
 
   const pendientes = (data?.data || []).filter((oc) => oc.estado === 'ENVIADA' || oc.estado === 'RECIBIDA_PARCIAL');
 
@@ -63,15 +66,16 @@ export const RecepcionesPendientesSection: React.FC<{ proyectoId?: string }> = (
                   {itemsPendientes(oc)} de {oc.items.length} ítems pendientes
                 </span>
               </div>
-              <Button size="sm" onClick={() => setRecepcionando(oc)}>
-                Recepcionar
-              </Button>
+              {tiene('bodega.recibir') && (
+                <Button size="sm" className="pointer-coarse:min-h-11" onClick={() => actualizarParams({ tab: 'recepciones', oc: oc.id })}>
+                  Recepcionar
+                </Button>
+              )}
             </div>
           ))}
         </div>
       )}
 
-      {recepcionando && <RecepcionarOCModal ordenCompra={recepcionando} onClose={() => setRecepcionando(null)} />}
     </div>
   );
 };

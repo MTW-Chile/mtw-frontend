@@ -61,6 +61,8 @@ import type {
   AprobacionesPendientes,
   FabricacionHetmo,
   FabricacionHetmoBusqueda,
+  DisponibilidadNumeroProyecto,
+  ResumenObraDetalle,
   ResultadoVinculoFabricacion,
   ResultadoDeteccionFabricaciones,
   MaterialesFabricacion,
@@ -93,6 +95,9 @@ import type {
   EstadoPendiente,
   DestinoPendiente,
   NuevoPendientePayload,
+  UltimoPrecioProveedor,
+  ConfiguracionBsale,
+  ObraDespachos,
 } from '../types';
 
 // withCredentials: true es lo que hace que el navegador mande la cookie de
@@ -156,6 +161,8 @@ export async function getProyectos(params?: {
   // Origenes a dejar fuera (coma-separado), ej. 'MANUAL_OBRA': Presupuestos
   // no cuenta las obras manuales porque nunca se cotizaron.
   excluirOrigen?: string;
+  // 'obra': agrega resumenObra a cada proyecto (listas de Obras en curso y Fabricación).
+  incluir?: 'obra';
 }): Promise<ProyectosResponse> {
   const response = await apiClient.get<ProyectosResponse>('/proyectos', { params });
   return response.data;
@@ -178,9 +185,22 @@ export async function createProyectoManual(payload: {
 export async function crearObraManual(payload: {
   obra: string;
   clienteId: string;
+  // Número de proyecto elegido: queda como numeroPresupuesto y código PRJ-año-número.
+  numeroPresupuesto: number;
   direccion?: string;
 }): Promise<{ proyecto: Proyecto }> {
   const response = await apiClient.post<{ proyecto: Proyecto }>('/obras/manual', payload);
+  return response.data;
+}
+
+// Sin número: solo el siguiente libre. Con número: si está libre y quién lo usa si no.
+export async function getNumeroObraManual(numero?: number): Promise<DisponibilidadNumeroProyecto> {
+  const response = await apiClient.get<DisponibilidadNumeroProyecto>('/obras/manual/numero', { params: numero ? { numero } : undefined });
+  return response.data;
+}
+
+export async function getResumenObra(proyectoId: string): Promise<ResumenObraDetalle> {
+  const response = await apiClient.get<ResumenObraDetalle>(`/proyectos/${proyectoId}/resumen-obra`);
   return response.data;
 }
 
@@ -1023,11 +1043,21 @@ export async function registrarRecepcionOC(
     tipoDocumentoId?: string;
     numeroDocumento?: string;
     notas?: string;
-    items: { ordenCompraItemId: string; cantidadRecibida: number; precioReal?: number | null }[];
+    items: { ordenCompraItemId: string; cantidadRecibida: number; observacion?: string | null; precioReal?: number | null }[];
   }
 ): Promise<{ success: boolean; recepcion: Omit<RecepcionOC, 'items'> & { items: RecepcionOCItemCreado[] }; ordenCompra: OrdenCompra }> {
   const response = await apiClient.post(`/ordenes-compra/${ordenCompraId}/recepciones`, payload);
   return response.data;
+}
+
+// Ultimo precio pagado a ese proveedor por cada material (OC no canceladas
+// ni rechazadas), para sugerirlo al completar una solicitud o armar una OC.
+export async function getUltimosPrecios(proveedorId: string, materialIds: string[]): Promise<Record<string, UltimoPrecioProveedor>> {
+  if (!proveedorId || materialIds.length === 0) return {};
+  const response = await apiClient.get<{ data: Record<string, UltimoPrecioProveedor> }>('/ordenes-compra/ultimos-precios', {
+    params: { proveedorId, materialIds: materialIds.join(',') },
+  });
+  return response.data.data;
 }
 
 // Catalogo chico para el selector de "Tipo de documento" al recepcionar
@@ -1035,6 +1065,49 @@ export async function registrarRecepcionOC(
 export async function getTiposDocumento(): Promise<{ data: TipoDocumento[] }> {
   const response = await apiClient.get<{ data: TipoDocumento[] }>('/tipos-documento');
   return response.data;
+}
+
+// Indicadores economicos del dia (UF, dolar, euro, UTM): una sola fuente para
+// Inicio, adicionales y la factura de un estado de pago. Los resuelve mtw-api
+// (proveedor oficial o de respaldo) y los guarda por fecha; si ningun proveedor
+// responde, llega el ultimo dia guardado con desactualizado=true.
+export async function getIndicadores(): Promise<IndicadoresEconomicos> {
+  const response = await apiClient.get<{ data: IndicadoresEconomicos }>('/indicadores');
+  return response.data.data;
+}
+
+// Página de inicio: módulos de esta persona (según su rol) y sus datos.
+export async function getInicio(): Promise<InicioData> {
+  const response = await apiClient.get<InicioData>('/inicio');
+  return response.data;
+}
+
+// Catálogo de módulos de inicio, para configurar cada rol.
+export async function getModulosInicio(): Promise<ModuloInicio[]> {
+  const response = await apiClient.get<{ data: ModuloInicio[] }>('/inicio/modulos');
+  return response.data.data;
+}
+
+export async function getConfiguracionBsale(): Promise<ConfiguracionBsale> {
+  const response = await apiClient.get<{ data: ConfiguracionBsale }>('/configuracion-bsale');
+  return response.data.data;
+}
+
+// accessToken: texto = reemplazar (la API lo prueba contra Bsale); null = quitar; ausente = conservar.
+export async function guardarConfiguracionBsale(cambios: { accessToken?: string | null; officeId?: number | null; shippingTypeId?: number; declararSii?: boolean }): Promise<ConfiguracionBsale> {
+  const response = await apiClient.patch<{ data: ConfiguracionBsale }>('/configuracion-bsale', cambios);
+  return response.data.data;
+}
+
+export async function getConfiguracionIndicadores(): Promise<ConfiguracionIndicadores> {
+  const response = await apiClient.get<{ data: ConfiguracionIndicadores }>('/configuracion-indicadores');
+  return response.data.data;
+}
+
+// Guarda (o quita, con null) la API key de la CMF; la API la prueba antes de aceptarla.
+export async function guardarConfiguracionIndicadores(cmfApiKey: string | null): Promise<ConfiguracionIndicadores> {
+  const response = await apiClient.patch<{ data: ConfiguracionIndicadores }>('/configuracion-indicadores', { cmfApiKey });
+  return response.data.data;
 }
 
 export async function getBodegaProyecto(proyectoId: string): Promise<BodegaProyectoResponse> {
@@ -1357,7 +1430,7 @@ export async function getCatalogoPermisos(): Promise<{ data: ModuloPermisos[] }>
   return response.data;
 }
 
-type DatosRol = { nombre: string; descripcion: string | null; esAdministradorNegocio: boolean; permisos: string[] };
+type DatosRol = { nombre: string; descripcion: string | null; esAdministradorNegocio: boolean; permisos: string[]; inicioModulos?: string[] };
 
 export async function createRol(payload: DatosRol): Promise<{ data: Rol }> {
   const response = await apiClient.post<{ data: Rol }>('/roles', payload);
@@ -1988,9 +2061,15 @@ export async function desvincularDocumentoHetmo(id: string): Promise<Adicional> 
 }
 
 // ==========================================
-// Despacho a obra (Fabricación > Despachos)
+// Despacho a obra (sección Despachos del menú)
 // ==========================================
 import type {
+  ConfiguracionCobro,
+  ConfiguracionCobroObra,
+  ConfiguracionIndicadores,
+  IndicadoresEconomicos,
+  InicioData,
+  ModuloInicio,
   DatosDespacho,
   DatosEstadoPago,
   DespachoObra,
@@ -2069,6 +2148,11 @@ export async function getObrasInstalacion(): Promise<ObraInstalacion[]> {
   return response.data;
 }
 
+export async function getObrasDespachos(): Promise<ObraDespachos[]> {
+  const response = await apiClient.get<ObraDespachos[]>('/despachos/obras');
+  return response.data;
+}
+
 export async function getInstalacionObra(proyectoId: string): Promise<InstalacionObra> {
   const response = await apiClient.get<InstalacionObra>(`/proyectos/${proyectoId}/instalacion`);
   return response.data;
@@ -2112,6 +2196,16 @@ export async function getContenidoFotoInstalacion(instalacionId: string, adjunto
 // ==========================================
 // Estados de pago (Comercial)
 // ==========================================
+
+export async function getConfiguracionCobro(proyectoId: string): Promise<ConfiguracionCobroObra> {
+  const response = await apiClient.get<ConfiguracionCobroObra>(`/proyectos/${proyectoId}/configuracion-cobro`);
+  return response.data;
+}
+
+export async function guardarConfiguracionCobro(proyectoId: string, payload: ConfiguracionCobro): Promise<ConfiguracionCobroObra> {
+  const response = await apiClient.put<ConfiguracionCobroObra>(`/proyectos/${proyectoId}/configuracion-cobro`, payload);
+  return response.data;
+}
 
 export async function getEstadosPago(proyectoId: string): Promise<EstadoPago[]> {
   const response = await apiClient.get<EstadoPago[]>(`/proyectos/${proyectoId}/estados-pago`);
