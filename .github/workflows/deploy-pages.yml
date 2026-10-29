@@ -1,0 +1,39 @@
+# Despliegue del frontend a Cloudflare Pages en cada push a main.
+# Secretos del repo: CLOUDFLARE_API_TOKEN (Account > Cloudflare Pages > Edit)
+# y CLOUDFLARE_ACCOUNT_ID. Variable del repo: VITE_API_URL (origen de la API,
+# por ejemplo https://api.mtw.cl/api). El proyecto de Pages "mtw-erp" se crea
+# una sola vez con `wrangler pages project create mtw-erp --production-branch main`.
+name: Deploy a Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+      - name: Publicar en Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=mtw-erp --branch=main --commit-dirty=true
