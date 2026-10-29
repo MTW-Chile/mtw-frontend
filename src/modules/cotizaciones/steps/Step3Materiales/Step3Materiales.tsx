@@ -171,6 +171,8 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
 
   const guardarAjuste = (
     m: MaterialAnalitica,
+    // precioOrigen aqui es por unidad de precio (ej. metro): la tabla muestra el precio por unidad de
+    // compra (ej. barra) y divide por factorPrecio antes de llamar.
     cambios: { excluido?: boolean; precioOrigen?: number; monedaOrigen?: string }
   ) => {
     ajusteMutation.mutate({
@@ -689,7 +691,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                   <PrecioEditable
                                     valor={m.precioOrigen}
                                     disabled={edicionBloqueada}
-                                    onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo, monedaOrigen: m.monedaOrigen })}
+                                    onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo / m.factorPrecio, monedaOrigen: m.monedaOrigen })}
                                   />
                                 </div>
                               </Td>
@@ -783,7 +785,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                 <PrecioEditable
                                   valor={m.precioOrigen}
                                   disabled={edicionBloqueada}
-                                  onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo, monedaOrigen: m.monedaOrigen })}
+                                  onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo / m.factorPrecio, monedaOrigen: m.monedaOrigen })}
                                 />
                               </div>
                             </Campo>

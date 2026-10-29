@@ -824,8 +824,10 @@ export interface MaterialAnalitica {
   medicion: MedicionReceta;
   unidadConsumo: UnidadLigera;
   cantidadTotal: number;
+  // Precio de origen por unidad (por barra si se compra en barras), igual que precioCLP.
   precioOrigen: number;
   monedaOrigen: string;
+  // Unidades de precio por unidad de cantidad (ej. 5,8 m por barra); para editar el precio por unidad de precio.
   factorPrecio: number;
   precioCLP: number;
   // Precio por unidad con el descuento de la partida: el de compra (y de la OC).
