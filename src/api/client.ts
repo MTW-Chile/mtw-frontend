@@ -459,7 +459,12 @@ export async function saveMaterialAjuste(
   versionId: string,
   payload: {
     materialId: string;
+    // Por unidad de precio, en la moneda de origen del material (la API la fija).
     precioPersonalizado?: number | null;
+    // En CLP por unidad de compra, tal como se ve en la Analitica; la API lo
+    // convierte a la moneda de origen con estas tasas.
+    precioCLP?: number;
+    tasas?: { dolar: number; euro: number; uf: number };
     monedaPersonalizada?: string | null;
     tipoProductoPersonalizadoId?: string | null;
     excluido?: boolean;

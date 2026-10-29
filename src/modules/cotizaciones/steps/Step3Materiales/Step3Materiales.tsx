@@ -162,24 +162,25 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   // directo contra la API al tocarlos -- nada de estado "flotante" que se
   // pierda al recargar. La API actualiza solo los campos que recibe.
   const ajusteMutation = useMutation({
-    mutationFn: (payload: { materialId: string; excluido?: boolean; precioPersonalizado?: number; monedaPersonalizada?: string }) => {
+    mutationFn: (payload: { materialId: string; excluido?: boolean; precioPersonalizado?: number; precioCLP?: number; tasas?: { dolar: number; euro: number; uf: number } }) => {
       if (!versionId) return Promise.resolve(null);
       return saveMaterialAjuste(versionId, payload);
     },
     onSuccess: invalidar,
   });
 
-  const guardarAjuste = (
-    m: MaterialAnalitica,
-    // precioOrigen aqui es por unidad de precio (ej. metro): la tabla muestra el precio por unidad de
-    // compra (ej. barra) y divide por factorPrecio antes de llamar.
-    cambios: { excluido?: boolean; precioOrigen?: number; monedaOrigen?: string }
-  ) => {
+  // La moneda de origen del material nunca cambia por editar un precio:
+  // - precioOrigen va por unidad de precio (ej. metro) en esa moneda; la tabla
+  //   muestra el precio por unidad de compra (ej. barra) y divide por factorPrecio.
+  // - precioCLP va tal como se ve en la columna CLP (por unidad de compra) y la
+  //   API lo convierte a la moneda de origen con las tasas en pantalla.
+  const guardarAjuste = (m: MaterialAnalitica, cambios: { excluido?: boolean; precioOrigen?: number; precioCLP?: number }) => {
     ajusteMutation.mutate({
       materialId: m.materialId,
       excluido: cambios.excluido,
       precioPersonalizado: cambios.precioOrigen,
-      monedaPersonalizada: cambios.precioOrigen !== undefined ? cambios.monedaOrigen ?? m.monedaOrigen : undefined,
+      precioCLP: cambios.precioCLP,
+      tasas: cambios.precioCLP !== undefined ? { dolar: tasaDolar, euro: tasaEuro, uf: tasaUf } : undefined,
     });
   };
 
@@ -691,7 +692,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                   <PrecioEditable
                                     valor={m.precioOrigen}
                                     disabled={edicionBloqueada}
-                                    onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo / m.factorPrecio, monedaOrigen: m.monedaOrigen })}
+                                    onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo / m.factorPrecio })}
                                   />
                                 </div>
                               </Td>
@@ -701,7 +702,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                   <PrecioEditable
                                     valor={Math.round(m.precioCLP * 100) / 100}
                                     disabled={edicionBloqueada}
-                                    onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo / m.factorPrecio, monedaOrigen: 'CLP' })}
+                                    onGuardar={(nuevo) => guardarAjuste(m, { precioCLP: nuevo })}
                                   />
                                 </div>
                               </Td>
@@ -785,7 +786,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                 <PrecioEditable
                                   valor={m.precioOrigen}
                                   disabled={edicionBloqueada}
-                                  onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo / m.factorPrecio, monedaOrigen: m.monedaOrigen })}
+                                  onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo / m.factorPrecio })}
                                 />
                               </div>
                             </Campo>
@@ -795,7 +796,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                 <PrecioEditable
                                   valor={Math.round(m.precioCLP * 100) / 100}
                                   disabled={edicionBloqueada}
-                                  onGuardar={(nuevo) => guardarAjuste(m, { precioOrigen: nuevo / m.factorPrecio, monedaOrigen: 'CLP' })}
+                                  onGuardar={(nuevo) => guardarAjuste(m, { precioCLP: nuevo })}
                                 />
                               </div>
                             </Campo>

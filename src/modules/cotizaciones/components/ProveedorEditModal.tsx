@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Building2 } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
+import { Select } from '../../../components/ui/Select';
+import { useMonedas, resolverMoneda } from '../../../lib/monedas';
 import { updateProveedor, type ProveedorFacturacionPayload } from '../../../api/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Proveedor } from '../../../types';
@@ -26,6 +28,9 @@ interface ProveedorEditModalProps {
 export const ProveedorEditModal: React.FC<ProveedorEditModalProps> = ({ proveedor, onClose }) => {
   const queryClient = useQueryClient();
   const esDeHetmo = (proveedor?.origenesHetmo?.length ?? 0) > 0;
+  // La moneda se guarda con el codigo de HETMO ("2" = dolar): se elige y se
+  // muestra por nombre y simbolo, nunca el codigo crudo.
+  const monedas = useMonedas();
 
   const [formData, setFormData] = useState<ProveedorFacturacionPayload>({
     nombre: proveedor?.nombre || '',
@@ -69,8 +74,18 @@ export const ProveedorEditModal: React.FC<ProveedorEditModalProps> = ({ proveedo
 
   if (!proveedor) return null;
 
-  const set = (field: keyof ProveedorFacturacionPayload) => (e: React.ChangeEvent<HTMLInputElement>) =>
+  const set = (field: keyof ProveedorFacturacionPayload) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+
+  const opcionesMoneda = monedas.map((m) => {
+    const r = resolverMoneda(m.codigo, monedas);
+    return { value: String(m.codigo), label: r.simbolo ? `${r.nombre} (${r.simbolo})` : r.nombre };
+  });
+  const monedaActual = formData.monedaDefecto || '';
+  if (monedaActual && !opcionesMoneda.some((o) => o.value === monedaActual)) {
+    const r = resolverMoneda(monedaActual, monedas);
+    opcionesMoneda.push({ value: monedaActual, label: r.simbolo ? `${r.nombre} (${r.simbolo})` : r.nombre });
+  }
 
   const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 pt-2 first:pt-0">{children}</h3>
@@ -145,7 +160,14 @@ export const ProveedorEditModal: React.FC<ProveedorEditModalProps> = ({ proveedo
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
         <Input label="Email Aviso de Pago" type="email" value={formData.emailAvisoPago || ''} onChange={set('emailAvisoPago')} />
-        <Input label="Moneda Predeterminada" value={formData.monedaDefecto || ''} onChange={set('monedaDefecto')} placeholder="CLP, USD, EUR..." />
+        <Select label="Moneda Predeterminada" value={monedaActual} onChange={set('monedaDefecto')}>
+          <option value="">Sin definir</option>
+          {opcionesMoneda.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </Select>
       </div>
       <Input
         label="IBAN / SWIFT (solo transferencias internacionales)"
