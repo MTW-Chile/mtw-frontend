@@ -174,6 +174,10 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
   //   muestra el precio por unidad de compra (ej. barra) y divide por factorPrecio.
   // - precioCLP va tal como se ve en la columna CLP (por unidad de compra) y la
   //   API lo convierte a la moneda de origen con las tasas en pantalla.
+  // Total en la moneda de origen, como referencia bajo el total CLP: mismo precio neto (con el
+  // descuento de la partida) expresado en la moneda del proveedor.
+  const totalOrigen = (m: MaterialAnalitica) => m.precioOrigen * (m.precioCLP > 0 ? m.precioCompraNeto / m.precioCLP : 1) * m.cantidadTotal;
+
   const guardarAjuste = (m: MaterialAnalitica, cambios: { excluido?: boolean; precioOrigen?: number; precioCLP?: number }) => {
     ajusteMutation.mutate({
       materialId: m.materialId,
@@ -711,6 +715,8 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                               </Td>
                               <Td numero className="align-top font-bold text-slate-900">
                                 $ {formatNumber(m.precioCompraNeto * m.cantidadTotal, 0)}
+                                {/* Referencia: el mismo total en la moneda de origen (con el descuento de la partida). */}
+                                <div className="text-[10px] font-normal text-slate-400">{formatMonto(totalOrigen(m), resolverMoneda(m.monedaOrigen, monedas))}</div>
                               </Td>
                               <Td alinear="centro" className="align-top">
                                 <div className="flex items-center justify-center gap-2">
@@ -807,7 +813,8 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                               <span className="text-slate-400">{m.unidad.simbolo}</span>
                             </Campo>
                             <Campo label="Total CLP">
-                              <span className="tabular-nums font-bold">$ {formatNumber(m.precioCompraNeto * m.cantidadTotal, 0)}</span>
+                              <span className="tabular-nums font-bold">$ {formatNumber(m.precioCompraNeto * m.cantidadTotal, 0)}</span>{' '}
+                              <span className="text-[10px] text-slate-400 tabular-nums">{formatMonto(totalOrigen(m), resolverMoneda(m.monedaOrigen, monedas))}</span>
                             </Campo>
                           </div>
                         </li>

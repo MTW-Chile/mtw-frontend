@@ -21,6 +21,9 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 **Analítica de materiales**
 - Corregido: la moneda de origen de un material es siempre la de su tipo de producto (o la que eligió una línea agregada a mano); editar un precio nunca la cambia. Los precios editados antes, que habían quedado etiquetados en pesos, vuelven a mostrarse en su moneda de origen: el número se lee en la moneda del tipo, o se convierte si estaba guardado en pesos (se toma la lectura más parecida al precio de HETMO).
 
+- Bajo el total CLP de cada material va, más chico y en gris, el mismo total en la moneda de origen, como referencia.
+- Corregido: el **formato de venta** de los accesorios (tira, rollo, caja, con sus unidades de precio por cada una, del material o de su tipo) no se aplicaba en la Analítica: un portafelpa que se vende en tiras seguía en metros a precio por metro. Ahora la cantidad pasa a unidades de compra enteras y el precio a esa unidad, igual que la perfilería por barra. Sin formato propio no cambia nada.
+
 **Proveedores**
 - Botón «Nuevo proveedor» en el encabezado (como en Clientes): abre la ficha de facturación completa.
 - Solo superadministradores: ícono de ojo para **ocultar** un proveedor de HETMO que no se usa o viene mal; deja de ofrecerse en el maestro y en los selectores sin tocar sus materiales ni OC. Abajo queda la lista de ocultos, con «Mostrar». Permiso técnico `sistema.proveedores`.
