@@ -212,11 +212,15 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
 
   const ventanasTipos = tipos.filter((t) => !t.esAreaComun).sort((a, b) => a.codigo.localeCompare(b.codigo, 'es', { numeric: true }));
   const tipoActivo = ventanasTipos.find((t) => t.id === activo) ?? null;
+  // Con un documento elegido, lo que falta por ubicar es lo de ESE documento (y se ubican ventanas de él).
+  const porUbicarDe = (tipoId: string): number | null =>
+    documentoId ? (data?.libres ?? []).filter((l) => l.tipoId === tipoId && l.fabricacionId === documentoId).reduce((s, l) => s + l.cantidad, 0) : null;
+  const saldoDe = (t: TipoCubicacion) => porUbicarDe(t.id) ?? t.saldo;
   const visibles = ventanasTipos.filter((t) => !buscar.trim() || `${t.codigo} ${t.sistema}`.toLowerCase().includes(buscar.trim().toLowerCase()));
 
   const asignarUna = useMutation({
     mutationFn: ({ destino, tipo, exceder }: { destino: Destino; tipo: TipoCubicacion; exceder: boolean }) =>
-      asignarVentanasCubicacion(proyectoId, { unidadId: destino.unidadId, tipoId: tipo.id, cantidad: 1, ubicacion: destino.ubicacion ?? null, excederContratadas: exceder }),
+      asignarVentanasCubicacion(proyectoId, { unidadId: destino.unidadId, tipoId: tipo.id, cantidad: 1, ubicacion: destino.ubicacion ?? null, excederContratadas: exceder, fabricacionId: documentoId || null }),
     onSuccess: (r, v) => {
       if (r.faltan > 0) mostrarToast(mensajeAsignacion(r, v.tipo.codigo), { tipo: 'info' });
       refrescar();
@@ -249,7 +253,11 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
   });
 
   const agregarUna = async (destino: Destino, tipo: TipoCubicacion) => {
-    const exceder = tipo.saldo <= 0;
+    const exceder = saldoDe(tipo) <= 0;
+    if (exceder && documentoId) {
+      mostrarToast(`No quedan ${tipo.codigo} por ubicar en este documento.`, { tipo: 'info' });
+      return;
+    }
     if (exceder && !(await confirmar({ titulo: `¿Agregar una ${tipo.codigo} de más?`, mensaje: `Ya están ubicadas todas las contratadas (${tipo.cantidadContratada}).`, confirmar: 'Agregar' }))) return;
     asignarUna.mutate({ destino, tipo, exceder });
   };
@@ -351,15 +359,19 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
         >
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Por ubicar</p>
-            <Badge size="sm" variant={data.sinPosicion > 0 ? 'warning' : 'success'}>
-              {data.sinPosicion > 0 ? `${data.sinPosicion} ventanas` : 'todas ubicadas'}
+            <Badge size="sm" variant={(documentoId ? (data.libres ?? []).filter((l) => l.fabricacionId === documentoId).reduce((s, l) => s + l.cantidad, 0) : data.sinPosicion) > 0 ? 'warning' : 'success'}>
+              {(() => {
+                const n = documentoId ? (data.libres ?? []).filter((l) => l.fabricacionId === documentoId).reduce((s, l) => s + l.cantidad, 0) : data.sinPosicion;
+                return n > 0 ? `${n} ventanas` : 'todas ubicadas';
+              })()}
             </Badge>
           </div>
           <Buscador compacto valor={buscar} onChange={setBuscar} placeholder="Buscar V01, corredera…" etiqueta="Buscar tipo de ventana" />
           <div className="max-h-[60dvh] overflow-y-auto space-y-1.5 pr-0.5">
             {visibles.length === 0 && <p className="text-xs text-slate-400 py-3 text-center">No hay tipos.</p>}
             {visibles.map((t) => {
-              const completo = t.saldo <= 0;
+              const saldo = saldoDe(t);
+              const completo = saldo <= 0;
               return (
                 <div
                   key={t.id}
@@ -380,7 +392,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono font-bold text-xs text-slate-900">{t.codigo}</span>
-                    <span className={`text-[10px] font-bold ${completo ? 'text-emerald-700' : 'text-amber-700'}`}>{completo ? 'completo' : `${t.saldo} por ubicar`}</span>
+                    <span className={`text-[10px] font-bold ${completo ? 'text-emerald-700' : 'text-amber-700'}`}>{completo ? 'completo' : `${saldo} por ubicar`}</span>
                   </div>
                   <p className="text-[11px] text-slate-500 truncate">{t.sistema}</p>
                   {t.anchoPlanoMm != null && (

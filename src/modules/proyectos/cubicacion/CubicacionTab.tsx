@@ -15,7 +15,7 @@ import { IconButton } from '../../../components/ui/IconButton';
 import { InputArchivo } from '../../../components/ui/InputArchivo';
 import { useMigas } from '../../../lib/migas';
 import { usePermisos } from '../../../lib/permisos';
-import { PropuestaFabricacionModal } from './PropuestaFabricacionModal';
+import { ImportarFabricacionModal } from './ImportarFabricacionModal';
 import { AvanzarEstadoModal } from './AvanzarEstadoModal';
 
 interface Props {
@@ -64,11 +64,10 @@ const panelDeImportacion = (r: ReporteImportacionCubicacion): ResultadoPanel => 
 });
 const panelDeSincronizacion = (r: ReporteSincronizacionCubicacion, titulo: string): ResultadoPanel => ({ titulo, lineas: [lineaReporteSincronizacion(r)], advertencias: r.avisos });
 const panelDePropuesta = (r: ReporteAplicacionPropuesta): ResultadoPanel => ({
-  titulo: 'Cubicación creada desde los documentos de fabricación',
+  titulo: 'Ventanas importadas desde los documentos de fabricación',
   lineas: [
-    `${r.ventanas.creadas} ventana(s) cubicada(s): ${r.ventanas.conPosicion} con posición${r.ventanas.sinPosicion ? ` y ${r.ventanas.sinPosicion} sin posición (ubícalas en el cubicador visual)` : ''}.`,
-    `${r.tipos.nuevos} tipo(s) nuevo(s)${r.tipos.existentes ? `, ${r.tipos.existentes} ya existía(n)` : ''}; estructura nueva: ${r.estructura.torres} torre(s)/casa(s), ${r.estructura.pisos} piso(s), ${r.estructura.unidades} unidad(es).`,
-    'Cada ventana quedó vinculada a su documento, con la medida con que se fabricó.',
+    `${r.ventanas.creadas} ventana(s) importada(s), por ubicar: arma el edificio en el cubicador visual y ubícalas, filtrando por documento.`,
+    `${r.tipos.nuevos} tipo(s) nuevo(s)${r.tipos.existentes ? `, ${r.tipos.existentes} ya existía(n)` : ''}. Cada ventana quedó vinculada a su documento, con la medida con que se fabricó.`,
   ],
   advertencias: r.avisos,
 });
@@ -132,8 +131,8 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
   };
   const botonPropuesta = (variant: 'primary' | 'outline') =>
     puedeEditar && porCubicarDeFabricacion > 0 ? (
-      <Button variant={variant} size="sm" leftIcon={<Factory className="w-3.5 h-3.5" />} onClick={() => setProponiendo(true)} title="Propone tipo, torre, piso y departamento de cada ventana leyendo el modelo del lote y el nombre del documento">
-        Cubicar desde fabricación ({porCubicarDeFabricacion})
+      <Button variant={variant} size="sm" leftIcon={<Factory className="w-3.5 h-3.5" />} onClick={() => setProponiendo(true)} title="Trae a la cubicación las ventanas de los documentos de fabricación vinculados, con su tipo, su medida y su documento, sin posición">
+        Importar ventanas de fabricación ({porCubicarDeFabricacion})
       </Button>
     ) : null;
 
@@ -310,9 +309,9 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
               <p className="max-w-lg mx-auto" data-testid="sin-presupuesto">
                 Esta obra no tiene líneas de ventana en un presupuesto de HETMO.{' '}
                 {porCubicarDeFabricacion > 0
-                  ? `Sus documentos de fabricación traen ${porCubicarDeFabricacion} ventana(s): el sistema puede proponer la cubicación leyendo el modelo de cada una y el nombre del documento.`
+                  ? `Sus documentos de fabricación traen ${porCubicarDeFabricacion} ventana(s): impórtalas y ubícalas en el cubicador visual, filtrando por documento.`
                   : legacy
-                    ? 'Vincula sus documentos de fabricación (Fases y documentos › Vincular documentos) y el sistema propone la cubicación desde ahí, o agrega un tipo a mano en la pestaña Tipos.'
+                    ? 'Vincula sus documentos de fabricación (Fases y documentos › Vincular documentos) e importa sus ventanas desde aquí, o agrega un tipo a mano en la pestaña Tipos.'
                     : 'Sube una planilla de cubicación o agrega un tipo a mano en la pestaña Tipos.'}
               </p>
               <div className="flex flex-wrap items-center justify-center gap-2">
@@ -369,7 +368,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
       )}
 
       {config && <ConfigCubicacionModal proyectoId={proyecto.id} cubicacion={cubicacion} legacy={legacy} onClose={() => setConfig(false)} />}
-      {proponiendo && <PropuestaFabricacionModal proyectoId={proyecto.id} onClose={() => setProponiendo(false)} onAplicada={alAplicarPropuesta} />}
+      {proponiendo && <ImportarFabricacionModal proyectoId={proyecto.id} onClose={() => setProponiendo(false)} onAplicada={alAplicarPropuesta} />}
       {avanzando && <AvanzarEstadoModal proyectoId={proyecto.id} onClose={() => setAvanzando(false)} onAvanzado={alAvanzar} />}
     </div>
   );

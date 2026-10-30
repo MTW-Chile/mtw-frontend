@@ -1908,7 +1908,7 @@ export async function eliminarLugarCubicacion(proyectoId: string, payload: { tor
 
 export async function asignarVentanasCubicacion(
   proyectoId: string,
-  payload: { unidadId: string; tipoId: string; cantidad: number; ubicacion?: string | null; excederContratadas?: boolean }
+  payload: { unidadId: string; tipoId: string; cantidad: number; ubicacion?: string | null; excederContratadas?: boolean; fabricacionId?: string | null }
 ): Promise<ResultadoAsignacionCubicacion> {
   const response = await apiClient.post<ResultadoAsignacionCubicacion>(`${rutaEstructura(proyectoId)}/asignar`, payload);
   return response.data;

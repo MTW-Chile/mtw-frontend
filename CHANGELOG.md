@@ -12,8 +12,8 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 ## Sin publicar — obras legacy
 
 **Obras manuales (legacy): cubicar desde los documentos de fabricación**
-- Una obra sin presupuesto se cubica desde los documentos de fabricación vinculados: el sistema **propone** el tipo, la torre, el piso y el departamento de cada ventana leyendo el modelo del lote («2115 V02», «V01_101A», «A-2115 V02»…) y el nombre del documento («EX_P21», «TORRE B PISO 3»), con un nivel de confianza y los avisos de lo que no calzó. Se revisa en una tabla (código, torre, piso, depto y ubicación editables, ventanas desmarcables) y se aplica de una vez: tipos con la apertura y medida del lote, estructura, y cada ventana cubicada, vinculada a su documento y rectificada con la medida con que se fabricó.
-- Botón «Cubicar desde fabricación (N)» en la pestaña Cubicación, también cuando la obra ya tiene cubicación y llegan documentos nuevos.
+- Una obra sin presupuesto **importa** las ventanas de sus documentos de fabricación vinculados: cada una entra con su tipo (el código del modelo del lote), la medida con que se fabricó y su documento, sin posición. Botón «Importar ventanas de fabricación (N)» en Cubicación, también cuando llegan documentos nuevos.
+- En el cubicador visual, el filtro por documento muestra solo sus ventanas, cuenta lo que falta por ubicar de ese documento y, al arrastrar un tipo o usar «+ 1», ubica ventanas de ese documento.
 - El cubicador de una obra manual es distinto al de una obra cotizada: las medidas que traen los documentos son las finales (sin rectificación ni holgura; un cambio de medida se pide como pendiente), no hay planilla Excel que descargar ni subir, el resumen muestra documentos, superficie y tipos, y el cubicador visual tiene un **filtro por documento de fabricación**. Nada de esto cambia en las obras cotizadas.
 - El **nombre de un documento de fabricación** se puede cambiar en Fases y documentos (lápiz): el nuevo nombre va en todas partes y la descripción de HETMO queda al lado, en gris, como referencia; en el cubicador solo el nombre.
 

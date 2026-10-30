@@ -1845,6 +1845,8 @@ export interface EstructuraCubicacion {
   sinPosicion: number;
   // Cubicacion unica: ventanas con nombre final pero sin torre/piso/depto.
   unica: { id: string; codigo: string; nomenclatura: string }[];
+  // Ventanas por ubicar, por tipo y documento de fabricación de origen (legacy; null = sin documento).
+  libres: { tipoId: string; fabricacionId: string | null; cantidad: number }[];
 }
 export interface TorreConPisos {
   id: string;
