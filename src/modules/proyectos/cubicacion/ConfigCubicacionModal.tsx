@@ -12,12 +12,14 @@ import { Input } from '../../../components/ui/Input';
 interface Props {
   proyectoId: string;
   cubicacion: ConfigCubicacion;
+  /** Obra legacy (manual): las medidas vienen finales de fabricación, no hay holgura. */
+  legacy?: boolean;
   onClose: () => void;
 }
 
 // Holgura (mm que se restan al rasgo para fabricar) y formato de la nomenclatura. Cambiar el formato
 // renombra las ventanas que ya tienen posicion.
-export const ConfigCubicacionModal: React.FC<Props> = ({ proyectoId, cubicacion, onClose }) => {
+export const ConfigCubicacionModal: React.FC<Props> = ({ proyectoId, cubicacion, legacy, onClose }) => {
   const queryClient = useQueryClient();
   const [holgura, setHolgura] = useState(mmATexto(cubicacion.holguraMm));
   const [formato, setFormato] = useState(cubicacion.formatoNomenclatura);
@@ -56,7 +58,7 @@ export const ConfigCubicacionModal: React.FC<Props> = ({ proyectoId, cubicacion,
         </Modal.Pie>
       }
     >
-      <div>
+      {!legacy && <div>
         <Input label="Holgura (mm)"
           id="cub-holgura"
           inputMode="decimal"
@@ -65,7 +67,7 @@ export const ConfigCubicacionModal: React.FC<Props> = ({ proyectoId, cubicacion,
         <p className="text-[11px] text-slate-500 mt-1">
           Se resta al rasgo (lo medido en obra), en ancho y en alto, para obtener la medida de fabricación. Cada tipo puede tener su propia holgura.
         </p>
-      </div>
+      </div>}
 
       <div>
         <Input label="Formato de la nomenclatura" id="cub-formato" value={formato} onChange={(e) => setFormato(e.target.value)} className={`font-mono ${errorFormato ? 'border-rose-300' : ''}`} />

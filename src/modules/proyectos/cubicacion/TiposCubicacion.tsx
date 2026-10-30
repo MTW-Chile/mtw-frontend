@@ -17,11 +17,13 @@ interface Props {
   proyectoId: string;
   moneda: string;
   tipos: TipoCubicacion[];
+  /** Obra legacy: medidas de fabricación, sin precio ni contrato. */
+  legacy?: boolean;
 }
 
 // Tipos de ventana de la cubicacion (la hoja BASE): contratadas vs cubicadas. La cubicacion puede quedar
 // incompleta: el saldo es lo que falta cubicar.
-export const TiposCubicacion: React.FC<Props> = ({ proyectoId, moneda, tipos }) => {
+export const TiposCubicacion: React.FC<Props> = ({ proyectoId, moneda, tipos, legacy }) => {
   const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
   const [modal, setModal] = useState<{ tipo?: TipoCubicacion } | null>(null);
@@ -39,7 +41,9 @@ export const TiposCubicacion: React.FC<Props> = ({ proyectoId, moneda, tipos }) 
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-slate-500">
-          Tipos de ventana de la obra. Los marcados <b>HETMO</b> salen de una línea del presupuesto. <b>Contratadas</b> es lo vendido; <b>cubicadas</b>, las ventanas que ya tienen piso y departamento.
+          {legacy
+            ? <>Tipos de ventana de la obra, armados desde sus documentos de fabricación con la medida con que se fabricaron. <b>Fabricadas</b> es lo que traen los documentos; <b>cubicadas</b>, las que ya tienen piso y departamento.</>
+            : <>Tipos de ventana de la obra. Los marcados <b>HETMO</b> salen de una línea del presupuesto. <b>Contratadas</b> es lo vendido; <b>cubicadas</b>, las ventanas que ya tienen piso y departamento.</>}
         </p>
         <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setModal({})}>
           Nuevo tipo
@@ -55,10 +59,10 @@ export const TiposCubicacion: React.FC<Props> = ({ proyectoId, moneda, tipos }) 
               <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
                 <Th className="font-bold">Código</Th>
                 <Th className="font-bold">Apertura</Th>
-                <Th className="font-bold">Plano (mm)</Th>
+                <Th className="font-bold">{legacy ? 'Medida (mm)' : 'Plano (mm)'}</Th>
                 <Th alinear="derecha" className="font-bold">Cuadros</Th>
-                <Th alinear="derecha" className="font-bold">Precio unit.</Th>
-                <Th alinear="derecha" className="font-bold">Contratadas</Th>
+                {!legacy && <Th alinear="derecha" className="font-bold">Precio unit.</Th>}
+                <Th alinear="derecha" className="font-bold">{legacy ? 'Fabricadas' : 'Contratadas'}</Th>
                 <Th alinear="derecha" className="font-bold">Cubicadas</Th>
                 <Th alinear="derecha" className="font-bold">Saldo</Th>
                 <Th className="font-bold w-20"></Th>
@@ -92,7 +96,7 @@ export const TiposCubicacion: React.FC<Props> = ({ proyectoId, moneda, tipos }) 
                     </Td>
                     <Td className="font-mono text-slate-500 whitespace-nowrap">{t.anchoPlanoMm != null ? `${formatoMm(t.anchoPlanoMm)} × ${formatoMm(t.altoPlanoMm)}` : '—'}</Td>
                     <Td alinear="derecha" className="font-mono text-slate-500">{t.cuadros ?? '—'}</Td>
-                    <Td alinear="derecha" className="font-mono text-slate-600 whitespace-nowrap">{formatoMonto(t.precioUnitario, moneda)}</Td>
+                    {!legacy && <Td alinear="derecha" className="font-mono text-slate-600 whitespace-nowrap">{formatoMonto(t.precioUnitario, moneda)}</Td>}
                     <Td alinear="derecha" className="font-mono text-slate-700">{t.cantidadContratada}</Td>
                     <Td alinear="derecha" className="font-mono text-slate-700">{t.cubicadas}</Td>
                     <Td alinear="derecha">
@@ -119,7 +123,7 @@ export const TiposCubicacion: React.FC<Props> = ({ proyectoId, moneda, tipos }) 
           </Tabla>
         </div>
       )}
-      {modal && <TipoModal proyectoId={proyectoId} moneda={moneda} tipo={modal.tipo} onClose={() => setModal(null)} />}
+      {modal && <TipoModal proyectoId={proyectoId} moneda={moneda} tipo={modal.tipo} legacy={legacy} onClose={() => setModal(null)} />}
     </div>
   );
 };

@@ -254,6 +254,12 @@ export async function refrescarFabricacion(proyectoId: string, fabId: string): P
 }
 
 // POST y no DELETE: Cloudflare Access bloquea DELETE/PUT en produccion.
+// Nombre propio del documento de fabricación (la descripción de HETMO queda como referencia). Vacío = quitarlo.
+export async function renombrarFabricacion(proyectoId: string, fabId: string, nombre: string): Promise<FabricacionHetmo> {
+  const response = await apiClient.post<FabricacionHetmo>(`/proyectos/${proyectoId}/fabricaciones/${fabId}/renombrar`, { nombre });
+  return response.data;
+}
+
 export async function desvincularFabricacion(proyectoId: string, fabId: string): Promise<void> {
   await apiClient.post(`/proyectos/${proyectoId}/fabricaciones/${fabId}/desvincular`);
 }

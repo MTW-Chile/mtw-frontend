@@ -29,6 +29,8 @@ interface Props {
   tipos: TipoCubicacion[];
   filtro: FiltroVentanas;
   onFiltro: (f: FiltroVentanas) => void;
+  /** Obra legacy: las medidas son finales (del documento de fabricación); sin rasgo ni rectificación. */
+  legacy?: boolean;
 }
 
 const aviso = (e: unknown) => {
@@ -38,7 +40,7 @@ const aviso = (e: unknown) => {
 
 // Una fila: el rasgo (lo medido en obra) se escribe ahi mismo y se guarda al salir del campo, con ancho
 // y alto juntos. La medida de fabricacion (rasgo - holgura) la calcula el servidor.
-const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; onEliminar: () => void; proyectoId: string }> = ({ unidad, onEditar, onEliminar, proyectoId }) => {
+const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; onEliminar: () => void; proyectoId: string; legacy?: boolean }> = ({ unidad, onEditar, onEliminar, proyectoId, legacy }) => {
   const queryClient = useQueryClient();
   const [ancho, setAncho] = useState(mmATexto(unidad.rasgoAnchoMm));
   const [alto, setAlto] = useState(mmATexto(unidad.rasgoAltoMm));
@@ -115,6 +117,17 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
       <Td className="text-[11px] text-slate-500 max-w-[14rem] truncate" title={unidad.sistema}>
         {unidad.sistema}
       </Td>
+      {legacy ? (
+        <>
+          <Td className="text-[11px] text-slate-500 max-w-[12rem] truncate" title={unidad.documento?.nombre}>
+            {unidad.documento?.nombre ?? <span className="text-slate-300">—</span>}
+          </Td>
+          <Td className="text-xs font-mono font-bold text-slate-800 whitespace-nowrap">
+            {unidad.anchoFabricacionMm != null ? `${formatoMm(unidad.anchoFabricacionMm)} × ${formatoMm(unidad.altoFabricacionMm)}` : `${formatoMm(unidad.anchoPlanoMm)} × ${formatoMm(unidad.altoPlanoMm)}`}
+          </Td>
+        </>
+      ) : (
+      <>
       <Td className="text-xs font-mono text-slate-500 whitespace-nowrap">
         {formatoMm(unidad.anchoPlanoMm)} × {formatoMm(unidad.altoPlanoMm)}
       </Td>
@@ -135,6 +148,8 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
           <span className="text-slate-300">—</span>
         )}
       </Td>
+      </>
+      )}
       <Td alinear="derecha" className="text-xs font-mono text-slate-500 whitespace-nowrap">{unidad.m2 != null ? unidad.m2.toLocaleString('es-CL', { maximumFractionDigits: 2 }) : '—'}</Td>
       <Td alinear="derecha" className="whitespace-nowrap">
         <IconButton icono={Pencil} etiqueta={`Editar ${unidad.nomenclatura ?? unidad.codigo}`} tono="marca" onClick={onEditar} />
@@ -145,7 +160,7 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
 };
 
 // Ventanas fisicas de la cubicacion (por torre / piso / depto) y sus areas comunes.
-export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, moneda, tipos, filtro, onFiltro }) => {
+export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, moneda, tipos, filtro, onFiltro, legacy }) => {
   const voc = vocabulario(cubicacion.modo);
   const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
@@ -215,7 +230,7 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
           <option value="sinPosicion">Sin posición</option>
           <option value="posicionadas">Con posición</option>
         </SelectCompacto>
-        <Casilla checked={sinRectificar} onChange={setSinRectificar} label="Solo sin rectificar" />
+        {!legacy && <Casilla checked={sinRectificar} onChange={setSinRectificar} label="Solo sin rectificar" />}
         <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setModal({})}>
           Nueva ventana
         </Button>
@@ -230,7 +245,9 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
       ) : unidades.length === 0 ? (
         <div className="p-10 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">
           {data?.total === 0 && !texto && !tipoId && !filtro.pisoId && !filtro.torreId && !sinRectificar && !estado
-            ? 'Todavía no hay ventanas. Crea la cubicación desde el presupuesto, sube una planilla o usa "Nueva ventana".'
+            ? legacy
+              ? 'Todavía no hay ventanas. Cubica desde los documentos de fabricación o usa "Nueva ventana".'
+              : 'Todavía no hay ventanas. Crea la cubicación desde el presupuesto, sube una planilla o usa "Nueva ventana".'
             : 'Ninguna ventana coincide con los filtros.'}
         </div>
       ) : (
@@ -241,9 +258,18 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
                 <Th className="font-bold">Nomenclatura</Th>
                 <Th className="font-bold">Ubicación</Th>
                 <Th className="font-bold">Apertura</Th>
-                <Th className="font-bold">Plano (mm)</Th>
-                <Th className="font-bold">Rasgo medido (mm)</Th>
-                <Th className="font-bold">Fabricación (mm)</Th>
+                {legacy ? (
+                  <>
+                    <Th className="font-bold">Documento</Th>
+                    <Th className="font-bold">Medida (mm)</Th>
+                  </>
+                ) : (
+                  <>
+                    <Th className="font-bold">Plano (mm)</Th>
+                    <Th className="font-bold">Rasgo medido (mm)</Th>
+                    <Th className="font-bold">Fabricación (mm)</Th>
+                  </>
+                )}
                 <Th alinear="derecha" className="font-bold">M2</Th>
                 <Th className="font-bold w-20"></Th>
               </Tr>
@@ -254,6 +280,7 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
                   key={`${u.id}-${u.rasgoAnchoMm}-${u.rasgoAltoMm}-${u.holguraMm}`}
                   unidad={u}
                   proyectoId={proyectoId}
+                  legacy={legacy}
                   onEditar={() => setModal({ unidad: u })}
                   onEliminar={async () => {
                     if (await confirmar({ titulo: `¿Eliminar la ventana ${u.nomenclatura ?? u.codigo}?`, confirmar: 'Eliminar', peligro: true })) eliminar.mutate(u.id);
@@ -305,6 +332,7 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
           cubicacion={cubicacion}
           tipos={tipos}
           unidad={modal.unidad}
+          legacy={legacy}
           inicial={{
             torre: ubicaciones.data?.find((t) => t.id === filtro.torreId)?.nombre,
             piso: ubicaciones.data?.find((t) => t.id === filtro.torreId)?.pisos.find((p) => p.id === filtro.pisoId)?.numero,

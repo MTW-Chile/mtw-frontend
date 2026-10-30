@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Download, Factory, FastForward, FileSpreadsheet, Layers, Loader2, RefreshCw, Ruler, Settings2, Undo2, Upload, X } from 'lucide-react';
-import { crearCubicacionUnica, descargarPlantillaCubicacion, getCubicacion, getPropuestaCubicacionFabricacion, importarPlanillaCubicacion, quitarCubicacionUnica, sincronizarCubicacion } from '../../../api/client';
+import { crearCubicacionUnica, descargarPlantillaCubicacion, getCubicacion, getFabricacionesProyecto, getPropuestaCubicacionFabricacion, importarPlanillaCubicacion, quitarCubicacionUnica, sincronizarCubicacion } from '../../../api/client';
 import { SubTabs } from '../../../components/ui/PageHeader';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
@@ -36,6 +36,16 @@ const Dato: React.FC<{ titulo: string; valor: React.ReactNode; detalle?: React.R
   </div>
 );
 
+// Legacy: las medidas vienen finales de los documentos de fabricación, no hay rectificación ni contrato que mostrar.
+const ResumenLegacy: React.FC<{ r: ResumenCubicacion; documentos: number | undefined }> = ({ r, documentos }) => (
+  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2" data-testid="resumen-cubicacion">
+    <Dato titulo="Ventanas con nomenclatura" valor={`${r.posicionadas} de ${r.ventanas}`} detalle={r.sinPosicion > 0 ? `${r.sinPosicion} sin ubicar ni nombre` : 'todas tienen su nombre'} />
+    <Dato titulo="Documentos de fabricación" valor={documentos ?? '—'} detalle="vinculados en Fases y documentos" />
+    <Dato titulo="Superficie" valor={`${r.m2.toLocaleString('es-CL', { maximumFractionDigits: 1 })} m²`} detalle="según las medidas de fabricación" />
+    <Dato titulo="Tipos de ventana" valor={r.tipos} detalle="armados desde los documentos" />
+  </div>
+);
+
 const Resumen: React.FC<{ r: ResumenCubicacion }> = ({ r }) => (
   <div className="grid grid-cols-2 lg:grid-cols-4 gap-2" data-testid="resumen-cubicacion">
     <Dato titulo="Ventanas con nomenclatura" valor={`${r.posicionadas} de ${r.ventanas}`} detalle={r.sinPosicion > 0 ? `${r.sinPosicion} sin ubicar ni nombre` : 'todas tienen su nombre'} />
@@ -58,7 +68,7 @@ const panelDePropuesta = (r: ReporteAplicacionPropuesta): ResultadoPanel => ({
   lineas: [
     `${r.ventanas.creadas} ventana(s) cubicada(s): ${r.ventanas.conPosicion} con posición${r.ventanas.sinPosicion ? ` y ${r.ventanas.sinPosicion} sin posición (ubícalas en el cubicador visual)` : ''}.`,
     `${r.tipos.nuevos} tipo(s) nuevo(s)${r.tipos.existentes ? `, ${r.tipos.existentes} ya existía(n)` : ''}; estructura nueva: ${r.estructura.torres} torre(s)/casa(s), ${r.estructura.pisos} piso(s), ${r.estructura.unidades} unidad(es).`,
-    'Cada ventana quedó vinculada a su documento y rectificada con la medida con que se fabricó.',
+    'Cada ventana quedó vinculada a su documento, con la medida con que se fabricó.',
   ],
   advertencias: r.avisos,
 });
@@ -87,14 +97,18 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
   const [proponiendo, setProponiendo] = useState(false);
   const [avanzando, setAvanzando] = useState(false);
   const { tiene } = usePermisos();
+  // Obra legacy (manual, nunca cotizada): se cubica desde sus documentos de fabricación, con las medidas finales
+  // que traen; sin rectificación, holgura ni planillas. Nada de esto aplica a una obra cotizada.
+  const legacy = proyecto.origen === 'MANUAL_OBRA';
 
   const { data, isLoading, isError } = useQuery({ queryKey: ['cubicacion', proyecto.id], queryFn: () => getCubicacion(proyecto.id) });
   const cubicacion = data?.cubicacion;
   const resumen = data?.resumen;
   const presupuesto = data?.presupuesto ?? null;
   // Obra legacy (sin presupuesto, o con documentos de fabricación de más): ventanas fabricadas que aún no están en la cubicación.
-  const propuesta = useQuery({ queryKey: ['propuestaFabricacion', proyecto.id], queryFn: () => getPropuestaCubicacionFabricacion(proyecto.id) });
-  const porCubicarDeFabricacion = propuesta.data?.resumen.ventanas ?? 0;
+  const propuesta = useQuery({ queryKey: ['propuestaFabricacion', proyecto.id], queryFn: () => getPropuestaCubicacionFabricacion(proyecto.id), enabled: legacy });
+  const porCubicarDeFabricacion = legacy ? (propuesta.data?.resumen.ventanas ?? 0) : 0;
+  const documentos = useQuery({ queryKey: ['fabricaciones', proyecto.id], queryFn: () => getFabricacionesProyecto(proyecto.id), enabled: legacy });
   const puedeEditar = tiene('obras.cubicacion.editar');
 
   const refrescar = () => {
@@ -139,7 +153,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
         titulo: 'Cubicación única creada',
         lineas: [
           `${r.reporte.nombradas} ventana(s) con nomenclatura nueva${r.reporte.yaTenian ? `; ${r.reporte.yaTenian} ya tenían la suya` : ''}.`,
-          'Ya puedes rectificar sus medidas en la pestaña Ventanas y armar fases con ellas.',
+          legacy ? 'Ya puedes verlas en la pestaña Ventanas y avanzar su estado.' : 'Ya puedes rectificar sus medidas en la pestaña Ventanas y armar fases con ellas.',
         ],
         advertencias: [],
       });
@@ -206,24 +220,29 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
         <div>
           <h2 className="text-sm font-black text-slate-900">Cubicación</h2>
           <p className="text-xs text-slate-500 max-w-2xl">
-            Paso previo de las fases: cada ventana necesita su nomenclatura y su medida rectificada. Lo que ya sabemos del presupuesto de HETMO (tipos, descripción, medidas, cantidades y
-            precios) se lee solo: aquí solo se completa dónde va cada ventana y su rasgo medido en obra. Si la obra no se reparte por torres y pisos, usa la cubicación única.
+            {legacy
+              ? 'Obra en ejecución que no se cotizó: sus ventanas vienen de los documentos de fabricación, con la medida con que se fabricaron (son las medidas finales). Aquí solo se ubica cada ventana en su torre, piso y departamento.'
+              : 'Paso previo de las fases: cada ventana necesita su nomenclatura y su medida rectificada. Lo que ya sabemos del presupuesto de HETMO (tipos, descripción, medidas, cantidades y precios) se lee solo: aquí solo se completa dónde va cada ventana y su rasgo medido en obra. Si la obra no se reparte por torres y pisos, usa la cubicación única.'}
           </p>
         </div>
         {resumen.tipos > 0 && (
           <div className="flex flex-wrap items-center gap-2">
             {botonPropuesta('outline')}
-            {tiene('obras.regularizar') && resumen.posicionadas > 0 && (
+            {legacy && tiene('obras.regularizar') && resumen.posicionadas > 0 && (
               <Button variant="outline" size="sm" leftIcon={<FastForward className="w-3.5 h-3.5" />} onClick={() => setAvanzando(true)} title="Obra que ya estaba en ejecución: deja despachadas, recibidas o instaladas las ventanas de una torre, un piso o un departamento de una vez">
                 Avanzar estado…
               </Button>
             )}
-            <Button variant="primary" size="sm" leftIcon={<Download className="w-3.5 h-3.5" />} isLoading={plantilla.isPending} onClick={() => plantilla.mutate()} title="Excel con una fila por ventana y lo que el sistema ya sabe, para completar piso, depto y rasgo">
-              Descargar planilla para completar
-            </Button>
-            <Button variant="outline" size="sm" leftIcon={<Upload className="w-3.5 h-3.5" />} isLoading={subir.isPending} onClick={() => entrada.current?.click()}>
-              Subir planilla completada
-            </Button>
+            {!legacy && (
+              <>
+                <Button variant="primary" size="sm" leftIcon={<Download className="w-3.5 h-3.5" />} isLoading={plantilla.isPending} onClick={() => plantilla.mutate()} title="Excel con una fila por ventana y lo que el sistema ya sabe, para completar piso, depto y rasgo">
+                  Descargar planilla para completar
+                </Button>
+                <Button variant="outline" size="sm" leftIcon={<Upload className="w-3.5 h-3.5" />} isLoading={subir.isPending} onClick={() => entrada.current?.click()}>
+                  Subir planilla completada
+                </Button>
+              </>
+            )}
             {resumen.sinPosicion > 0 && (
               <Button variant="outline" size="sm" leftIcon={<Layers className="w-3.5 h-3.5" />} isLoading={cubicarUnica.isPending} onClick={() => cubicarUnica.mutate()} title="Nombra las ventanas sin repartirlas por torre, piso y departamento: V01, o V01-1, V01-2 si hay más de una.">
                 Crear cubicación única
@@ -292,13 +311,17 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
                 Esta obra no tiene líneas de ventana en un presupuesto de HETMO.{' '}
                 {porCubicarDeFabricacion > 0
                   ? `Sus documentos de fabricación traen ${porCubicarDeFabricacion} ventana(s): el sistema puede proponer la cubicación leyendo el modelo de cada una y el nombre del documento.`
-                  : 'Vincula sus documentos de fabricación (Fases y documentos › Vincular documentos) y el sistema propone la cubicación desde ahí; o sube una planilla, o agrega un tipo a mano en la pestaña Tipos.'}
+                  : legacy
+                    ? 'Vincula sus documentos de fabricación (Fases y documentos › Vincular documentos) y el sistema propone la cubicación desde ahí, o agrega un tipo a mano en la pestaña Tipos.'
+                    : 'Sube una planilla de cubicación o agrega un tipo a mano en la pestaña Tipos.'}
               </p>
               <div className="flex flex-wrap items-center justify-center gap-2">
                 {botonPropuesta('primary')}
-                <Button variant="outline" size="sm" leftIcon={<FileSpreadsheet className="w-3.5 h-3.5" />} isLoading={subir.isPending} onClick={() => entrada.current?.click()}>
-                  Subir planilla (.xlsx)
-                </Button>
+                {!legacy && (
+                  <Button variant="outline" size="sm" leftIcon={<FileSpreadsheet className="w-3.5 h-3.5" />} isLoading={subir.isPending} onClick={() => entrada.current?.click()}>
+                    Subir planilla (.xlsx)
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={() => setVista('tipos')}>
                   Ir a Tipos
                 </Button>
@@ -308,11 +331,13 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
         </div>
       ) : (
         <>
-          <Resumen r={resumen} />
+          {legacy ? <ResumenLegacy r={resumen} documentos={documentos.data?.length} /> : <Resumen r={resumen} />}
           {resumen.sinPosicion > 0 && (
             <p className="text-xs text-slate-600 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2" data-testid="siguiente-paso">
-              <b>Siguiente paso:</b> faltan {resumen.sinPosicion} ventana(s) por ubicar. Arma el edificio (o las casas) en el cubicador visual y arrastra cada ventana a su lugar, descarga la planilla,
-              complétala (torre, piso, depto y rasgo) y súbela, o usa «Crear cubicación única» si la obra no se reparte.
+              <b>Siguiente paso:</b> faltan {resumen.sinPosicion} ventana(s) por ubicar.{' '}
+              {legacy
+                ? 'Arma el edificio en el cubicador visual y arrastra cada ventana a su lugar, o usa «Crear cubicación única» si la obra no se reparte.'
+                : 'Arma el edificio (o las casas) en el cubicador visual y arrastra cada ventana a su lugar, descarga la planilla, complétala (torre, piso, depto y rasgo) y súbela, o usa «Crear cubicación única» si la obra no se reparte.'}
             </p>
           )}
           <SubTabs
@@ -325,15 +350,15 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
             onChange={setVista}
           />
           {vista === 'estructura' ? (
-            <EstructuraVisual proyectoId={proyecto.id} cubicacion={cubicacion} tipos={resumen.porTipo} versionId={activeVersion?.id} />
+            <EstructuraVisual proyectoId={proyecto.id} cubicacion={cubicacion} tipos={resumen.porTipo} versionId={activeVersion?.id} legacy={legacy} />
           ) : vista === 'ventanas' ? (
-            <VentanasCubicacion proyectoId={proyecto.id} cubicacion={cubicacion} moneda={resumen.moneda} tipos={resumen.porTipo} filtro={filtro} onFiltro={setFiltro} />
+            <VentanasCubicacion proyectoId={proyecto.id} cubicacion={cubicacion} moneda={resumen.moneda} tipos={resumen.porTipo} filtro={filtro} onFiltro={setFiltro} legacy={legacy} />
           ) : (
-            <TiposCubicacion proyectoId={proyecto.id} moneda={resumen.moneda ?? 'UF'} tipos={resumen.porTipo} />
+            <TiposCubicacion proyectoId={proyecto.id} moneda={resumen.moneda ?? 'UF'} tipos={resumen.porTipo} legacy={legacy} />
           )}
           <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 border-t border-slate-100 pt-3">
             <span className="mr-2">
-              Holgura: <b>{cubicacion.holguraMm} mm</b> · Nomenclatura: <b className="font-mono">{cubicacion.formatoNomenclatura}</b>
+              {!legacy && <>Holgura: <b>{cubicacion.holguraMm} mm</b> · </>}Nomenclatura: <b className="font-mono">{cubicacion.formatoNomenclatura}</b>
             </span>
             {/* Sin "Actualizar desde el presupuesto": la obra ya tiene su presupuesto aceptado y congelado; se lee una sola vez al activar. */}
             <Button variant="ghost" size="sm" leftIcon={<Settings2 className="w-3.5 h-3.5" />} onClick={() => setConfig(true)}>
@@ -343,7 +368,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
         </>
       )}
 
-      {config && <ConfigCubicacionModal proyectoId={proyecto.id} cubicacion={cubicacion} onClose={() => setConfig(false)} />}
+      {config && <ConfigCubicacionModal proyectoId={proyecto.id} cubicacion={cubicacion} legacy={legacy} onClose={() => setConfig(false)} />}
       {proponiendo && <PropuestaFabricacionModal proyectoId={proyecto.id} onClose={() => setProponiendo(false)} onAplicada={alAplicarPropuesta} />}
       {avanzando && <AvanzarEstadoModal proyectoId={proyecto.id} onClose={() => setAvanzando(false)} onAvanzado={alAvanzar} />}
     </div>

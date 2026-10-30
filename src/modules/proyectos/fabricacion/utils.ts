@@ -51,6 +51,11 @@ export function textoVinculacionCubicacion(r: ReporteVinculacionCubicacion): str
   return partes.length ? partes.join(', ') + '.' : '';
 }
 
+/** Como se nombra un documento de fabricación: el nombre puesto en el ERP, si no la descripción de HETMO. */
+export function nombreDocumento(f: { nombre?: string | null; descripcion: string | null; hetmoId: number }): string {
+  return f.nombre?.trim() || f.descripcion?.trim() || `Documento ${f.hetmoId}`;
+}
+
 export function formatoFechaHora(valor: string | null | undefined): string {
   if (!valor) return '—';
   const d = new Date(valor);

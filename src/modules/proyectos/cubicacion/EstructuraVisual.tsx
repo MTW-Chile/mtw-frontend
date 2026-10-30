@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Copy, Home, Layers, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
-import { asignarVentanasCubicacion, eliminarLugarCubicacion, eliminarUbicacionCubicacion, getEstructuraCubicacion, moverVentanaCubicacion, quitarPosicionVentanaCubicacion } from '../../../api/client';
+import { asignarVentanasCubicacion, eliminarLugarCubicacion, eliminarUbicacionCubicacion, getEstructuraCubicacion, getFabricacionesProyecto, moverVentanaCubicacion, quitarPosicionVentanaCubicacion } from '../../../api/client';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
@@ -16,6 +16,8 @@ import { useConfirmar } from '../../../components/ui/Confirmar';
 import { IconButton } from '../../../components/ui/IconButton';
 import { ActivadorEdicion } from '../../../components/ui/ActivadorEdicion';
 import { Buscador } from '../../../components/ui/Buscador';
+import { SelectCompacto } from '../../../components/ui/Campos';
+import { nombreDocumento } from '../fabricacion/utils';
 
 interface Props {
   proyectoId: string;
@@ -25,6 +27,8 @@ interface Props {
   // presupuesto) esa accion no aplica, no deberia llegar a pasar hoy porque
   // el cubicador quedo exclusivo de obras cotizadas, pero se guarda igual.
   versionId?: string;
+  /** Obra legacy: las ventanas vienen de los documentos de fabricación con su medida final; filtro por documento. */
+  legacy?: boolean;
 }
 
 // Destino de asignar/mover una ventana: siempre una Unidad (depto o especial) ya existente en el arbol.
@@ -75,7 +79,8 @@ const TarjetaUnidad: React.FC<{
   onQuitar: () => void;
   onEditarVentana: (v: UnidadCubicacion) => void;
   onQuitarVentana: (id: string) => void;
-}> = ({ voc, nodo, torre, tipoActivo, sobre, onSobre, onDrop, onAgregarUna, onAbrirAsignar, onNuevaUbicacion, onQuitarUbicacion, onRenombrar, onRenombrarUbicacion, onQuitar, onEditarVentana, onQuitarVentana }) => {
+  legacy?: boolean;
+}> = ({ voc, nodo, torre, tipoActivo, sobre, onSobre, onDrop, onAgregarUna, onAbrirAsignar, onNuevaUbicacion, onQuitarUbicacion, onRenombrar, onRenombrarUbicacion, onQuitar, onEditarVentana, onQuitarVentana, legacy }) => {
   // Un departamento puede tener ubicaciones (recintos); una casa no: ahí el recinto es la unidad misma.
   const conUbicaciones = voc.modo === 'EDIFICIO' && nodo.recintos.length > 0;
   const nombresRecintos = new Set(nodo.recintos.map((r) => r.nombre.toLowerCase()));
@@ -85,9 +90,13 @@ const TarjetaUnidad: React.FC<{
       draggable
       onDragStart={(e) => e.dataTransfer.setData('text/plain', `ventana:${v.id}`)}
       data-testid="ventana-chip"
-      title={`${v.nomenclatura ?? ''} · ${v.sistema}${v.rectificada ? ` · fabricación ${formatoMm(v.anchoFabricacionMm)} × ${formatoMm(v.altoFabricacionMm)}` : ' · sin rectificar'}`}
+      title={
+        legacy
+          ? `${v.nomenclatura ?? ''} · ${v.sistema} · ${formatoMm(v.anchoFabricacionMm ?? v.anchoPlanoMm)} × ${formatoMm(v.altoFabricacionMm ?? v.altoPlanoMm)}${v.documento ? ` · ${v.documento.nombre}` : ''}`
+          : `${v.nomenclatura ?? ''} · ${v.sistema}${v.rectificada ? ` · fabricación ${formatoMm(v.anchoFabricacionMm)} × ${formatoMm(v.altoFabricacionMm)}` : ' · sin rectificar'}`
+      }
       className={`group inline-flex items-center gap-1 rounded-lg border pl-1.5 pr-0.5 py-0.5 text-[11px] cursor-grab active:cursor-grabbing select-none ${
-        v.rectificada ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-slate-200 bg-white text-slate-700'
+        !legacy && v.rectificada ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-slate-200 bg-white text-slate-700'
       }`}
     >
       <ActivadorEdicion onClick={() => onEditarVentana(v)} etiqueta={`Editar ${v.nomenclatura ?? v.codigo}`} className="items-baseline!">
@@ -179,13 +188,16 @@ const TarjetaUnidad: React.FC<{
 // Cubicador visual: se arma el edificio (torres -> pisos -> departamentos) y se le van asignando las ventanas
 // del presupuesto. Escribe las mismas unidades que la planilla Excel (torre, piso, depto, ubicacion), asi que
 // la planilla, la lista de ventanas y el informe para HETMO salen identicos.
-export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipos, versionId }) => {
+export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipos, versionId, legacy }) => {
   const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
   const [modal, setModal] = useState<ModalAbierto | null>(null);
   const [activo, setActivo] = useState<string | null>(null);
   const [sobre, setSobre] = useState<string | null>(null);
   const [buscar, setBuscar] = useState('');
+  // Legacy: filtro por documento de fabricación ('' = todos). Los documentos traen el nombre nuevo (y el de HETMO como referencia).
+  const [documentoId, setDocumentoId] = useState('');
+  const documentos = useQuery({ queryKey: ['fabricaciones', proyectoId], queryFn: () => getFabricacionesProyecto(proyectoId), enabled: !!legacy });
   const voc = vocabulario(cubicacion.modo);
   // Casa cuando se cubica por casa; edificio si no.
   const IconoEstructura = voc.modo === 'CASA' ? Home : Building2;
@@ -278,6 +290,15 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
 
   const vacia = data.torres.length === 0;
   const base = { proyectoId, voc, onClose: () => setModal(null), onHecho: refrescar };
+  // Con un documento elegido solo se muestran sus ventanas (los departamentos quedan igual).
+  const deDocumento = (vs: UnidadCubicacion[]) => (documentoId ? vs.filter((v) => v.documento?.id === documentoId) : vs);
+  const torres = documentoId
+    ? data.torres.map((t) => ({
+        ...t,
+        pisos: t.pisos.map((p) => ({ ...p, deptos: p.deptos.map((d) => ({ ...d, ventanas: deDocumento(d.ventanas) })) })),
+        especiales: t.especiales.map((d) => ({ ...d, ventanas: deDocumento(d.ventanas) })),
+      }))
+    : data.torres;
 
   return (
     <div className="space-y-3">
@@ -292,7 +313,17 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
           <Button variant="outline" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setModal({ tipo: 'torre' })}>
             {voc.agregarContenedor}
           </Button>
-          {versionId && (
+          {legacy && (
+            <SelectCompacto value={documentoId} onChange={(e) => setDocumentoId(e.target.value)} aria-label="Filtrar por documento de fabricación" className="max-w-[16rem]">
+              <option value="">Todos los documentos</option>
+              {(documentos.data ?? []).map((f) => (
+                <option key={f.id} value={f.id}>
+                  {nombreDocumento(f)}
+                </option>
+              ))}
+            </SelectCompacto>
+          )}
+          {versionId && !legacy && (
             <Button
               variant="outline"
               size="sm"
@@ -382,7 +413,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
               </div>
             </div>
           ) : (
-            data.torres.map((torre) => {
+            torres.map((torre) => {
               const ultimo = torre.pisos.length ? Math.max(...torre.pisos.map((p) => p.numero)) : 0;
               return (
                 <section key={torre.id} className="rounded-2xl bg-white border border-slate-200 shadow-sm" data-testid={`torre-${torre.nombre || 'sin'}`}>
@@ -429,6 +460,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                           onQuitar={() => confirmarEliminar(`¿Quitar la unidad "${u.nombre}"?`, { torreId: torre.id, unidadId: u.id })}
                           onEditarVentana={(v) => setModal({ tipo: 'ventana', unidad: v })}
                           onQuitarVentana={(id) => quitar.mutate(id)}
+                          legacy={legacy}
                         />
                       ))}
                     </div>
@@ -478,6 +510,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                                 onQuitar={() => confirmarEliminar(`¿Quitar el ${voc.unidad} ${depto.nombre}?`, { torreId: torre.id, pisoId: piso.id, unidadId: depto.id })}
                                 onEditarVentana={(v) => setModal({ tipo: 'ventana', unidad: v })}
                                 onQuitarVentana={(id) => quitar.mutate(id)}
+                                legacy={legacy}
                               />
                             ))}
                           </div>
@@ -490,7 +523,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
             })
           )}
           <p className="text-[11px] text-slate-400">
-            Verde = ventana ya rectificada (con rasgo medido). Toca una ventana para editar su ubicación, tipo y rasgo.
+            {legacy ? 'Toca una ventana para editar su ubicación y tipo; su medida es la del documento de fabricación.' : 'Verde = ventana ya rectificada (con rasgo medido). Toca una ventana para editar su ubicación, tipo y rasgo.'}
           </p>
         </div>
       </div>
@@ -509,7 +542,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
         <RenombrarModal {...base} que={modal.que} id={modal.id} nombreActual={modal.nombreActual} etiquetaTexto={modal.que === 'ubicacion' ? 'Nombre de la ubicación' : `Nombre del ${voc.unidad}`} />
       )}
       {modal?.tipo === 'ubicaciones' && <UbicacionesModal {...base} unidadId={modal.destino.unidadId} torre={modal.destino.torre} nombreUnidad={modal.destino.nombreUnidad} />}
-      {modal?.tipo === 'ventana' && <UnidadModal proyectoId={proyectoId} cubicacion={cubicacion} tipos={tipos} unidad={modal.unidad} onClose={() => setModal(null)} />}
+      {modal?.tipo === 'ventana' && <UnidadModal proyectoId={proyectoId} cubicacion={cubicacion} tipos={tipos} unidad={modal.unidad} legacy={legacy} onClose={() => setModal(null)} />}
       {modal?.tipo === 'crearFase' && versionId && <CrearFaseDesdeCubicacionModal proyectoId={proyectoId} versionId={versionId} onClose={() => setModal(null)} />}
     </div>
   );

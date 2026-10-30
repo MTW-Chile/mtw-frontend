@@ -15,6 +15,8 @@ interface Props {
   moneda: string;
   /** Si viene, se edita ese tipo; si no, se crea uno. */
   tipo?: TipoCubicacion;
+  /** Obra legacy: sin precio ni holgura (las medidas son las de fabricación). */
+  legacy?: boolean;
   onClose: () => void;
 }
 
@@ -25,7 +27,7 @@ const decimal = (t: string): number | null => {
 
 // Un tipo de ventana de la cubicacion (el equivalente a una fila de la hoja BASE). Un item sin medidas
 // (muro cortina, antifuego, film...) es un area comun: por ahora una sola unidad.
-export const TipoModal: React.FC<Props> = ({ proyectoId, moneda, tipo, onClose }) => {
+export const TipoModal: React.FC<Props> = ({ proyectoId, moneda, tipo, legacy, onClose }) => {
   const queryClient = useQueryClient();
   const editando = !!tipo;
   const [codigo, setCodigo] = useState(tipo?.codigo ?? '');
@@ -118,10 +120,10 @@ export const TipoModal: React.FC<Props> = ({ proyectoId, moneda, tipo, onClose }
       {!areaComun && (
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <Input label="Ancho plano" id="tipo-ancho" inputMode="decimal" value={ancho} onChange={(e) => setAncho(e.target.value)} placeholder="mm"  />
+            <Input label={legacy ? 'Ancho' : 'Ancho plano'} id="tipo-ancho" inputMode="decimal" value={ancho} onChange={(e) => setAncho(e.target.value)} placeholder="mm"  />
           </div>
           <div>
-            <Input label="Alto plano" id="tipo-alto" inputMode="decimal" value={alto} onChange={(e) => setAlto(e.target.value)} placeholder="mm"  />
+            <Input label={legacy ? 'Alto' : 'Alto plano'} id="tipo-alto" inputMode="decimal" value={alto} onChange={(e) => setAlto(e.target.value)} placeholder="mm"  />
           </div>
           <div>
             <Input label="Cuadros" id="tipo-cuadros" inputMode="numeric" value={cuadros} onChange={(e) => setCuadros(e.target.value)}  />
@@ -130,15 +132,15 @@ export const TipoModal: React.FC<Props> = ({ proyectoId, moneda, tipo, onClose }
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <div>
+        {!legacy && <div>
           <Input label={<>Precio unitario ({moneda})</>} id="tipo-precio" inputMode="decimal" value={precio} onChange={(e) => setPrecio(e.target.value)} className={`${precio.trim() !== '' && precioNum === null ? 'border-rose-300' : ''}`}  />
-        </div>
+        </div>}
         <div>
-          <Input label="Cantidad contratada" id="tipo-contratadas" inputMode="numeric" value={contratadas} onChange={(e) => setContratadas(e.target.value)}  />
+          <Input label={legacy ? 'Cantidad fabricada' : 'Cantidad contratada'} id="tipo-contratadas" inputMode="numeric" value={contratadas} onChange={(e) => setContratadas(e.target.value)}  />
         </div>
       </div>
 
-      {!areaComun && (
+      {!areaComun && !legacy && (
         <div className="sm:max-w-[12rem]">
           <Input label="Holgura propia (mm)" id="tipo-holgura" inputMode="decimal" value={holgura} onChange={(e) => setHolgura(e.target.value)} placeholder="la de la cubicación"  />
         </div>

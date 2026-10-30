@@ -13,7 +13,7 @@ import type {
 import { DibujoVentana } from '../obra/DibujoVentana';
 import { ETIQUETA_CARGO } from '../../../types';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
-import { formatoMm } from '../fabricacion/utils';
+import { formatoMm, nombreDocumento } from '../fabricacion/utils';
 import { AdjuntosNuevoPendiente } from './adjuntos/AdjuntosNuevoPendiente';
 import { subirArchivos } from './adjuntos/subirArchivos';
 import {
@@ -284,7 +284,7 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
       <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-3">
         <div className="flex items-baseline justify-between gap-2">
           <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Ventana (opcional)</p>
-          {fabricaciones.length === 1 && <span className="text-[11px] text-slate-400 truncate">Documento: {fabricaciones[0].descripcion}</span>}
+          {fabricaciones.length === 1 && <span className="text-[11px] text-slate-400 truncate">Documento: {nombreDocumento(fabricaciones[0])}</span>}
         </div>
         {fabricaciones.length === 0 ? (
           <p className="text-xs text-slate-500">
@@ -305,7 +305,7 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
                   <option value="">— elegir —</option>
                   {fabricaciones.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.descripcion || `Documento ${f.hetmoId}`}
+                      {nombreDocumento(f)}
                     </option>
                   ))}
                 </Select>

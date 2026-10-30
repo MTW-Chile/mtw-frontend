@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Factory, Link2, Loader2, RefreshCw, Search, Unlink } from 'lucide-react';
+import { Factory, Link2, Loader2, Pencil, RefreshCw, Search, Unlink } from 'lucide-react';
 import {
   desvincularFabricacion,
   detectarFabricaciones,
   getFabricacionesProyecto,
   refrescarFabricacion,
+  renombrarFabricacion,
 } from '../../../api/client';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
@@ -15,9 +16,10 @@ import type { FabricacionHetmo, Proyecto, ProyectoVersion } from '../../../types
 import { FasesTab } from '../FasesTab';
 import { BuscarFabricacionModal } from './BuscarFabricacionModal';
 import { FabricacionDetalle } from './FabricacionDetalle';
-import { formatoFechaHora, textoEstadoFabricacion, textoVinculacionCubicacion, varianteEstadoFabricacion } from './utils';
+import { formatoFechaHora, nombreDocumento, textoEstadoFabricacion, textoVinculacionCubicacion, varianteEstadoFabricacion } from './utils';
 import { useConfirmar } from '../../../components/ui/Confirmar';
 import { BotonColapsar } from '../../../components/ui/BotonColapsar';
+import { IconButton } from '../../../components/ui/IconButton';
 import { useMigas } from '../../../lib/migas';
 
 interface Props {
@@ -61,7 +63,7 @@ export const FabricacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => 
 };
 
 const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }) => {
-  const { confirmar } = useConfirmar();
+  const { confirmar, pedirTexto } = useConfirmar();
   const queryClient = useQueryClient();
   const [buscando, setBuscando] = useState(false);
   const [abierto, setAbierto] = useState<string | null>(null);
@@ -110,6 +112,20 @@ const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyect
       );
     },
   });
+
+  // Nombre propio del documento (cambio interno del ERP): la descripción de HETMO queda al lado como referencia.
+  const renombrar = useMutation({
+    mutationFn: ({ fabId, nombre }: { fabId: string; nombre: string }) => renombrarFabricacion(proyecto.id, fabId, nombre),
+    onSuccess: () => {
+      invalidar();
+      queryClient.invalidateQueries({ queryKey: ['cubicacion', proyecto.id] });
+      queryClient.invalidateQueries({ queryKey: ['propuestaFabricacion', proyecto.id] });
+    },
+  });
+  const pedirNombre = async (f: FabricacionHetmo) => {
+    const nombre = await pedirTexto({ titulo: `Nombre del documento ${f.descripcion || f.hetmoId}`, etiqueta: 'Nombre en el ERP (vacío para volver al de HETMO)', valorInicial: f.nombre ?? '' });
+    if (nombre !== null) renombrar.mutate({ fabId: f.id, nombre: nombre.trim() });
+  };
 
   const desvincular = useMutation({
     mutationFn: (fabId: string) => desvincularFabricacion(proyecto.id, fabId),
@@ -184,7 +200,8 @@ const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyect
                   <BotonColapsar abierto={expandido} onClick={() => setAbierto(expandido ? null : f.id)} className="flex-nowrap! gap-2! flex-1 basis-full sm:basis-0">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-bold text-slate-900 truncate">{f.descripcion || `Documento ${f.hetmoId}`}</span>
+                        <span className="text-sm font-bold text-slate-900 truncate">{nombreDocumento(f)}</span>
+                        {f.nombre?.trim() && f.descripcion && f.nombre.trim() !== f.descripcion && <span className="text-[11px] text-slate-400 truncate">({f.descripcion})</span>}
                         <Badge size="sm" variant={varianteEstadoFabricacion(f.estadoHetmo)}>
                           {textoEstadoFabricacion(f.estadoHetmo, f.estadoGlosa)}
                         </Badge>
@@ -199,6 +216,7 @@ const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyect
                     </div>
                   </BotonColapsar>
                   <div className="flex items-center gap-1.5 shrink-0">
+                    <IconButton icono={Pencil} etiqueta={`Cambiar el nombre de ${nombreDocumento(f)}`} tono="marca" cargando={renombrar.isPending && renombrar.variables?.fabId === f.id} onClick={() => pedirNombre(f)} />
                     <Button
                       variant="ghost"
                       size="sm"

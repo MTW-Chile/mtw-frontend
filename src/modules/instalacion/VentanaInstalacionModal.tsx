@@ -150,7 +150,7 @@ export const VentanaInstalacionModal: React.FC<Props> = ({ proyectoId, ventanaId
                 </div>
                 <div>
                   <dt className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Lote HETMO</dt>
-                  <dd className="text-slate-800">{v.lote ? `${v.lote.descripcion ?? v.lote.hetmoId} · pos ${v.lote.orden} · ${v.lote.estadoGlosa ?? `estado ${v.lote.estadoHetmo}`}` : 'Sin vincular'}</dd>
+                  <dd className="text-slate-800">{v.lote ? `${v.lote.nombre ?? v.lote.descripcion ?? v.lote.hetmoId} · pos ${v.lote.orden} · ${v.lote.estadoGlosa ?? `estado ${v.lote.estadoHetmo}`}` : 'Sin vincular'}</dd>
                 </div>
               </dl>
             </div>

@@ -196,17 +196,17 @@ export const PropuestaFabricacionModal: React.FC<Props> = ({ proyectoId, onClose
                 <div className="px-3 py-2 flex flex-wrap items-center gap-2 bg-slate-50/70 border-b border-slate-100">
                   <BotonColapsar abierto={abierto} onClick={() => alternarDoc(doc.fabricacionId)} className="flex-1 min-w-0">
                     <span className="flex flex-wrap items-center gap-2 min-w-0">
-                      <span className="text-xs font-bold text-slate-900 truncate">{doc.descripcion || `Documento ${doc.hetmoId}`}</span>
+                      <span className="text-xs font-bold text-slate-900 truncate">{doc.nombre || doc.descripcion || `Documento ${doc.hetmoId}`}</span>
                       <Badge size="sm" variant={varianteEstadoFabricacion(doc.estadoHetmo)}>
                         {textoEstadoFabricacion(doc.estadoHetmo, doc.estadoGlosa)}
                       </Badge>
                       <span className="text-[11px] text-slate-500 font-mono">
                         N° {doc.numero ?? '—'} · {marcadas}/{doc.ventanas.length} ventana(s)
-                        {pista ? ` · leído del nombre: ${pista}` : ''}
+                        {pista ? ` · leído de «${doc.descripcion}»: ${pista}` : ''}
                       </span>
                     </span>
                   </BotonColapsar>
-                  <Casilla checked={marcadas === doc.ventanas.length} onChange={(v) => alternarTodas(doc, v)} label="Todas" aria-label={`Incluir todas las ventanas de ${doc.descripcion ?? doc.hetmoId}`} />
+                  <Casilla checked={marcadas === doc.ventanas.length} onChange={(v) => alternarTodas(doc, v)} label="Todas" aria-label={`Incluir todas las ventanas de ${doc.nombre ?? doc.descripcion ?? doc.hetmoId}`} />
                 </div>
                 {abierto && (
                   <Tabla ajustada>

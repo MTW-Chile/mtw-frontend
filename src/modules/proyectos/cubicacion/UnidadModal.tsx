@@ -22,6 +22,8 @@ interface Props {
   unidad?: UnidadCubicacion;
   /** Valores de partida al crear (ej. el piso que se esta mirando). */
   inicial?: { torre?: string; piso?: number | '' };
+  /** Obra legacy: las medidas vienen finales del documento de fabricación; no se rectifica. */
+  legacy?: boolean;
   onClose: () => void;
 }
 
@@ -29,7 +31,7 @@ const entero = (t: string): number | null => (t.trim() !== '' && /^-?\d+$/.test(
 
 // Crea o edita una ventana fisica: su tipo, su posicion (torre / piso / nombre de la unidad -> nomenclatura
 // final) y su rectificacion (rasgo medido en obra -> medida de fabricacion).
-export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, unidad, inicial, onClose }) => {
+export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, unidad, inicial, legacy, onClose }) => {
   const queryClient = useQueryClient();
   const editando = !!unidad;
   const voc = vocabulario(cubicacion.modo);
@@ -142,6 +144,12 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
         <Input label="Ubicación" id="uni-ubicacion" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} maxLength={100} placeholder="DORM 1, ESTAR, BAÑO 1…" />
       </div>
 
+      {legacy ? (
+        <p className="text-[11px] text-slate-500">
+          Medida final: <b className="font-mono text-slate-800">{unidad?.anchoFabricacionMm != null ? `${formatoMm(unidad.anchoFabricacionMm)} × ${formatoMm(unidad.altoFabricacionMm)} mm` : tipo?.anchoPlanoMm != null ? `${formatoMm(tipo.anchoPlanoMm)} × ${formatoMm(tipo.altoPlanoMm)} mm (del tipo)` : '—'}</b>
+          {unidad?.documento && <> · documento <b>{unidad.documento.nombre}</b></>}. Viene del documento de fabricación; un cambio de medida se pide como pendiente.
+        </p>
+      ) : (
       <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-2">
         <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Rectificación (lo medido en obra)</p>
         <div className="grid grid-cols-2 gap-3">
@@ -160,6 +168,7 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
           </b>
         </p>
       </div>
+      )}
       </div>
       </div>
     </Modal>

@@ -1497,6 +1497,8 @@ export interface FabricacionHetmo {
   hetmoId: number;
   numero: number | null;
   descripcion: string | null;
+  // Nombre propio del ERP (editable); null = se muestra la descripción de HETMO.
+  nombre: string | null;
   hetmoVentaId: number | null;
   estadoHetmo: number;
   estadoGlosa: string | null;
@@ -1929,6 +1931,8 @@ export interface UnidadCubicacion {
   rectificadoEn: string | null;
   nomenclatura: string | null;
   posicionada: boolean;
+  // Documento de fabricación del que viene (obras legacy); null si no está vinculada.
+  documento: { id: string; nombre: string } | null;
 }
 
 // Lo que ya se sabe de la obra por su presupuesto de HETMO (null si no tiene lineas de ventana).
@@ -1996,6 +2000,7 @@ export interface DocumentoPropuestaCubicacion {
   hetmoId: number;
   numero: number | null;
   descripcion: string | null;
+  nombre: string | null;
   estadoHetmo: number;
   estadoGlosa: string | null;
   pistas: { torre: string | null; piso: number | null };
@@ -2188,7 +2193,7 @@ export interface VentanaObra extends UnidadCubicacion {
   disponible: Record<ParteVentana, boolean>;
   pendientesAbiertos: number;
   fase: { id: string; numeroFase: number; nombre: string; estado: Fase['estado'] } | null;
-  lote: { fabricacionVentanaId: string; orden: number; modelo: string; fabricacionId: string; hetmoId: number; descripcion: string | null; estadoHetmo: number; estadoGlosa: string | null } | null;
+  lote: { fabricacionVentanaId: string; orden: number; modelo: string; fabricacionId: string; hetmoId: number; descripcion: string | null; nombre: string | null; estadoHetmo: number; estadoGlosa: string | null } | null;
   despachos: { itemId: string; parte: ParteVentana; cantidad: number; cantidadRecibida: number; despachoId: string; numero: number; estado: EstadoDespacho; fechaDespacho: string | null; tipoGuia: TipoGuiaDespacho; numeroGuia: string | null }[];
   instalaciones: { id: string; parte: ParteVentana; fechaInstalacion: string; notas: string | null; instaladoPor: { id: string; nombre: string } | null; fotos: number }[];
 }
