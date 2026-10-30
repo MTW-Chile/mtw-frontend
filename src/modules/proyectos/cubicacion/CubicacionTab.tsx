@@ -1,11 +1,11 @@
 import React, { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Download, FileSpreadsheet, Layers, Loader2, RefreshCw, Ruler, Settings2, Undo2, Upload, X } from 'lucide-react';
-import { crearCubicacionUnica, descargarPlantillaCubicacion, getCubicacion, importarPlanillaCubicacion, quitarCubicacionUnica, sincronizarCubicacion } from '../../../api/client';
+import { AlertTriangle, Download, Factory, FastForward, FileSpreadsheet, Layers, Loader2, RefreshCw, Ruler, Settings2, Undo2, Upload, X } from 'lucide-react';
+import { crearCubicacionUnica, descargarPlantillaCubicacion, getCubicacion, getPropuestaCubicacionFabricacion, importarPlanillaCubicacion, quitarCubicacionUnica, sincronizarCubicacion } from '../../../api/client';
 import { SubTabs } from '../../../components/ui/PageHeader';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
-import type { Proyecto, ProyectoVersion, ReporteImportacionCubicacion, ReporteSincronizacionCubicacion, ResumenCubicacion } from '../../../types';
+import type { Proyecto, ProyectoVersion, ReporteAplicacionPropuesta, ReporteAvanceVentanas, ReporteImportacionCubicacion, ReporteSincronizacionCubicacion, ResumenCubicacion } from '../../../types';
 import { ConfigCubicacionModal } from './ConfigCubicacionModal';
 import { EstructuraVisual } from './EstructuraVisual';
 import { TiposCubicacion } from './TiposCubicacion';
@@ -14,6 +14,9 @@ import { descargarBlob, formatoMonto, lineaReporteSincronizacion, lineasReporteI
 import { IconButton } from '../../../components/ui/IconButton';
 import { InputArchivo } from '../../../components/ui/InputArchivo';
 import { useMigas } from '../../../lib/migas';
+import { usePermisos } from '../../../lib/permisos';
+import { PropuestaFabricacionModal } from './PropuestaFabricacionModal';
+import { AvanzarEstadoModal } from './AvanzarEstadoModal';
 
 interface Props {
   proyecto: Proyecto;
@@ -50,6 +53,23 @@ const panelDeImportacion = (r: ReporteImportacionCubicacion): ResultadoPanel => 
   advertencias: r.advertencias,
 });
 const panelDeSincronizacion = (r: ReporteSincronizacionCubicacion, titulo: string): ResultadoPanel => ({ titulo, lineas: [lineaReporteSincronizacion(r)], advertencias: r.avisos });
+const panelDePropuesta = (r: ReporteAplicacionPropuesta): ResultadoPanel => ({
+  titulo: 'Cubicación creada desde los documentos de fabricación',
+  lineas: [
+    `${r.ventanas.creadas} ventana(s) cubicada(s): ${r.ventanas.conPosicion} con posición${r.ventanas.sinPosicion ? ` y ${r.ventanas.sinPosicion} sin posición (ubícalas en el cubicador visual)` : ''}.`,
+    `${r.tipos.nuevos} tipo(s) nuevo(s)${r.tipos.existentes ? `, ${r.tipos.existentes} ya existía(n)` : ''}; estructura nueva: ${r.estructura.torres} torre(s)/casa(s), ${r.estructura.pisos} piso(s), ${r.estructura.unidades} unidad(es).`,
+    'Cada ventana quedó vinculada a su documento y rectificada con la medida con que se fabricó.',
+  ],
+  advertencias: r.avisos,
+});
+const panelDeAvance = (r: ReporteAvanceVentanas): ResultadoPanel => ({
+  titulo: 'Estado de las ventanas avanzado',
+  lineas: [
+    `${r.ventanas} ventana(s) avanzada(s): ${r.despachadas} despachada(s), ${r.recibidas} recibida(s), ${r.instaladas} instalada(s)${r.yaEstaban ? `; ${r.yaEstaban} ya estaban en ese estado o más adelante` : ''}.`,
+    r.despachoId ? 'Se generó un despacho de regularización sin guía (ver Despachos).' : 'No hizo falta generar un despacho nuevo.',
+  ],
+  advertencias: r.omitidas.map((o) => `${o.nombre}: ${o.motivo}.`),
+});
 
 // Cubicacion de la obra: paso previo de las fases (toda fase se arma desde aqui, asi cada ventana tiene
 // nomenclatura y medida rectificada). Toda obra tiene cubicador implicito (no hay paso de "crear"). TODO lo que
@@ -64,17 +84,44 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
   const [config, setConfig] = useState(false);
   const [filtro, setFiltro] = useState<FiltroVentanas>({ pisoId: '', torreId: '' });
   const [panel, setPanel] = useState<ResultadoPanel | null>(null);
+  const [proponiendo, setProponiendo] = useState(false);
+  const [avanzando, setAvanzando] = useState(false);
+  const { tiene } = usePermisos();
 
   const { data, isLoading, isError } = useQuery({ queryKey: ['cubicacion', proyecto.id], queryFn: () => getCubicacion(proyecto.id) });
   const cubicacion = data?.cubicacion;
   const resumen = data?.resumen;
   const presupuesto = data?.presupuesto ?? null;
+  // Obra legacy (sin presupuesto, o con documentos de fabricación de más): ventanas fabricadas que aún no están en la cubicación.
+  const propuesta = useQuery({ queryKey: ['propuestaFabricacion', proyecto.id], queryFn: () => getPropuestaCubicacionFabricacion(proyecto.id) });
+  const porCubicarDeFabricacion = propuesta.data?.resumen.ventanas ?? 0;
+  const puedeEditar = tiene('obras.cubicacion.editar');
 
   const refrescar = () => {
     queryClient.invalidateQueries({ queryKey: ['cubicacion', proyecto.id] });
     queryClient.invalidateQueries({ queryKey: ['cubicacionUnidades', proyecto.id] });
     queryClient.invalidateQueries({ queryKey: ['cubicacionUbicaciones', proyecto.id] });
   };
+  const alAplicarPropuesta = (r: ReporteAplicacionPropuesta) => {
+    setProponiendo(false);
+    setPanel(panelDePropuesta(r));
+    refrescar();
+    queryClient.invalidateQueries({ queryKey: ['cubicacionEstructura', proyecto.id] });
+    queryClient.invalidateQueries({ queryKey: ['fabricaciones', proyecto.id] });
+    queryClient.invalidateQueries({ queryKey: ['resumenObra', proyecto.id] });
+    setVista('estructura');
+  };
+  const alAvanzar = (r: ReporteAvanceVentanas) => {
+    setAvanzando(false);
+    setPanel(panelDeAvance(r));
+    refrescar();
+  };
+  const botonPropuesta = (variant: 'primary' | 'outline') =>
+    puedeEditar && porCubicarDeFabricacion > 0 ? (
+      <Button variant={variant} size="sm" leftIcon={<Factory className="w-3.5 h-3.5" />} onClick={() => setProponiendo(true)} title="Propone tipo, torre, piso y departamento de cada ventana leyendo el modelo del lote y el nombre del documento">
+        Cubicar desde fabricación ({porCubicarDeFabricacion})
+      </Button>
+    ) : null;
 
   const sincronizar = useMutation({
     mutationFn: () => sincronizarCubicacion(proyecto.id),
@@ -165,6 +212,12 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
         </div>
         {resumen.tipos > 0 && (
           <div className="flex flex-wrap items-center gap-2">
+            {botonPropuesta('outline')}
+            {tiene('obras.regularizar') && resumen.posicionadas > 0 && (
+              <Button variant="outline" size="sm" leftIcon={<FastForward className="w-3.5 h-3.5" />} onClick={() => setAvanzando(true)} title="Obra que ya estaba en ejecución: deja despachadas, recibidas o instaladas las ventanas de una torre, un piso o un departamento de una vez">
+                Avanzar estado…
+              </Button>
+            )}
             <Button variant="primary" size="sm" leftIcon={<Download className="w-3.5 h-3.5" />} isLoading={plantilla.isPending} onClick={() => plantilla.mutate()} title="Excel con una fila por ventana y lo que el sistema ya sabe, para completar piso, depto y rasgo">
               Descargar planilla para completar
             </Button>
@@ -235,10 +288,14 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
             </>
           ) : (
             <>
-              <p className="max-w-lg mx-auto">
-                Esta obra no tiene líneas de ventana en un presupuesto de HETMO, así que no hay nada que leer solo. Sube una planilla de cubicación o agrega un tipo a mano en la pestaña Tipos.
+              <p className="max-w-lg mx-auto" data-testid="sin-presupuesto">
+                Esta obra no tiene líneas de ventana en un presupuesto de HETMO.{' '}
+                {porCubicarDeFabricacion > 0
+                  ? `Sus documentos de fabricación traen ${porCubicarDeFabricacion} ventana(s): el sistema puede proponer la cubicación leyendo el modelo de cada una y el nombre del documento.`
+                  : 'Vincula sus documentos de fabricación (Fases y documentos › Vincular documentos) y el sistema propone la cubicación desde ahí; o sube una planilla, o agrega un tipo a mano en la pestaña Tipos.'}
               </p>
               <div className="flex flex-wrap items-center justify-center gap-2">
+                {botonPropuesta('primary')}
                 <Button variant="outline" size="sm" leftIcon={<FileSpreadsheet className="w-3.5 h-3.5" />} isLoading={subir.isPending} onClick={() => entrada.current?.click()}>
                   Subir planilla (.xlsx)
                 </Button>
@@ -287,6 +344,8 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
       )}
 
       {config && <ConfigCubicacionModal proyectoId={proyecto.id} cubicacion={cubicacion} onClose={() => setConfig(false)} />}
+      {proponiendo && <PropuestaFabricacionModal proyectoId={proyecto.id} onClose={() => setProponiendo(false)} onAplicada={alAplicarPropuesta} />}
+      {avanzando && <AvanzarEstadoModal proyectoId={proyecto.id} onClose={() => setAvanzando(false)} onAvanzado={alAvanzar} />}
     </div>
   );
 };

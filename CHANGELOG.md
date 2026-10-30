@@ -9,6 +9,17 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - **Parche** (2.0.0 → 2.0.1): ajustes y mejoras acotadas, cada despliegue.
 - **Corrección urgente** sobre un parche (2.0.4 → 2.0.4.1; en package.json, 2.0.4-1): la decide Alfredo.
 
+## Sin publicar — obras legacy
+
+**Obras manuales (legacy): cubicar desde los documentos de fabricación**
+- Una obra sin presupuesto se cubica desde los documentos de fabricación vinculados: el sistema **propone** el tipo, la torre, el piso y el departamento de cada ventana leyendo el modelo del lote («2115 V02», «V01_101A», «A-2115 V02»…) y el nombre del documento («EX_P21», «TORRE B PISO 3»), con un nivel de confianza y los avisos de lo que no calzó. Se revisa en una tabla (código, torre, piso, depto y ubicación editables, ventanas desmarcables) y se aplica de una vez: tipos con la apertura y medida del lote, estructura, y cada ventana cubicada, vinculada a su documento y rectificada con la medida con que se fabricó.
+- Botón «Cubicar desde fabricación (N)» en la pestaña Cubicación, también cuando la obra ya tiene cubicación y llegan documentos nuevos.
+
+**Avanzar el estado de las ventanas en bloque**
+- Para una obra que ya estaba en ejecución: «Avanzar estado…» en Cubicación elige torres, pisos, departamentos o ventanas y hasta qué estado llegan (despachadas, recibidas en obra o instaladas), con fecha y notas. Genera lo que falte de cada paso como documentos de regularización (despacho sin guía, recepción, instalación sin foto) y deja el historial de cada ventana; no toca guías electrónicas ni estados de pago. Nuevo permiso **Regularizar obras en curso** (`obras.regularizar`), sin asignar a ningún rol hasta que se decida.
+
+**Base de datos**: migración `obras_legacy_cubicacion` (`Proyecto.hetmoSinVersion` opcional: los proyectos manuales dejan el id sintético negativo; `FabricacionVentana.descripcionCorta`). **Agente HETMO**: `/fabricaciones/{id}/ventanas` entrega `descripcion_corta` (la apertura de cada ventana del lote); con el agente anterior la apertura del tipo queda como el código.
+
 ## Alpha v2.2.0 — 2026-10-28
 
 **Estados de pago por hitos (Comercial)**
