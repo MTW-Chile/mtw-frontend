@@ -198,6 +198,9 @@ export interface Proveedor {
   monedaDefecto: string | null;
   categoria: string | null;
   ibanSwift: string | null;
+  // Oculto del maestro y los selectores (solo superadministrador, sistema.proveedores).
+  oculto?: boolean;
+  ocultoEn?: string | null;
   creadoEn: string;
   actualizadoEn: string;
   // Cuantos materiales/OC lo tienen enlazado -- en 0/0 es candidato a

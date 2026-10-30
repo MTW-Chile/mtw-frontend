@@ -832,8 +832,15 @@ export async function createMaterial(payload: {
   return response.data;
 }
 
-export async function getProveedores(): Promise<{ data: Proveedor[] }> {
-  const response = await apiClient.get<{ data: Proveedor[] }>('/proveedores');
+// Sin ocultos. `ocultos: true` trae solo los ocultos (superadministrador, ver ocultarProveedor).
+export async function getProveedores(opciones: { ocultos?: boolean } = {}): Promise<{ data: Proveedor[] }> {
+  const response = await apiClient.get<{ data: Proveedor[] }>('/proveedores', { params: opciones.ocultos ? { ocultos: '1' } : undefined });
+  return response.data;
+}
+
+// Oculta del maestro y de los selectores un proveedor de HETMO que no se usa o viene mal (sistema.proveedores).
+export async function ocultarProveedor(id: string, oculto: boolean): Promise<{ data: Proveedor }> {
+  const response = await apiClient.post<{ data: Proveedor }>(`/proveedores/${id}/${oculto ? 'ocultar' : 'mostrar'}`);
   return response.data;
 }
 

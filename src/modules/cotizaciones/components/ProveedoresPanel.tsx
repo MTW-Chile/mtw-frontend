@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Building2, Trash2, GitMerge } from 'lucide-react';
-import { getProveedores, eliminarProveedor } from '../../../api/client';
+import { Pencil, Building2, Trash2, GitMerge, EyeOff, Eye } from 'lucide-react';
+import { getProveedores, eliminarProveedor, ocultarProveedor } from '../../../api/client';
 import { TableSkeleton } from '../../../components/ui/Skeleton';
 import { Badge } from '../../../components/ui/Badge';
 import type { Proveedor } from '../../../types';
@@ -21,6 +21,7 @@ import { ErrorCarga } from '../../../components/ui/Estados';
 import { mostrarToast } from '../../../lib/toast';
 import { useConfirmar } from '../../../components/ui/Confirmar';
 import { Seccion } from '../../../components/ui/Seccion';
+import { Lista, FilaLista } from '../../../components/ui/Lista';
 
 /**
  * Maestro de Proveedores: quién es cada proveedor y sus datos de
@@ -48,6 +49,18 @@ export const ProveedoresPanel: React.FC = () => {
   // nuevo al backend.
   const { tiene } = usePermisos();
   const puedeFusionar = tiene('catalogo.proveedores.fusionar');
+  // Solo un superadministrador oculta proveedores (los de HETMO que no se usan o vienen mal) y ve los ocultos.
+  const puedeOcultar = tiene('sistema.proveedores');
+  const ocultos = useQuery<Proveedor[]>({
+    queryKey: ['proveedores', 'ocultos'],
+    queryFn: async () => (await getProveedores({ ocultos: true })).data,
+    enabled: puedeOcultar,
+  });
+  const ocultarMutation = useMutation({
+    mutationFn: ({ id, oculto }: { id: string; oculto: boolean }) => ocultarProveedor(id, oculto),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['proveedores'] }),
+    onError: (err: any) => mostrarToast(err?.response?.data?.error || 'No se pudo cambiar la visibilidad del proveedor.'),
+  });
 
   // Borra un proveedor sin materiales, OC ni vinculo con HETMO. El backend
   // responde 409 si tiene algo enlazado (hay que fusionarlo).
@@ -194,6 +207,7 @@ export const ProveedoresPanel: React.FC = () => {
                         onEditar={() => setEditando(p)}
                         onFusionar={() => setFusionando(p)}
                         onEliminar={() => pedirEliminar(p)}
+                        onOcultar={puedeOcultar ? () => ocultarMutation.mutate({ id: p.id, oculto: true }) : undefined}
                       />
                     </Td>
                   </Tr>
@@ -258,6 +272,7 @@ export const ProveedoresPanel: React.FC = () => {
                     onEditar={() => setEditando(p)}
                     onFusionar={() => setFusionando(p)}
                     onEliminar={() => pedirEliminar(p)}
+                    onOcultar={puedeOcultar ? () => ocultarMutation.mutate({ id: p.id, oculto: true }) : undefined}
                   />
                 </div>
               </div>
@@ -266,6 +281,36 @@ export const ProveedoresPanel: React.FC = () => {
           </div>
           )}
         </>
+      )}
+
+      {puedeOcultar && (ocultos.data?.length ?? 0) > 0 && (
+        <Seccion
+          icono={EyeOff}
+          titulo={`Proveedores ocultos (${ocultos.data!.length})`}
+          descripcion="No se ofrecen en el maestro ni en los selectores; sus materiales y OC siguen igual. Solo los ven los superadministradores."
+          sinRelleno
+        >
+          <Lista>
+            {ocultos.data!.map((p) => (
+              <FilaLista
+                key={p.id}
+                titulo={p.nombre}
+                insignias={<Badge variant={(p.origenesHetmo?.length ?? 0) > 0 ? 'info' : 'default'} size="sm">{(p.origenesHetmo?.length ?? 0) > 0 ? 'HETMO' : 'Manual'}</Badge>}
+                acciones={
+                  <Button size="sm" variant="ghost" leftIcon={<Eye className="w-3 h-3" />} isLoading={ocultarMutation.isPending && ocultarMutation.variables?.id === p.id} onClick={() => ocultarMutation.mutate({ id: p.id, oculto: false })}>
+                    Mostrar
+                  </Button>
+                }
+              >
+                {p._count && (
+                  <span className="font-mono">
+                    {p._count.materiales} mat · {p._count.ordenesCompra} OC
+                  </span>
+                )}
+              </FilaLista>
+            ))}
+          </Lista>
+        </Seccion>
       )}
 
       {editando && <ProveedorEditModal proveedor={editando} onClose={() => setEditando(null)} />}
@@ -284,11 +329,14 @@ const AccionesProveedor: React.FC<{
   onEditar: () => void;
   onFusionar: () => void;
   onEliminar: () => void;
-}> = ({ proveedor, sinUso, puedeFusionar, eliminando, onEditar, onFusionar, onEliminar }) => (
+  /** Solo superadministrador: ocultar del maestro y los selectores. */
+  onOcultar?: () => void;
+}> = ({ proveedor, sinUso, puedeFusionar, eliminando, onEditar, onFusionar, onEliminar, onOcultar }) => (
   <div className="flex items-center justify-end gap-1">
     <Button size="sm" variant="ghost" leftIcon={<Pencil className="w-3 h-3" />} onClick={onEditar}>
       Editar
     </Button>
+    {onOcultar && <IconButton icono={EyeOff} etiqueta={`Ocultar ${proveedor.nombre} del maestro y los selectores`} onClick={onOcultar} />}
     {puedeFusionar && (
       <>
         <Button size="sm" variant="ghost" leftIcon={<GitMerge className="w-3 h-3" />} title="Fusionar dentro de otro proveedor (reasigna materiales y OC)" onClick={onFusionar}>
