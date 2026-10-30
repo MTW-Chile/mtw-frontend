@@ -25,6 +25,8 @@ import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Aviso } from '../../components/ui/Aviso';
 import { useConfirmar } from '../../components/ui/Confirmar';
+import { extraerErrorParaToast, mostrarToast } from '../../lib/toast';
+import { usePermisos } from '../../lib/permisos';
 
 // PRINCIPAL = presupuestos cerrados en HETMO (estado 2) + presupuestos
 // manuales; TODOS = cualquier estado de HETMO. Ver esPresupuestoPrincipal.
@@ -45,6 +47,8 @@ export const CotizacionesPage: React.FC<{
   onSearchChange?: (val: string) => void;
 }> = ({ searchTerm: externalSearch = '', onSearchChange }) => {
   const { confirmar } = useConfirmar();
+  // Borrado físico: solo superadministrador (sistema.proyectos_eliminar); el negocio anula, no borra.
+  const puedeEliminar = usePermisos().tiene('sistema.proyectos_eliminar');
   const queryClient = useQueryClient();
   const [internalSearch, setInternalSearch] = useState(externalSearch);
   // Por defecto: presupuestos cerrados (estado 2 de HETMO) y manuales.
@@ -83,6 +87,10 @@ export const CotizacionesPage: React.FC<{
     mutationFn: (id: string) => eliminarProyecto(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proyectos'] });
+    },
+    onError: (e) => {
+      const { mensaje, detalle } = extraerErrorParaToast(e);
+      mostrarToast(mensaje, { detalle });
     },
   });
   const handleEliminar = async (id: string, obra: string) => {
@@ -408,15 +416,17 @@ export const CotizacionesPage: React.FC<{
                               >
                                 <Eye className="w-3.5 h-3.5 text-slate-600" />
                               </Button>
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={() => handleEliminar(p.id, p.obra)}
-                                disabled={eliminarMutation.isPending}
-                                title="Eliminar proyecto"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                              </Button>
+                              {puedeEliminar && (
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => handleEliminar(p.id, p.obra)}
+                                  disabled={eliminarMutation.isPending}
+                                  title="Eliminar proyecto (solo superadministrador)"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                                </Button>
+                              )}
                             </div>
                           </Td>
                         </Tr>
@@ -506,15 +516,17 @@ export const CotizacionesPage: React.FC<{
                         >
                           <Eye className="w-4 h-4 text-slate-600" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handleEliminar(p.id, p.obra)}
-                          disabled={eliminarMutation.isPending}
-                          title="Eliminar proyecto"
-                        >
-                          <Trash2 className="w-4 h-4 text-rose-600" />
-                        </Button>
+                        {puedeEliminar && (
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleEliminar(p.id, p.obra)}
+                            disabled={eliminarMutation.isPending}
+                            title="Eliminar proyecto (solo superadministrador)"
+                          >
+                            <Trash2 className="w-4 h-4 text-rose-600" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   );

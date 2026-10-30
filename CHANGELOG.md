@@ -20,6 +20,10 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 **Avanzar el estado de las ventanas en bloque**
 - Para una obra que ya estaba en ejecución: «Avanzar estado…» en Cubicación elige torres, pisos, departamentos o ventanas y hasta qué estado llegan (despachadas, recibidas en obra o instaladas), con fecha y notas. Genera lo que falte de cada paso como documentos de regularización (despacho sin guía, recepción, instalación sin foto) y deja el historial de cada ventana; no toca guías electrónicas ni estados de pago. Nuevo permiso **Regularizar obras en curso** (`obras.regularizar`), sin asignar a ningún rol hasta que se decida.
 
+**Eliminar proyectos y obras manuales (solo superadministrador)**
+- El borrado físico de un presupuesto (Presupuestos) pasa a exigir el permiso técnico `sistema.proyectos_eliminar`: antes bastaba con poder archivar presupuestos. Una obra manual se elimina desde Obras en curso con el mismo permiso (ícono de papelera en su fila).
+- Se bloquea si el proyecto tiene órdenes de compra, estados de pago, adicionales o movimientos de bodega; la cubicación, los documentos de fabricación, los despachos de regularización, las instalaciones y los pendientes se borran con él.
+
 **Analítica de materiales**
 - Corregido: la moneda de origen de un material es siempre la de su tipo de producto (o la que eligió una línea agregada a mano); editar un precio nunca la cambia. Los precios editados antes, que habían quedado etiquetados en pesos, vuelven a mostrarse en su moneda de origen: el número se lee en la moneda del tipo, o se convierte si estaba guardado en pesos (se toma la lectura más parecida al precio de HETMO).
 

@@ -1,7 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Loader2, ChevronRight, AlertCircle, Plus } from 'lucide-react';
-import { getProyectos } from '../../api/client';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Loader2, ChevronRight, AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { eliminarProyecto, getProyectos } from '../../api/client';
+import { usePermisos } from '../../lib/permisos';
+import { useConfirmar } from '../../components/ui/Confirmar';
+import { IconButton } from '../../components/ui/IconButton';
+import { extraerErrorParaToast, mostrarToast } from '../../lib/toast';
 import { ProyectoWorkspace } from './ProyectoWorkspace';
 import { CarpetaObraBoton } from './pendientes/adjuntos/CarpetaObraBoton';
 import { NuevaObraManualModal } from './NuevaObraManualModal';
@@ -96,6 +100,40 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
   );
   const { valores, setValor, datosFiltrados: filtrados } = useColumnFilters(proyectosEnCurso, columnas);
 
+  // Eliminar una obra manual (borrado físico, solo superadministrador): una obra cargada mal o de prueba.
+  // Las obras cotizadas se eliminan desde Presupuestos, con el mismo permiso.
+  const queryClient = useQueryClient();
+  const { confirmar } = useConfirmar();
+  const puedeEliminar = usePermisos().tiene('sistema.proyectos_eliminar');
+  const eliminar = useMutation({
+    mutationFn: (id: string) => eliminarProyecto(id),
+    onSuccess: (r) => {
+      mostrarToast(`Obra "${r.obra}" eliminada.`, { tipo: 'info' });
+      queryClient.invalidateQueries({ queryKey: ['proyectos'] });
+      queryClient.invalidateQueries({ queryKey: ['proyectosCount'] });
+    },
+    onError: (e) => {
+      const { mensaje, detalle } = extraerErrorParaToast(e);
+      mostrarToast(mensaje, { detalle });
+    },
+  });
+  const pedirEliminar = async (p: Proyecto) => {
+    if (await confirmar({ titulo: `¿Eliminar la obra manual "${p.obra}"?`, mensaje: 'Se borran su cubicación, sus documentos de fabricación vinculados, despachos, instalaciones y pendientes. No se puede deshacer.', confirmar: 'Eliminar', peligro: true })) eliminar.mutate(p.id);
+  };
+  const botonEliminar = (p: Proyecto) =>
+    puedeEliminar && p.origen === 'MANUAL_OBRA' ? (
+      <IconButton
+        icono={Trash2}
+        tono="peligro"
+        etiqueta={`Eliminar la obra manual ${p.obra} (solo superadministrador)`}
+        cargando={eliminar.isPending && eliminar.variables === p.id}
+        onClick={(e) => {
+          e.stopPropagation();
+          pedirEliminar(p);
+        }}
+      />
+    ) : null;
+
   if (proyectoId) {
     return (
       <ProyectoWorkspace
@@ -111,6 +149,7 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
   // presupuesto ni fases planificadas: en el taller entra directo a
   // Fabricacion, que es donde se le vinculan sus documentos.
   const abrir = (p: Proyecto) => actualizarParams({ proyecto: p.id, seccion: esFabricacion && p.origen === 'MANUAL_OBRA' ? 'fabricacion' : null });
+
 
   const filaFases = (p: Proyecto) => {
     const resumen = p.fasesResumen;
@@ -257,7 +296,8 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
                       </Td>
                     </>
                   )}
-                  <Td alinear="derecha">
+                  <Td alinear="derecha" className="whitespace-nowrap">
+                    {botonEliminar(p)}
                     <ChevronRight className="w-4 h-4 text-slate-300 inline-block" />
                   </Td>
                 </Tr>
@@ -298,7 +338,10 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
               </div>
               <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
             </BotonFila>
-            {!esFabricacion && <CarpetaObraBoton proyecto={p} />}
+            <div className="flex items-center justify-between gap-2">
+              {!esFabricacion ? <CarpetaObraBoton proyecto={p} /> : <span />}
+              {botonEliminar(p)}
+            </div>
             </div>
           ))}
         </div>
