@@ -216,7 +216,11 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
   const porUbicarDe = (tipoId: string): number | null =>
     documentoId ? (data?.libres ?? []).filter((l) => l.tipoId === tipoId && l.fabricacionId === documentoId).reduce((s, l) => s + l.cantidad, 0) : null;
   const saldoDe = (t: TipoCubicacion) => porUbicarDe(t.id) ?? t.saldo;
-  const visibles = ventanasTipos.filter((t) => !buscar.trim() || `${t.codigo} ${t.sistema}`.toLowerCase().includes(buscar.trim().toLowerCase()));
+  // Con un documento elegido, el panel muestra solo los tipos que tienen ventanas de ese documento por ubicar.
+  const visibles = ventanasTipos
+    .filter((t) => !documentoId || (porUbicarDe(t.id) ?? 0) > 0)
+    .filter((t) => !buscar.trim() || `${t.codigo} ${t.sistema}`.toLowerCase().includes(buscar.trim().toLowerCase()));
+
 
   const asignarUna = useMutation({
     mutationFn: ({ destino, tipo, exceder }: { destino: Destino; tipo: TipoCubicacion; exceder: boolean }) =>
@@ -368,7 +372,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
           </div>
           <Buscador compacto valor={buscar} onChange={setBuscar} placeholder="Buscar V01, corredera…" etiqueta="Buscar tipo de ventana" />
           <div className="max-h-[60dvh] overflow-y-auto space-y-1.5 pr-0.5">
-            {visibles.length === 0 && <p className="text-xs text-slate-400 py-3 text-center">No hay tipos.</p>}
+            {visibles.length === 0 && <p className="text-xs text-slate-400 py-3 text-center">{documentoId ? 'No quedan ventanas por ubicar de este documento.' : 'No hay tipos.'}</p>}
             {visibles.map((t) => {
               const saldo = saldoDe(t);
               const completo = saldo <= 0;
