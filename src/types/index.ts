@@ -198,6 +198,9 @@ export interface Proveedor {
   monedaDefecto: string | null;
   categoria: string | null;
   ibanSwift: string | null;
+  // Oculto del maestro y los selectores (solo superadministrador, sistema.proveedores).
+  oculto?: boolean;
+  ocultoEn?: string | null;
   creadoEn: string;
   actualizadoEn: string;
   // Cuantos materiales/OC lo tienen enlazado -- en 0/0 es candidato a
@@ -631,7 +634,8 @@ export interface Proyecto {
   // Retail, Obra... (Configuracion > Comercial).
   tipoProyectoId?: string;
   tipoProyecto?: Pick<TipoProyecto, 'id' | 'codigo' | 'nombre'>;
-  hetmoSinVersion: number;
+  // Llave de HETMO; null = proyecto manual (nunca se sincroniza).
+  hetmoSinVersion: number | null;
   numeroPresupuesto: number;
   codigoInterno: string | null;
   obra: string;
@@ -1960,6 +1964,92 @@ export type ReporteImportacionCubicacion =
       unidades: { nuevas: number; asignadas: number; existentes: number; rectificadasAhora: number; areasComunes: number };
       advertencias: string[];
     };
+
+// ---- Cubicar desde los documentos de fabricacion (obras legacy sin presupuesto) ----
+// Ver mtw-api/src/dominio/obras/propuesta-cubicacion.ts: el sistema interpreta el
+// modelo de cada ventana del lote ("2115 V02") y el nombre del documento ("EX_P21").
+export type ConfianzaPropuesta = 'ALTA' | 'MEDIA' | 'BAJA';
+
+export interface VentanaPropuestaCubicacion {
+  fabricacionVentanaId: string;
+  fabricacionId: string;
+  orden: number;
+  modelo: string;
+  descripcionCorta: string | null;
+  anchoMm: number;
+  altoMm: number;
+  unidades: number;
+  hojas: number | null;
+  codigo: string;
+  torre: string;
+  piso: number | null;
+  unidad: string | null;
+  especial: boolean;
+  ubicacion: string | null;
+  confianza: ConfianzaPropuesta;
+  avisos: string[];
+  nomenclaturaPropuesta: string | null;
+}
+
+export interface DocumentoPropuestaCubicacion {
+  fabricacionId: string;
+  hetmoId: number;
+  numero: number | null;
+  descripcion: string | null;
+  estadoHetmo: number;
+  estadoGlosa: string | null;
+  pistas: { torre: string | null; piso: number | null };
+  ventanas: VentanaPropuestaCubicacion[];
+}
+
+export interface TipoPropuestoCubicacion {
+  codigo: string;
+  sistema: string;
+  anchoMm: number | null;
+  altoMm: number | null;
+  cuadros: number | null;
+  ventanas: number;
+  existente: boolean;
+}
+
+export interface PropuestaCubicacionFabricacion {
+  documentos: DocumentoPropuestaCubicacion[];
+  tipos: TipoPropuestoCubicacion[];
+  resumen: { ventanas: number; conPosicion: number; sinPosicion: number; porRevisar: number };
+  formatoNomenclatura: string;
+  modo: ModoCubicacion;
+}
+
+// Una fila ya revisada por la persona, lista para aplicar.
+export interface FilaPropuestaCubicacion {
+  fabricacionVentanaId: string;
+  codigo: string;
+  torre: string;
+  piso: number | null;
+  unidad: string | null;
+  especial: boolean;
+  ubicacion: string | null;
+}
+
+export interface ReporteAplicacionPropuesta {
+  tipos: { nuevos: number; existentes: number };
+  ventanas: { creadas: number; conPosicion: number; sinPosicion: number };
+  estructura: { torres: number; pisos: number; unidades: number };
+  avisos: string[];
+}
+
+// Avance masivo del estado de las ventanas de una obra en ejecucion (legacy).
+export type EstadoDestinoAvance = 'DESPACHADA' | 'RECIBIDA' | 'INSTALADA';
+
+export interface ReporteAvanceVentanas {
+  ventanas: number;
+  despachadas: number;
+  recibidas: number;
+  instaladas: number;
+  yaEstaban: number;
+  despachoId: string | null;
+  omitidas: { nombre: string; motivo: string }[];
+}
 
 export interface FiltroUnidadesCubicacion {
   pisoId?: string;

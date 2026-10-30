@@ -4,7 +4,7 @@ import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
 import { useMonedas, resolverMoneda } from '../../../lib/monedas';
-import { updateProveedor, type ProveedorFacturacionPayload } from '../../../api/client';
+import { createProveedor, updateProveedor, type ProveedorFacturacionPayload } from '../../../api/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Proveedor } from '../../../types';
 import { Modal } from '../../../components/ui/Modal';
@@ -60,8 +60,9 @@ export const ProveedorEditModal: React.FC<ProveedorEditModalProps> = ({ proveedo
 
   const mutation = useMutation({
     mutationFn: async () => {
-      if (!proveedor) throw new Error('Proveedor no encontrado');
-      return updateProveedor(proveedor.id, formData);
+      // Sin proveedor = alta a mano: se crea por nombre y se guardan sus datos de facturación.
+      const id = proveedor?.id ?? (await createProveedor((formData.nombre ?? '').trim())).data.id;
+      return updateProveedor(id, formData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proveedores'] });
@@ -72,7 +73,6 @@ export const ProveedorEditModal: React.FC<ProveedorEditModalProps> = ({ proveedo
     },
   });
 
-  if (!proveedor) return null;
 
   const set = (field: keyof ProveedorFacturacionPayload) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setFormData((prev) => ({ ...prev, [field]: e.target.value }));
@@ -93,10 +93,14 @@ export const ProveedorEditModal: React.FC<ProveedorEditModalProps> = ({ proveedo
 
   return (
     <Modal
-      titulo={proveedor.nombre}
-      subtitulo={esDeHetmo
-                  ? `Vinculado a HETMO (código ${proveedor.origenesHetmo!.map((o) => o.codigoHetmo).join(', ')}). Lo que edites acá no lo pisa el sync`
-                  : 'Datos de facturación -- proveedor creado a mano, sin fuente automática'}
+      titulo={proveedor ? proveedor.nombre : 'Nuevo proveedor'}
+      subtitulo={
+        !proveedor
+          ? 'Proveedor creado a mano, sin fuente automática: queda disponible en el maestro y en los selectores'
+          : esDeHetmo
+            ? `Vinculado a HETMO (código ${proveedor.origenesHetmo!.map((o) => o.codigoHetmo).join(', ')}). Lo que edites acá no lo pisa el sync`
+            : 'Datos de facturación -- proveedor creado a mano, sin fuente automática'
+      }
       icono={Building2}
       ancho="lg"
       onClose={onClose}

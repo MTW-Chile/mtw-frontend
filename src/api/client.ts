@@ -81,6 +81,11 @@ import type {
   ReporteCubicacionUnica,
   InfoPresupuestoCubicacion,
   FiltroUnidadesCubicacion,
+  PropuestaCubicacionFabricacion,
+  FilaPropuestaCubicacion,
+  ReporteAplicacionPropuesta,
+  EstadoDestinoAvance,
+  ReporteAvanceVentanas,
   EstructuraCubicacion,
   TorreConPisos,
   ResultadoAsignacionCubicacion,
@@ -827,8 +832,15 @@ export async function createMaterial(payload: {
   return response.data;
 }
 
-export async function getProveedores(): Promise<{ data: Proveedor[] }> {
-  const response = await apiClient.get<{ data: Proveedor[] }>('/proveedores');
+// Sin ocultos. `ocultos: true` trae solo los ocultos (superadministrador, ver ocultarProveedor).
+export async function getProveedores(opciones: { ocultos?: boolean } = {}): Promise<{ data: Proveedor[] }> {
+  const response = await apiClient.get<{ data: Proveedor[] }>('/proveedores', { params: opciones.ocultos ? { ocultos: '1' } : undefined });
+  return response.data;
+}
+
+// Oculta del maestro y de los selectores un proveedor de HETMO que no se usa o viene mal (sistema.proveedores).
+export async function ocultarProveedor(id: string, oculto: boolean): Promise<{ data: Proveedor }> {
+  const response = await apiClient.post<{ data: Proveedor }>(`/proveedores/${id}/${oculto ? 'ocultar' : 'mostrar'}`);
   return response.data;
 }
 
@@ -1661,6 +1673,28 @@ export async function sincronizarCubicacion(proyectoId: string) {
   const response = await apiClient.post<{ reporte: ReporteSincronizacionCubicacion; cubicacion: ConfigCubicacion; resumen: ResumenCubicacion }>(
     `/proyectos/${proyectoId}/cubicacion/sincronizar`
   );
+  return response.data;
+}
+
+// Obras legacy sin presupuesto: propuesta de cubicación a partir de los documentos de fabricación vinculados
+// (ventanas del lote todavía no cubicadas), y su aplicación con las filas ya revisadas.
+export async function getPropuestaCubicacionFabricacion(proyectoId: string): Promise<PropuestaCubicacionFabricacion> {
+  const response = await apiClient.get<PropuestaCubicacionFabricacion>(`/proyectos/${proyectoId}/cubicacion/propuesta-fabricacion`);
+  return response.data;
+}
+
+export async function aplicarPropuestaCubicacionFabricacion(proyectoId: string, ventanas: FilaPropuestaCubicacion[]) {
+  const response = await apiClient.post<{ reporte: ReporteAplicacionPropuesta }>(`/proyectos/${proyectoId}/cubicacion/propuesta-fabricacion/aplicar`, { ventanas }, { timeout: 180000 });
+  return response.data;
+}
+
+// Avanza en bloque el estado de las ventanas elegidas (torres, pisos, deptos o ventanas) hasta despachadas,
+// recibidas o instaladas, generando lo que falte de cada paso sin guía ni foto.
+export async function avanzarEstadoVentanas(
+  proyectoId: string,
+  payload: { seleccion: SeleccionFaseCubicacion; hasta: EstadoDestinoAvance; fecha?: string; notas?: string }
+) {
+  const response = await apiClient.post<{ reporte: ReporteAvanceVentanas }>(`/proyectos/${proyectoId}/ventanas/avanzar-estado`, payload, { timeout: 180000 });
   return response.data;
 }
 
