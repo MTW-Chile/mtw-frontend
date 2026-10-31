@@ -22,10 +22,10 @@ export function ventanaDeProyecto(proyecto: Proyecto | undefined, ventanaId: str
  * `ventanaId` es la linea del presupuesto; como alternativa, `lineaHetmo` (la
  * linea madre que trae una FabricacionVentana en hetmoVentanaMadreId).
  */
-export const DibujoVentana: React.FC<{ proyectoId: string; ventanaId?: string | null; lineaHetmo?: number | null; className?: string; etiqueta?: string }> = ({ proyectoId, ventanaId, lineaHetmo, className = 'h-40', etiqueta }) => {
-  const habilitado = !!ventanaId || lineaHetmo != null;
+export const DibujoVentana: React.FC<{ proyectoId: string; ventanaId?: string | null; lineaHetmo?: number | null; /** Ventana ya resuelta (ej. el dibujo de una ventana de fabricación, obras legacy). */ ventana?: Ventana | null; className?: string; etiqueta?: string }> = ({ proyectoId, ventanaId, lineaHetmo, ventana: directa, className = 'h-40', etiqueta }) => {
+  const habilitado = !directa && (!!ventanaId || lineaHetmo != null);
   const { data: proyecto, isLoading } = useQuery({ queryKey: ['proyectoDetail', proyectoId], queryFn: () => getProyectoById(proyectoId), enabled: habilitado, staleTime: 1000 * 60 * 5 });
-  const ventana = ventanaDeProyecto(proyecto, ventanaId, lineaHetmo);
+  const ventana = directa ?? ventanaDeProyecto(proyecto, ventanaId, lineaHetmo);
   return (
     <div className={`rounded-xl border border-slate-200 bg-white flex items-center justify-center overflow-hidden ${className}`} aria-label={etiqueta ?? 'Dibujo de la ventana'}>
       {ventana ? (

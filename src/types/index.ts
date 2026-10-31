@@ -2421,6 +2421,8 @@ export interface FichaVentanaObra {
   hetmoError: string | null;
   pendientes: VentanaInstalacionDetalle['pendientes'];
   eventos: VentanaEvento[];
+  // Ventana dibujable (geometría del documento de venta del lote), con la misma forma que una línea cotizada.
+  dibujo: Ventana | null;
 }
 
 // ---- Estados de pago ----

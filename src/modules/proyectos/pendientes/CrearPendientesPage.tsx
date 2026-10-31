@@ -89,15 +89,16 @@ const FichaVentana: React.FC<{ proyectoId: string; ficha: FichaVentanaObra }> = 
   const Dato: React.FC<{ k: string; children: React.ReactNode }> = ({ k, children }) => (
     <div className="min-w-0">
       <dt className="text-[10px] uppercase tracking-wider text-slate-400">{k}</dt>
-      <dd className="text-xs text-slate-800 truncate">{children}</dd>
+      <dd className="text-xs text-slate-800 break-words">{children}</dd>
     </div>
   );
+  // @container: la ficha se acomoda al ancho real de su columna (en tablet es angosta), no al de la pantalla.
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-1 md:grid-cols-[13rem_1fr] gap-3">
-        <DibujoVentana proyectoId={proyectoId} ventanaId={v.ventanaId} lineaHetmo={v.ventanaId ? undefined : fv?.hetmoVentanaMadreId} className="h-40 md:h-full md:min-h-44" />
-        <dl className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 content-start">
-          <div className="col-span-2 lg:col-span-3 flex flex-wrap items-center gap-1.5">
+    <div className="space-y-3 @container">
+      <div className="grid grid-cols-1 @2xl:grid-cols-[13rem_1fr] gap-3">
+        <DibujoVentana proyectoId={proyectoId} ventanaId={v.ventanaId} lineaHetmo={v.ventanaId ? undefined : fv?.hetmoVentanaMadreId} ventana={ficha.dibujo} className="h-44 @2xl:h-full @2xl:min-h-44" />
+        <dl className="grid grid-cols-2 @3xl:grid-cols-3 gap-x-4 gap-y-2 content-start">
+          <div className="col-span-2 @3xl:col-span-3 flex flex-wrap items-center gap-1.5">
             <Badge variant={VARIANTE_ESTADO_VENTANA[v.estado]}>{ETIQUETA_ESTADO_VENTANA[v.estado]}</Badge>
             {ficha.documento && (
               <Badge size="sm" variant={varianteEstadoFabricacion(ficha.documento.estadoHetmo)}>
@@ -117,7 +118,7 @@ const FichaVentana: React.FC<{ proyectoId: string; ficha: FichaVentanaObra }> = 
         </dl>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 text-xs">
+      <div className="grid grid-cols-1 @2xl:grid-cols-3 gap-3 text-xs">
         <div className="rounded-xl border border-slate-200 p-2.5 space-y-1">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Marcos y hojas</p>
           {ficha.cuadros.length === 0 ? (
@@ -280,7 +281,8 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
       ) : !hayEstructura ? (
         <EstadoVacio icono={Square} titulo="Esta obra todavía no está cubicada" descripcion="Los pendientes se levantan sobre las ventanas cubicadas. Carga la cubicación en Taller › Fabricación › Cubicación." />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[22rem_1fr] xl:grid-cols-[22rem_1fr_20rem] gap-4 items-start">
+        /* Tablet (hasta 2xl): dos columnas, el listado va bajo el formulario y una barra fija abajo lleva el envío. */
+        <div className="grid grid-cols-1 lg:grid-cols-[20rem_1fr] 2xl:grid-cols-[20rem_1fr_20rem] gap-4 items-start pb-16 2xl:pb-0">
           {/* Árbol */}
           <div className="space-y-2 lg:sticky lg:top-4 lg:max-h-[80dvh] lg:overflow-y-auto pr-0.5">
             <Buscador valor={busqueda} onChange={setBusqueda} placeholder="Piso 10, depto 1004, V01_1004A, documento…" etiqueta="Buscar ventanas" />
@@ -362,10 +364,20 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
                 </Seccion>
               </>
             )}
-            <div className="xl:hidden">{carritoPanel}</div>
+            <div className="2xl:hidden">{carritoPanel}</div>
           </div>
 
-          <div className="hidden xl:block xl:sticky xl:top-4">{carritoPanel}</div>
+          <div className="hidden 2xl:block 2xl:sticky 2xl:top-4">{carritoPanel}</div>
+        </div>
+      )}
+      {carrito.length > 0 && (
+        <div className="2xl:hidden fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur px-4 py-2 flex items-center justify-between gap-3 shadow-2xl" role="status">
+          <p className="text-xs text-slate-700">
+            <b>{carrito.length}</b> pendiente(s) en el listado
+          </p>
+          <Button variant="primary" size="sm" leftIcon={<Send className="w-3.5 h-3.5" />} isLoading={enviar.isPending} onClick={() => enviar.mutate()} className="pointer-coarse:min-h-11">
+            Enviar {carrito.length}
+          </Button>
         </div>
       )}
     </div>
