@@ -8,7 +8,8 @@ import { useMediaQuery } from '../../../lib/useMediaQuery';
 import { BREAKPOINT_DESKTOP } from '../../../lib/designSystem';
 import type { DestinoPendiente, EstadoPendiente, ObraPendiente, Proyecto } from '../../../types';
 import { formatoFechaHora } from '../fabricacion/utils';
-import { NuevoPendienteModal } from './NuevoPendienteModal';
+import { CrearPendientesPage } from './CrearPendientesPage';
+import { useUrlParam } from '../../../lib/navigation';
 import { PendienteDetalleModal } from './PendienteDetalleModal';
 import {
   DESTINOS_PENDIENTE,
@@ -46,10 +47,12 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
   const [estado, setEstado] = useState<EstadoPendiente | ''>('');
   const [destino, setDestino] = useState<DestinoPendiente | ''>('');
   const [texto, setTexto] = useState('');
-  const [creando, setCreando] = useState(false);
+  // Alta de pendientes: página propia (varias ventanas de la cubicación de una vez), con la URL como estado.
+  const [modoNuevo, setModoNuevo] = useUrlParam('pendientes');
   const [abierto, setAbierto] = useState<ObraPendiente | null>(null);
   const [obraId, setObraId] = useState('');
   const central = !proyecto;
+  const creando = !!proyecto && modoNuevo === 'nuevo';
 
   const { data, isLoading, isError } = useQuery({
     queryKey: proyecto ? ['pendientes', proyecto.id] : ['pendientes', 'todas'],
@@ -81,6 +84,8 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
     referencia: referenciaPendiente(p),
   });
 
+  if (creando && proyecto) return <CrearPendientesPage proyecto={proyecto} onCerrar={() => setModoNuevo(null)} />;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -93,8 +98,8 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
           </p>
         </div>
         {proyecto && (
-          <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setCreando(true)}>
-            Nuevo pendiente
+          <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setModoNuevo('nuevo')}>
+            Nuevos pendientes
           </Button>
         )}
       </div>
@@ -245,7 +250,6 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
         </div>
       )}
 
-      {creando && proyecto && <NuevoPendienteModal proyecto={proyecto} onClose={() => setCreando(false)} onCreado={() => setCreando(false)} />}
       {abierto && <PendienteDetalleModal proyectoId={abierto.proyectoId} pendienteId={abierto.id} onClose={() => setAbierto(null)} />}
     </div>
   );

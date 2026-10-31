@@ -20,6 +20,11 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 **Avanzar el estado de las ventanas en bloque**
 - Para una obra que ya estaba en ejecución: «Avanzar estado…» en Cubicación elige torres, pisos, departamentos o ventanas y hasta qué estado llegan (despachadas, recibidas en obra o instaladas), con fecha y notas. Genera lo que falte de cada paso como documentos de regularización (despacho sin guía, recepción, instalación sin foto) y deja el historial de cada ventana; no toca guías electrónicas ni estados de pago. Nuevo permiso **Regularizar obras en curso** (`obras.regularizar`), sin asignar a ningún rol hasta que se decida.
 
+**Pendientes: página «Nuevos pendientes»**
+- El alta de pendientes deja de ser un formulario suelto: es una página de la obra (obras cotizadas y manuales por igual) con la cubicación a la izquierda y un buscador por torre, piso, departamento, nomenclatura, apertura o documento de fabricación. Al tocar una ventana se ve todo lo que sabemos de ella: dibujo, ubicación, estado, documento y modelo en HETMO, medida de fabricación, marcos y hojas con su medida, vidrios con su medida y materiales (leídos de HETMO), y sus pendientes abiertos.
+- Debajo, el formulario del pendiente (qué falta, motivo, a cargo de quién, hoja, vidrio o material concreto, rectificación de medidas, notas y fecha) se **agrega a un listado**; se pueden juntar varios de varias ventanas y se envían todos de una vez, todo o nada. Los adjuntos se agregan después desde el detalle de cada pendiente.
+- Desde Instalación, el pendiente de una ventana sigue abriéndose en su ficha.
+
 **Eliminar proyectos y obras manuales (solo superadministrador)**
 - El borrado físico de un presupuesto (Presupuestos) pasa a exigir el permiso técnico `sistema.proyectos_eliminar`: antes bastaba con poder archivar presupuestos. Una obra manual se elimina desde Obras en curso con el mismo permiso (ícono de papelera en su fila).
 - Se bloquea si el proyecto tiene órdenes de compra, estados de pago, adicionales o movimientos de bodega; la cubicación, los documentos de fabricación, los despachos de regularización, las instalaciones y los pendientes se borran con él.

@@ -100,6 +100,7 @@ import type {
   EstadoPendiente,
   DestinoPendiente,
   NuevoPendientePayload,
+  FichaVentanaObra,
   UltimoPrecioProveedor,
   ConfiguracionBsale,
   ObraDespachos,
@@ -2200,6 +2201,23 @@ export async function getObrasDespachos(): Promise<ObraDespachos[]> {
 
 export async function getInstalacionObra(proyectoId: string): Promise<InstalacionObra> {
   const response = await apiClient.get<InstalacionObra>(`/proyectos/${proyectoId}/instalacion`);
+  return response.data;
+}
+
+// Mismo árbol que Instalación, para quien crea pendientes (permiso pendientes.crear).
+export async function getVentanasObra(proyectoId: string): Promise<InstalacionObra> {
+  const response = await apiClient.get<InstalacionObra>(`/proyectos/${proyectoId}/ventanas-obra`);
+  return response.data;
+}
+
+export async function getFichaVentana(proyectoId: string, ventanaId: string): Promise<FichaVentanaObra> {
+  const response = await apiClient.get<FichaVentanaObra>(`/proyectos/${proyectoId}/ventanas/${ventanaId}/ficha`);
+  return response.data;
+}
+
+// Varios pendientes de una vez (página Nuevos pendientes). Todo o nada.
+export async function crearPendientesLote(proyectoId: string, pendientes: NuevoPendientePayload[]): Promise<{ creados: ObraPendiente[] }> {
+  const response = await apiClient.post<{ creados: ObraPendiente[] }>(`/proyectos/${proyectoId}/pendientes/lote`, { pendientes }, { timeout: 120000 });
   return response.data;
 }
 

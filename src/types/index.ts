@@ -2408,6 +2408,21 @@ export interface VentanaInstalacionDetalle {
   instalaciones: InstalacionVentana[];
 }
 
+// Ficha completa de una ventana cubicada para levantar pendientes (GET /api/proyectos/:id/ventanas/:vid/ficha).
+export interface FichaVentanaObra {
+  ventana: VentanaObra;
+  documento: { id: string; hetmoId: number; numero: number | null; nombre: string | null; descripcion: string | null; estadoHetmo: number; estadoGlosa: string | null; hetmoVentaId: number | null; nombreMostrado: string } | null;
+  fabricacionVentana: { id: string; hetmoVentanaId: number; hetmoVentanaMadreId: number | null; orden: number; modelo: string; descripcionCorta: string | null; anchoMm: number; altoMm: number; unidades: number } | null;
+  // Marcos y hojas del documento de fabricación (solo si el lote ya se optimizó).
+  cuadros: { id: string; numeroCuadro: number; tipo: 'MARCO' | 'HOJA'; anchoMm: number | null; altoMm: number | null }[];
+  // Leídos en vivo de HETMO, solo de esta ventana.
+  vidrios: VidrioFabricacion[];
+  materiales: MaterialFabricacion[];
+  hetmoError: string | null;
+  pendientes: VentanaInstalacionDetalle['pendientes'];
+  eventos: VentanaEvento[];
+}
+
 // ---- Estados de pago ----
 
 export type EstadoEstadoPago = 'BORRADOR' | 'PRESENTADO' | 'APROBADO' | 'RECHAZADO' | 'FACTURADO' | 'PAGADO' | 'ANULADO';
