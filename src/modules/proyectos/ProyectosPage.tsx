@@ -11,10 +11,10 @@ import { CarpetaObraBoton } from './pendientes/adjuntos/CarpetaObraBoton';
 import { NuevaObraManualModal } from './NuevaObraManualModal';
 import { Button } from '../../components/ui/Button';
 import { useUrlParam, actualizarParams } from '../../lib/navigation';
-import { useMediaQuery } from '../../lib/useMediaQuery';
+import { useAnchoContenedor } from '../../lib/useAnchoContenedor';
 import { useColumnFilters, type ColumnFilterDef } from '../../lib/useColumnFilters';
 import { ColumnFilterHeader } from '../../components/ui/ColumnFilterHeader';
-import { PAGE_CONTAINER_CLASS, BREAKPOINT_DESKTOP } from '../../lib/designSystem';
+import { PAGE_CONTAINER_CLASS } from '../../lib/designSystem';
 import type { Proyecto } from '../../types';
 import { HeaderSeccion } from '../../components/layout/HeaderSeccion';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
@@ -28,12 +28,12 @@ const AvanceFases: React.FC<{ resumen?: { total: number; enProduccionOCompletada
   if (!resumen || resumen.total === 0) return <span className="text-slate-400">Sin fases</span>;
   const pct = Math.round((resumen.enProduccionOCompletadas / resumen.total) * 100);
   return (
-    <span className="inline-flex flex-col gap-1 min-w-10 max-w-16">
+    <span className="inline-flex items-center gap-2">
+      <span className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+        <span className="block h-full rounded-full bg-brand-500" style={{ width: `${pct}%` }} />
+      </span>
       <span className="font-mono font-semibold text-slate-600">
         {resumen.enProduccionOCompletadas}/{resumen.total}
-      </span>
-      <span className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
-        <span className="block h-full rounded-full bg-brand-500" style={{ width: `${pct}%` }} />
       </span>
     </span>
   );
@@ -52,12 +52,12 @@ const Avance: React.FC<{ valor: number; total: number; color?: string; titulo?: 
   if (total === 0) return <span className="text-slate-400">—</span>;
   const pct = Math.min(100, Math.round((valor / total) * 100));
   return (
-    <span className="inline-flex flex-col gap-1 min-w-10 max-w-16" title={titulo ?? `${valor} de ${total}`}>
+    <span className="inline-flex items-center gap-2" title={titulo ?? `${valor} de ${total}`}>
+      <span className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+        <span className={`block h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+      </span>
       <span className="font-mono font-semibold text-slate-600 tabular-nums">
         {valor}/{total}
-      </span>
-      <span className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
-        <span className={`block h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
       </span>
     </span>
   );
@@ -79,7 +79,9 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
   const [seccionUrl] = useUrlParam('seccion');
   const setProyectoId = (id: string | null) => actualizarParams({ proyecto: id, seccion: null });
   const [creandoObraManual, setCreandoObraManual] = useState(false);
-  const isDesktop = useMediaQuery(BREAKPOINT_DESKTOP);
+  // Tabla solo si cabe de verdad en el espacio disponible (con el menú abierto en una tablet no cabe): si no, tarjetas.
+  const [refPagina, anchoPagina] = useAnchoContenedor();
+  const isDesktop = anchoPagina >= (esFabricacion ? 1000 : 1180);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['proyectos', 'en-curso'],
@@ -164,7 +166,7 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
   };
 
   return (
-    <div className={PAGE_CONTAINER_CLASS}>
+    <div ref={refPagina} className={PAGE_CONTAINER_CLASS}>
       {/* Título y acciones viven en el Header del sitio (portal), igual que Presupuestos. */}
       <HeaderSeccion
         titulo={esFabricacion ? 'Fabricación' : 'Obras en curso'}
@@ -239,7 +241,7 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
                   onClick={() => abrir(p)}
                   className="border-b border-slate-50 hover:bg-slate-50/70 transition-colors cursor-pointer"
                 >
-                  <Td className="min-w-0">
+                  <Td className="min-w-[15rem]">
                     <div className="text-xs font-bold text-slate-900 line-clamp-2 leading-snug" title={p.obra}>
                       {p.obra}
                     </div>
@@ -247,24 +249,24 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
                       {p.codigoInterno || `PRJ-${p.numeroPresupuesto}`}
                     </span>
                   </Td>
-                  <Td className="text-xs text-slate-600 min-w-0 max-w-[16rem]" title={p.clienteNombreRaw}>
+                  <Td className="text-xs text-slate-600 min-w-[10rem] max-w-[16rem]" title={p.clienteNombreRaw}>
                     <div className="line-clamp-2 leading-snug">{p.clienteNombreRaw}</div>
                   </Td>
                   {esFabricacion ? (
                     <>
-                      <Td className="text-[11px]">
+                      <Td className="text-[11px] whitespace-nowrap">
                         <Avance valor={ro(p)?.ventanas.cubicadas ?? 0} total={ro(p)?.ventanas.contratadas ?? 0} color="bg-slate-400" titulo="Ventanas con posición en la cubicación, de las contratadas" />
                       </Td>
-                      <Td className="text-[11px] text-slate-500" title={filaFases(p)}>
+                      <Td className="text-[11px] text-slate-500 whitespace-nowrap" title={filaFases(p)}>
                         <AvanceFases resumen={p.fasesResumen} />
                       </Td>
-                      <Td className="text-[11px]">
+                      <Td className="text-[11px] whitespace-nowrap">
                         <Avance valor={ro(p)?.ventanas.fabricadas ?? 0} total={ro(p)?.ventanas.cubicadas ?? 0} color="bg-sky-500" titulo="Ventanas cuyo lote de HETMO está fabricado, de las cubicadas" />
                       </Td>
-                      <Td className="text-[11px]">
+                      <Td className="text-[11px] whitespace-nowrap">
                         <Avance valor={ro(p)?.ventanas.despachadas ?? 0} total={ro(p)?.ventanas.cubicadas ?? 0} color="bg-violet-500" titulo="Ventanas en un despacho emitido, de las cubicadas" />
                       </Td>
-                      <Td className="text-[11px]">
+                      <Td className="text-[11px] whitespace-nowrap">
                         <Avance valor={ro(p)?.ventanas.instaladas ?? 0} total={ro(p)?.ventanas.cubicadas ?? 0} color="bg-emerald-500" titulo="Ventanas certificadas como instaladas, de las cubicadas" />
                       </Td>
                       <Td>{pendientes(p)}</Td>
@@ -291,7 +293,7 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
                         )}
                       </Td>
                       <Td>{pendientes(p)}</Td>
-                      <Td>
+                      <Td className="whitespace-nowrap">
                         <CarpetaObraBoton proyecto={p} />
                       </Td>
                     </>

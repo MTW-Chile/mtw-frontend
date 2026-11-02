@@ -14,6 +14,7 @@ import { Cargando, EstadoVacio, ErrorCarga } from '../../../components/ui/Estado
 import { Lista, FilaLista } from '../../../components/ui/Lista';
 import { useConfirmar } from '../../../components/ui/Confirmar';
 import { useMigas } from '../../../lib/migas';
+import { useAnchoContenedor } from '../../../lib/useAnchoContenedor';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import { fecha } from '../../../lib/formato';
 import type { FichaVentanaObra, NodoUnidadInstalacion, Proyecto, VentanaObra } from '../../../types';
@@ -202,6 +203,10 @@ const FichaVentana: React.FC<{ proyectoId: string; ficha: FichaVentanaObra }> = 
 export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => {
   const queryClient = useQueryClient();
   const { confirmar } = useConfirmar();
+  // Plano y detalle lado a lado según el ancho REAL disponible (no el de la pantalla): una tablet vertical con el menú
+  // contraído alcanza; si no, el detalle de la ventana elegida sube sobre el plano para no tener que bajar a buscarlo.
+  const [refPagina, anchoPagina] = useAnchoContenedor();
+  const dosColumnas = anchoPagina >= 640;
   useMigas(2, [{ label: 'Nuevos pendientes' }]);
   const [busqueda, setBusqueda] = useState('');
   const [activa, setActiva] = useState<VentanaObra | null>(null);
@@ -301,7 +306,7 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
   );
 
   return (
-    <div className="space-y-4">
+    <div ref={refPagina} className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-black text-slate-900">Nuevos pendientes</h2>
@@ -325,10 +330,10 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
       ) : !hayEstructura ? (
         <EstadoVacio icono={Square} titulo="Esta obra todavía no está cubicada" descripcion="Los pendientes se levantan sobre las ventanas cubicadas. Carga la cubicación en Taller › Fabricación › Cubicación." />
       ) : (
-        /* Dos columnas (plano y formulario); el listado de pendientes ingresados es un desplegable (carrito) desde la barra inferior. */
-        <div className="grid grid-cols-1 lg:grid-cols-[20rem_1fr] gap-4 items-start">
+        /* Dos columnas (plano y formulario) si caben; el listado de pendientes ingresados es el carrito del encabezado. */
+        <div className={`grid gap-4 items-start ${dosColumnas ? (anchoPagina >= 1000 ? 'grid-cols-[20rem_1fr]' : 'grid-cols-[15rem_1fr]') : 'grid-cols-1'}`}>
           {/* Árbol */}
-          <div className="space-y-2 lg:sticky lg:top-4 lg:max-h-[80dvh] lg:overflow-y-auto pr-0.5">
+          <div className={`space-y-2 pr-0.5 ${dosColumnas ? 'sticky top-4 max-h-[80dvh] overflow-y-auto' : ''}`}>
             <Buscador valor={busqueda} onChange={setBusqueda} placeholder="Piso 10, depto 1004, V01_1004A, documento…" etiqueta="Buscar ventanas" />
             {arbol.data.torres.map((torre) => {
               const visibles = [...torre.pisos.flatMap((p) => p.unidades.flatMap((u) => u.ventanas)), ...torre.especiales.flatMap((u) => u.ventanas)].filter(pasa);
@@ -390,7 +395,7 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
           </div>
 
           {/* Ficha y formulario */}
-          <div className="space-y-4 min-w-0">
+          <div className={`space-y-4 min-w-0 ${!dosColumnas && activa ? 'order-first' : ''}`}>
             {!activa ? (
               <EstadoVacio icono={Square} titulo="Elige una ventana" descripcion="Toca una ventana del plano para ver todo lo que sabemos de ella y detallar su pendiente." />
             ) : ficha.isLoading ? (

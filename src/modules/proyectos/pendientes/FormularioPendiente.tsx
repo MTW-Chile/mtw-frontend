@@ -3,7 +3,7 @@ import { Plus, Ruler } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
-import { Textarea, OpcionesTarjetaMultiple, SelectCompacto } from '../../../components/ui/Campos';
+import { Textarea, OpcionesTarjetaMultiple, Casilla } from '../../../components/ui/Campos';
 import { Aviso } from '../../../components/ui/Aviso';
 import { ETIQUETA_CARGO } from '../../../types';
 import type { CargoPendiente, FabricacionPieza, FichaVentanaObra, MotivoPendiente, NuevoPendientePayload, TipoElementoPendiente } from '../../../types';
@@ -57,7 +57,7 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
   const [tipo, setTipo] = useState<TipoElementoPendiente>('VIDRIO');
   const [motivo, setMotivo] = useState<MotivoPendiente>('FALLA');
   // Material: una sola opción. Vidrios (posición en la lista) y hojas (id): se pueden marcar varios y sale un pendiente por cada uno.
-  const [elementoId, setElementoId] = useState('');
+  const [materialesSel, setMaterialesSel] = useState<string[]>([]);
   const [vidriosSel, setVidriosSel] = useState<string[]>([]);
   const [hojasSel, setHojasSel] = useState<string[]>([]);
   const [notas, setNotas] = useState('');
@@ -80,10 +80,10 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
   const hojasElegidas = tipo === 'HOJA' ? hojas.filter((h) => hojasSel.includes(h.id)) : [];
   // La rectificación solo aplica con un único vidrio marcado.
   const vidrioElegido = vidriosElegidos.length === 1 ? vidriosElegidos[0] : undefined;
-  // Material: una pieza cortada ("pieza:<id>") o una fila de la receta ("receta:<índice>").
-  const piezaElegida = tipo === 'MATERIAL' && elementoId.startsWith('pieza:') ? gruposPiezas.flatMap((g) => g.piezas).find((p) => p.id === elementoId.slice(6)) : undefined;
-  const materialElegido = tipo === 'MATERIAL' && elementoId.startsWith('receta:') ? ficha.materiales[Number(elementoId.slice(7))] : undefined;
-  const cuadroDePieza = piezaElegida ? ficha.cuadros.find((c) => c.id === piezaElegida.cuadroId) : undefined;
+  // Materiales marcados: una pieza cortada ("pieza:<id>") o una fila de la receta ("receta:<índice>").
+  const todasPiezas = useMemo(() => gruposPiezas.flatMap((g) => g.piezas), [gruposPiezas]);
+  const materialesElegidos = tipo === 'MATERIAL' ? materialesSel : [];
+  const alternarMaterial = (clave: string) => setMaterialesSel((m) => (m.includes(clave) ? m.filter((x) => x !== clave) : [...m, clave]));
 
   // Medida de la ventana: la de fabricación (final) o, sin lote, la del plano.
   const ancho = ficha.fabricacionVentana?.anchoMm ?? v.anchoFabricacionMm ?? v.anchoPlanoMm;
@@ -108,7 +108,7 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
 
   const cambiarTipo = (t: TipoElementoPendiente) => {
     setTipo(t);
-    setElementoId('');
+    setMaterialesSel([]);
     setVidriosSel([]);
     setHojasSel([]);
     cerrarRectificacion();
@@ -120,10 +120,18 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
   const objetivos: Objetivo[] = (() => {
     if (vidriosElegidos.length > 0) return vidriosElegidos.map((g) => ({ datos: { ...base, vidrio: { codigo: g.codigo_articulo, ancho: g.ANCHO, alto: g.ALTO } }, vidrio: true }));
     if (hojasElegidas.length > 0) return hojasElegidas.map((h) => ({ datos: { ...base, hoja: { numero: h.numeroCuadro, ancho: h.anchoMm, alto: h.altoMm } }, cuadroId: h.id }));
-    const datos = { ...base };
-    if (materialElegido) datos.material = { codigo: materialElegido.codigo_articulo, descripcion: materialElegido.descripcion_articulo };
-    if (piezaElegida) datos.pieza = { ...piezaElegida, cuadro: cuadroDePieza ? nombreCuadro(cuadroDePieza) : null };
-    return [{ datos, cuadroId: piezaElegida?.cuadroId ?? undefined, piezaId: piezaElegida?.id, materialId: piezaElegida?.materialId ?? undefined }];
+    if (materialesElegidos.length > 0) {
+      return materialesElegidos.map((clave): Objetivo => {
+        if (clave.startsWith('pieza:')) {
+          const pieza = todasPiezas.find((p) => p.id === clave.slice(6));
+          const cuadro = pieza ? ficha.cuadros.find((c) => c.id === pieza.cuadroId) : undefined;
+          return { datos: { ...base, ...(pieza ? { pieza: { ...pieza, cuadro: cuadro ? nombreCuadro(cuadro) : null } } : {}) }, cuadroId: pieza?.cuadroId ?? undefined, piezaId: pieza?.id, materialId: pieza?.materialId ?? undefined };
+        }
+        const m = ficha.materiales[Number(clave.slice(7))];
+        return { datos: { ...base, ...(m ? { material: { codigo: m.codigo_articulo, descripcion: m.descripcion_articulo } } : {}) } };
+      });
+    }
+    return [{ datos: { ...base } }];
   })();
 
   const area = areaDelPendiente(tipo, motivo);
@@ -161,7 +169,7 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
       return { payload, resumen: titulo };
     });
     onAgregar(preparados);
-    setElementoId('');
+    setMaterialesSel([]);
     setVidriosSel([]);
     setHojasSel([]);
     setNotas('');
@@ -262,28 +270,43 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
       {tipo === 'MATERIAL' &&
         (ficha.materiales.length > 0 || hayPiezas ? (
           <div className="space-y-1.5">
-            <SelectCompacto value={elementoId} onChange={(e) => setElementoId(e.target.value)} aria-label="Material de esta ventana">
-              <option value="">— elegir material o pieza —</option>
+            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Materiales de esta ventana (marca uno o varios)</p>
+            <div className="rounded-xl border border-slate-200 max-h-64 overflow-y-auto divide-y divide-slate-100" role="group" aria-label="Materiales de esta ventana">
               {gruposPiezas.map((g) => (
-                <optgroup key={g.clave} label={g.nombre}>
+                <div key={g.clave} className="px-3 py-2 space-y-1">
+                  <p className="text-[11px] font-bold text-slate-600">{g.nombre}</p>
                   {g.piezas.map((p) => (
-                    <option key={p.id} value={`pieza:${p.id}`}>
-                      {etiquetaPieza(p, true)}
-                    </option>
+                    <div key={p.id}>
+                      <Casilla checked={materialesSel.includes(`pieza:${p.id}`)} onChange={() => alternarMaterial(`pieza:${p.id}`)} label={<span className="font-normal text-slate-700">{etiquetaPieza(p, true)}</span>} />
+                    </div>
                   ))}
-                </optgroup>
+                </div>
               ))}
               {ficha.materiales.length > 0 && (
-                <optgroup label={hayPiezas ? 'Otros materiales de la ventana' : 'Materiales de la ventana'}>
+                <div className="px-3 py-2 space-y-1">
+                  <p className="text-[11px] font-bold text-slate-600">{hayPiezas ? 'Otros materiales de la ventana' : 'Materiales de la ventana'}</p>
                   {ficha.materiales.map((m, i) => (
-                    <option key={`${m.codigo_articulo}-${i}`} value={`receta:${i}`}>
-                      {m.familia ? `${m.familia} · ` : ''}
-                      {m.descripcion_articulo} ({m.codigo_articulo})
-                    </option>
+                    <div key={`${m.codigo_articulo}-${i}`}>
+                      <Casilla
+                        checked={materialesSel.includes(`receta:${i}`)}
+                        onChange={() => alternarMaterial(`receta:${i}`)}
+                        label={
+                          <span className="font-normal text-slate-700">
+                            {m.familia ? `${m.familia} · ` : ''}
+                            {m.descripcion_articulo} ({m.codigo_articulo})
+                          </span>
+                        }
+                      />
+                    </div>
                   ))}
-                </optgroup>
+                </div>
               )}
-            </SelectCompacto>
+            </div>
+            {materialesSel.length > 0 && (
+              <Button type="button" variant="link" size="sm" onClick={() => setMaterialesSel([])}>
+                Quitar selección ({materialesSel.length})
+              </Button>
+            )}
             {hayPiezas && <p className="text-[11px] text-slate-500">Las piezas cortadas vienen con su largo y su posición en el marco o la hoja; úsalas cuando falta o falló un perfil puntual.</p>}
           </div>
         ) : (
@@ -334,7 +357,7 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
         </div>
         <div className="text-right space-y-1">
           <p className="text-[11px] text-slate-500">
-            Va a <b className="text-slate-700">{ETIQUETA_DESTINO[area]}</b> · {objetivos.length > 1 ? `${objetivos.length} pendientes (uno por cada ${tipo === 'VIDRIO' ? 'vidrio' : 'hoja'})` : tituloPendiente(objetivos[0].datos, notas)}
+            Va a <b className="text-slate-700">{ETIQUETA_DESTINO[area]}</b> · {objetivos.length > 1 ? `${objetivos.length} pendientes (uno por cada ${tipo === 'VIDRIO' ? 'vidrio' : tipo === 'HOJA' ? 'hoja' : 'material'})` : tituloPendiente(objetivos[0].datos, notas)}
           </p>
           <Button type="button" variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} disabled={!puedeAgregar} onClick={agregar}>
             {objetivos.length > 1 ? `Agregar ${objetivos.length} al listado` : 'Agregar al listado'}
