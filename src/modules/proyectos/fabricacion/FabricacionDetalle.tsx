@@ -1,13 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Check, Loader2 } from 'lucide-react';
-import { getCandidatosVinculoCubicacion, getFabricacionDetalle, getMaterialesFabricacion, vincularCubicacionFabricacion } from '../../../api/client';
+import { getCandidatosVinculoCubicacion, getFabricacionDetalle, getMaterialesFabricacion, getResumenMaterialesFabricacion, vincularCubicacionFabricacion } from '../../../api/client';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
-import type { FabricacionVentana, MaterialFabricacion, MaterialesFabricacion } from '../../../types';
-import { formatoMm, resumenCuadros } from './utils';
-import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
+import type { FabricacionVentana, FilaResumenMaterial, MaterialFabricacion, MaterialesFabricacion, ResumenMaterialesFabricacion } from '../../../types';
+import { formatoFechaHora, formatoMm, resumenCuadros } from './utils';
+import { etiquetaPieza, nombreCuadro } from '../pendientes/utils';
+import { FilaVacia, Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
 import { SelectCompacto } from '../../../components/ui/Campos';
 
 interface Props {
@@ -15,7 +16,122 @@ interface Props {
   fabricacionId: string;
 }
 
-type Vista = 'ventanas' | 'materiales';
+type Vista = 'ventanas' | 'materiales' | 'resumen';
+
+const numero = (v: number | null | undefined, decimales = 0) => (v == null ? '—' : v.toLocaleString('es-CL', { maximumFractionDigits: decimales }));
+
+const agruparResumen = (filas: FilaResumenMaterial[]) => {
+  const grupos = new Map<string, FilaResumenMaterial[]>();
+  for (const f of filas) {
+    const familia = f.familia || 'Otros';
+    grupos.set(familia, [...(grupos.get(familia) ?? []), f]);
+  }
+  return [...grupos.entries()];
+};
+
+// Resumen de materiales del lote (lo que HETMO calculo al optimizar el corte): barras por
+// articulo y acabado, largo cortado, despuntes y faltantes. Copia guardada, no toca HETMO.
+const ResumenLote: React.FC<{ datos: ResumenMaterialesFabricacion }> = ({ datos }) => {
+  const perfiles = datos.filas.some((f) => f.longitudBarraMm);
+  return (
+    <div className="space-y-2">
+      <Aviso textos={datos.advertencias} />
+      <p className="text-[11px] text-slate-500">
+        {datos.filas.length} fila(s) · leído {formatoFechaHora(datos.sincronizadoEn)}
+        {datos.congeladoEn ? ` · lote finalizado, copia congelada el ${formatoFechaHora(datos.congeladoEn)}` : ''}
+      </p>
+      {agruparResumen(datos.filas).map(([familia, filas]) => (
+        <div key={familia} className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+          <Tabla>
+            <Thead>
+              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                <Th className="font-bold">{familia}</Th>
+                <Th className="font-bold">Acabado</Th>
+                <Th alinear="derecha" className="font-bold">Uds</Th>
+                {perfiles && <Th alinear="derecha" className="font-bold">Barra (mm)</Th>}
+                {perfiles && <Th alinear="derecha" className="font-bold">Cortado (mm)</Th>}
+                {perfiles && <Th alinear="derecha" className="font-bold">Cortes</Th>}
+                {perfiles && <Th alinear="derecha" className="font-bold">Despunte (mm)</Th>}
+                {perfiles && <Th alinear="derecha" className="font-bold">Pérdida</Th>}
+                <Th alinear="derecha" className="font-bold">Faltan</Th>
+                <Th className="font-bold">Proveedor</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {filas.map((f) => (
+                <Tr key={f.id} tono={f.unidadesFaltan ? 'advertencia' : undefined}>
+                  <Td>
+                    <span className="font-mono text-slate-500 mr-2">{f.codigoArticulo}</span>
+                    <span className="text-slate-800">{f.descripcion}</span>
+                    {f.ventanaModelo && <span className="ml-2 text-[10px] text-slate-400">{f.ventanaModelo}</span>}
+                    {f.esRetal && <Badge size="sm" variant="outline" className="ml-2">retal</Badge>}
+                    {(f.anchoMm || f.altoMm) && <span className="ml-2 font-mono text-slate-500">{formatoMm(f.anchoMm)} × {formatoMm(f.altoMm)} mm</span>}
+                  </Td>
+                  <Td className="text-slate-600 whitespace-nowrap">{f.acabadoDescripcion ?? (f.acabadoCodigo && f.acabadoCodigo !== '0' ? f.acabadoCodigo : '—')}</Td>
+                  <Td alinear="derecha" mono>{numero(f.unidades, 2)}</Td>
+                  {perfiles && <Td alinear="derecha" mono>{f.longitudBarraMm ? numero(f.longitudBarraMm) : '—'}</Td>}
+                  {perfiles && <Td alinear="derecha" mono>{f.longitudCorteMm ? numero(f.longitudCorteMm) : '—'}</Td>}
+                  {perfiles && <Td alinear="derecha" mono>{f.numeroCortes ? numero(f.numeroCortes) : '—'}</Td>}
+                  {perfiles && <Td alinear="derecha" mono>{f.despuntesMm ? numero(f.despuntesMm) : '—'}</Td>}
+                  {perfiles && <Td alinear="derecha" mono>{f.porcentajePerdidas ? `${numero(f.porcentajePerdidas, 1)} %` : '—'}</Td>}
+                  <Td alinear="derecha" mono className={f.unidadesFaltan ? 'text-amber-700 font-bold' : ''}>{f.unidadesFaltan ? numero(f.unidadesFaltan, 2) : '—'}</Td>
+                  <Td className="text-slate-500 whitespace-nowrap">{f.proveedorNombre ?? '—'}</Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Tabla>
+        </div>
+      ))}
+      {datos.filas.length === 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white">
+          <Tabla>
+            <Tbody>
+              <FilaVacia columnas={1}>Sin resumen guardado para este documento.</FilaVacia>
+            </Tbody>
+          </Tabla>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Marcos y hojas de una ventana con sus piezas cortadas (si el lote ya se optimizo).
+const CeldaCuadros: React.FC<{ ventana: FabricacionVentana }> = ({ ventana }) => {
+  const cuadros = ventana.cuadros ?? [];
+  const totalPiezas = cuadros.reduce((s, c) => s + (c.piezas?.length ?? 0), 0) + (ventana.piezas?.length ?? 0);
+  if (totalPiezas === 0) return <>{resumenCuadros(cuadros)}</>;
+  return (
+    <details>
+      <summary className="cursor-pointer">
+        {resumenCuadros(cuadros)} · {totalPiezas} pieza(s)
+      </summary>
+      <div className="mt-1 space-y-1 text-[11px]">
+        {cuadros.map((c) => (
+          <div key={c.id}>
+            <p className="font-mono text-slate-700">
+              {nombreCuadro(c)} · {formatoMm(c.anchoMm)} × {formatoMm(c.altoMm)}
+            </p>
+            {(c.piezas ?? []).map((p) => (
+              <p key={p.id} className="pl-3 text-slate-500 whitespace-nowrap">
+                {etiquetaPieza(p, true)}
+              </p>
+            ))}
+          </div>
+        ))}
+        {(ventana.piezas?.length ?? 0) > 0 && (
+          <div>
+            <p className="font-mono text-slate-700">Piezas sueltas</p>
+            {ventana.piezas!.map((p) => (
+              <p key={p.id} className="pl-3 text-slate-500 whitespace-nowrap">
+                {etiquetaPieza(p, true)}
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
+    </details>
+  );
+};
 
 const Aviso: React.FC<{ textos: string[] }> = ({ textos }) =>
   textos.length === 0 ? null : (
@@ -179,6 +295,13 @@ export const FabricacionDetalle: React.FC<Props> = ({ proyectoId, fabricacionId 
     refetchInterval: false,
   });
 
+  const resumen = useQuery({
+    queryKey: ['fabricacionResumen', proyectoId, fabricacionId],
+    queryFn: () => getResumenMaterialesFabricacion(proyectoId, fabricacionId),
+    enabled: vista === 'resumen',
+    staleTime: 1000 * 60,
+  });
+
   const ventanas = useMemo(() => detalle.data?.ventanas ?? [], [detalle.data]);
   const vigentes = ventanas.filter((v) => !v.retirada);
   const retiradas = ventanas.length - vigentes.length;
@@ -204,6 +327,7 @@ export const FabricacionDetalle: React.FC<Props> = ({ proyectoId, fabricacionId 
       <div className="flex flex-wrap items-center gap-2">
         {pestana('ventanas', `Ventanas (${vigentes.length})`)}
         {pestana('materiales', 'Materiales y vidrios')}
+        {pestana('resumen', 'Resumen del lote')}
         <span className="ml-auto text-[11px] text-slate-500">
           {totalUnidades} unidad(es){retiradas > 0 ? ` · ${retiradas} retirada(s) en HETMO` : ''}
         </span>
@@ -238,7 +362,9 @@ export const FabricacionDetalle: React.FC<Props> = ({ proyectoId, fabricacionId 
                     {formatoMm(v.anchoMm)} × {formatoMm(v.altoMm)}
                   </Td>
                   <Td alinear="derecha" className="font-mono text-slate-700">{v.unidades}</Td>
-                  <Td className="text-slate-500 whitespace-nowrap">{resumenCuadros(v.cuadros)}</Td>
+                  <Td className="text-slate-500 whitespace-nowrap">
+                    <CeldaCuadros ventana={v} />
+                  </Td>
                   <Td className="whitespace-nowrap">
                     {!v.retirada && <CeldaVinculoCubicacion fabricacionId={fabricacionId} ventana={v} proyectoId={proyectoId} />}
                   </Td>
@@ -259,6 +385,17 @@ export const FabricacionDetalle: React.FC<Props> = ({ proyectoId, fabricacionId 
           <div className="p-4 text-xs text-rose-600">No se pudieron leer los materiales de HETMO. Intenta de nuevo en unos minutos.</div>
         ) : (
           <Materiales datos={materiales.data} />
+        ))}
+
+      {vista === 'resumen' &&
+        (resumen.isLoading ? (
+          <div className="p-6 flex items-center justify-center text-slate-400 gap-2 text-xs">
+            <Loader2 className="w-4 h-4 animate-spin" /> Cargando el resumen del lote...
+          </div>
+        ) : resumen.isError || !resumen.data ? (
+          <div className="p-4 text-xs text-rose-600">No se pudo cargar el resumen de materiales del documento.</div>
+        ) : (
+          <ResumenLote datos={resumen.data} />
         ))}
     </div>
   );

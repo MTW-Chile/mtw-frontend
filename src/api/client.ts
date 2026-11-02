@@ -66,6 +66,7 @@ import type {
   ResultadoVinculoFabricacion,
   ResultadoDeteccionFabricaciones,
   MaterialesFabricacion,
+  ResumenMaterialesFabricacion,
   EtapaPendiente,
   ObraPendiente,
   ObraPendienteDetalle,
@@ -269,6 +270,11 @@ export async function desvincularFabricacion(proyectoId: string, fabId: string):
 // por ventana del documento de fabricacion.
 export async function getMaterialesFabricacion(proyectoId: string, fabId: string): Promise<MaterialesFabricacion> {
   const response = await apiClient.get<MaterialesFabricacion>(`/proyectos/${proyectoId}/fabricaciones/${fabId}/materiales`);
+  return response.data;
+}
+
+export async function getResumenMaterialesFabricacion(proyectoId: string, fabId: string): Promise<ResumenMaterialesFabricacion> {
+  const response = await apiClient.get<ResumenMaterialesFabricacion>(`/proyectos/${proyectoId}/fabricaciones/${fabId}/resumen-materiales`);
   return response.data;
 }
 

@@ -20,7 +20,7 @@ import { CLASE_CHIP_ESTADO, ETIQUETA_ESTADO_VENTANA, VARIANTE_ESTADO_VENTANA, no
 import { DibujoVentana } from '../obra/DibujoVentana';
 import { vocabulario } from '../cubicacion/vocabulario';
 import { formatoMm, textoEstadoFabricacion, varianteEstadoFabricacion } from '../fabricacion/utils';
-import { ETIQUETA_MOTIVO, ETIQUETA_TIPO, codigoPendiente } from './utils';
+import { ETIQUETA_MOTIVO, ETIQUETA_TIPO, codigoPendiente, etiquetaPieza, nombreCuadro } from './utils';
 import { FormularioPendiente, type PendientePreparado } from './FormularioPendiente';
 
 interface Props {
@@ -119,16 +119,33 @@ const FichaVentana: React.FC<{ proyectoId: string; ficha: FichaVentanaObra }> = 
       </div>
 
       <div className="grid grid-cols-1 @2xl:grid-cols-3 gap-3 text-xs">
-        <div className="rounded-xl border border-slate-200 p-2.5 space-y-1">
+        <div className="rounded-xl border border-slate-200 p-2.5 space-y-1 max-h-40 overflow-y-auto">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Marcos y hojas</p>
           {ficha.cuadros.length === 0 ? (
             <p className="text-slate-400">{fv ? 'El lote aún no trae los cuadros (se optimiza después).' : 'Sin documento de fabricación.'}</p>
           ) : (
             ficha.cuadros.map((c) => (
-              <p key={c.id} className="font-mono text-slate-700">
-                {c.tipo === 'MARCO' ? 'Marco' : 'Hoja'} {c.numeroCuadro} · {formatoMm(c.anchoMm)} × {formatoMm(c.altoMm)}
-              </p>
+              <div key={c.id}>
+                <p className="font-mono text-slate-700">
+                  {nombreCuadro(c)} · {formatoMm(c.anchoMm)} × {formatoMm(c.altoMm)}
+                </p>
+                {c.piezas.map((p) => (
+                  <p key={p.id} className="pl-3 text-[11px] text-slate-500 truncate" title={etiquetaPieza(p, true)}>
+                    {etiquetaPieza(p)}
+                  </p>
+                ))}
+              </div>
             ))
+          )}
+          {ficha.piezasSueltas.length > 0 && (
+            <div>
+              <p className="font-mono text-slate-700">Piezas sueltas</p>
+              {ficha.piezasSueltas.map((p) => (
+                <p key={p.id} className="pl-3 text-[11px] text-slate-500 truncate" title={etiquetaPieza(p, true)}>
+                  {etiquetaPieza(p)}
+                </p>
+              ))}
+            </div>
           )}
         </div>
         <div className="rounded-xl border border-slate-200 p-2.5 space-y-1">

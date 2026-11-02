@@ -6,7 +6,7 @@ import { Select } from '../../../components/ui/Select';
 import { Textarea, OpcionesTarjeta, SelectCompacto } from '../../../components/ui/Campos';
 import { Aviso } from '../../../components/ui/Aviso';
 import { ETIQUETA_CARGO } from '../../../types';
-import type { CargoPendiente, FichaVentanaObra, MotivoPendiente, NuevoPendientePayload, TipoElementoPendiente } from '../../../types';
+import type { CargoPendiente, FabricacionPieza, FichaVentanaObra, MotivoPendiente, NuevoPendientePayload, TipoElementoPendiente } from '../../../types';
 import { formatoMm } from '../fabricacion/utils';
 import { nombreVentana } from '../obra/estadoVentana';
 import {
@@ -18,8 +18,10 @@ import {
   admiteRectificacion,
   areaDelPendiente,
   cargoDeMotivo,
+  etiquetaPieza,
   exigeResponsable,
   leerMilimetros,
+  nombreCuadro,
   textoRectificacion,
   tituloPendiente,
   type DatosSugerencia,
@@ -55,9 +57,19 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
   const [fechaRequerida, setFechaRequerida] = useState('');
 
   const hojas = useMemo(() => ficha.cuadros.filter((c) => c.tipo === 'HOJA'), [ficha.cuadros]);
+  // Piezas cortadas agrupadas por cuadro (y las sueltas), para elegir un perfil puntual como material.
+  const gruposPiezas = useMemo(() => {
+    const grupos: { clave: string; nombre: string; piezas: FabricacionPieza[] }[] = ficha.cuadros.filter((c) => c.piezas.length > 0).map((c) => ({ clave: c.id, nombre: `${nombreCuadro(c)} · ${formatoMm(c.anchoMm)} × ${formatoMm(c.altoMm)} mm`, piezas: c.piezas }));
+    if (ficha.piezasSueltas.length > 0) grupos.push({ clave: 'sueltas', nombre: 'Piezas sueltas de la ventana', piezas: ficha.piezasSueltas });
+    return grupos;
+  }, [ficha.cuadros, ficha.piezasSueltas]);
+  const hayPiezas = gruposPiezas.length > 0;
   const vidrioElegido = tipo === 'VIDRIO' && elementoId ? ficha.vidrios.find((x) => String(x.material_hetmo) === elementoId) : undefined;
   const hojaElegida = tipo === 'HOJA' && elementoId ? hojas.find((x) => x.id === elementoId) : undefined;
-  const materialElegido = tipo === 'MATERIAL' && elementoId ? ficha.materiales[Number(elementoId)] : undefined;
+  // Material: una pieza cortada ("pieza:<id>") o una fila de la receta ("receta:<índice>").
+  const piezaElegida = tipo === 'MATERIAL' && elementoId.startsWith('pieza:') ? gruposPiezas.flatMap((g) => g.piezas).find((p) => p.id === elementoId.slice(6)) : undefined;
+  const materialElegido = tipo === 'MATERIAL' && elementoId.startsWith('receta:') ? ficha.materiales[Number(elementoId.slice(7))] : undefined;
+  const cuadroDePieza = piezaElegida ? ficha.cuadros.find((c) => c.id === piezaElegida.cuadroId) : undefined;
 
   // Medida de la ventana: la de fabricación (final) o, sin lote, la del plano.
   const ancho = ficha.fabricacionVentana?.anchoMm ?? v.anchoFabricacionMm ?? v.anchoPlanoMm;
@@ -90,6 +102,7 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
   if (vidrioElegido) datosTitulo.vidrio = { codigo: vidrioElegido.codigo_articulo, ancho: vidrioElegido.ANCHO, alto: vidrioElegido.ALTO };
   if (hojaElegida) datosTitulo.hoja = { numero: hojaElegida.numeroCuadro, ancho: hojaElegida.anchoMm, alto: hojaElegida.altoMm };
   if (materialElegido) datosTitulo.material = { codigo: materialElegido.codigo_articulo, descripcion: materialElegido.descripcion_articulo };
+  if (piezaElegida) datosTitulo.pieza = { ...piezaElegida, cuadro: cuadroDePieza ? nombreCuadro(cuadroDePieza) : null };
 
   const area = areaDelPendiente(tipo, motivo);
   const pideResponsable = exigeResponsable(motivo);
@@ -117,7 +130,9 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
       ventanaRef: nombreVentana(v),
       ventanaIndividualizadaId: v.id,
       fabricacionVentanaId: ficha.fabricacionVentana?.id,
-      fabricacionCuadroId: hojaElegida?.id,
+      fabricacionCuadroId: hojaElegida?.id ?? piezaElegida?.cuadroId ?? undefined,
+      fabricacionPiezaId: piezaElegida?.id,
+      materialId: piezaElegida?.materialId ?? undefined,
       fechaRequerida: fechaRequerida || undefined,
     };
     onAgregar({ payload, resumen: titulo });
@@ -175,30 +190,53 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
         ))}
       {tipo === 'HOJA' &&
         (hojas.length > 0 ? (
-          <SelectCompacto value={elementoId} onChange={(e) => setElementoId(e.target.value)} aria-label="Hoja de esta ventana">
-            <option value="">— elegir hoja —</option>
-            {hojas.map((h) => (
-              <option key={h.id} value={h.id}>
-                Hoja {h.numeroCuadro} · {formatoMm(h.anchoMm)} × {formatoMm(h.altoMm)} mm
-              </option>
-            ))}
-          </SelectCompacto>
+          <div className="space-y-1.5">
+            <SelectCompacto value={elementoId} onChange={(e) => setElementoId(e.target.value)} aria-label="Hoja de esta ventana">
+              <option value="">— elegir hoja —</option>
+              {hojas.map((h) => (
+                <option key={h.id} value={h.id}>
+                  Hoja {h.numeroCuadro} · {formatoMm(h.anchoMm)} × {formatoMm(h.altoMm)} mm
+                </option>
+              ))}
+            </SelectCompacto>
+            {hojaElegida && hojaElegida.piezas.length > 0 && (
+              <p className="text-[11px] text-slate-500">
+                Perfiles de la hoja: {hojaElegida.piezas.map((p) => etiquetaPieza(p)).join(' · ')}
+              </p>
+            )}
+          </div>
         ) : (
           <Aviso tono="neutro" sinIcono>
             El documento no trae las hojas de esta ventana (aparecen cuando se optimiza el corte). Descríbela en las notas.
           </Aviso>
         ))}
       {tipo === 'MATERIAL' &&
-        (ficha.materiales.length > 0 ? (
-          <SelectCompacto value={elementoId} onChange={(e) => setElementoId(e.target.value)} aria-label="Material de esta ventana">
-            <option value="">— elegir material —</option>
-            {ficha.materiales.map((m, i) => (
-              <option key={`${m.codigo_articulo}-${i}`} value={String(i)}>
-                {m.familia ? `${m.familia} · ` : ''}
-                {m.descripcion_articulo} ({m.codigo_articulo})
-              </option>
-            ))}
-          </SelectCompacto>
+        (ficha.materiales.length > 0 || hayPiezas ? (
+          <div className="space-y-1.5">
+            <SelectCompacto value={elementoId} onChange={(e) => setElementoId(e.target.value)} aria-label="Material de esta ventana">
+              <option value="">— elegir material o pieza —</option>
+              {gruposPiezas.map((g) => (
+                <optgroup key={g.clave} label={g.nombre}>
+                  {g.piezas.map((p) => (
+                    <option key={p.id} value={`pieza:${p.id}`}>
+                      {etiquetaPieza(p, true)}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+              {ficha.materiales.length > 0 && (
+                <optgroup label={hayPiezas ? 'Otros materiales de la ventana' : 'Materiales de la ventana'}>
+                  {ficha.materiales.map((m, i) => (
+                    <option key={`${m.codigo_articulo}-${i}`} value={`receta:${i}`}>
+                      {m.familia ? `${m.familia} · ` : ''}
+                      {m.descripcion_articulo} ({m.codigo_articulo})
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </SelectCompacto>
+            {hayPiezas && <p className="text-[11px] text-slate-500">Las piezas cortadas vienen con su largo y su posición en el marco o la hoja; úsalas cuando falta o falló un perfil puntual.</p>}
+          </div>
         ) : (
           <Aviso tono="neutro" sinIcono>
             {ficha.hetmoError ?? 'No hay materiales de esta ventana para elegir: descríbelo en las notas.'}

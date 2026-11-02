@@ -1463,6 +1463,29 @@ export interface CheckoutFactura {
 // ==========================================
 // Los Decimal de Prisma llegan como string en JSON ("1144.5") -- siempre
 // convertir con Number() antes de mostrar.
+// Una pieza cortada de la ventana (un perfil de un cuadro, o suelta si numeroCuadro es 0):
+// copia de los cortes optimizados de HETMO.
+export interface FabricacionPieza {
+  id: string;
+  cuadroId: string | null;
+  numeroCuadro: number;
+  unidad: number | null;
+  codigoArticulo: string;
+  descripcion: string;
+  familia: string | null;
+  acabadoCodigo: string | null;
+  acabadoDescripcion: string | null;
+  longitudMm: number | string;
+  longitudInteriorMm: number | string | null;
+  anguloInicio: number | string | null;
+  anguloFin: number | string | null;
+  // Posición en el cuadro según HETMO (S superior, I inferior, D derecha, Z izquierda, ...).
+  posicion: string | null;
+  cortado: boolean | null;
+  incidencia: boolean;
+  materialId: string | null;
+}
+
 export interface FabricacionCuadro {
   id: string;
   ventanaId: string;
@@ -1472,6 +1495,50 @@ export interface FabricacionCuadro {
   anchoMm: number | string | null;
   altoMm: number | string | null;
   retirada: boolean;
+  piezas?: FabricacionPieza[];
+}
+
+// Resumen de materiales de un documento de fabricación (GET …/fabricaciones/:fabId/resumen-materiales):
+// lo que HETMO calculó al optimizar, por artículo y acabado.
+export interface FilaResumenMaterial {
+  id: string;
+  hetmoResumenId: number;
+  familia: string | null;
+  tipoArticulo: number | null;
+  codigoArticulo: string;
+  descripcion: string;
+  acabadoCodigo: string | null;
+  acabadoDescripcion: string | null;
+  unidades: number;
+  unidadesReservadas: number | null;
+  unidadesBaja: number | null;
+  unidadesFaltan: number | null;
+  longitudBarraMm: number | null;
+  longitudCorteMm: number | null;
+  despuntesMm: number | null;
+  numeroCortes: number | null;
+  perdidaCorteMm: number | null;
+  retalesMm: number | null;
+  porcentajePerdidas: number | null;
+  anchoMm: number | null;
+  altoMm: number | null;
+  gruesoMm: number | null;
+  esRetal: boolean;
+  stockActual: number | null;
+  hetmoVentanaId: number | null;
+  ventanaModelo: string | null;
+  proveedorCodigo: number | null;
+  proveedorNombre: string | null;
+  materialId: string | null;
+}
+
+export interface ResumenMaterialesFabricacion {
+  fabricacionId: string;
+  hetmoId: number;
+  sincronizadoEn: string;
+  congeladoEn: string | null;
+  filas: FilaResumenMaterial[];
+  advertencias: string[];
 }
 
 export interface FabricacionVentana {
@@ -1486,6 +1553,8 @@ export interface FabricacionVentana {
   unidades: number;
   retirada: boolean;
   cuadros?: FabricacionCuadro[];
+  // Piezas cortadas que no pertenecen a ningún cuadro (las de cada cuadro van en cuadros[].piezas).
+  piezas?: FabricacionPieza[];
   // Ventana(s) cubicada(s) ya conectadas a esta fila (ver vincularFabricacionConCubicacion
   // en mtw-api) -- normalmente 0 o 1. Vacío = todavía sin vincular (a mano o automático).
   individualizaciones?: { id: string; nomenclatura: string | null }[];
@@ -1663,6 +1732,8 @@ export interface ObraPendiente {
   fabricacionVentana?: { id: string; hetmoVentanaId: number; hetmoVentanaMadreId?: number | null; orden: number; modelo: string } | null;
   fabricacionCuadroId: string | null;
   fabricacionCuadro?: { id: string; numeroCuadro: number; tipo: 'MARCO' | 'HOJA' } | null;
+  fabricacionPiezaId?: string | null;
+  fabricacionPieza?: { id: string; numeroCuadro: number; codigoArticulo: string; descripcion: string; acabadoDescripcion: string | null; longitudMm: number | string; posicion: string | null; unidad: number | null } | null;
   ventanaIndividualizadaId?: string | null;
   ventanaIndividualizada?: { id: string; nomenclatura: string | null; ubicacion: string | null; tipo: { codigo: string } } | null;
   materialId: string | null;
@@ -1763,6 +1834,8 @@ export interface NuevoPendientePayload {
   ventanaRef?: string;
   fabricacionVentanaId?: string;
   fabricacionCuadroId?: string;
+  // Pieza cortada puntual (completa sola su cuadro, ventana y material).
+  fabricacionPiezaId?: string;
   materialId?: string;
   // Pendiente levantado desde Instalacion sobre una ventana cubicada.
   ventanaIndividualizadaId?: string;
@@ -2416,8 +2489,10 @@ export interface FichaVentanaObra {
   documento: { id: string; hetmoId: number; numero: number | null; nombre: string | null; descripcion: string | null; estadoHetmo: number; estadoGlosa: string | null; hetmoVentaId: number | null; nombreMostrado: string } | null;
   fabricacionVentana: { id: string; hetmoVentanaId: number; hetmoVentanaMadreId: number | null; orden: number; modelo: string; descripcionCorta: string | null; anchoMm: number; altoMm: number; unidades: number } | null;
   // Marcos y hojas del documento de fabricación (solo si el lote ya se optimizó).
-  cuadros: { id: string; numeroCuadro: number; tipo: 'MARCO' | 'HOJA'; anchoMm: number | null; altoMm: number | null }[];
-  // Leídos en vivo de HETMO, solo de esta ventana.
+  cuadros: { id: string; numeroCuadro: number; tipo: 'MARCO' | 'HOJA'; anchoMm: number | null; altoMm: number | null; piezas: FabricacionPieza[] }[];
+  // Piezas cortadas de la ventana sin cuadro (accesorios a medida, refuerzos sueltos).
+  piezasSueltas: FabricacionPieza[];
+  // Copia guardada del documento (vidrios y materiales de esta ventana).
   vidrios: VidrioFabricacion[];
   materiales: MaterialFabricacion[];
   hetmoError: string | null;

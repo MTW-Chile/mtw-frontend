@@ -79,6 +79,7 @@ const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyect
     if (fabId) {
       queryClient.invalidateQueries({ queryKey: ['fabricacionDetalle', proyecto.id, fabId] });
       queryClient.invalidateQueries({ queryKey: ['fabricacionMateriales', proyecto.id, fabId] });
+      queryClient.invalidateQueries({ queryKey: ['fabricacionResumen', proyecto.id, fabId] });
     }
   };
 

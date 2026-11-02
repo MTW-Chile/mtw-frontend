@@ -8,6 +8,7 @@ import type {
   ObraPendiente,
   OrigenPendiente,
   TipoElementoPendiente,
+  FabricacionPieza,
 } from '../../../types';
 import { formatoMm } from '../fabricacion/utils';
 
@@ -108,6 +109,27 @@ export interface DatosSugerencia {
   vidrio?: { codigo: string; ancho: number; alto: number } | null;
   hoja?: { numero: number; ancho?: number | string | null; alto?: number | string | null } | null;
   material?: { codigo: string; descripcion: string } | null;
+  // Pieza cortada puntual (perfil de un cuadro) cuando el tipo es MATERIAL.
+  pieza?: Pick<FabricacionPieza, 'codigoArticulo' | 'descripcion' | 'acabadoDescripcion' | 'longitudMm' | 'posicion' | 'numeroCuadro'> & { cuadro?: string | null };
+}
+
+const NOMBRE_POSICION: Record<string, string> = { S: 'superior', I: 'inferior', D: 'derecha', Z: 'izquierda' };
+
+/** "S" → "superior", "ZB" → "ZB" (lo que HETMO no nombra se deja tal cual). */
+export function nombrePosicionPieza(posicion: string | null | undefined): string {
+  if (!posicion) return '';
+  return NOMBRE_POSICION[posicion.toUpperCase()] ?? posicion;
+}
+
+/** "Marco 3" / "Hoja 9" según el tipo del cuadro. */
+export function nombreCuadro(c: { numeroCuadro: number; tipo: 'MARCO' | 'HOJA' }): string {
+  return `${c.tipo === 'MARCO' ? 'Marco' : 'Hoja'} ${c.numeroCuadro}`;
+}
+
+/** Línea corta de una pieza: "superior · 41028 Blanco · 796 mm" (con descripción si se pide). */
+export function etiquetaPieza(p: Pick<FabricacionPieza, 'codigoArticulo' | 'descripcion' | 'acabadoDescripcion' | 'longitudMm' | 'posicion'>, conDescripcion = false): string {
+  const partes = [nombrePosicionPieza(p.posicion), conDescripcion ? `${p.descripcion} (${p.codigoArticulo})` : p.codigoArticulo, p.acabadoDescripcion ?? '', `${formatoMm(p.longitudMm)} mm`];
+  return partes.filter(Boolean).join(' · ');
 }
 
 // Titulo del pendiente (el campo `descripcion` del servidor), armado con lo que se eligio:
@@ -141,6 +163,10 @@ export function sugerirDescripcion(d: DatosSugerencia): string {
       return `Hoja ${d.hoja.numero}${medida}`;
     }
     case 'MATERIAL':
+      if (d.pieza) {
+        const donde = [d.pieza.cuadro, nombrePosicionPieza(d.pieza.posicion)].filter(Boolean).join(' ');
+        return `${d.pieza.descripcion} (${d.pieza.codigoArticulo})${d.pieza.acabadoDescripcion ? ` ${d.pieza.acabadoDescripcion}` : ''} · ${formatoMm(d.pieza.longitudMm)} mm${donde ? ` · ${donde}` : ''}`;
+      }
       return d.material ? `${d.material.descripcion} (${d.material.codigo})` : '';
     case 'VENTANA':
       return d.ventanaModelo ? `Ventana ${d.ventanaModelo}` : '';

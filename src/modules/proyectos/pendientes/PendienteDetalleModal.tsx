@@ -25,6 +25,8 @@ import {
   textoEstadoPendiente,
   textoRectificacion,
   varianteEstadoPendiente,
+  etiquetaPieza,
+  nombreCuadro,
 } from './utils';
 import { useConfirmar } from '../../../components/ui/Confirmar';
 import { SelectCompacto, Textarea } from '../../../components/ui/Campos';
@@ -129,6 +131,8 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
                   <p className="font-bold font-mono text-slate-900">{p.ventanaIndividualizada?.nomenclatura ?? p.ventanaIndividualizada?.tipo.codigo ?? p.fabricacionVentana?.modelo}</p>
                   {p.ventanaIndividualizada?.ubicacion && <p>{p.ventanaIndividualizada.ubicacion}</p>}
                   {p.fabricacionVentana && <p className="text-[11px] text-slate-500">Pos {p.fabricacionVentana.orden} · {p.fabricacionVentana.modelo}</p>}
+                  {p.fabricacionCuadro && <p className="text-[11px] text-slate-500">{nombreCuadro(p.fabricacionCuadro)}</p>}
+                  {p.fabricacionPieza && <p className="text-[11px] text-slate-500">Pieza: {etiquetaPieza(p.fabricacionPieza, true)}</p>}
                 </div>
               </div>
             )}
