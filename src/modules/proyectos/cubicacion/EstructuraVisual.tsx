@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, ChevronsDownUp, ChevronsUpDown, Copy, Home, Layers, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { asignarVentanasCubicacion, eliminarLugarCubicacion, eliminarUbicacionCubicacion, getEstructuraCubicacion, getFabricacionesProyecto, moverVentanaCubicacion, quitarPosicionVentanaCubicacion } from '../../../api/client';
@@ -210,9 +210,35 @@ const TarjetaUnidad: React.FC<{
 // Cubicador visual: se arma el edificio (torres -> pisos -> departamentos) y se le van asignando las ventanas
 // del presupuesto. Escribe las mismas unidades que la planilla Excel (torre, piso, depto, ubicacion), asi que
 // la planilla, la lista de ventanas y el informe para HETMO salen identicos.
+// Contenedor con scroll más cercano (la página de la obra scrollea dentro de un contenedor, no en la ventana).
+function contenedorConScroll(el: HTMLElement | null): HTMLElement | null {
+  for (let n = el?.parentElement ?? null; n; n = n.parentElement) {
+    const o = getComputedStyle(n).overflowY;
+    if ((o === 'auto' || o === 'scroll') && n.scrollHeight > n.clientHeight) return n;
+  }
+  return null;
+}
+
 export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipos, versionId, legacy }) => {
   const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
+  // Autoscroll al arrastrar: con muchos pisos el destino queda fuera de pantalla y el navegador casi no
+  // desplaza la página mientras se arrastra. Cerca del borde superior o inferior se desplaza solo.
+  const raiz = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const alArrastrar = (e: DragEvent) => {
+      const caja = contenedorConScroll(raiz.current);
+      const borde = 90;
+      const arriba = caja ? Math.max(caja.getBoundingClientRect().top, 0) : 0;
+      const abajo = caja ? Math.min(caja.getBoundingClientRect().bottom, window.innerHeight) : window.innerHeight;
+      let paso = 0;
+      if (e.clientY < arriba + borde) paso = -Math.ceil(((arriba + borde - e.clientY) / borde) * 28);
+      else if (e.clientY > abajo - borde) paso = Math.ceil(((e.clientY - (abajo - borde)) / borde) * 28);
+      if (paso !== 0) (caja ?? document.scrollingElement)?.scrollBy({ top: paso });
+    };
+    document.addEventListener('dragover', alArrastrar);
+    return () => document.removeEventListener('dragover', alArrastrar);
+  }, []);
   const [modal, setModal] = useState<ModalAbierto | null>(null);
   const [activo, setActivo] = useState<string | null>(null);
   // Legacy: la ventana elegida en el panel «Por ubicar» (cada una con su nombre de fabricación).
@@ -385,7 +411,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
   const torres = data.torres;
 
   return (
-    <div className="space-y-3">
+    <div ref={raiz} className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-slate-500 max-w-3xl">
           {voc.ayuda}
