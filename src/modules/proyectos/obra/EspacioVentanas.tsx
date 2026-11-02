@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, ArrowLeft, Building2, CheckCircle2, ClipboardList, Home, PackageCheck, Send, ShoppingCart, Square, Trash2 } from 'lucide-react';
-import { certificarInstalacion, crearPendientesLote, getFichaVentana, getInstalacionObra, getVentanasObra, subirFotoInstalacion } from '../../../api/client';
+import { actualizarFabricacionesObra, certificarInstalacion, crearPendientesLote, getFichaVentana, getInstalacionObra, getVentanasObra, subirFotoInstalacion } from '../../../api/client';
 import { Seccion } from '../../../components/ui/Seccion';
 import { Modal } from '../../../components/ui/Modal';
 import { Button } from '../../../components/ui/Button';
@@ -171,6 +171,23 @@ export const EspacioVentanas: React.FC<Props> = ({ proyecto, modo, onCerrar }) =
     queryFn: () => (esInstalacion ? getInstalacionObra(proyecto.id) : getVentanasObra(proyecto.id)),
   });
   const data = arbol.data;
+
+  // Al abrir se pone al día la fabricación con HETMO (un documento marcado como fabricado allá cambia el estado de sus
+  // ventanas acá), sin esperar al sync automático de cada 10 minutos. El API la limita a una vez cada 2 min por obra.
+  const { mutate: pedirActualizacion } = useMutation({
+    mutationFn: () => actualizarFabricacionesObra(proyecto.id),
+    onSuccess: (r) => {
+      if (r.omitida || (r.detectadas === 0 && r.refrescadas === 0)) return;
+      for (const k of [['instalacion', proyecto.id], ['ventanasObra', proyecto.id], ['fichaVentana', proyecto.id], ['fabricaciones', proyecto.id], ['proyectoDetail', proyecto.id]]) {
+        queryClient.invalidateQueries({ queryKey: k });
+      }
+    },
+    // Silencioso: si HETMO no responde, se ve lo último guardado.
+    meta: { silencioso: true },
+  });
+  useEffect(() => {
+    pedirActualizacion();
+  }, [pedirActualizacion, proyecto.id]);
 
   // La ventana elegida se toma SIEMPRE del árbol vigente (tras certificar o enviar cambia su estado).
   const ventanaPorId = useMemo(() => {
