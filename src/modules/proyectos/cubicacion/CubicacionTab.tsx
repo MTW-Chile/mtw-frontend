@@ -242,12 +242,12 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
                 </Button>
               </>
             )}
-            {resumen.sinPosicion > 0 && (
+            {!legacy && resumen.sinPosicion > 0 && (
               <Button variant="outline" size="sm" leftIcon={<Layers className="w-3.5 h-3.5" />} isLoading={cubicarUnica.isPending} onClick={() => cubicarUnica.mutate()} title="Nombra las ventanas sin repartirlas por torre, piso y departamento: V01, o V01-1, V01-2 si hay más de una.">
                 Crear cubicación única
               </Button>
             )}
-            {resumen.cubicacionUnica > 0 && (
+            {!legacy && resumen.cubicacionUnica > 0 && (
               <Button variant="ghost" size="sm" leftIcon={<Undo2 className="w-3.5 h-3.5" />} isLoading={quitarUnica.isPending} onClick={() => quitarUnica.mutate()} title="Quita el nombre a las ventanas que no tienen torre, piso ni departamento (las que ya están en una fase se respetan).">
                 Deshacer cubicación única
               </Button>
@@ -335,7 +335,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
             <p className="text-xs text-slate-600 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2" data-testid="siguiente-paso">
               <b>Siguiente paso:</b> faltan {resumen.sinPosicion} ventana(s) por ubicar.{' '}
               {legacy
-                ? 'Arma el edificio en el cubicador visual y arrastra cada ventana a su lugar, o usa «Crear cubicación única» si la obra no se reparte.'
+                ? 'Arma el edificio en el cubicador visual y arrastra cada ventana a su lugar (filtra por documento de fabricación).'
                 : 'Arma el edificio (o las casas) en el cubicador visual y arrastra cada ventana a su lugar, descarga la planilla, complétala (torre, piso, depto y rasgo) y súbela, o usa «Crear cubicación única» si la obra no se reparte.'}
             </p>
           )}

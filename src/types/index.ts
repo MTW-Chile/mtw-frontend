@@ -1542,6 +1542,8 @@ export interface ResultadoVinculoFabricacion {
   hetmoId: number;
   ventanas: { nuevas: number; actualizadas: number; retiradas: number };
   cuadros: { nuevos: number; actualizados: number; retirados: number };
+  // true si no cambió nada respecto de la lectura anterior, o el lote está congelado (finalizado).
+  sinCambios?: boolean;
   advertencias: string[];
   vinculacionCubicacion: ReporteVinculacionCubicacion | null;
 }

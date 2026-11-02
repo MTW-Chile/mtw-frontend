@@ -27,7 +27,13 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - Pensada para tablet: hasta pantallas anchas son dos columnas (cubicación y ficha), el listado va bajo el formulario y una barra fija abajo lleva el envío; la ficha se acomoda al ancho de su columna.
 - Las ventanas de una obra manual se dibujan: al vincular o releer un documento de fabricación se guarda la geometría de cada ventana desde su documento de venta, y la ficha la dibuja con el mismo motor de las cotizadas.
 
+**Documentos de fabricación: copia completa**
+- Al vincular o releer un documento se guarda todo de una vez: ventanas, marcos y hojas, vidrios con su medida, materiales y el dibujo. La ficha de la ventana y el alta de pendientes leen de esa copia y ya no consultan HETMO; si HETMO se cae, el módulo sigue operando.
+- Un lote finalizado en HETMO queda congelado con su última lectura completa y después solo se actualiza su estado. Un lote que ya estaba finalizado al vincularlo no trae cortes ni dibujo: hay que reabrirlo en HETMO, releerlo y cerrarlo.
+- Cada cambio de estado del lote queda en un historial con su fecha.
+
 **Obras manuales: nombres y cuadros**
+- En una obra manual, «cubicada» significa tener torre, piso y departamento: las ventanas importadas con su nombre ya no se cuentan como cubicadas ni aparecen «completas» en el panel Por ubicar. Se quitan «Crear» y «Deshacer cubicación única» en obras manuales, que no aplican.
 - Las ventanas importadas conservan el nombre con que vienen del documento de fabricación (es como se identifican en obra) y no se renombran al ubicarlas, moverlas ni renombrar su torre o departamento.
 - Corregido: cuando HETMO deja de entregar los marcos y hojas de un lote (pasa al finalizarlo), ya no se marcan como retirados; se conservan los leídos antes y se reponen si una lectura anterior los había quitado.
 
