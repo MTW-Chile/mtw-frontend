@@ -258,6 +258,15 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
   const [buscar, setBuscar] = useState('');
   // Pisos replegados (id de piso): muestran solo el resumen del piso.
   const [pisosCerrados, setPisosCerrados] = useState<Set<string>>(new Set());
+  // Unidades especiales: van al final de cada torre y se pueden replegar (id de torre).
+  const [especialesCerradas, setEspecialesCerradas] = useState<Set<string>>(new Set());
+  const alternarEspeciales = (id: string) =>
+    setEspecialesCerradas((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
   const alternarPiso = (id: string) =>
     setPisosCerrados((prev) => {
       const n = new Set(prev);
@@ -617,35 +626,6 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                     </div>
                   </header>
 
-                  {torre.especiales.length > 0 && (
-                    <div className="px-4 py-3 border-b border-slate-100 flex flex-wrap gap-2">
-                      {torre.especiales.map((u) => (
-                        <TarjetaUnidad
-                          key={u.id}
-                          nodo={u}
-                          voc={voc}
-                          torre={torre.nombre}
-                          tipoActivo={tipoActivo}
-                          seleccion={seleccion}
-                          onAlternarSeleccion={alternarSeleccion}
-                          datosArrastre={datosArrastre}
-                          onUbicarActiva={(ubicacion) => ubicarActiva({ unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre, ubicacion })}
-                          onDrop={(e, ubicacion) => soltarEnDepto(e, { unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre }, ubicacion)}
-                          onAgregarUna={(ubicacion) => tipoActivo && agregarUna({ unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre, ubicacion }, tipoActivo)}
-                          onAbrirAsignar={(ubicacion) => setModal({ tipo: 'asignar', destino: { unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre, recintos: u.recintos.map((r) => r.nombre), ubicacion } })}
-                          onNuevaUbicacion={() => setModal({ tipo: 'ubicaciones', destino: { unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre } })}
-                          onQuitarUbicacion={(id) => quitarUbicacion.mutate(id)}
-                          onRenombrar={() => setModal({ tipo: 'renombrar-lugar', que: 'unidad', id: u.id, nombreActual: u.nombre })}
-                          onRenombrarUbicacion={(r) => setModal({ tipo: 'renombrar-lugar', que: 'ubicacion', id: r.id, nombreActual: r.nombre })}
-                          onQuitar={() => confirmarEliminar(`¿Quitar la unidad "${u.nombre}"?`, { torreId: torre.id, unidadId: u.id })}
-                          onEditarVentana={(v) => setModal({ tipo: 'ventana', unidad: v })}
-                          onQuitarVentana={(id) => quitar.mutate(id)}
-                          legacy={legacy}
-                        />
-                      ))}
-                    </div>
-                  )}
-
                   {torre.pisos.length === 0 ? (
                     <p className="px-4 py-5 text-xs text-slate-400">Esta {voc.contenedor} aún no tiene pisos.</p>
                   ) : (
@@ -711,6 +691,42 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                         </div>
                         );
                       })}
+                    </div>
+                  )}
+                  {torre.especiales.length > 0 && (
+                    <div className="border-t border-slate-100 px-4 py-3 space-y-2" data-testid={`especiales-${torre.nombre || 'sin'}`}>
+                      <BotonColapsar abierto={!especialesCerradas.has(torre.id)} onClick={() => alternarEspeciales(torre.id)}>
+                        <span className="text-sm font-black text-slate-800">{voc.modo === 'CASA' ? 'Exteriores' : 'Unidades especiales'}</span>
+                        <span className="text-[11px] text-slate-500">
+                          {torre.especiales.length} · {torre.especiales.reduce((n, u) => n + u.ventanas.length, 0)} ventana(s)
+                        </span>
+                      </BotonColapsar>
+                      <div className={`flex flex-wrap gap-2 ${especialesCerradas.has(torre.id) ? 'hidden' : ''}`}>
+                      {torre.especiales.map((u) => (
+                        <TarjetaUnidad
+                          key={u.id}
+                          nodo={u}
+                          voc={voc}
+                          torre={torre.nombre}
+                          tipoActivo={tipoActivo}
+                          seleccion={seleccion}
+                          onAlternarSeleccion={alternarSeleccion}
+                          datosArrastre={datosArrastre}
+                          onUbicarActiva={(ubicacion) => ubicarActiva({ unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre, ubicacion })}
+                          onDrop={(e, ubicacion) => soltarEnDepto(e, { unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre }, ubicacion)}
+                          onAgregarUna={(ubicacion) => tipoActivo && agregarUna({ unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre, ubicacion }, tipoActivo)}
+                          onAbrirAsignar={(ubicacion) => setModal({ tipo: 'asignar', destino: { unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre, recintos: u.recintos.map((r) => r.nombre), ubicacion } })}
+                          onNuevaUbicacion={() => setModal({ tipo: 'ubicaciones', destino: { unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre } })}
+                          onQuitarUbicacion={(id) => quitarUbicacion.mutate(id)}
+                          onRenombrar={() => setModal({ tipo: 'renombrar-lugar', que: 'unidad', id: u.id, nombreActual: u.nombre })}
+                          onRenombrarUbicacion={(r) => setModal({ tipo: 'renombrar-lugar', que: 'ubicacion', id: r.id, nombreActual: r.nombre })}
+                          onQuitar={() => confirmarEliminar(`¿Quitar la unidad "${u.nombre}"?`, { torreId: torre.id, unidadId: u.id })}
+                          onEditarVentana={(v) => setModal({ tipo: 'ventana', unidad: v })}
+                          onQuitarVentana={(id) => quitar.mutate(id)}
+                          legacy={legacy}
+                        />
+                      ))}
+                    </div>
                     </div>
                   )}
                 </section>

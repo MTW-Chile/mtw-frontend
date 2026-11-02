@@ -255,6 +255,15 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
   const salir = async () => {
     if (carrito.length === 0 || (await confirmar({ titulo: `¿Salir sin enviar ${carrito.length} pendiente(s)?`, mensaje: 'Lo que está en el listado se pierde.', confirmar: 'Salir', peligro: true }))) onCerrar();
   };
+  // Unidades especiales: al final de la torre y replegadas por defecto (id de torre desplegada).
+  const [especialesAbiertas, setEspecialesAbiertas] = useState<Set<string>>(new Set());
+  const alternarEspeciales = (id: string) =>
+    setEspecialesAbiertas((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
   const alternarPiso = (id: string) =>
     setAbiertosPisos((s) => {
       const n = new Set(s);
@@ -340,13 +349,6 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
               if (visibles.length === 0) return null;
               return (
                 <Seccion key={torre.id} icono={Icono} titulo={voc.textoTorre(torre.nombre)} descripcion={`${visibles.length} ventana(s)`} sinRelleno>
-                  {torre.especiales.length > 0 && (
-                    <div className="px-3 py-2 border-b border-slate-100 space-y-2">
-                      {torre.especiales.map((u) => (
-                        <TarjetaUnidad key={u.id} nodo={u} ventanas={u.ventanas.filter(pasa)} etiqueta="" activa={activa?.id ?? null} conteo={conteo} onVentana={setActiva} />
-                      ))}
-                    </div>
-                  )}
                   <div className="divide-y divide-slate-100">
                     {[...torre.pisos].reverse().map((piso) => {
                       const delPiso = piso.unidades.flatMap((u) => u.ventanas).filter(pasa);
@@ -371,6 +373,23 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
                       );
                     })}
                   </div>
+                  {torre.especiales.length > 0 && (!q || torre.especiales.some((u) => u.ventanas.some(pasa))) && (
+                    <div className="px-3 py-2 border-t border-slate-100">
+                      <BotonColapsar abierto={especialesAbiertas.has(torre.id) || !!q} onClick={() => alternarEspeciales(torre.id)} className="w-full">
+                        <span className="flex items-center justify-between gap-2 flex-1 text-left">
+                          <span className="text-xs font-bold text-slate-800">{voc.modo === 'CASA' ? 'Exteriores' : 'Unidades especiales'}</span>
+                          <span className="text-[11px] font-mono text-slate-500">{torre.especiales.flatMap((u) => u.ventanas).filter(pasa).length}</span>
+                        </span>
+                      </BotonColapsar>
+                      {(especialesAbiertas.has(torre.id) || !!q) && (
+                        <div className="mt-2 space-y-2">
+                          {torre.especiales.map((u) => (
+                            <TarjetaUnidad key={u.id} nodo={u} ventanas={u.ventanas.filter(pasa)} etiqueta="" activa={activa?.id ?? null} conteo={conteo} onVentana={setActiva} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </Seccion>
               );
             })}
