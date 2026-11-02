@@ -326,7 +326,7 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
               );
             })}
             {arbol.data.unica.filter(pasa).length > 0 && (
-              <Seccion titulo="Cubicación única" sinRelleno>
+              <Seccion titulo={proyecto.origen === 'MANUAL_OBRA' ? 'Ventanas sin ubicar' : 'Cubicación única'} descripcion={proyecto.origen === 'MANUAL_OBRA' ? 'Aún sin torre, piso ni departamento; se pueden usar igual.' : undefined} sinRelleno>
                 <div className="p-3 flex flex-wrap gap-1.5">
                   {arbol.data.unica.filter(pasa).map((v) => (
                     <ChipVentana key={v.id} v={v} activa={activa?.id === v.id} enCarrito={conteo(v.id)} onClick={() => setActiva(v)} />

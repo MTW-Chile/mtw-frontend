@@ -10,6 +10,8 @@ import { Casilla } from '../../../components/ui/Campos';
 interface Props {
   proyectoId: string;
   onChange: (seleccion: SeleccionFaseCubicacion, resumen: string) => void;
+  /** Obra manual: las ventanas sin lugar no son una «cubicación única», son ventanas por ubicar. */
+  legacy?: boolean;
 }
 
 // Selector de torres/pisos/deptos/ventanas ya cubicadas para armar una fase
@@ -18,7 +20,7 @@ interface Props {
 // asignada a otra fase se excluye sola, con aviso, al guardar). Acá solo se
 // marca la intención; por eso casillas en distintos niveles pueden
 // superponerse sin problema (el backend las une sin duplicar).
-export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onChange }) => {
+export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onChange, legacy }) => {
   const voc = useVocabulario(proyectoId);
   const { data, isLoading, isError } = useQuery({ queryKey: ['cubicacionEstructura', proyectoId], queryFn: () => getEstructuraCubicacion(proyectoId) });
   const [torreIds, setTorreIds] = useState<Set<string>>(new Set());
@@ -120,7 +122,7 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
               onChange={alternarTodasUnica}
               label={
                 <>
-                  <span className="font-bold text-slate-800">Cubicación única</span> <span className="text-slate-400">({unica.length} ventana(s))</span>
+                  <span className="font-bold text-slate-800">{legacy ? 'Ventanas sin ubicar' : 'Cubicación única'}</span> <span className="text-slate-400">({unica.length} ventana(s))</span>
                 </>
               }
             />

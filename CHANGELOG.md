@@ -33,6 +33,7 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - Cada cambio de estado del lote queda en un historial con su fecha.
 
 **Obras manuales: nombres y cuadros**
+- En una obra manual, el panel «Por ubicar» del cubicador visual lista cada ventana con su nombre de fabricación, su medida y su documento (no por tipo). Se arrastra al departamento o, en tablet, se toca la ventana y luego «Ubicar aquí» en el departamento; al ubicarla queda elegida la siguiente. El grupo «Cubicación única» pasa a llamarse «Ventanas sin ubicar» en obras manuales.
 - En una obra manual, «cubicada» significa tener torre, piso y departamento: las ventanas importadas con su nombre ya no se cuentan como cubicadas ni aparecen «completas» en el panel Por ubicar. Se quitan «Crear» y «Deshacer cubicación única» en obras manuales, que no aplican.
 - Las ventanas importadas conservan el nombre con que vienen del documento de fabricación (es como se identifican en obra) y no se renombran al ubicarlas, moverlas ni renombrar su torre o departamento.
 - Corregido: cuando HETMO deja de entregar los marcos y hojas de un lote (pasa al finalizarlo), ya no se marcan como retirados; se conservan los leídos antes y se reponen si una lectura anterior los había quitado.

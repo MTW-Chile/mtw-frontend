@@ -96,6 +96,7 @@ export const AvanzarEstadoModal: React.FC<Props> = ({ proyectoId, onClose, onAva
         <p className={etiqueta}>Selecciona {voc.contenedor}s, pisos, {voc.unidades} o ventanas sueltas</p>
         <SelectorFaseDesdeCubicacion
           proyectoId={proyectoId}
+          legacy
           onChange={(s, resumen) => {
             setSeleccion(s);
             setResumenSeleccion(resumen);

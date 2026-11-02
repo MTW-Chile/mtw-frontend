@@ -1845,8 +1845,8 @@ export interface EstructuraCubicacion {
   torres: NodoTorreCubicacion[];
   // Ventanas que aun no tienen unidad asignada.
   sinPosicion: number;
-  // Cubicacion unica: ventanas con nombre final pero sin torre/piso/depto.
-  unica: { id: string; codigo: string; nomenclatura: string }[];
+  // Cubicacion unica (o, en una obra manual, las ventanas con su nombre de fabricación aún sin lugar).
+  unica: UnidadCubicacion[];
   // Ventanas por ubicar, por tipo y documento de fabricación de origen (legacy; null = sin documento).
   libres: { tipoId: string; fabricacionId: string | null; cantidad: number }[];
 }
