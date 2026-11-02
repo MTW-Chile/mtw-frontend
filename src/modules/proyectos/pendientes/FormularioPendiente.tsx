@@ -5,10 +5,10 @@ import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
 import { Textarea, OpcionesTarjetaMultiple, Casilla } from '../../../components/ui/Campos';
 import { Aviso } from '../../../components/ui/Aviso';
-import { ETIQUETA_CARGO } from '../../../types';
-import type { CargoPendiente, FabricacionPieza, FichaVentanaObra, MotivoPendiente, NuevoPendientePayload, TipoElementoPendiente } from '../../../types';
+import type { FabricacionPieza, FichaVentanaObra, MotivoPendiente, NuevoPendientePayload, TipoElementoPendiente } from '../../../types';
 import { formatoMm } from '../fabricacion/utils';
 import { nombreVentana } from '../obra/estadoVentana';
+import { AdjuntosNuevoPendiente } from './adjuntos/AdjuntosNuevoPendiente';
 import {
   ETIQUETA_DESTINO,
   ETIQUETA_MOTIVO,
@@ -17,7 +17,6 @@ import {
   TIPOS_PENDIENTE,
   admiteRectificacion,
   areaDelPendiente,
-  cargoDeMotivo,
   etiquetaPieza,
   exigeResponsable,
   leerMilimetros,
@@ -39,9 +38,12 @@ export interface PendientePreparado {
   payload: NuevoPendientePayload;
   /** Resumen corto para el carrito: "Vidrio 4/9/4 · 1.032 × 1.554 mm". */
   resumen: string;
+  /** Fotos o documentos por subir a OneDrive cuando el pendiente se cree. */
+  archivos: File[];
 }
 
 interface Props {
+  proyectoId: string;
   ficha: FichaVentanaObra;
   /** Un pendiente por cada vidrio u hoja marcados. */
   onAgregar: (p: PendientePreparado[]) => void;
@@ -52,7 +54,7 @@ interface Props {
  * (hoja, vidrio o material) sale de la ficha de la ventana; el título lo arma el sistema. Al
  * agregar se limpia para el siguiente, sin cerrar nada.
  */
-export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
+export const FormularioPendiente: React.FC<Props> = ({ proyectoId, ficha, onAgregar }) => {
   const v = ficha.ventana;
   const [tipo, setTipo] = useState<TipoElementoPendiente>('VIDRIO');
   const [motivo, setMotivo] = useState<MotivoPendiente>('FALLA');
@@ -62,7 +64,7 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
   const [hojasSel, setHojasSel] = useState<string[]>([]);
   const [notas, setNotas] = useState('');
   const [responsable, setResponsable] = useState('');
-  const [cargo, setCargo] = useState<CargoPendiente | ''>('');
+  const [archivos, setArchivos] = useState<File[]>([]);
   const [rectificando, setRectificando] = useState(false);
   const [rectAncho, setRectAncho] = useState('');
   const [rectAlto, setRectAlto] = useState('');
@@ -144,7 +146,7 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
   const puedeRectificar = admiteRectificacion(tipo) && !!medidaOriginal && (tipo === 'VIDRIO' || !!ficha.fabricacionVentana);
 
   const agregar = () => {
-    const preparados: PendientePreparado[] = objetivos.map((o) => {
+    const preparados: PendientePreparado[] = objetivos.map((o, i) => {
       const titulo = tituloPendiente(o.datos, notas);
       const payload: NuevoPendientePayload = {
         origen: 'OBRA',
@@ -153,7 +155,6 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
         descripcion: titulo,
         notas: notas.trim() || undefined,
         responsable: pideResponsable ? responsable.trim() : undefined,
-        cargoA: cargo || undefined,
         rectificacion:
           rectificando && rectificacionValida && medidaOriginal && objetivos.length === 1
             ? { anchoMm: nuevoAncho!, altoMm: nuevoAlto!, anchoOriginalMm: medidaOriginal.ancho, altoOriginalMm: medidaOriginal.alto }
@@ -166,19 +167,21 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
         materialId: o.materialId,
         fechaRequerida: fechaRequerida || undefined,
       };
-      return { payload, resumen: titulo };
+      // Con varios elementos marcados las fotos se adjuntan al primero (no se repiten en cada pendiente).
+      return { payload, resumen: titulo, archivos: i === 0 ? archivos : [] };
     });
     onAgregar(preparados);
     setMaterialesSel([]);
     setVidriosSel([]);
     setHojasSel([]);
     setNotas('');
+    setArchivos([]);
     cerrarRectificacion();
   };
 
   return (
     <div className="space-y-3" data-testid="formulario-pendiente">
-      <div className="grid sm:grid-cols-3 gap-3">
+      <div className="grid sm:grid-cols-2 gap-3">
         <Select label="Qué falta" id="np-tipo" value={tipo} onChange={(e) => cambiarTipo(e.target.value as TipoElementoPendiente)}>
           {TIPOS_PENDIENTE.map((t) => (
             <option key={t} value={t}>
@@ -190,14 +193,6 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
           {MOTIVOS_PENDIENTE.map((m) => (
             <option key={m} value={m}>
               {ETIQUETA_MOTIVO[m]}
-            </option>
-          ))}
-        </Select>
-        <Select label="A cargo de" id="np-cargo" value={cargo} onChange={(e) => setCargo(e.target.value as CargoPendiente | '')}>
-          <option value="">Según el motivo ({cargoDeMotivo(motivo) ? ETIQUETA_CARGO[cargoDeMotivo(motivo)!] : 'sin cargo aparte'})</option>
-          {(['CLIENTE', 'INSTALADOR', 'MTW'] as CargoPendiente[]).map((c) => (
-            <option key={c} value={c}>
-              {ETIQUETA_CARGO[c]}
             </option>
           ))}
         </Select>
@@ -351,6 +346,8 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
         placeholder="Qué falta o qué falló, cualquier detalle útil"
         error={notasObligatorias && !notas.trim() ? 'Describe qué se necesita.' : undefined}
       />
+      <AdjuntosNuevoPendiente proyectoId={proyectoId} archivos={archivos} onChange={setArchivos} />
+      {objetivos.length > 1 && archivos.length > 0 && <p className="text-[11px] text-slate-500">Con varios elementos marcados, las fotos se adjuntan al primer pendiente.</p>}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="sm:max-w-[12rem]">
           <Input label="Se necesita para" id="np-fecha" type="date" value={fechaRequerida} onChange={(e) => setFechaRequerida(e.target.value)} />

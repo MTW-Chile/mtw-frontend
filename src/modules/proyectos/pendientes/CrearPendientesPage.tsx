@@ -23,6 +23,7 @@ import { DibujoVentana } from '../obra/DibujoVentana';
 import { vocabulario } from '../cubicacion/vocabulario';
 import { formatoMm, textoEstadoFabricacion, varianteEstadoFabricacion } from '../fabricacion/utils';
 import { ETIQUETA_MOTIVO, ETIQUETA_TIPO, codigoPendiente, etiquetaPieza, nombreCuadro } from './utils';
+import { subirArchivos } from './adjuntos/subirArchivos';
 import { FormularioPendiente, type PendientePreparado } from './FormularioPendiente';
 
 interface Props {
@@ -226,9 +227,22 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
   const conteo = (id: string) => carrito.filter((c) => c.ventana.id === id).length;
 
   const enviar = useMutation({
-    mutationFn: () => crearPendientesLote(proyecto.id, carrito.map((c) => c.payload)),
-    onSuccess: ({ creados }) => {
+    mutationFn: async () => {
+      const r = await crearPendientesLote(proyecto.id, carrito.map((c) => c.payload));
+      // Los pendientes ya existen: si alguna foto falla se avisa, pero no se pierde ningún pendiente
+      // (se pueden agregar de nuevo desde el detalle). La API devuelve los creados en el mismo orden.
+      const fallidos: string[] = [];
+      for (const [i, creado] of r.creados.entries()) {
+        const archivos = carrito[i]?.archivos ?? [];
+        if (archivos.length === 0) continue;
+        const sub = await subirArchivos(creado.id, archivos);
+        fallidos.push(...sub.fallidos.map((f) => `${carrito[i].resumen} → ${f}`));
+      }
+      return { ...r, fallidos };
+    },
+    onSuccess: ({ creados, fallidos }) => {
       mostrarToast(`${creados.length} pendiente(s) ingresado(s).`, { tipo: 'info' });
+      if (fallidos.length) mostrarToast(`No se pudo subir: ${fallidos.join(' · ')}. Agrégalo desde el detalle del pendiente.`);
       queryClient.invalidateQueries({ queryKey: ['pendientes'] });
       queryClient.invalidateQueries({ queryKey: ['ventanasObra', proyecto.id] });
       queryClient.invalidateQueries({ queryKey: ['fichaVentana', proyecto.id] });
@@ -307,6 +321,7 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
               {ETIQUETA_TIPO[c.payload.tipo]} · {ETIQUETA_MOTIVO[c.payload.motivo]}
               <br />
               <span className="text-slate-700">{c.resumen}</span>
+              {c.archivos.length > 0 && <span className="block text-[11px] text-slate-500">{c.archivos.length} foto(s) o archivo(s) por subir</span>}
             </FilaLista>
           ))}
         </Lista>
@@ -428,7 +443,7 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
                 </Seccion>
                 <Seccion titulo="Pendiente de esta ventana" descripcion="Al agregarlo queda en el listado (carrito); puedes agregar varios por ventana.">
                   {ficha.data.hetmoError && <div className="mb-3"><Aviso tono="advertencia">{ficha.data.hetmoError}</Aviso></div>}
-                  <FormularioPendiente key={activa.id} ficha={ficha.data} onAgregar={agregar} />
+                  <FormularioPendiente key={activa.id} proyectoId={proyecto.id} ficha={ficha.data} onAgregar={agregar} />
                 </Seccion>
               </>
             )}
