@@ -87,6 +87,7 @@ const FichaVentana: React.FC<{ proyectoId: string; ficha: FichaVentanaObra }> = 
   const v = ficha.ventana;
   const fv = ficha.fabricacionVentana;
   const abiertos = ficha.pendientes.filter((p) => p.estado !== 'RESUELTO');
+  const [tecnicoAbierto, setTecnicoAbierto] = useState(false);
   const Dato: React.FC<{ k: string; children: React.ReactNode }> = ({ k, children }) => (
     <div className="min-w-0">
       <dt className="text-[10px] uppercase tracking-wider text-slate-400">{k}</dt>
@@ -95,12 +96,12 @@ const FichaVentana: React.FC<{ proyectoId: string; ficha: FichaVentanaObra }> = 
   );
   // @container: la ficha se acomoda al ancho real de su columna (en tablet es angosta), no al de la pantalla.
   return (
-    <div className="space-y-3 @container">
-      <div className="grid grid-cols-1 @2xl:grid-cols-[13rem_1fr] gap-3">
-        <DibujoVentana proyectoId={proyectoId} ventanaId={v.ventanaId} lineaHetmo={v.ventanaId ? undefined : fv?.hetmoVentanaMadreId} ventana={ficha.dibujo} className="h-44 @2xl:h-full @2xl:min-h-44" />
-        <dl className="grid grid-cols-2 @3xl:grid-cols-3 gap-x-4 gap-y-2 content-start">
+    <div className="space-y-2 @container">
+      <div className="grid grid-cols-1 @xl:grid-cols-[9.5rem_1fr] gap-3">
+        <DibujoVentana proyectoId={proyectoId} ventanaId={v.ventanaId} lineaHetmo={v.ventanaId ? undefined : fv?.hetmoVentanaMadreId} ventana={ficha.dibujo} className="h-32 @xl:h-full @xl:min-h-32" />
+        <dl className="grid grid-cols-2 @3xl:grid-cols-3 gap-x-4 gap-y-1.5 content-start">
           <div className="col-span-2 @3xl:col-span-3 flex flex-wrap items-center gap-1.5">
-            <Badge variant={VARIANTE_ESTADO_VENTANA[v.estado]}>{ETIQUETA_ESTADO_VENTANA[v.estado]}</Badge>
+            <Badge size="sm" variant={VARIANTE_ESTADO_VENTANA[v.estado]}>{ETIQUETA_ESTADO_VENTANA[v.estado]}</Badge>
             {ficha.documento && (
               <Badge size="sm" variant={varianteEstadoFabricacion(ficha.documento.estadoHetmo)}>
                 {textoEstadoFabricacion(ficha.documento.estadoHetmo, ficha.documento.estadoGlosa)}
@@ -108,71 +109,74 @@ const FichaVentana: React.FC<{ proyectoId: string; ficha: FichaVentanaObra }> = 
             )}
             {abiertos.length > 0 && <Badge size="sm" variant="warning">{abiertos.length} pendiente(s) abierto(s)</Badge>}
           </div>
-          <Dato k="Apertura">{fv?.descripcionCorta || v.sistema}</Dato>
+          <div className="col-span-2 @3xl:col-span-3">
+            <Dato k="Apertura">{fv?.descripcionCorta || v.sistema}</Dato>
+          </div>
           <Dato k="Ubicación">
             {[v.torre ? `Torre ${v.torre}` : null, v.piso != null ? `Piso ${v.piso}` : null, v.nombreUnidad, v.ubicacion].filter(Boolean).join(' · ') || 'Sin posición'}
           </Dato>
-          <Dato k="Medida (mm)">{fv ? `${formatoMm(fv.anchoMm)} × ${formatoMm(fv.altoMm)}` : v.anchoFabricacionMm != null ? `${formatoMm(v.anchoFabricacionMm)} × ${formatoMm(v.altoFabricacionMm)}` : `${formatoMm(v.anchoPlanoMm)} × ${formatoMm(v.altoPlanoMm)} (plano)`}</Dato>
-          <Dato k="Documento de fabricación">{ficha.documento ? `${ficha.documento.nombreMostrado} · pos ${fv?.orden}` : 'Sin vincular'}</Dato>
-          <Dato k="Modelo en HETMO">{fv?.modelo ?? '—'}</Dato>
-          <Dato k="Tipo">{v.codigo}</Dato>
+          <Dato k="Medida (mm)">{fv ? `${formatoMm(fv.anchoMm)} × ${formatoMm(fv.altoMm)}` : v.anchoFabricacionMm != null ? `${formatoMm(v.anchoFabricacionMm)} × ${formatoMm(v.altoFabricacionMm)}` : `${formatoMm(v.anchoPlanoMm)} × ${formatoMm(v.altoPlanoMm)}`}</Dato>
+          <Dato k="Documento">{ficha.documento ? `${ficha.documento.nombreMostrado} · pos ${fv?.orden}` : 'Sin vincular'}</Dato>
+          <div className="col-span-2 @3xl:col-span-3">
+            <Dato k={`Vidrios (${ficha.vidrios.reduce((n, g) => n + Number(g.UDS || 1), 0)})`}>
+              {ficha.vidrios.length === 0
+                ? ficha.hetmoError ?? 'Sin vidrios en la línea.'
+                : ficha.vidrios.map((g) => `${formatoMm(g.ANCHO)} × ${formatoMm(g.ALTO)} · ${g.codigo_articulo}${Number(g.UDS) > 1 ? ` · ${g.UDS} un` : ''}`).join('  |  ')}
+            </Dato>
+          </div>
         </dl>
       </div>
 
-      <div className="grid grid-cols-1 @2xl:grid-cols-3 gap-3 text-xs">
-        <div className="rounded-xl border border-slate-200 p-2.5 space-y-1 max-h-40 overflow-y-auto">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Marcos y hojas</p>
-          {ficha.cuadros.length === 0 ? (
-            <p className="text-slate-400">{fv ? 'El lote aún no trae los cuadros (se optimiza después).' : 'Sin documento de fabricación.'}</p>
-          ) : (
-            ficha.cuadros.map((c) => (
-              <div key={c.id}>
-                <p className="font-mono text-slate-700">
-                  {nombreCuadro(c)} · {formatoMm(c.anchoMm)} × {formatoMm(c.altoMm)}
-                </p>
-                {c.piezas.map((p) => (
-                  <p key={p.id} className="pl-3 text-[11px] text-slate-500 truncate" title={etiquetaPieza(p, true)}>
-                    {etiquetaPieza(p)}
-                  </p>
-                ))}
-              </div>
-            ))
-          )}
-          {ficha.piezasSueltas.length > 0 && (
-            <div>
-              <p className="font-mono text-slate-700">Piezas sueltas</p>
-              {ficha.piezasSueltas.map((p) => (
-                <p key={p.id} className="pl-3 text-[11px] text-slate-500 truncate" title={etiquetaPieza(p, true)}>
-                  {etiquetaPieza(p)}
-                </p>
-              ))}
+      {/* Lo técnico (marcos, hojas y materiales) va aparte: se abre solo si hace falta. */}
+      <div className="rounded-xl border border-slate-200">
+        <BotonColapsar abierto={tecnicoAbierto} onClick={() => setTecnicoAbierto((x) => !x)} className="w-full px-3 py-2">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Marcos, hojas y materiales ({ficha.materiales.length})</span>
+        </BotonColapsar>
+        {tecnicoAbierto && (
+          <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-3 text-xs px-3 pb-3">
+            <div className="rounded-lg border border-slate-200 p-2.5 space-y-1 max-h-52 overflow-y-auto">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Marcos y hojas</p>
+              {ficha.cuadros.length === 0 ? (
+                <p className="text-slate-400">{fv ? 'El lote aún no trae los cuadros (se optimiza después).' : 'Sin documento de fabricación.'}</p>
+              ) : (
+                ficha.cuadros.map((c) => (
+                  <div key={c.id}>
+                    <p className="font-mono text-slate-700">
+                      {nombreCuadro(c)} · {formatoMm(c.anchoMm)} × {formatoMm(c.altoMm)}
+                    </p>
+                    {c.piezas.map((p) => (
+                      <p key={p.id} className="pl-3 text-[11px] text-slate-500 truncate" title={etiquetaPieza(p, true)}>
+                        {etiquetaPieza(p)}
+                      </p>
+                    ))}
+                  </div>
+                ))
+              )}
+              {ficha.piezasSueltas.length > 0 && (
+                <div>
+                  <p className="font-mono text-slate-700">Piezas sueltas</p>
+                  {ficha.piezasSueltas.map((p) => (
+                    <p key={p.id} className="pl-3 text-[11px] text-slate-500 truncate" title={etiquetaPieza(p, true)}>
+                      {etiquetaPieza(p)}
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        <div className="rounded-xl border border-slate-200 p-2.5 space-y-1">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Vidrios</p>
-          {ficha.vidrios.length === 0 ? (
-            <p className="text-slate-400">{ficha.hetmoError ?? 'Sin vidrios en la línea.'}</p>
-          ) : (
-            ficha.vidrios.map((g) => (
-              <p key={g.material_hetmo} className="text-slate-700">
-                <span className="font-mono">{formatoMm(g.ANCHO)} × {formatoMm(g.ALTO)}</span> · {g.codigo_articulo} · {g.UDS} un
-              </p>
-            ))
-          )}
-        </div>
-        <div className="rounded-xl border border-slate-200 p-2.5 space-y-1 max-h-40 overflow-y-auto">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Materiales ({ficha.materiales.length})</p>
-          {ficha.materiales.length === 0 ? (
-            <p className="text-slate-400">{ficha.hetmoError ?? 'Sin materiales en la línea.'}</p>
-          ) : (
-            ficha.materiales.map((m, i) => (
-              <p key={`${m.codigo_articulo}-${i}`} className="text-slate-700 truncate" title={`${m.descripcion_articulo} (${m.codigo_articulo})`}>
-                {m.descripcion_articulo} <span className="text-slate-400 font-mono">{m.codigo_articulo}</span>
-              </p>
-            ))
-          )}
-        </div>
+            <div className="rounded-lg border border-slate-200 p-2.5 space-y-1 max-h-52 overflow-y-auto">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Materiales ({ficha.materiales.length})</p>
+              {ficha.materiales.length === 0 ? (
+                <p className="text-slate-400">{ficha.hetmoError ?? 'Sin materiales en la línea.'}</p>
+              ) : (
+                ficha.materiales.map((m, i) => (
+                  <p key={`${m.codigo_articulo}-${i}`} className="text-slate-700 truncate" title={`${m.descripcion_articulo} (${m.codigo_articulo})`}>
+                    {m.descripcion_articulo} <span className="text-slate-400 font-mono">{m.codigo_articulo}</span>
+                  </p>
+                ))
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {abiertos.length > 0 && (
@@ -202,7 +206,8 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
   const [busqueda, setBusqueda] = useState('');
   const [activa, setActiva] = useState<VentanaObra | null>(null);
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
-  const [cerrados, setCerrados] = useState<Set<string>>(new Set());
+  // Pisos desplegados (id): todos comienzan replegados y se van abriendo.
+  const [abiertosPisos, setAbiertosPisos] = useState<Set<string>>(new Set());
   // Listado (carrito) desplegado: «Revisar listado y enviar».
   const [revisando, setRevisando] = useState(false);
 
@@ -233,10 +238,10 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
     },
   });
 
-  const agregar = (p: PendientePreparado) => {
+  const agregar = (ps: PendientePreparado[]) => {
     if (!activa) return;
-    setCarrito((c) => [...c, { ...p, clave: `${activa.id}-${Date.now()}-${c.length}`, ventana: activa }]);
-    mostrarToast(`Agregado: ${p.resumen}`, { tipo: 'info' });
+    setCarrito((c) => [...c, ...ps.map((p, i) => ({ ...p, clave: `${activa.id}-${Date.now()}-${c.length + i}`, ventana: activa }))]);
+    mostrarToast(ps.length === 1 ? `Agregado: ${ps[0].resumen}` : `Agregados ${ps.length} pendientes de ${nombreVentana(activa)}`, { tipo: 'info' });
   };
   const quitar = (clave: string) => {
     setCarrito((c) => c.filter((x) => x.clave !== clave));
@@ -246,7 +251,7 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
     if (carrito.length === 0 || (await confirmar({ titulo: `¿Salir sin enviar ${carrito.length} pendiente(s)?`, mensaje: 'Lo que está en el listado se pierde.', confirmar: 'Salir', peligro: true }))) onCerrar();
   };
   const alternarPiso = (id: string) =>
-    setCerrados((s) => {
+    setAbiertosPisos((s) => {
       const n = new Set(s);
       if (n.has(id)) n.delete(id);
       else n.add(id);
@@ -302,9 +307,15 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
           <h2 className="text-sm font-black text-slate-900">Nuevos pendientes</h2>
           <p className="text-xs text-slate-500 max-w-2xl">Busca y elige ventanas de la cubicación, detalla cada pendiente con la ventana a la vista y envíalos todos de una vez.</p>
         </div>
-        <Button variant="outline" size="sm" leftIcon={<ArrowLeft className="w-3.5 h-3.5" />} onClick={salir}>
-          Volver a pendientes
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" leftIcon={<ArrowLeft className="w-3.5 h-3.5" />} onClick={salir}>
+            Volver a pendientes
+          </Button>
+          <Button variant="primary" size="sm" leftIcon={<ShoppingCart className="w-3.5 h-3.5" />} disabled={carrito.length === 0} onClick={() => setRevisando(true)} aria-label={`Revisar listado y enviar (${carrito.length} pendientes)`}>
+            Revisar listado y enviar
+            <span className="ml-1 min-w-5 rounded-full bg-white/25 px-1.5 text-[11px] font-bold tabular-nums">{carrito.length}</span>
+          </Button>
+        </div>
       </div>
 
       {arbol.isLoading ? (
@@ -315,7 +326,7 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
         <EstadoVacio icono={Square} titulo="Esta obra todavía no está cubicada" descripcion="Los pendientes se levantan sobre las ventanas cubicadas. Carga la cubicación en Taller › Fabricación › Cubicación." />
       ) : (
         /* Dos columnas (plano y formulario); el listado de pendientes ingresados es un desplegable (carrito) desde la barra inferior. */
-        <div className="grid grid-cols-1 lg:grid-cols-[20rem_1fr] gap-4 items-start pb-16">
+        <div className="grid grid-cols-1 lg:grid-cols-[20rem_1fr] gap-4 items-start">
           {/* Árbol */}
           <div className="space-y-2 lg:sticky lg:top-4 lg:max-h-[80dvh] lg:overflow-y-auto pr-0.5">
             <Buscador valor={busqueda} onChange={setBusqueda} placeholder="Piso 10, depto 1004, V01_1004A, documento…" etiqueta="Buscar ventanas" />
@@ -335,7 +346,7 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
                     {[...torre.pisos].reverse().map((piso) => {
                       const delPiso = piso.unidades.flatMap((u) => u.ventanas).filter(pasa);
                       if (delPiso.length === 0) return null;
-                      const cerrado = cerrados.has(piso.id) && !q;
+                      const cerrado = !abiertosPisos.has(piso.id) && !q;
                       return (
                         <div key={piso.id} className="px-3 py-2">
                           <BotonColapsar abierto={!cerrado} onClick={() => alternarPiso(piso.id)} className="w-full">
@@ -388,7 +399,7 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
               <ErrorCarga que="la ventana" onReintentar={ficha.refetch} />
             ) : (
               <>
-                <Seccion icono={Square} titulo={nombreVentana(activa)} descripcion={ficha.data.ventana.sistema}>
+                <Seccion icono={Square} titulo={nombreVentana(activa)}>
                   <FichaVentana proyectoId={proyecto.id} ficha={ficha.data} />
                 </Seccion>
                 <Seccion titulo="Pendiente de esta ventana" descripcion="Al agregarlo queda en el listado (carrito); puedes agregar varios por ventana.">
@@ -399,19 +410,6 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
             )}
           </div>
 
-        </div>
-      )}
-      {carrito.length > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur px-4 py-2 flex items-center justify-between gap-3 shadow-2xl" role="status">
-          <p className="flex items-center gap-2 text-xs text-slate-700">
-            <ShoppingCart className="w-4 h-4 text-brand-600" />
-            <span>
-              <b>{carrito.length}</b> pendiente(s) en el listado
-            </span>
-          </p>
-          <Button variant="primary" size="sm" leftIcon={<Send className="w-3.5 h-3.5" />} onClick={() => setRevisando(true)} className="pointer-coarse:min-h-11">
-            Revisar listado y enviar
-          </Button>
         </div>
       )}
       {listadoModal}

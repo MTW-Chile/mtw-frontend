@@ -3,7 +3,7 @@ import { Plus, Ruler } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
-import { Textarea, OpcionesTarjeta, SelectCompacto } from '../../../components/ui/Campos';
+import { Textarea, OpcionesTarjetaMultiple, SelectCompacto } from '../../../components/ui/Campos';
 import { Aviso } from '../../../components/ui/Aviso';
 import { ETIQUETA_CARGO } from '../../../types';
 import type { CargoPendiente, FabricacionPieza, FichaVentanaObra, MotivoPendiente, NuevoPendientePayload, TipoElementoPendiente } from '../../../types';
@@ -22,10 +22,18 @@ import {
   exigeResponsable,
   leerMilimetros,
   nombreCuadro,
+  nombrePosicionPieza,
   textoRectificacion,
   tituloPendiente,
   type DatosSugerencia,
 } from './utils';
+
+/** Resumen corto de una hoja para su tarjeta: "11030 Jet Black · 8 perfiles". */
+function resumenHoja(piezas: FabricacionPieza[]): string {
+  if (piezas.length === 0) return 'sin perfiles aún';
+  const principal = piezas[0];
+  return [principal.codigoArticulo, principal.acabadoDescripcion].filter(Boolean).join(' ') + ` · ${piezas.length} perfiles`;
+}
 
 export interface PendientePreparado {
   payload: NuevoPendientePayload;
@@ -35,7 +43,8 @@ export interface PendientePreparado {
 
 interface Props {
   ficha: FichaVentanaObra;
-  onAgregar: (p: PendientePreparado) => void;
+  /** Un pendiente por cada vidrio u hoja marcados. */
+  onAgregar: (p: PendientePreparado[]) => void;
 }
 
 /**
@@ -47,7 +56,10 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
   const v = ficha.ventana;
   const [tipo, setTipo] = useState<TipoElementoPendiente>('VIDRIO');
   const [motivo, setMotivo] = useState<MotivoPendiente>('FALLA');
+  // Material: una sola opción. Vidrios (posición en la lista) y hojas (id): se pueden marcar varios y sale un pendiente por cada uno.
   const [elementoId, setElementoId] = useState('');
+  const [vidriosSel, setVidriosSel] = useState<string[]>([]);
+  const [hojasSel, setHojasSel] = useState<string[]>([]);
   const [notas, setNotas] = useState('');
   const [responsable, setResponsable] = useState('');
   const [cargo, setCargo] = useState<CargoPendiente | ''>('');
@@ -64,8 +76,10 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
     return grupos;
   }, [ficha.cuadros, ficha.piezasSueltas]);
   const hayPiezas = gruposPiezas.length > 0;
-  const vidrioElegido = tipo === 'VIDRIO' && elementoId ? ficha.vidrios.find((x) => String(x.material_hetmo) === elementoId) : undefined;
-  const hojaElegida = tipo === 'HOJA' && elementoId ? hojas.find((x) => x.id === elementoId) : undefined;
+  const vidriosElegidos = tipo === 'VIDRIO' ? vidriosSel.map((i) => ficha.vidrios[Number(i)]).filter(Boolean) : [];
+  const hojasElegidas = tipo === 'HOJA' ? hojas.filter((h) => hojasSel.includes(h.id)) : [];
+  // La rectificación solo aplica con un único vidrio marcado.
+  const vidrioElegido = vidriosElegidos.length === 1 ? vidriosElegidos[0] : undefined;
   // Material: una pieza cortada ("pieza:<id>") o una fila de la receta ("receta:<índice>").
   const piezaElegida = tipo === 'MATERIAL' && elementoId.startsWith('pieza:') ? gruposPiezas.flatMap((g) => g.piezas).find((p) => p.id === elementoId.slice(6)) : undefined;
   const materialElegido = tipo === 'MATERIAL' && elementoId.startsWith('receta:') ? ficha.materiales[Number(elementoId.slice(7))] : undefined;
@@ -95,14 +109,22 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
   const cambiarTipo = (t: TipoElementoPendiente) => {
     setTipo(t);
     setElementoId('');
+    setVidriosSel([]);
+    setHojasSel([]);
     cerrarRectificacion();
   };
 
-  const datosTitulo: DatosSugerencia = { tipo, ventanaModelo: nombreVentana(v) };
-  if (vidrioElegido) datosTitulo.vidrio = { codigo: vidrioElegido.codigo_articulo, ancho: vidrioElegido.ANCHO, alto: vidrioElegido.ALTO };
-  if (hojaElegida) datosTitulo.hoja = { numero: hojaElegida.numeroCuadro, ancho: hojaElegida.anchoMm, alto: hojaElegida.altoMm };
-  if (materialElegido) datosTitulo.material = { codigo: materialElegido.codigo_articulo, descripcion: materialElegido.descripcion_articulo };
-  if (piezaElegida) datosTitulo.pieza = { ...piezaElegida, cuadro: cuadroDePieza ? nombreCuadro(cuadroDePieza) : null };
+  const base: DatosSugerencia = { tipo, ventanaModelo: nombreVentana(v) };
+  // Un objetivo por cada vidrio u hoja marcados; sin ninguno (o con otro tipo) sale un solo pendiente.
+  type Objetivo = { datos: DatosSugerencia; cuadroId?: string; piezaId?: string; materialId?: string; vidrio?: boolean };
+  const objetivos: Objetivo[] = (() => {
+    if (vidriosElegidos.length > 0) return vidriosElegidos.map((g) => ({ datos: { ...base, vidrio: { codigo: g.codigo_articulo, ancho: g.ANCHO, alto: g.ALTO } }, vidrio: true }));
+    if (hojasElegidas.length > 0) return hojasElegidas.map((h) => ({ datos: { ...base, hoja: { numero: h.numeroCuadro, ancho: h.anchoMm, alto: h.altoMm } }, cuadroId: h.id }));
+    const datos = { ...base };
+    if (materialElegido) datos.material = { codigo: materialElegido.codigo_articulo, descripcion: materialElegido.descripcion_articulo };
+    if (piezaElegida) datos.pieza = { ...piezaElegida, cuadro: cuadroDePieza ? nombreCuadro(cuadroDePieza) : null };
+    return [{ datos, cuadroId: piezaElegida?.cuadroId ?? undefined, piezaId: piezaElegida?.id, materialId: piezaElegida?.materialId ?? undefined }];
+  })();
 
   const area = areaDelPendiente(tipo, motivo);
   const pideResponsable = exigeResponsable(motivo);
@@ -114,29 +136,34 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
   const puedeRectificar = admiteRectificacion(tipo) && !!medidaOriginal && (tipo === 'VIDRIO' || !!ficha.fabricacionVentana);
 
   const agregar = () => {
-    const titulo = tituloPendiente(datosTitulo, notas);
-    const payload: NuevoPendientePayload = {
-      origen: 'OBRA',
-      tipo,
-      motivo,
-      descripcion: titulo,
-      notas: notas.trim() || undefined,
-      responsable: pideResponsable ? responsable.trim() : undefined,
-      cargoA: cargo || undefined,
-      rectificacion:
-        rectificando && rectificacionValida && medidaOriginal
-          ? { anchoMm: nuevoAncho!, altoMm: nuevoAlto!, anchoOriginalMm: medidaOriginal.ancho, altoOriginalMm: medidaOriginal.alto }
-          : undefined,
-      ventanaRef: nombreVentana(v),
-      ventanaIndividualizadaId: v.id,
-      fabricacionVentanaId: ficha.fabricacionVentana?.id,
-      fabricacionCuadroId: hojaElegida?.id ?? piezaElegida?.cuadroId ?? undefined,
-      fabricacionPiezaId: piezaElegida?.id,
-      materialId: piezaElegida?.materialId ?? undefined,
-      fechaRequerida: fechaRequerida || undefined,
-    };
-    onAgregar({ payload, resumen: titulo });
+    const preparados: PendientePreparado[] = objetivos.map((o) => {
+      const titulo = tituloPendiente(o.datos, notas);
+      const payload: NuevoPendientePayload = {
+        origen: 'OBRA',
+        tipo,
+        motivo,
+        descripcion: titulo,
+        notas: notas.trim() || undefined,
+        responsable: pideResponsable ? responsable.trim() : undefined,
+        cargoA: cargo || undefined,
+        rectificacion:
+          rectificando && rectificacionValida && medidaOriginal && objetivos.length === 1
+            ? { anchoMm: nuevoAncho!, altoMm: nuevoAlto!, anchoOriginalMm: medidaOriginal.ancho, altoOriginalMm: medidaOriginal.alto }
+            : undefined,
+        ventanaRef: nombreVentana(v),
+        ventanaIndividualizadaId: v.id,
+        fabricacionVentanaId: ficha.fabricacionVentana?.id,
+        fabricacionCuadroId: o.cuadroId,
+        fabricacionPiezaId: o.piezaId,
+        materialId: o.materialId,
+        fechaRequerida: fechaRequerida || undefined,
+      };
+      return { payload, resumen: titulo };
+    });
+    onAgregar(preparados);
     setElementoId('');
+    setVidriosSel([]);
+    setHojasSel([]);
     setNotas('');
     cerrarRectificacion();
   };
@@ -173,16 +200,23 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
 
       {tipo === 'VIDRIO' &&
         (ficha.vidrios.length > 0 ? (
-          <OpcionesTarjeta
-            legend="Vidrio de esta ventana"
-            columnas={2}
-            valor={elementoId}
-            onChange={(id) => {
-              setElementoId(id);
-              cerrarRectificacion();
-            }}
-            opciones={ficha.vidrios.map((g) => ({ value: String(g.material_hetmo), label: `${formatoMm(g.ANCHO)} × ${formatoMm(g.ALTO)} mm`, ayuda: `${g.codigo_articulo} · ${g.UDS} un` }))}
-          />
+          <div className="space-y-1.5">
+            <OpcionesTarjetaMultiple
+              legend="Vidrios de esta ventana (marca uno o varios)"
+              columnas={2}
+              valor={vidriosSel}
+              onChange={(ids) => {
+                setVidriosSel(ids);
+                cerrarRectificacion();
+              }}
+              opciones={ficha.vidrios.map((g, i) => ({ value: String(i), label: `Vidrio ${i + 1} · ${formatoMm(g.ANCHO)} × ${formatoMm(g.ALTO)} mm`, ayuda: `${g.codigo_articulo} · ${g.UDS} un` }))}
+            />
+            {ficha.vidrios.length > 1 && (
+              <Button type="button" variant="link" size="sm" onClick={() => setVidriosSel(vidriosSel.length === ficha.vidrios.length ? [] : ficha.vidrios.map((_, i) => String(i)))}>
+                {vidriosSel.length === ficha.vidrios.length ? 'Quitar todos' : 'Marcar todos'}
+              </Button>
+            )}
+          </div>
         ) : (
           <Aviso tono="neutro" sinIcono>
             {ficha.hetmoError ?? 'Esta ventana no tiene vidrios en su documento de fabricación: descríbelo en las notas.'}
@@ -190,19 +224,34 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
         ))}
       {tipo === 'HOJA' &&
         (hojas.length > 0 ? (
-          <div className="space-y-1.5">
-            <SelectCompacto value={elementoId} onChange={(e) => setElementoId(e.target.value)} aria-label="Hoja de esta ventana">
-              <option value="">— elegir hoja —</option>
-              {hojas.map((h) => (
-                <option key={h.id} value={h.id}>
-                  Hoja {h.numeroCuadro} · {formatoMm(h.anchoMm)} × {formatoMm(h.altoMm)} mm
-                </option>
-              ))}
-            </SelectCompacto>
-            {hojaElegida && hojaElegida.piezas.length > 0 && (
-              <p className="text-[11px] text-slate-500">
-                Perfiles de la hoja: {hojaElegida.piezas.map((p) => etiquetaPieza(p)).join(' · ')}
-              </p>
+          <div className="space-y-2">
+            <OpcionesTarjetaMultiple
+              legend="Hojas de esta ventana (marca una o varias)"
+              columnas={3}
+              valor={hojasSel}
+              onChange={setHojasSel}
+              opciones={hojas.map((h) => ({ value: h.id, label: `Hoja ${h.numeroCuadro} · ${formatoMm(h.anchoMm)} × ${formatoMm(h.altoMm)}`, ayuda: resumenHoja(h.piezas) }))}
+            />
+            {hojas.length > 1 && (
+              <Button type="button" variant="link" size="sm" onClick={() => setHojasSel(hojasSel.length === hojas.length ? [] : hojas.map((h) => h.id))}>
+                {hojasSel.length === hojas.length ? 'Quitar todas' : 'Marcar todas'}
+              </Button>
+            )}
+            {hojasElegidas.some((h) => h.piezas.length > 0) && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50/60 divide-y divide-slate-100">
+                {hojasElegidas.map((h) => (
+                  <div key={h.id} className="px-3 py-2">
+                    <p className="text-[11px] font-bold text-slate-700">{nombreCuadro(h)} · perfiles</p>
+                    <ul className="mt-1 grid sm:grid-cols-2 gap-x-4 gap-y-0.5 text-[11px] text-slate-600">
+                      {h.piezas.map((p) => (
+                        <li key={p.id} className="truncate" title={etiquetaPieza(p, true)}>
+                          {nombrePosicionPieza(p.posicion)} · <span className="font-mono">{p.codigoArticulo}</span> · {formatoMm(p.longitudMm)} mm
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         ) : (
@@ -285,10 +334,10 @@ export const FormularioPendiente: React.FC<Props> = ({ ficha, onAgregar }) => {
         </div>
         <div className="text-right space-y-1">
           <p className="text-[11px] text-slate-500">
-            Va a <b className="text-slate-700">{ETIQUETA_DESTINO[area]}</b> · {tituloPendiente(datosTitulo, notas)}
+            Va a <b className="text-slate-700">{ETIQUETA_DESTINO[area]}</b> · {objetivos.length > 1 ? `${objetivos.length} pendientes (uno por cada ${tipo === 'VIDRIO' ? 'vidrio' : 'hoja'})` : tituloPendiente(objetivos[0].datos, notas)}
           </p>
           <Button type="button" variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} disabled={!puedeAgregar} onClick={agregar}>
-            Agregar al listado
+            {objetivos.length > 1 ? `Agregar ${objetivos.length} al listado` : 'Agregar al listado'}
           </Button>
         </div>
       </div>

@@ -185,6 +185,53 @@ export function OpcionesTarjeta<T extends string>({
   );
 }
 
+/** Como OpcionesTarjeta, pero se puede marcar más de una (casillas). `valor` son los elegidos. */
+export function OpcionesTarjetaMultiple<T extends string>({
+  legend,
+  opciones,
+  valor,
+  onChange,
+  columnas = 3,
+  disabled,
+}: {
+  legend?: React.ReactNode;
+  opciones: { value: T; label: React.ReactNode; ayuda?: React.ReactNode }[];
+  valor: T[];
+  onChange: (v: T[]) => void;
+  columnas?: 2 | 3 | 4;
+  disabled?: boolean;
+}) {
+  const cols = { 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-2 lg:grid-cols-4' }[columnas];
+  const alternar = (v: T) => onChange(valor.includes(v) ? valor.filter((x) => x !== v) : [...valor, v]);
+  return (
+    <fieldset className="space-y-2" disabled={disabled}>
+      {legend && <legend className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">{legend}</legend>}
+      <div className={`grid grid-cols-1 ${cols} gap-2`}>
+        {opciones.map((o) => {
+          const sel = valor.includes(o.value);
+          return (
+            <label
+              key={o.value}
+              className={`px-3 py-2 rounded-xl border text-xs transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-600/30 ${
+                disabled ? 'opacity-60' : 'cursor-pointer'
+              } ${sel ? 'border-brand-600 bg-brand-50/50' : 'border-slate-200 hover:border-slate-300'}`}
+            >
+              <input type="checkbox" className="sr-only" checked={sel} onChange={() => alternar(o.value)} />
+              <span className="flex items-center gap-1.5 font-bold text-slate-900">
+                <span className={`w-3.5 h-3.5 shrink-0 rounded border flex items-center justify-center text-[9px] leading-none text-white ${sel ? 'bg-brand-600 border-brand-600' : 'border-slate-300 bg-white'}`} aria-hidden="true">
+                  {sel ? '✓' : ''}
+                </span>
+                {o.label}
+              </span>
+              {o.ayuda && <span className="block text-[11px] text-slate-500 mt-0.5 pl-5">{o.ayuda}</span>}
+            </label>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
 /** Grupo de campos con título, en grilla (formularios de ajustes). */
 export const GrupoCampos: React.FC<{ titulo: React.ReactNode; columnas?: 1 | 2 | 3; children: React.ReactNode }> = ({ titulo, columnas = 3, children }) => (
   <fieldset className="space-y-3">
