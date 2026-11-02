@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, RotateCcw, ShoppingCart, Trash2 } from 'lucide-react';
-import { cambiarEstadoPendiente, eliminarPendiente, getEtapasPendiente, getPendiente } from '../../../api/client';
+import { cambiarEstadoPendiente, eliminarPendiente, getEtapasPendiente, getFichaVentana, getPendiente } from '../../../api/client';
 import { NuevoAdicionalModal } from '../adicionales/NuevoAdicionalModal';
 import { actualizarParams } from '../../../lib/navigation';
 import { Badge } from '../../../components/ui/Badge';
@@ -63,6 +63,15 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
     queryKey: ['pendiente', pendienteId],
     queryFn: () => getPendiente(pendienteId),
   });
+  // Dibujo de la ventana: la ficha lo arma con la geometría del documento de fabricación (obras manuales y cotizadas).
+  // Si la ficha no lo trae, queda el de la línea cotizada de la obra (ver DibujoVentana).
+  const ventanaDelPendienteId = p?.ventanaIndividualizadaId ?? null;
+  const { data: fichaVentana } = useQuery({
+    queryKey: ['fichaVentana', proyectoId, ventanaDelPendienteId],
+    queryFn: () => getFichaVentana(proyectoId, ventanaDelPendienteId!),
+    enabled: !!ventanaDelPendienteId,
+    staleTime: 60_000,
+  });
   const { data: etapas = [] } = useQuery({ queryKey: ['etapasPendiente'], queryFn: () => getEtapasPendiente(), staleTime: 1000 * 60 });
 
   const refrescar = () => {
@@ -118,7 +127,7 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
 
             {(p.ventanaIndividualizada || p.fabricacionVentana) && (
               <div className="flex gap-3 items-center">
-                <DibujoVentana proyectoId={proyectoId} ventanaId={undefined} lineaHetmo={p.fabricacionVentana?.hetmoVentanaMadreId ?? null} className="h-24 w-32 shrink-0" />
+                <DibujoVentana proyectoId={proyectoId} ventanaId={fichaVentana?.ventana.ventanaId ?? undefined} lineaHetmo={p.fabricacionVentana?.hetmoVentanaMadreId ?? null} ventana={fichaVentana?.dibujo ?? null} className="h-24 w-32 shrink-0" />
                 <div className="text-xs text-slate-600">
                   <p className="font-bold font-mono text-slate-900">{p.ventanaIndividualizada?.nomenclatura ?? p.ventanaIndividualizada?.tipo.codigo ?? p.fabricacionVentana?.modelo}</p>
                   {p.ventanaIndividualizada?.ubicacion && <p>{p.ventanaIndividualizada.ubicacion}</p>}
