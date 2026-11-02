@@ -95,7 +95,7 @@ export const InstalacionObra: React.FC<{ proyectoId: string }> = ({ proyectoId }
   useMigas(1, [{ label: data?.proyecto?.obra ?? 'Obra', codigo: data?.proyecto?.codigoInterno ?? undefined }]);
 
   const q = busqueda.trim().toLowerCase();
-  const voc = vocabulario(data?.modo);
+  const voc = vocabulario(data?.modo, data?.proyecto?.obra);
   const Icono = data?.modo === 'CASA' ? Home : Building2;
 
   const resumenChips = useMemo(() => {

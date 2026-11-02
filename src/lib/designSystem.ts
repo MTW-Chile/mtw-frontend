@@ -42,14 +42,14 @@ export const BREAKPOINT_DESKTOP = '(min-width: 768px)';
 // px-5, px-4 o px-3 a gusto, y px-5 en 8 columnas se comia ~80px solo en
 // aire). Los selectores [&_td]/[&_th] ganan en especificidad sobre un px-*
 // suelto en la celda, asi que no hace falta tocar cada <td>. Encabezados
-// siempre en una linea (whitespace-nowrap): "OBRA / PROYECTO" partido en
-// dos renglones hacia ver la tabla rota.
+// pueden partirse en dos renglones: la tabla se adapta al ancho disponible
+// (sin scroll horizontal) en vez de forzar una sola linea.
 //
 // Envolver SIEMPRE la tabla en un div con TABLE_WRAPPER_CLASS: cuando de
 // verdad no cabe (notebook chica + muchas columnas) hace scroll dentro de
 // la tarjeta en vez de cortar la columna Acciones.
 export const TABLE_CLASS =
-  'w-full text-xs [&_th]:px-3 [&_td]:px-3 [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4 [&_th]:whitespace-nowrap [&_thead_th]:font-semibold [&_thead_th]:text-[10.5px] [&_thead_th]:tracking-wider [&_thead_th]:text-slate-500';
+  'w-full text-xs [&_th]:px-2 [&_td]:px-2 2xl:[&_th]:px-3 2xl:[&_td]:px-3 [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4 [&_th]:align-bottom [&_th]:break-words [&_thead_th]:font-semibold [&_thead_th]:text-[10.5px] [&_thead_th]:tracking-wider [&_thead_th]:text-slate-500';
 
 export const TABLE_WRAPPER_CLASS = 'table-scroll';
 

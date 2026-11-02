@@ -39,6 +39,8 @@ export const VincularCarpetaModal: React.FC<Props> = ({ proyectoId, onClose }) =
   const refrescar = () => {
     queryClient.invalidateQueries({ queryKey: ['onedrive', proyectoId] });
     queryClient.invalidateQueries({ queryKey: ['proyectos'] });
+    queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyectoId] });
+    queryClient.invalidateQueries({ queryKey: ['documentosObra', proyectoId] });
   };
   const avisoError = (e: unknown) => {
     const { mensaje, detalle } = extraerErrorParaToast(e);

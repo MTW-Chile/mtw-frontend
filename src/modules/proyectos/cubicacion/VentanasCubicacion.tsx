@@ -5,7 +5,7 @@ import { editarUnidadCubicacion, eliminarUnidadCubicacion, getUbicacionesCubicac
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
-import type { ConfigCubicacion, TipoCubicacion, UnidadCubicacion } from '../../../types';
+import type { ConfigCubicacion, TipoCubicacion, UnidadCubicacion, Proyecto } from '../../../types';
 import { formatoMm } from '../fabricacion/utils';
 import { leerMilimetros } from '../pendientes/utils';
 import { UnidadModal } from './UnidadModal';
@@ -161,9 +161,9 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
 
 // Ventanas fisicas de la cubicacion (por torre / piso / depto) y sus areas comunes.
 export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, moneda, tipos, filtro, onFiltro, legacy }) => {
-  const voc = vocabulario(cubicacion.modo);
   const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
+  const voc = vocabulario(cubicacion.modo, queryClient.getQueryData<Proyecto>(['proyectoDetail', proyectoId])?.obra);
   const [texto, setTexto] = useState('');
   const [tipoId, setTipoId] = useState('');
   const [sinRectificar, setSinRectificar] = useState(false);

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, Copy, Home, Layers, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Building2, ChevronsDownUp, ChevronsUpDown, Copy, Home, Layers, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { asignarVentanasCubicacion, eliminarLugarCubicacion, eliminarUbicacionCubicacion, getEstructuraCubicacion, getFabricacionesProyecto, moverVentanaCubicacion, quitarPosicionVentanaCubicacion } from '../../../api/client';
 import { Badge } from '../../../components/ui/Badge';
+import { BotonColapsar } from '../../../components/ui/BotonColapsar';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
-import type { ConfigCubicacion, NodoDeptoCubicacion, NodoTorreCubicacion, TipoCubicacion, UnidadCubicacion } from '../../../types';
+import type { ConfigCubicacion, NodoDeptoCubicacion, NodoTorreCubicacion, TipoCubicacion, UnidadCubicacion, Proyecto } from '../../../types';
 import { formatoMm } from '../fabricacion/utils';
 import { CrearFaseDesdeCubicacionModal } from './CrearFaseDesdeCubicacionModal';
 import { ArmarCasaModal, AsignarModal, ArmarEdificioModal, CopiarCasaModal, CopiarPisoModal, DeptosModal, PisosModal, RecintosModal, RenombrarModal, RenombrarTorreModal, TorreModal, UbicacionesModal, UnidadEspecialModal } from './EstructuraModales';
@@ -206,10 +207,19 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
   const [ventanaActivaId, setVentanaActivaId] = useState<string | null>(null);
   const [sobre, setSobre] = useState<string | null>(null);
   const [buscar, setBuscar] = useState('');
+  // Pisos replegados (id de piso): muestran solo el resumen del piso.
+  const [pisosCerrados, setPisosCerrados] = useState<Set<string>>(new Set());
+  const alternarPiso = (id: string) =>
+    setPisosCerrados((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
   // Legacy: filtro por documento de fabricación ('' = todos). Los documentos traen el nombre nuevo (y el de HETMO como referencia).
   const [documentoId, setDocumentoId] = useState('');
   const documentos = useQuery({ queryKey: ['fabricaciones', proyectoId], queryFn: () => getFabricacionesProyecto(proyectoId), enabled: !!legacy });
-  const voc = vocabulario(cubicacion.modo);
+  const voc = vocabulario(cubicacion.modo, queryClient.getQueryData<Proyecto>(['proyectoDetail', proyectoId])?.obra);
   // Casa cuando se cubica por casa; edificio si no.
   const IconoEstructura = voc.modo === 'CASA' ? Home : Building2;
 
@@ -325,15 +335,8 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
 
   const vacia = data.torres.length === 0;
   const base = { proyectoId, voc, onClose: () => setModal(null), onHecho: refrescar };
-  // Con un documento elegido solo se muestran sus ventanas (los departamentos quedan igual).
-  const deDocumento = (vs: UnidadCubicacion[]) => (documentoId ? vs.filter((v) => v.documento?.id === documentoId) : vs);
-  const torres = documentoId
-    ? data.torres.map((t) => ({
-        ...t,
-        pisos: t.pisos.map((p) => ({ ...p, deptos: p.deptos.map((d) => ({ ...d, ventanas: deDocumento(d.ventanas) })) })),
-        especiales: t.especiales.map((d) => ({ ...d, ventanas: deDocumento(d.ventanas) })),
-      }))
-    : data.torres;
+  // El filtro por documento solo afecta a la lista «Por ubicar»: el edificio siempre se ve completo.
+  const torres = data.torres;
 
   return (
     <div className="space-y-3">
@@ -348,16 +351,6 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
           <Button variant="outline" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setModal({ tipo: 'torre' })}>
             {voc.agregarContenedor}
           </Button>
-          {legacy && (
-            <SelectCompacto value={documentoId} onChange={(e) => setDocumentoId(e.target.value)} aria-label="Filtrar por documento de fabricación" className="max-w-[16rem]">
-              <option value="">Todos los documentos</option>
-              {(documentos.data ?? []).map((f) => (
-                <option key={f.id} value={f.id}>
-                  {nombreDocumento(f)}
-                </option>
-              ))}
-            </SelectCompacto>
-          )}
           {versionId && !legacy && (
             <Button
               variant="outline"
@@ -393,6 +386,16 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
               })()}
             </Badge>
           </div>
+          {legacy && (
+            <SelectCompacto value={documentoId} onChange={(e) => setDocumentoId(e.target.value)} aria-label="Filtrar por documento de fabricación" className="w-full">
+              <option value="">Todos los documentos</option>
+              {(documentos.data ?? []).map((f) => (
+                <option key={f.id} value={f.id}>
+                  {nombreDocumento(f)}
+                </option>
+              ))}
+            </SelectCompacto>
+          )}
           <Buscador compacto valor={buscar} onChange={setBuscar} placeholder={legacy ? 'Buscar 2115 V02, documento…' : 'Buscar V01, corredera…'} etiqueta={legacy ? 'Buscar ventana' : 'Buscar tipo de ventana'} />
           <div className="max-h-[60dvh] overflow-y-auto space-y-1.5 pr-0.5">
             {legacy && porUbicarLegacy.length === 0 && <p className="text-xs text-slate-400 py-3 text-center">{documentoId ? 'No quedan ventanas por ubicar de este documento.' : 'Todas las ventanas tienen lugar.'}</p>}
@@ -500,6 +503,20 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                       </span>
                     </div>
                     <div className="flex flex-wrap items-center gap-1 text-xs">
+                      {torre.pisos.length > 1 && (
+                        <IconButton
+                          icono={torre.pisos.every((p) => pisosCerrados.has(p.id)) ? ChevronsUpDown : ChevronsDownUp}
+                          etiqueta={torre.pisos.every((p) => pisosCerrados.has(p.id)) ? 'Desplegar todos los pisos' : 'Replegar todos los pisos'}
+                          onClick={() =>
+                            setPisosCerrados((prev) => {
+                              const n = new Set(prev);
+                              const todosCerrados = torre.pisos.every((p) => n.has(p.id));
+                              torre.pisos.forEach((p) => (todosCerrados ? n.delete(p.id) : n.add(p.id)));
+                              return n;
+                            })
+                          }
+                        />
+                      )}
                       <Button variant="ghost" size="sm" onClick={() => setModal({ tipo: 'pisos', torreId: torre.id, nombreTorre: torre.nombre, sugerido: ultimo + 1 })}>+ Pisos</Button>
                       {voc.modo === 'EDIFICIO' && (
                         <Button variant="ghost" size="sm" onClick={() => setModal({ tipo: 'deptos', torreId: torre.id, nombreTorre: torre.nombre })}>+ Deptos en todos los pisos</Button>
@@ -546,10 +563,22 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                     <p className="px-4 py-5 text-xs text-slate-400">Esta {voc.contenedor} aún no tiene pisos.</p>
                   ) : (
                     <div className="divide-y divide-slate-100">
-                      {[...torre.pisos].reverse().map((piso) => (
-                        <div key={piso.id} className="px-4 py-3 flex flex-col sm:flex-row gap-3" data-testid={`piso-${torre.nombre || 'sin'}-${piso.numero}`}>
-                          <div className="sm:w-28 shrink-0">
-                            <p className="text-sm font-black text-slate-800">Piso {piso.numero}</p>
+                      {[...torre.pisos].reverse().map((piso) => {
+                        const cerrado = pisosCerrados.has(piso.id);
+                        const nVentanas = piso.deptos.reduce((x, d) => x + d.ventanas.length, 0);
+                        const vacios = piso.deptos.filter((d) => d.ventanas.length === 0).length;
+                        return (
+                        <div key={piso.id} className="px-4 py-3 space-y-2" data-testid={`piso-${torre.nombre || 'sin'}-${piso.numero}`}>
+                          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                            <BotonColapsar abierto={!cerrado} onClick={() => alternarPiso(piso.id)} className="rounded-lg -ml-1 px-1 py-0.5 hover:bg-slate-50">
+                              <span className="sr-only">{cerrado ? 'Desplegar' : 'Replegar'} el piso {piso.numero} ({voc.textoTorre(torre.nombre)})</span>
+                              <span className="text-sm font-black text-slate-800">Piso {piso.numero}</span>
+                              <span className="text-[11px] text-slate-500">
+                                {piso.deptos.length} {voc.unidadCorta === 'depto' ? (piso.deptos.length === 1 ? 'depto' : 'deptos') : piso.deptos.length === 1 ? 'recinto' : 'recintos'} · {nVentanas} ventana(s)
+                              </span>
+                              {vacios > 0 && <Badge size="sm" variant="warning">{vacios} sin ventanas</Badge>}
+                              {piso.deptos.length > 0 && vacios === 0 && <Badge size="sm" variant="success">completo</Badge>}
+                            </BotonColapsar>
                             <div className="flex flex-wrap gap-x-2 text-[11px]">
                               <Button
                                 variant="link"
@@ -565,7 +594,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-2 flex-1 min-w-0 content-start">
+                          <div className={`grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-2 min-w-0 content-start ${cerrado ? 'hidden' : ''}`}>
                             {piso.deptos.length === 0 && <p className="text-xs text-slate-400 py-2">Sin {voc.unidades}.</p>}
                             {piso.deptos.map((depto) => (
                               <TarjetaUnidad
@@ -593,7 +622,8 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                             ))}
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </section>

@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { crearUnidadCubicacion, editarUnidadCubicacion } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
-import type { ConfigCubicacion, TipoCubicacion, UnidadCubicacion } from '../../../types';
+import type { ConfigCubicacion, TipoCubicacion, UnidadCubicacion, Proyecto } from '../../../types';
 import { formatoMm } from '../fabricacion/utils';
 import { leerMilimetros } from '../pendientes/utils';
 import { campo } from './estilos';
@@ -34,7 +34,7 @@ const entero = (t: string): number | null => (t.trim() !== '' && /^-?\d+$/.test(
 export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, unidad, inicial, legacy, onClose }) => {
   const queryClient = useQueryClient();
   const editando = !!unidad;
-  const voc = vocabulario(cubicacion.modo);
+  const voc = vocabulario(cubicacion.modo, queryClient.getQueryData<Proyecto>(['proyectoDetail', proyectoId])?.obra);
   const casa = voc.modo === 'CASA';
   const tiposVentana = tipos.filter((t) => !t.esAreaComun);
   const [tipoId, setTipoId] = useState(unidad?.tipoId ?? '');

@@ -126,31 +126,38 @@ const apiClient = axios.create({
 // el preflight antes de que llegue al relay). En ese caso, forzamos el
 // mismo flujo de re-login que useCloudflareAccessSession usa al inicio, en
 // vez de dejar que la app se quede mostrando un error generico.
+// Una falla sin respuesta NO siempre es sesion vencida: puede ser un corte de red momentaneo o un
+// timeout. Redirigir en esos casos botaba la sesion en pleno trabajo (ej. cubicando) y se perdia lo que
+// se estaba haciendo. Por eso, antes de redirigir se consulta session-check: si la sesion sigue viva,
+// el error se devuelve normal (la pantalla lo muestra) y la persona sigue donde estaba.
+async function sesionVigente(relayOrigin: string): Promise<boolean> {
+  const control = new AbortController();
+  const plazo = setTimeout(() => control.abort(), 8000);
+  try {
+    const res = await fetch(`${relayOrigin}/api/session-check`, { credentials: 'include', signal: control.signal, redirect: 'manual' });
+    if (!res.ok) return false;
+    const body = await res.json();
+    return body?.ok === true;
+  } catch (e) {
+    // Sin internet o servidor lento: no es sesion vencida, no se redirige. Con red y un rechazo de CORS,
+    // es lo que hace Cloudflare Access cuando la sesion vencio: ahi si hay que renovarla.
+    return !navigator.onLine || (e instanceof DOMException && e.name === 'AbortError');
+  } finally {
+    clearTimeout(plazo);
+  }
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     const apiUrl = import.meta.env.VITE_API_URL;
-    if (!error.response && typeof apiUrl === 'string') {
+    if (!error.response && typeof apiUrl === 'string' && !axios.isCancel(error)) {
       try {
         const relayOrigin = new URL(apiUrl).origin;
-        // Sin esto, esta rama redirige en silencio ante CUALQUIER falla de
-        // red (no solo sesion vencida: un timeout, el backend caido, un
-        // payload rechazado) y la navegacion completa borra la pestaña
-        // Network/Console antes de que se alcance a leer el motivo real --
-        // "se puso rojo y desaparecio", sin ningun rastro. El console.error
-        // sirve si hay "Preserve log" activado; el alert() es lo unico que
-        // sobrevive la navegacion de forma confiable.
-        console.error(
-          '[apiClient] Peticion sin respuesta -- redirigiendo a session-check. Metodo/URL:',
-          error?.config?.method,
-          error?.config?.url,
-          'Mensaje:',
-          error?.message
-        );
-        // oxlint-disable-next-line no-alert -- unico aviso que sobrevive la redireccion (ver arriba)
-        window.alert(
-          `No se pudo contactar al servidor (${error?.config?.method?.toUpperCase() || '?'} ${error?.config?.url || '?'}): ${error?.message || 'error de red'}.\n\nSe va a intentar renovar la sesion.`
-        );
+        if (await sesionVigente(relayOrigin)) return Promise.reject(error);
+        console.error('[apiClient] Sesion vencida -- redirigiendo a session-check. Metodo/URL:', error?.config?.method, error?.config?.url, 'Mensaje:', error?.message);
+        // oxlint-disable-next-line no-alert -- unico aviso que sobrevive la redireccion
+        window.alert('Tu sesión venció. Se va a renovar y volverás a esta pantalla; lo que no alcanzaste a guardar puede perderse.');
         window.location.href = `${relayOrigin}/api/session-check?redirect=${encodeURIComponent(window.location.href)}`;
         return new Promise(() => {}); // corta la cadena, la navegacion ya esta en curso
       } catch {

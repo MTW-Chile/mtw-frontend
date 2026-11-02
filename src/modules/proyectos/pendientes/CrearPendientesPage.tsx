@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, ArrowLeft, Building2, ClipboardList, Home, Send, Square, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Building2, Home, Send, ShoppingCart, Square, Trash2 } from 'lucide-react';
 import { crearPendientesLote, getFichaVentana, getVentanasObra } from '../../../api/client';
 import { Seccion } from '../../../components/ui/Seccion';
+import { Modal } from '../../../components/ui/Modal';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
 import { Aviso } from '../../../components/ui/Aviso';
@@ -202,10 +203,12 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
   const [activa, setActiva] = useState<VentanaObra | null>(null);
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [cerrados, setCerrados] = useState<Set<string>>(new Set());
+  // Listado (carrito) desplegado: «Revisar listado y enviar».
+  const [revisando, setRevisando] = useState(false);
 
   const arbol = useQuery({ queryKey: ['ventanasObra', proyecto.id], queryFn: () => getVentanasObra(proyecto.id) });
   const ficha = useQuery({ queryKey: ['fichaVentana', proyecto.id, activa?.id], queryFn: () => getFichaVentana(proyecto.id, activa!.id), enabled: !!activa, staleTime: 60_000 });
-  const voc = vocabulario(arbol.data?.modo);
+  const voc = vocabulario(arbol.data?.modo, proyecto.obra);
   const Icono = arbol.data?.modo === 'CASA' ? Home : Building2;
 
   const q = busqueda.trim().toLowerCase();
@@ -221,6 +224,7 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
       queryClient.invalidateQueries({ queryKey: ['fichaVentana', proyecto.id] });
       queryClient.invalidateQueries({ queryKey: ['resumenObra', proyecto.id] });
       setCarrito([]);
+      setRevisando(false);
       onCerrar();
     },
     onError: (e) => {
@@ -234,7 +238,10 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
     setCarrito((c) => [...c, { ...p, clave: `${activa.id}-${Date.now()}-${c.length}`, ventana: activa }]);
     mostrarToast(`Agregado: ${p.resumen}`, { tipo: 'info' });
   };
-  const quitar = (clave: string) => setCarrito((c) => c.filter((x) => x.clave !== clave));
+  const quitar = (clave: string) => {
+    setCarrito((c) => c.filter((x) => x.clave !== clave));
+    if (carrito.length <= 1) setRevisando(false);
+  };
   const salir = async () => {
     if (carrito.length === 0 || (await confirmar({ titulo: `¿Salir sin enviar ${carrito.length} pendiente(s)?`, mensaje: 'Lo que está en el listado se pierde.', confirmar: 'Salir', peligro: true }))) onCerrar();
   };
@@ -251,16 +258,25 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
     return !!d && (d.torres.some((t) => t.pisos.length || t.especiales.length) || d.unica.length > 0 || d.areasComunes.length > 0);
   }, [arbol.data]);
 
-  const carritoPanel = (
-    <Seccion
-      icono={ClipboardList}
-      titulo={`Listado (${carrito.length})`}
-      descripcion="Se ingresan todos juntos al enviar."
-      sinRelleno
-      acciones={
-        <Button variant="primary" size="sm" leftIcon={<Send className="w-3.5 h-3.5" />} disabled={carrito.length === 0} isLoading={enviar.isPending} onClick={() => enviar.mutate()}>
-          Enviar {carrito.length || ''}
-        </Button>
+  // Listado de pendientes ya ingresados (carrito): se abre bajo demanda para no alargar la página.
+  const listadoModal = revisando && (
+    <Modal
+      titulo={`Listado de pendientes (${carrito.length})`}
+      subtitulo="Revisa lo ingresado: se envían todos juntos."
+      icono={ShoppingCart}
+      ancho="lg"
+      onClose={() => setRevisando(false)}
+      cerrable={!enviar.isPending}
+      cuerpoClassName="p-0"
+      pie={
+        <Modal.Pie inicio={`${carrito.length} pendiente(s)`}>
+          <Button variant="outline" size="sm" disabled={enviar.isPending} onClick={() => setRevisando(false)}>
+            Seguir agregando
+          </Button>
+          <Button variant="primary" size="sm" leftIcon={<Send className="w-3.5 h-3.5" />} disabled={carrito.length === 0} isLoading={enviar.isPending} onClick={() => enviar.mutate()}>
+            Enviar {carrito.length || ''}
+          </Button>
+        </Modal.Pie>
       }
     >
       {carrito.length === 0 ? (
@@ -276,7 +292,7 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
           ))}
         </Lista>
       )}
-    </Seccion>
+    </Modal>
   );
 
   return (
@@ -298,8 +314,8 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
       ) : !hayEstructura ? (
         <EstadoVacio icono={Square} titulo="Esta obra todavía no está cubicada" descripcion="Los pendientes se levantan sobre las ventanas cubicadas. Carga la cubicación en Taller › Fabricación › Cubicación." />
       ) : (
-        /* Tablet (hasta 2xl): dos columnas, el listado va bajo el formulario y una barra fija abajo lleva el envío. */
-        <div className="grid grid-cols-1 lg:grid-cols-[20rem_1fr] 2xl:grid-cols-[20rem_1fr_20rem] gap-4 items-start pb-16 2xl:pb-0">
+        /* Dos columnas (plano y formulario); el listado de pendientes ingresados es un desplegable (carrito) desde la barra inferior. */
+        <div className="grid grid-cols-1 lg:grid-cols-[20rem_1fr] gap-4 items-start pb-16">
           {/* Árbol */}
           <div className="space-y-2 lg:sticky lg:top-4 lg:max-h-[80dvh] lg:overflow-y-auto pr-0.5">
             <Buscador valor={busqueda} onChange={setBusqueda} placeholder="Piso 10, depto 1004, V01_1004A, documento…" etiqueta="Buscar ventanas" />
@@ -375,28 +391,30 @@ export const CrearPendientesPage: React.FC<Props> = ({ proyecto, onCerrar }) => 
                 <Seccion icono={Square} titulo={nombreVentana(activa)} descripcion={ficha.data.ventana.sistema}>
                   <FichaVentana proyectoId={proyecto.id} ficha={ficha.data} />
                 </Seccion>
-                <Seccion titulo="Pendiente de esta ventana" descripcion="Al agregarlo queda en el listado de la derecha; puedes agregar varios por ventana.">
+                <Seccion titulo="Pendiente de esta ventana" descripcion="Al agregarlo queda en el listado (carrito); puedes agregar varios por ventana.">
                   {ficha.data.hetmoError && <div className="mb-3"><Aviso tono="advertencia">{ficha.data.hetmoError}</Aviso></div>}
                   <FormularioPendiente key={activa.id} ficha={ficha.data} onAgregar={agregar} />
                 </Seccion>
               </>
             )}
-            <div className="2xl:hidden">{carritoPanel}</div>
           </div>
 
-          <div className="hidden 2xl:block 2xl:sticky 2xl:top-4">{carritoPanel}</div>
         </div>
       )}
       {carrito.length > 0 && (
-        <div className="2xl:hidden fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur px-4 py-2 flex items-center justify-between gap-3 shadow-2xl" role="status">
-          <p className="text-xs text-slate-700">
-            <b>{carrito.length}</b> pendiente(s) en el listado
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur px-4 py-2 flex items-center justify-between gap-3 shadow-2xl" role="status">
+          <p className="flex items-center gap-2 text-xs text-slate-700">
+            <ShoppingCart className="w-4 h-4 text-brand-600" />
+            <span>
+              <b>{carrito.length}</b> pendiente(s) en el listado
+            </span>
           </p>
-          <Button variant="primary" size="sm" leftIcon={<Send className="w-3.5 h-3.5" />} isLoading={enviar.isPending} onClick={() => enviar.mutate()} className="pointer-coarse:min-h-11">
-            Enviar {carrito.length}
+          <Button variant="primary" size="sm" leftIcon={<Send className="w-3.5 h-3.5" />} onClick={() => setRevisando(true)} className="pointer-coarse:min-h-11">
+            Revisar listado y enviar
           </Button>
         </div>
       )}
+      {listadoModal}
     </div>
   );
 };

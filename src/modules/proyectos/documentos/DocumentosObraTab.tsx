@@ -10,6 +10,8 @@ import { BotonesAdjuntar } from '../pendientes/adjuntos/BotonesAdjuntar';
 import { formatoTamano, mimeDeArchivo } from '../pendientes/adjuntos/utils';
 import { InputCompacto } from '../../../components/ui/Campos';
 import { BotonFila } from '../../../components/ui/Lista';
+import { CarpetaObraBoton } from '../pendientes/adjuntos/CarpetaObraBoton';
+import { VisorDocumento, tipoDeVista } from './VisorDocumento';
 
 interface Miga {
   id: string;
@@ -42,6 +44,7 @@ export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }
   const [migas, setMigas] = useState<Miga[]>([]);
   const [creandoCarpeta, setCreandoCarpeta] = useState(false);
   const [nombreCarpeta, setNombreCarpeta] = useState('');
+  const [viendo, setViendo] = useState<ItemOneDrive | null>(null);
   const [subiendo, setSubiendo] = useState<{ hechos: number; total: number } | null>(null);
 
   const { data: estado } = useQuery({ queryKey: ['onedriveEstado'], queryFn: () => getOneDriveEstado(), staleTime: 1000 * 60 });
@@ -85,10 +88,13 @@ export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }
 
   if (!proyecto.onedriveCarpetaId) {
     return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
-        {estado?.conectada
-          ? 'Esta obra no tiene carpeta de OneDrive vinculada: vincúlala desde la lista de Obras en curso para ver y subir documentos.'
-          : 'OneDrive no está conectado: un administrador debe conectarlo en Configuración > OneDrive.'}
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900 flex flex-wrap items-center justify-between gap-3">
+        <span>
+          {estado?.conectada
+            ? 'Esta obra no tiene carpeta de OneDrive vinculada. Vincúlala para ver y subir documentos desde aquí.'
+            : 'OneDrive no está conectado: un administrador debe conectarlo en Configuración > OneDrive.'}
+        </span>
+        <CarpetaObraBoton proyecto={proyecto} />
       </div>
     );
   }
@@ -105,7 +111,8 @@ export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }
             </React.Fragment>
           ))}
         </nav>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <CarpetaObraBoton proyecto={proyecto} />
           <Button size="sm" variant="outline" leftIcon={<FolderPlus className="w-3.5 h-3.5" />} onClick={() => setCreandoCarpeta(true)}>
             Nueva carpeta
           </Button>
@@ -148,7 +155,7 @@ export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }
             <li key={item.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
               <BotonFila
                 sinRelleno
-                onClick={() => (item.tipo === 'carpeta' ? setMigas([...migas, { id: item.id, nombre: item.nombre }]) : abrirArchivo(proyecto.id, item))}
+                onClick={() => (item.tipo === 'carpeta' ? setMigas([...migas, { id: item.id, nombre: item.nombre }]) : tipoDeVista(item) ? setViendo(item) : abrirArchivo(proyecto.id, item))}
                 className="flex-1 min-w-0 flex items-center gap-3"
               >
                 {item.tipo === 'carpeta' ? (
@@ -180,6 +187,7 @@ export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }
           ))}
         </ul>
       )}
+      {viendo && tipoDeVista(viendo) && <VisorDocumento proyectoId={proyecto.id} item={viendo} tipo={tipoDeVista(viendo)!} onClose={() => setViendo(null)} />}
     </div>
   );
 };

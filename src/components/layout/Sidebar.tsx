@@ -213,8 +213,23 @@ export const Sidebar: React.FC<{
                 const contieneActiva = hijos.some((h) => h.id === activeTab);
                 return (
                   <div key={entrada.id} className="space-y-1">
-                    {/* En el riel (contraído) no hay grupos que desplegar: se ve un separador y los íconos. */}
+                    {/* Riel contraído: un solo ícono por grupo (sin submenús). Al tocarlo se expande el menú con ese grupo abierto. */}
                     <div className={`hidden ${expandido ? '' : 'md:block'} mx-2 my-2 border-t border-white/8`} />
+                    {!expandido && (
+                      <button
+                        onClick={() => {
+                          setAbierto(entrada.id);
+                          guardarGrupo(entrada.id);
+                          setFijado(true);
+                          guardarFijado(true);
+                        }}
+                        aria-label={entrada.titulo}
+                        title={entrada.titulo}
+                        className={`hidden md:flex w-full items-center justify-center py-2.5 rounded-lg transition-colors cursor-pointer hover:bg-white/5 ${contieneActiva ? 'bg-white/10' : ''}`}
+                      >
+                        <GrupoIcon className={`w-4 h-4 shrink-0 ${contieneActiva ? 'text-brand-300' : 'text-slate-500'}`} />
+                      </button>
+                    )}
                     <button
                       onClick={() => alternarGrupo(entrada.id)}
                       aria-expanded={abierto === entrada.id}
@@ -228,7 +243,7 @@ export const Sidebar: React.FC<{
                       </span>
                       <ChevronDown className={`w-3.5 h-3.5 shrink-0 text-slate-500 transition-transform ${abierto === entrada.id ? 'rotate-180' : ''}`} />
                     </button>
-                    <div className={`space-y-1 ${abierto === entrada.id ? '' : 'hidden'} ${expandido ? '' : 'md:block'}`}>
+                    <div className={`space-y-1 ${abierto === entrada.id ? '' : 'hidden'} ${expandido ? '' : 'md:hidden'}`}>
                       {hijos.map((h) => renderItem(h, true, `${entrada.id}-${h.id}`))}
                     </div>
                   </div>
