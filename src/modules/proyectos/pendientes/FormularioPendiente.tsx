@@ -18,7 +18,6 @@ import {
   admiteRectificacion,
   areaDelPendiente,
   etiquetaPieza,
-  exigeResponsable,
   leerMilimetros,
   nombreCuadro,
   nombrePosicionPieza,
@@ -63,7 +62,6 @@ export const FormularioPendiente: React.FC<Props> = ({ proyectoId, ficha, onAgre
   const [vidriosSel, setVidriosSel] = useState<string[]>([]);
   const [hojasSel, setHojasSel] = useState<string[]>([]);
   const [notas, setNotas] = useState('');
-  const [responsable, setResponsable] = useState('');
   const [archivos, setArchivos] = useState<File[]>([]);
   const [rectificando, setRectificando] = useState(false);
   const [rectAncho, setRectAncho] = useState('');
@@ -137,9 +135,8 @@ export const FormularioPendiente: React.FC<Props> = ({ proyectoId, ficha, onAgre
   })();
 
   const area = areaDelPendiente(tipo, motivo);
-  const pideResponsable = exigeResponsable(motivo);
   const notasObligatorias = tipo === 'OTRO';
-  const puedeAgregar = (!notasObligatorias || !!notas.trim()) && (!pideResponsable || !!responsable.trim()) && (!rectificando || rectificacionValida);
+  const puedeAgregar = (!notasObligatorias || !!notas.trim()) && (!rectificando || rectificacionValida);
 
   // La rectificación de una VENTANA la lee la API de la ventana de fabricación: sin lote, solo se puede
   // rectificar un vidrio (que lleva sus medidas originales).
@@ -154,7 +151,6 @@ export const FormularioPendiente: React.FC<Props> = ({ proyectoId, ficha, onAgre
         motivo,
         descripcion: titulo,
         notas: notas.trim() || undefined,
-        responsable: pideResponsable ? responsable.trim() : undefined,
         rectificacion:
           rectificando && rectificacionValida && medidaOriginal && objetivos.length === 1
             ? { anchoMm: nuevoAncho!, altoMm: nuevoAlto!, anchoOriginalMm: medidaOriginal.ancho, altoOriginalMm: medidaOriginal.alto }
@@ -197,9 +193,6 @@ export const FormularioPendiente: React.FC<Props> = ({ proyectoId, ficha, onAgre
           ))}
         </Select>
       </div>
-      {pideResponsable && (
-        <Input label="Responsable del daño" id="np-responsable" value={responsable} onChange={(e) => setResponsable(e.target.value)} maxLength={200} placeholder="Quién causó el daño" error={responsable.trim() ? undefined : 'Indica el responsable.'} />
-      )}
 
       {tipo === 'VIDRIO' &&
         (ficha.vidrios.length > 0 ? (

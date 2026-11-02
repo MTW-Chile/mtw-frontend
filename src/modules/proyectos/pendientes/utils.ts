@@ -1,6 +1,5 @@
 import type { BadgeVariant } from '../../../components/ui/Badge';
 import type {
-  CargoPendiente,
   DestinoPendiente,
   EstadoPendiente,
   EtapaPendiente,
@@ -53,21 +52,6 @@ export function areaDelPendiente(tipo: TipoElementoPendiente, motivo: MotivoPend
   if (motivo === 'NO_FABRICADO' || motivo === 'NO_RECEPCION') return 'FABRICA';
   return tipo === 'VENTANA' || tipo === 'HOJA' ? 'FABRICA' : 'TECNICA';
 }
-
-/**
- * A cargo de quien va si no se indica otro: daño en obra o cambio del cliente,
- * al cliente; daño en la instalacion, al instalador; falla, a nosotros. Lo no
- * fabricado o no recibido es parte del presupuesto (sin cargo aparte).
- */
-export function cargoDeMotivo(motivo: MotivoPendiente): CargoPendiente | null {
-  if (motivo === 'DANO_OBRA' || motivo === 'CAMBIO_CLIENTE') return 'CLIENTE';
-  if (motivo === 'DANO_INSTALACION') return 'INSTALADOR';
-  if (motivo === 'FALLA') return 'MTW';
-  return null;
-}
-
-/** Un daño (en obra o en instalacion) pide el responsable. */
-export const exigeResponsable = (motivo: MotivoPendiente): boolean => motivo === 'DANO_OBRA' || motivo === 'DANO_INSTALACION';
 
 /** Solo una ventana (se pide a Fabrica) o un vidrio se pueden rectificar. */
 export const admiteRectificacion = (tipo: TipoElementoPendiente): boolean => tipo === 'VENTANA' || tipo === 'VIDRIO';

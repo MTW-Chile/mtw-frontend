@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, ChevronRight, AlertCircle, Plus, Trash2 } from 'lucide-react';
 import { eliminarProyecto, getProyectos } from '../../api/client';
@@ -29,7 +29,7 @@ const AvanceFases: React.FC<{ resumen?: { total: number; enProduccionOCompletada
   const pct = Math.round((resumen.enProduccionOCompletadas / resumen.total) * 100);
   return (
     <span className="inline-flex items-center gap-2">
-      <span className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+      <span className="w-12 h-1.5 rounded-full bg-slate-100 overflow-hidden">
         <span className="block h-full rounded-full bg-brand-500" style={{ width: `${pct}%` }} />
       </span>
       <span className="font-mono font-semibold text-slate-600">
@@ -53,7 +53,7 @@ const Avance: React.FC<{ valor: number; total: number; color?: string; titulo?: 
   const pct = Math.min(100, Math.round((valor / total) * 100));
   return (
     <span className="inline-flex items-center gap-2" title={titulo ?? `${valor} de ${total}`}>
-      <span className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+      <span className="w-12 h-1.5 rounded-full bg-slate-100 overflow-hidden">
         <span className={`block h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
       </span>
       <span className="font-mono font-semibold text-slate-600 tabular-nums">
@@ -81,7 +81,15 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
   const [creandoObraManual, setCreandoObraManual] = useState(false);
   // Tabla solo si cabe de verdad en el espacio disponible (con el menú abierto en una tablet no cabe): si no, tarjetas.
   const [refPagina, anchoPagina] = useAnchoContenedor();
-  const isDesktop = anchoPagina >= (esFabricacion ? 1000 : 1180);
+  // Mínimo medido: si la tabla igual no cabe (columnas anchas, nombres largos), se recuerda el ancho que necesita y por
+  // debajo de él se usan tarjetas. Así la tabla nunca hace scroll horizontal.
+  const [minTabla, setMinTabla] = useState(0);
+  const cajaTabla = useRef<HTMLDivElement>(null);
+  const isDesktop = anchoPagina >= Math.max(esFabricacion ? 1000 : 1180, minTabla);
+  useLayoutEffect(() => {
+    const sc = cajaTabla.current?.querySelector('.table-scroll');
+    if (sc && sc.scrollWidth > sc.clientWidth + 1) setMinTabla(Math.ceil(anchoPagina + (sc.scrollWidth - sc.clientWidth) + 2));
+  });
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['proyectos', 'en-curso'],
@@ -197,7 +205,7 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
           Ninguna obra coincide con los filtros.
         </div>
       ) : isDesktop ? (
-        <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+        <div ref={cajaTabla} className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
           <Tabla>
             <Thead>
               {/* Cada lista muestra lo suyo: Comercial, venta y cobro; Taller, el avance físico. */}
@@ -241,7 +249,7 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
                   onClick={() => abrir(p)}
                   className="border-b border-slate-50 hover:bg-slate-50/70 transition-colors cursor-pointer"
                 >
-                  <Td className="min-w-[15rem]">
+                  <Td className="min-w-[12rem]">
                     <div className="text-xs font-bold text-slate-900 line-clamp-2 leading-snug" title={p.obra}>
                       {p.obra}
                     </div>
@@ -249,7 +257,7 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
                       {p.codigoInterno || `PRJ-${p.numeroPresupuesto}`}
                     </span>
                   </Td>
-                  <Td className="text-xs text-slate-600 min-w-[10rem] max-w-[16rem]" title={p.clienteNombreRaw}>
+                  <Td className="text-xs text-slate-600 min-w-[8rem] max-w-[16rem]" title={p.clienteNombreRaw}>
                     <div className="line-clamp-2 leading-snug">{p.clienteNombreRaw}</div>
                   </Td>
                   {esFabricacion ? (

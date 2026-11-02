@@ -8,7 +8,6 @@ import {
   referenciaPendiente,
   contarPorEstado,
   areaDelPendiente,
-  exigeResponsable,
   admiteRectificacion,
   leerMilimetros,
   tituloPendiente,
@@ -112,9 +111,7 @@ describe('areaDelPendiente', () => {
     expect(areaDelPendiente('VIDRIO', 'NO_FABRICADO')).toBe('FABRICA');
     expect(areaDelPendiente('MATERIAL', 'NO_RECEPCION')).toBe('FABRICA');
   });
-  it('responsable solo en los daños; rectificar solo ventana y vidrio', () => {
-    expect(exigeResponsable('DANO_OBRA') && exigeResponsable('DANO_INSTALACION')).toBe(true);
-    expect(exigeResponsable('FALLA')).toBe(false);
+  it('rectificar solo ventana y vidrio', () => {
     expect(admiteRectificacion('VENTANA') && admiteRectificacion('VIDRIO')).toBe(true);
     expect(admiteRectificacion('HOJA') || admiteRectificacion('MATERIAL') || admiteRectificacion('OTRO')).toBe(false);
   });

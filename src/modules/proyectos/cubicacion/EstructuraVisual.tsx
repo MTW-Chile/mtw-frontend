@@ -282,6 +282,13 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
   const IconoEstructura = voc.modo === 'CASA' ? Home : Building2;
 
   const { data, isLoading, isError } = useQuery({ queryKey: ['cubicacion', proyectoId, 'estructura'], queryFn: () => getEstructuraCubicacion(proyectoId) });
+  // Al abrir la pantalla todos los pisos que ya existen parten recogidos; los que se creen después aparecen desplegados.
+  const pisosIniciados = useRef(false);
+  useEffect(() => {
+    if (!data || pisosIniciados.current) return;
+    pisosIniciados.current = true;
+    setPisosCerrados(new Set(data.torres.flatMap((t) => t.pisos.map((p) => p.id))));
+  }, [data]);
 
   const refrescar = () => {
     queryClient.invalidateQueries({ queryKey: ['cubicacion', proyectoId] });

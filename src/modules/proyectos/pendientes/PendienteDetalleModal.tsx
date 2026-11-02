@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, RotateCcw, ShoppingCart, Trash2 } from 'lucide-react';
-import { cambiarEstadoPendiente, editarPendiente, eliminarPendiente, getEtapasPendiente, getPendiente } from '../../../api/client';
+import { cambiarEstadoPendiente, eliminarPendiente, getEtapasPendiente, getPendiente } from '../../../api/client';
 import { NuevoAdicionalModal } from '../adicionales/NuevoAdicionalModal';
 import { actualizarParams } from '../../../lib/navigation';
-import { avisarError } from '../../configuracion/catalogo/comun';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { formatoFechaHora } from '../fabricacion/utils';
@@ -12,8 +11,7 @@ import { AdjuntosDetalle } from './adjuntos/AdjuntosDetalle';
 import { DibujoVentana } from '../obra/DibujoVentana';
 import { SolicitudMaterialesModal } from '../../abastecimiento/solicitud/SolicitudMaterialesModal';
 import { usePermisos } from '../../../lib/permisos';
-import { ETIQUETA_CARGO, ETIQUETA_NATURALEZA } from '../../../types';
-import type { CargoPendiente } from '../../../types';
+import { ETIQUETA_NATURALEZA } from '../../../types';
 import {
   ETIQUETA_DESTINO,
   ETIQUETA_ESTADO,
@@ -66,12 +64,6 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
     queryFn: () => getPendiente(pendienteId),
   });
   const { data: etapas = [] } = useQuery({ queryKey: ['etapasPendiente'], queryFn: () => getEtapasPendiente(), staleTime: 1000 * 60 });
-
-  const cambiarCargo = useMutation({
-    mutationFn: (cargoA: CargoPendiente | null) => editarPendiente(pendienteId, { cargoA }),
-    onSuccess: () => refrescar(),
-    onError: avisarError,
-  });
 
   const refrescar = () => {
     queryClient.invalidateQueries({ queryKey: ['pendientes'] }); // la lista de la obra y el visor central
@@ -162,29 +154,14 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
                 {p.destino === 'FABRICA' && p.tipo === 'VENTANA' ? ' — pedido a Fábrica' : ''}
               </p>
             )}
-            {/* A cargo de quien: cliente o instalador -> adicional (se cobra); nosotros -> reposicion. */}
-            <div className="rounded-xl border border-slate-200 p-3 flex flex-wrap items-center justify-between gap-2">
-              <label className="flex items-center gap-2 text-xs">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">A cargo de</span>
-                <SelectCompacto
-                  value={p.cargoA ?? ''}
-                  disabled={!p.puedeResolver || p.estado === 'RESUELTO' || cambiarCargo.isPending}
-                  onChange={(e) => cambiarCargo.mutate((e.target.value || null) as CargoPendiente | null)}
-                >
-                  <option value="">Según el motivo ({p.cargoEfectivo && !p.cargoA ? ETIQUETA_CARGO[p.cargoEfectivo] : 'sin cargo aparte'})</option>
-                  {(['CLIENTE', 'INSTALADOR', 'MTW'] as CargoPendiente[]).map((c) => (
-                    <option key={c} value={c}>
-                      {ETIQUETA_CARGO[c]}
-                    </option>
-                  ))}
-                </SelectCompacto>
-              </label>
-              {(p.cargoEfectivo === 'CLIENTE' || p.cargoEfectivo === 'INSTALADOR') && tiene('adicionales.editar') && p.estado !== 'RESUELTO' && (
+            {/* El cargo (cliente, instalador o nosotros) ya no se elige a mano: sale del motivo. Si es cobrable, se cotiza el adicional. */}
+            {(p.cargoEfectivo === 'CLIENTE' || p.cargoEfectivo === 'INSTALADOR') && tiene('adicionales.editar') && p.estado !== 'RESUELTO' && (
+              <div className="flex justify-end">
                 <Button size="sm" variant="outline" onClick={() => setCotizandoAdicional(true)}>
                   Cotizar adicional
                 </Button>
-              )}
-            </div>
+              </div>
+            )}
             {/* Compras del pendiente: reposicion (falla o daño) u otra, enlazadas a el. */}
             <div className="rounded-xl border border-slate-200 p-3 space-y-2">
               <div className="flex items-center justify-between gap-2">

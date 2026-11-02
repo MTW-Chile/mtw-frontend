@@ -4,14 +4,12 @@ import { AlertTriangle, Loader2, Ruler } from 'lucide-react';
 import { crearPendiente, getFabricacionDetalle, getFabricacionesProyecto, getMaterialesFabricacion } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import type {
-  CargoPendiente,
   MotivoPendiente,
   Proyecto,
   TipoElementoPendiente,
   VentanaObra,
 } from '../../../types';
 import { DibujoVentana } from '../obra/DibujoVentana';
-import { ETIQUETA_CARGO } from '../../../types';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import { formatoMm, nombreDocumento } from '../fabricacion/utils';
 import { AdjuntosNuevoPendiente } from './adjuntos/AdjuntosNuevoPendiente';
@@ -24,8 +22,6 @@ import {
   TIPOS_PENDIENTE,
   admiteRectificacion,
   areaDelPendiente,
-  cargoDeMotivo,
-  exigeResponsable,
   leerMilimetros,
   textoRectificacion,
   tituloPendiente,
@@ -61,9 +57,7 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
   const [ventanaId, setVentanaId] = useState(ventanaCubicada?.lote?.fabricacionVentanaId ?? '');
   const [elementoId, setElementoId] = useState(''); // vidrio / hoja / material elegido de la ventana
   const [notas, setNotas] = useState('');
-  const [responsable, setResponsable] = useState('');
   // A cargo de quien: '' = el que sugiere el motivo.
-  const [cargo, setCargo] = useState<CargoPendiente | ''>('');
   // Rectificacion de medidas (solo ventana o vidrio elegidos)
   const [rectificando, setRectificando] = useState(false);
   const [rectAncho, setRectAncho] = useState('');
@@ -156,10 +150,9 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
   if (materialElegido) datosTitulo.material = { codigo: materialElegido.codigo_articulo, descripcion: materialElegido.descripcion_articulo };
 
   const area = areaDelPendiente(tipo, motivo);
-  const pideResponsable = exigeResponsable(motivo);
   const notasObligatorias = tipo === 'OTRO';
   const puedeCrear =
-    (!notasObligatorias || !!notas.trim()) && (!pideResponsable || !!responsable.trim()) && (!rectificando || rectificacionValida);
+    (!notasObligatorias || !!notas.trim()) && (!rectificando || rectificacionValida);
 
   const crear = useMutation({
     mutationFn: async () => {
@@ -169,8 +162,6 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
         motivo,
         descripcion: tituloPendiente(datosTitulo, notas),
         notas: notas.trim() || undefined,
-        responsable: pideResponsable ? responsable.trim() : undefined,
-        cargoA: cargo || undefined,
         rectificacion:
           rectificando && rectificacionValida && medidaOriginal
             ? { anchoMm: nuevoAncho!, altoMm: nuevoAlto!, anchoOriginalMm: medidaOriginal.ancho, altoOriginalMm: medidaOriginal.alto }
@@ -253,28 +244,6 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
             ))}
           </Select>
         </div>
-        <div>
-          <Select label="A cargo de" id="pend-cargo" value={cargo} onChange={(e) => setCargo(e.target.value as CargoPendiente | '')}>
-            <option value="">
-              Según el motivo ({cargoDeMotivo(motivo) ? ETIQUETA_CARGO[cargoDeMotivo(motivo)!] : 'sin cargo aparte'})
-            </option>
-            {(['CLIENTE', 'INSTALADOR', 'MTW'] as CargoPendiente[]).map((c) => (
-              <option key={c} value={c}>
-                {ETIQUETA_CARGO[c]}
-              </option>
-            ))}
-          </Select>
-        </div>
-        {pideResponsable && (
-          <div className="sm:col-span-2">
-            <Input label="Responsable"
-              id="pend-responsable"
-              value={responsable}
-              onChange={(e) => setResponsable(e.target.value)}
-              maxLength={200}
-              placeholder="Quién causó el daño" className={`${responsable.trim() ? '' : 'border-rose-300'}`} />
-          </div>
-        )}
       </div>
       <p className="text-[11px] text-slate-500" data-testid="area-asignada">
         Se enviará a: <b className="text-slate-700">{ETIQUETA_DESTINO[area]}</b>
