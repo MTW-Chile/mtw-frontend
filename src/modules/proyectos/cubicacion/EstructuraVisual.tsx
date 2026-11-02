@@ -68,7 +68,10 @@ const TarjetaUnidad: React.FC<{
   torre: string;
   tipoActivo: TipoCubicacion | null;
   /** Legacy: ventana elegida en el panel (se ubica con el botón del departamento, sin arrastrar). */
-  ventanaActiva?: UnidadCubicacion | null;
+  seleccion?: Set<string>;
+  onAlternarSeleccion?: (id: string) => void;
+  /** Ids que se arrastran juntos si `id` está marcada; si no, solo `id`. */
+  datosArrastre?: (id: string) => string;
   onUbicarActiva?: (ubicacion?: string) => void;
   sobre: string | null;
   onSobre: (id: string | null) => void;
@@ -84,7 +87,7 @@ const TarjetaUnidad: React.FC<{
   onEditarVentana: (v: UnidadCubicacion) => void;
   onQuitarVentana: (id: string) => void;
   legacy?: boolean;
-}> = ({ voc, nodo, torre, tipoActivo, ventanaActiva, onUbicarActiva, sobre, onSobre, onDrop, onAgregarUna, onAbrirAsignar, onNuevaUbicacion, onQuitarUbicacion, onRenombrar, onRenombrarUbicacion, onQuitar, onEditarVentana, onQuitarVentana, legacy }) => {
+}> = ({ voc, nodo, torre, tipoActivo, seleccion, onAlternarSeleccion, datosArrastre, onUbicarActiva, sobre, onSobre, onDrop, onAgregarUna, onAbrirAsignar, onNuevaUbicacion, onQuitarUbicacion, onRenombrar, onRenombrarUbicacion, onQuitar, onEditarVentana, onQuitarVentana, legacy }) => {
   // Un departamento puede tener ubicaciones (recintos); una casa no: ahí el recinto es la unidad misma.
   const conUbicaciones = voc.modo === 'EDIFICIO' && nodo.recintos.length > 0;
   const nombresRecintos = new Set(nodo.recintos.map((r) => r.nombre.toLowerCase()));
@@ -92,7 +95,16 @@ const TarjetaUnidad: React.FC<{
     <div
       key={v.id}
       draggable
-      onDragStart={(e) => e.dataTransfer.setData('text/plain', `ventana:${v.id}`)}
+      onDragStart={(e) => e.dataTransfer.setData('text/plain', datosArrastre ? datosArrastre(v.id) : `ventana:${v.id}`)}
+      // Ctrl, Cmd o Shift + clic marca la ventana para arrastrar varias juntas (sin abrir su edición).
+      onClickCapture={(e) => {
+        if (onAlternarSeleccion && (e.ctrlKey || e.metaKey || e.shiftKey)) {
+          e.preventDefault();
+          e.stopPropagation();
+          onAlternarSeleccion(v.id);
+        }
+      }}
+      aria-selected={seleccion?.has(v.id) ?? false}
       data-testid="ventana-chip"
       title={
         legacy
@@ -100,7 +112,7 @@ const TarjetaUnidad: React.FC<{
           : `${v.nomenclatura ?? ''} · ${v.sistema}${v.rectificada ? ` · fabricación ${formatoMm(v.anchoFabricacionMm)} × ${formatoMm(v.altoFabricacionMm)}` : ' · sin rectificar'}`
       }
       className={`group inline-flex items-center gap-1 rounded-lg border pl-1.5 pr-0.5 py-0.5 text-[11px] cursor-grab active:cursor-grabbing select-none ${
-        !legacy && v.rectificada ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-slate-200 bg-white text-slate-700'
+        seleccion?.has(v.id) ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-300 text-brand-900' : !legacy && v.rectificada ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-slate-200 bg-white text-slate-700'
       }`}
     >
       <ActivadorEdicion onClick={() => onEditarVentana(v)} etiqueta={`Editar ${v.nomenclatura ?? v.codigo}`} className="items-baseline!">
@@ -133,8 +145,8 @@ const TarjetaUnidad: React.FC<{
           {tipoActivo && titulo !== null && (
             <Button size="sm" onClick={() => onAgregarUna(ubicacion)} title={`Agregar una ${tipoActivo.codigo} en ${titulo}`}>+ 1 {tipoActivo.codigo}</Button>
           )}
-          {ventanaActiva && titulo !== null && onUbicarActiva && (
-            <Button size="sm" onClick={() => onUbicarActiva(ubicacion)} title={`Ubicar ${ventanaActiva.nomenclatura ?? ventanaActiva.codigo} en ${titulo}`}>Ubicar aquí</Button>
+          {!!seleccion?.size && titulo !== null && onUbicarActiva && (
+            <Button size="sm" onClick={() => onUbicarActiva(ubicacion)} title={`Ubicar ${seleccion.size} ventana(s) en ${titulo}`}>Ubicar aquí{seleccion.size > 1 ? ` (${seleccion.size})` : ''}</Button>
           )}
           {titulo !== null && <IconButton icono={Plus} etiqueta={`Agregar ventanas a ${titulo} (${nodo.nombre})`} tono="marca" onClick={() => onAbrirAsignar(ubicacion)} />}
           {renombrar && <IconButton icono={Pencil} etiqueta={`Cambiar nombre de la ubicación ${titulo} de ${nodo.nombre}`} tono="marca" onClick={renombrar} />}
@@ -164,8 +176,8 @@ const TarjetaUnidad: React.FC<{
           {tipoActivo && !conUbicaciones && (
             <Button size="sm" onClick={() => onAgregarUna()} title={`Agregar una ${tipoActivo.codigo} a este ${voc.unidad}`}>+ 1 {tipoActivo.codigo}</Button>
           )}
-          {ventanaActiva && !conUbicaciones && onUbicarActiva && (
-            <Button size="sm" onClick={() => onUbicarActiva()} title={`Ubicar ${ventanaActiva.nomenclatura ?? ventanaActiva.codigo} en ${nodo.nombre}`}>Ubicar aquí</Button>
+          {!!seleccion?.size && !conUbicaciones && onUbicarActiva && (
+            <Button size="sm" onClick={() => onUbicarActiva()} title={`Ubicar ${seleccion.size} ventana(s) en ${nodo.nombre}`}>Ubicar aquí{seleccion.size > 1 ? ` (${seleccion.size})` : ''}</Button>
           )}
           {!conUbicaciones && <IconButton icono={Plus} etiqueta={`Agregar ventanas a ${nodo.nombre} (${voc.textoTorre(torre)})`} tono="marca" onClick={() => onAbrirAsignar()} />}
           <IconButton icono={Pencil} etiqueta={`Cambiar nombre de ${nodo.nombre} (${voc.textoTorre(torre)})`} tono="marca" onClick={onRenombrar} />
@@ -204,7 +216,12 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
   const [modal, setModal] = useState<ModalAbierto | null>(null);
   const [activo, setActivo] = useState<string | null>(null);
   // Legacy: la ventana elegida en el panel «Por ubicar» (cada una con su nombre de fabricación).
-  const [ventanaActivaId, setVentanaActivaId] = useState<string | null>(null);
+  // Ventanas marcadas (se arrastran o se ubican juntas): clic en el panel, o Ctrl/Cmd/Shift + clic sobre una ya ubicada.
+  const [seleccionIds, setSeleccionIds] = useState<string[]>([]);
+  const seleccion = new Set(seleccionIds);
+  const alternarSeleccion = (id: string) => setSeleccionIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+  // Lo que se lleva el arrastre: todas las marcadas si la arrastrada es una de ellas; si no, solo ella.
+  const datosArrastre = (id: string) => (seleccion.has(id) && seleccionIds.length > 1 ? `ventanas:${seleccionIds.join(',')}` : `ventana:${id}`);
   const [sobre, setSobre] = useState<string | null>(null);
   const [buscar, setBuscar] = useState('');
   // Pisos replegados (id de piso): muestran solo el resumen del piso.
@@ -239,7 +256,6 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
   const saldoDe = (t: TipoCubicacion) => porUbicarDe(t.id) ?? t.saldo;
   // Legacy: ventanas por ubicar, una a una, con su nombre de fabricación (filtradas por documento y búsqueda).
   const porUbicarLegacy = (data?.unica ?? []).filter((v) => !documentoId || v.documento?.id === documentoId).filter((v) => !buscar.trim() || `${v.nomenclatura ?? ''} ${v.codigo} ${v.sistema} ${v.documento?.nombre ?? ''}`.toLowerCase().includes(buscar.trim().toLowerCase()));
-  const ventanaActiva = legacy ? (porUbicarLegacy.find((v) => v.id === ventanaActivaId) ?? null) : null;
   // Con un documento elegido, el panel muestra solo los tipos que tienen ventanas de ese documento por ubicar.
   const visibles = ventanasTipos
     .filter((t) => !documentoId || (porUbicarDe(t.id) ?? 0) > 0)
@@ -261,6 +277,33 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
       moverVentanaCubicacion(proyectoId, { ventanaId: id, unidadId: destino.unidadId, ...(destino.ubicacion !== undefined ? { ubicacion: destino.ubicacion } : {}) }),
     onSuccess: refrescar,
     onError: aviso,
+  });
+  // Varias ventanas a la vez, una tras otra (la nomenclatura de cada una se recalcula en orden).
+  const moverVarias = useMutation({
+    mutationFn: async ({ ids, destino }: { ids: string[]; destino: Destino }) => {
+      for (const id of ids) await moverVentanaCubicacion(proyectoId, { ventanaId: id, unidadId: destino.unidadId, ...(destino.ubicacion !== undefined ? { ubicacion: destino.ubicacion } : {}) });
+    },
+    onSuccess: () => {
+      setSeleccionIds([]);
+      refrescar();
+    },
+    onError: (e) => {
+      refrescar();
+      aviso(e);
+    },
+  });
+  const quitarVarias = useMutation({
+    mutationFn: async (ids: string[]) => {
+      for (const id of ids) await quitarPosicionVentanaCubicacion(id);
+    },
+    onSuccess: () => {
+      setSeleccionIds([]);
+      refrescar();
+    },
+    onError: (e) => {
+      refrescar();
+      aviso(e);
+    },
   });
   const quitarUbicacion = useMutation({
     mutationFn: (recintoId: string) => eliminarUbicacionCubicacion(proyectoId, recintoId),
@@ -298,24 +341,27 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
     if (dato.startsWith('tipo:')) {
       const tipo = ventanasTipos.find((t) => t.id === dato.slice(5));
       if (tipo) agregarUna(destino, tipo);
+    } else if (dato.startsWith('ventanas:')) {
+      moverVarias.mutate({ ids: dato.slice(9).split(','), destino });
     } else if (dato.startsWith('ventana:')) {
       mover.mutate({ id: dato.slice(8), destino });
     }
   };
-  // Legacy: ubica la ventana elegida en el departamento (o recinto) y deja elegida la siguiente del panel.
+  // Ubica en el departamento (o recinto) todas las ventanas marcadas.
   const ubicarActiva = (destino: Destino) => {
-    if (!ventanaActiva) return;
-    const i = porUbicarLegacy.findIndex((v) => v.id === ventanaActiva.id);
-    const siguiente = porUbicarLegacy[i + 1] ?? porUbicarLegacy[i - 1] ?? null;
-    mover.mutate({ id: ventanaActiva.id, destino });
-    setVentanaActivaId(siguiente?.id ?? null);
+    if (seleccionIds.length === 0) return;
+    if (seleccionIds.length === 1) {
+      mover.mutate({ id: seleccionIds[0], destino });
+      setSeleccionIds([]);
+    } else moverVarias.mutate({ ids: seleccionIds, destino });
   };
 
   const soltarEnPool = (e: React.DragEvent) => {
     e.preventDefault();
     setSobre(null);
     const dato = e.dataTransfer.getData('text/plain');
-    if (dato.startsWith('ventana:')) quitar.mutate(dato.slice(8));
+    if (dato.startsWith('ventanas:')) quitarVarias.mutate(dato.slice(9).split(','));
+    else if (dato.startsWith('ventana:')) quitar.mutate(dato.slice(8));
   };
 
   const confirmarEliminar = async (texto: string, p: Objetivo) => {
@@ -397,6 +443,12 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
             </SelectCompacto>
           )}
           <Buscador compacto valor={buscar} onChange={setBuscar} placeholder={legacy ? 'Buscar 2115 V02, documento…' : 'Buscar V01, corredera…'} etiqueta={legacy ? 'Buscar ventana' : 'Buscar tipo de ventana'} />
+          {legacy && porUbicarLegacy.length > 0 && (
+            <div className="flex items-center justify-between text-[11px]">
+              <Button variant="link" size="sm" onClick={() => setSeleccionIds(porUbicarLegacy.map((v) => v.id))}>Marcar las {porUbicarLegacy.length} visibles</Button>
+              {seleccionIds.length > 0 && <Button variant="link" size="sm" onClick={() => setSeleccionIds([])}>Limpiar ({seleccionIds.length})</Button>}
+            </div>
+          )}
           <div className="max-h-[60dvh] overflow-y-auto space-y-1.5 pr-0.5">
             {legacy && porUbicarLegacy.length === 0 && <p className="text-xs text-slate-400 py-3 text-center">{documentoId ? 'No quedan ventanas por ubicar de este documento.' : 'Todas las ventanas tienen lugar.'}</p>}
             {legacy &&
@@ -404,17 +456,17 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                 <div
                   key={v.id}
                   draggable
-                  onDragStart={(e) => e.dataTransfer.setData('text/plain', `ventana:${v.id}`)}
-                  onClick={() => setVentanaActivaId(ventanaActivaId === v.id ? null : v.id)}
+                  onDragStart={(e) => e.dataTransfer.setData('text/plain', datosArrastre(v.id))}
+                  onClick={() => alternarSeleccion(v.id)}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') setVentanaActivaId(ventanaActivaId === v.id ? null : v.id);
+                    if (e.key === 'Enter' || e.key === ' ') alternarSeleccion(v.id);
                   }}
-                  aria-pressed={ventanaActivaId === v.id}
+                  aria-pressed={seleccion.has(v.id)}
                   data-testid={`pool-ventana-${v.nomenclatura ?? v.codigo}`}
                   title={`${v.nomenclatura ?? v.codigo} · ${v.sistema}`}
-                  className={`rounded-xl border px-2.5 py-1.5 cursor-grab active:cursor-grabbing select-none ${ventanaActivaId === v.id ? 'border-brand-500 bg-brand-50 ring-1 ring-brand-300' : 'border-slate-200 bg-white hover:border-brand-300'}`}
+                  className={`rounded-xl border px-2.5 py-1.5 cursor-grab active:cursor-grabbing select-none ${seleccion.has(v.id) ? 'border-brand-500 bg-brand-50 ring-1 ring-brand-300' : 'border-slate-200 bg-white hover:border-brand-300'}`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono font-bold text-xs text-slate-900 truncate">{v.nomenclatura ?? v.codigo}</span>
@@ -469,9 +521,9 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
               Elegido: <b className="font-mono">{tipoActivo.codigo}</b>. Usa <b>+ 1</b> en {voc.modo === 'CASA' ? 'un recinto' : 'un departamento'} para agregarla.
             </p>
           )}
-          {ventanaActiva && (
+          {seleccionIds.length > 0 && (
             <p className="text-[11px] text-brand-700">
-              Elegida: <b className="font-mono">{ventanaActiva.nomenclatura ?? ventanaActiva.codigo}</b>. Toca <b>Ubicar aquí</b> en {voc.modo === 'CASA' ? 'un recinto' : 'un departamento'}, o arrástrala.
+              {seleccionIds.length === 1 ? '1 ventana marcada' : `${seleccionIds.length} ventanas marcadas`}. Toca <b>Ubicar aquí</b> en {voc.modo === 'CASA' ? 'un recinto' : 'un departamento'}, o arrástralas juntas. Clic marca o desmarca; en el edificio, Ctrl/Cmd/Shift + clic.
             </p>
           )}
         </aside>
@@ -539,8 +591,10 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                           voc={voc}
                           torre={torre.nombre}
                           tipoActivo={tipoActivo}
-                          ventanaActiva={ventanaActiva}
-                          onUbicarActiva={(ubicacion) => ventanaActiva && ubicarActiva({ unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre, ubicacion })}
+                          seleccion={seleccion}
+                          onAlternarSeleccion={alternarSeleccion}
+                          datosArrastre={datosArrastre}
+                          onUbicarActiva={(ubicacion) => ubicarActiva({ unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre, ubicacion })}
                           sobre={sobre}
                           onSobre={setSobre}
                           onDrop={(e, ubicacion) => soltarEnDepto(e, { unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre }, ubicacion)}
@@ -603,8 +657,10 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                                 voc={voc}
                                 torre={torre.nombre}
                                 tipoActivo={tipoActivo}
-                                ventanaActiva={ventanaActiva}
-                                onUbicarActiva={(ubicacion) => ventanaActiva && ubicarActiva({ unidadId: depto.id, torre: torre.nombre, nombreUnidad: depto.nombre, ubicacion })}
+                                seleccion={seleccion}
+                          onAlternarSeleccion={alternarSeleccion}
+                          datosArrastre={datosArrastre}
+                                onUbicarActiva={(ubicacion) => ubicarActiva({ unidadId: depto.id, torre: torre.nombre, nombreUnidad: depto.nombre, ubicacion })}
                                 sobre={sobre}
                                 onSobre={setSobre}
                                 onDrop={(e, ubicacion) => soltarEnDepto(e, { unidadId: depto.id, torre: torre.nombre, nombreUnidad: depto.nombre }, ubicacion)}
