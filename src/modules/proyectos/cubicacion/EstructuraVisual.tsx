@@ -73,8 +73,6 @@ const TarjetaUnidad: React.FC<{
   /** Ids que se arrastran juntos si `id` está marcada; si no, solo `id`. */
   datosArrastre?: (id: string) => string;
   onUbicarActiva?: (ubicacion?: string) => void;
-  sobre: string | null;
-  onSobre: (id: string | null) => void;
   // `ubicacion`: el recinto del departamento donde cayó o se agregó (undefined = el departamento entero).
   onDrop: (e: React.DragEvent, ubicacion?: string) => void;
   onAgregarUna: (ubicacion?: string) => void;
@@ -87,7 +85,11 @@ const TarjetaUnidad: React.FC<{
   onEditarVentana: (v: UnidadCubicacion) => void;
   onQuitarVentana: (id: string) => void;
   legacy?: boolean;
-}> = ({ voc, nodo, torre, tipoActivo, seleccion, onAlternarSeleccion, datosArrastre, onUbicarActiva, sobre, onSobre, onDrop, onAgregarUna, onAbrirAsignar, onNuevaUbicacion, onQuitarUbicacion, onRenombrar, onRenombrarUbicacion, onQuitar, onEditarVentana, onQuitarVentana, legacy }) => {
+}> = ({ voc, nodo, torre, tipoActivo, seleccion, onAlternarSeleccion, datosArrastre, onUbicarActiva, onDrop, onAgregarUna, onAbrirAsignar, onNuevaUbicacion, onQuitarUbicacion, onRenombrar, onRenombrarUbicacion, onQuitar, onEditarVentana, onQuitarVentana, legacy }) => {
+  // Resaltado del destino al arrastrar: estado de ESTA tarjeta. Si viviera en el padre, cada vez que el cursor
+  // cambia de departamento se re-dibujaría todo el edificio (cientos de tarjetas y ventanas) y el navegador, al
+  // no recibir respuesta a tiempo, deja de aceptar el soltar: con edificios altos «no pasaba nada».
+  const [sobre, onSobre] = useState<string | null>(null);
   // Un departamento puede tener ubicaciones (recintos); una casa no: ahí el recinto es la unidad misma.
   const conUbicaciones = voc.modo === 'EDIFICIO' && nodo.recintos.length > 0;
   const nombresRecintos = new Set(nodo.recintos.map((r) => r.nombre.toLowerCase()));
@@ -134,6 +136,7 @@ const TarjetaUnidad: React.FC<{
       onDragLeave={() => onSobre(null)}
       onDrop={(e) => {
         e.stopPropagation();
+        onSobre(null);
         onDrop(e, ubicacion);
       }}
       data-testid={`ubicacion-${nodo.nombre}-${titulo ?? 'sin'}`}
@@ -166,7 +169,10 @@ const TarjetaUnidad: React.FC<{
         onSobre(nodo.id);
       }}
       onDragLeave={() => onSobre(null)}
-      onDrop={(e) => onDrop(e)}
+      onDrop={(e) => {
+        onSobre(null);
+        onDrop(e);
+      }}
       data-testid={`depto-${torre || 'sin'}-${nodo.nombre}`}
       className={`rounded-xl border p-2 min-w-0 ${sobre === nodo.id ? 'border-brand-400 bg-brand-50/50 ring-2 ring-brand-100' : 'border-slate-200 bg-slate-50/50'}`}
     >
@@ -445,7 +451,10 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
             e.preventDefault();
             setSobre('pool');
           }}
-          onDragLeave={() => setSobre(null)}
+          onDragLeave={(e) => {
+            // Solo al salir del panel (no al pasar entre sus ventanas): evita redibujar todo el edificio a cada paso.
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSobre(null);
+          }}
           onDrop={soltarEnPool}
           data-testid="pool-ventanas"
         >
@@ -621,8 +630,6 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                           onAlternarSeleccion={alternarSeleccion}
                           datosArrastre={datosArrastre}
                           onUbicarActiva={(ubicacion) => ubicarActiva({ unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre, ubicacion })}
-                          sobre={sobre}
-                          onSobre={setSobre}
                           onDrop={(e, ubicacion) => soltarEnDepto(e, { unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre }, ubicacion)}
                           onAgregarUna={(ubicacion) => tipoActivo && agregarUna({ unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre, ubicacion }, tipoActivo)}
                           onAbrirAsignar={(ubicacion) => setModal({ tipo: 'asignar', destino: { unidadId: u.id, torre: torre.nombre, nombreUnidad: u.nombre, recintos: u.recintos.map((r) => r.nombre), ubicacion } })}
@@ -687,8 +694,6 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                           onAlternarSeleccion={alternarSeleccion}
                           datosArrastre={datosArrastre}
                                 onUbicarActiva={(ubicacion) => ubicarActiva({ unidadId: depto.id, torre: torre.nombre, nombreUnidad: depto.nombre, ubicacion })}
-                                sobre={sobre}
-                                onSobre={setSobre}
                                 onDrop={(e, ubicacion) => soltarEnDepto(e, { unidadId: depto.id, torre: torre.nombre, nombreUnidad: depto.nombre }, ubicacion)}
                                 onAgregarUna={(ubicacion) => tipoActivo && agregarUna({ unidadId: depto.id, torre: torre.nombre, nombreUnidad: depto.nombre, ubicacion }, tipoActivo)}
                                 onAbrirAsignar={(ubicacion) => setModal({ tipo: 'asignar', destino: { unidadId: depto.id, torre: torre.nombre, nombreUnidad: depto.nombre, recintos: depto.recintos.map((r) => r.nombre), ubicacion } })}
