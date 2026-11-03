@@ -1,10 +1,12 @@
 import React, { useEffect } from 'react';
-import { actualizarParams } from '../../lib/navigation';
+import { actualizarParams, useUrlParam } from '../../lib/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, LayoutDashboard, ShoppingCart, Factory, ClipboardList, Ruler, FilePlus2, Receipt, PackageOpen } from 'lucide-react';
 import { HeaderSlot } from '../../components/layout/HeaderSlot';
-import { actualizarFabricacionesObra, getProyectoById } from '../../api/client';
-import { OrdenesCompraList } from '../abastecimiento/OrdenesCompraList';
+import { actualizarFabricacionesObra, getProyectoById, getResumenReservasObra } from '../../api/client';
+import { AbastecimientoObraTab } from '../abastecimiento/reserva/AbastecimientoObraTab';
+import { AnuncioBanner } from '../inicio/AnuncioBanner';
+import { Button } from '../../components/ui/Button';
 import { RequisicionesSection } from './RequisicionesSection';
 import { InformacionGeneralTab } from './InformacionGeneralTab';
 import { CubicacionTab } from './cubicacion/CubicacionTab';
@@ -31,7 +33,7 @@ const SECCIONES: { id: Seccion; label: string; hint: string; icon: React.Element
   { id: 'cubicacion', label: 'Cubicación', hint: 'Reparto por piso y departamento, rectificación y nomenclatura (opcional)', icon: Ruler },
   { id: 'requisiciones', label: 'Requisiciones', hint: 'Solicitudes de material a bodega por fase', icon: PackageOpen },
   { id: 'fabricacion', label: 'Fases', hint: 'Fases de la obra y documentos de fabricación de HETMO', icon: Factory },
-  { id: 'abastecimiento', label: 'Abastecimiento', hint: 'Solicitudes de materiales a Compras y su estado', icon: ShoppingCart },
+  { id: 'abastecimiento', label: 'Abastecimiento', hint: 'Reserva de materiales de la obra y compras', icon: ShoppingCart },
   { id: 'pendientes', label: 'Pendientes', hint: 'Lo que falta o falló en esta obra', icon: ClipboardList },
   { id: 'adicionales', label: 'Adicionales', hint: 'Ventas o cargos fuera del presupuesto aceptado', icon: FilePlus2 },
   { id: 'estados-pago', label: 'Estados de pago', hint: 'Cobros parciales al cliente por hitos de cada ventana', icon: Receipt },
@@ -100,6 +102,18 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
   const activeVersion =
     proyecto?.versiones.find((v) => v.hetmoId === proyecto.versionActivaHetmoId) || proyecto?.versiones[0];
 
+  // Aviso arriba de la obra mientras sus materiales no se hayan reservado
+  // (las reservas se generan a mano en Abastecimiento > Reserva de materiales).
+  const veAbastecimiento = pestanas.some((p) => p.id === 'abastecimiento' && !p.disabled);
+  const { data: resumenReservas } = useQuery({
+    queryKey: ['reservasResumen', proyectoId],
+    queryFn: () => getResumenReservasObra(proyectoId),
+    enabled: modo === 'obra' && veAbastecimiento,
+    meta: { silencioso: true },
+  });
+  const [vistaAbastecimiento] = useUrlParam('vista');
+  const faltaReservar = modo === 'obra' && veAbastecimiento && resumenReservas?.aceptada && resumenReservas.generadas === 0;
+
   return (
     <div className="flex flex-col h-full">
       {/* Cliente y centro de costo van en el Header del sitio (portal); el código va en las migas, junto al nombre. */}
@@ -129,6 +143,24 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
             cubre el caso de que no entren todos los tabs en una pantalla
             angosta. */}
         {/* Con una sola pestaña (obra manual en Comercial) la barra no aporta nada. */}
+        {faltaReservar && (
+          <AnuncioBanner
+            urgencia="ADVERTENCIA"
+            texto="Los materiales de esta obra no se han reservado: los precios cotizados todavía no están comprometidos con los proveedores."
+            accion={
+              !(seccion === 'abastecimiento' && vistaAbastecimiento !== 'compras') && (
+                <Button
+                  variant="link"
+                  size="sm"
+                  onClick={() => actualizarParams({ seccion: 'abastecimiento', vista: null }, { replace: true })}
+                  className="shrink-0 text-amber-950! underline"
+                >
+                  Reservar materiales
+                </Button>
+              )
+            }
+          />
+        )}
         {pestanas.length > 1 && <BarraPestanas active={seccion} onChange={(id) => setSeccion(id)} tabs={pestanas} />}
 
         <div className="flex-1 overflow-y-auto p-5 sm:p-6">
@@ -143,7 +175,7 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
               {seccion === 'general' && <InformacionGeneralTab proyecto={proyecto} activeVersion={activeVersion} />}
               {seccion === 'cubicacion' && <CubicacionTab proyecto={proyecto} activeVersion={activeVersion} />}
               {seccion === 'requisiciones' && <RequisicionesSection proyecto={proyecto} activeVersion={activeVersion} />}
-              {seccion === 'abastecimiento' && <OrdenesCompraList proyectoId={proyectoId} proyectoLabel={proyecto.obra} />}
+              {seccion === 'abastecimiento' && <AbastecimientoObraTab proyectoId={proyectoId} proyectoLabel={proyecto.obra} />}
               {seccion === 'fabricacion' && <FabricacionTab proyecto={proyecto} activeVersion={activeVersion} />}
               {seccion === 'estados-pago' && <EstadosPagoTab proyecto={proyecto} />}
               {seccion === 'pendientes' && <PendientesTab proyecto={proyecto} />}

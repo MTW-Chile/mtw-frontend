@@ -9,6 +9,15 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - **Parche** (2.0.0 → 2.0.1): ajustes y mejoras acotadas, cada despliegue.
 - **Corrección urgente** sobre un parche (2.0.4 → 2.0.4.1; en package.json, 2.0.4-1): la decide Alfredo.
 
+## Sin publicar — reserva de materiales
+
+**Obras en curso › Abastecimiento** se separa en *Reserva de materiales* y *Compras*.
+- Reserva de materiales: todos los materiales del presupuesto aceptado, en una OC de reserva por partida y proveedor, con el precio cotizado (con el descuento de la partida) en su divisa de origen. Se generan a mano con «Generar reservas»; generarlas dos veces no duplica nada.
+- Por cada material: reservado, ya comprado para la obra y saldo. Los vidrios comprados por paño cuentan por su área.
+- Una reserva se marca enviada al proveedor o se anula (y vuelve a quedar por reservar). No entra a bodega, a conciliación, al control de presupuesto ni a los últimos precios.
+- Mientras la obra no tenga reservas, un aviso amarillo arriba de la obra lo recuerda.
+- Pendiente: cambiar el proveedor de una reserva y registrar la respuesta del proveedor.
+
 ## Sin publicar — uso con el dedo (tablet y celular)
 
 Revisión contra las pautas de NN/g para tablets (*Tablet Website and Application UX*).

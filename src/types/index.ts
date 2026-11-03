@@ -1015,6 +1015,8 @@ export interface OrdenCompraItem {
   cantidadCalculada: number | null;
   // null en una solicitud sin completar -- ver OrdenCompra.proveedorId.
   precioUnitario: number | null;
+  /** Divisa del precio de la linea (ISO); null = la de la OC. */
+  moneda?: string | null;
   recepciones?: RecepcionOCItem[];
   conciliacionItems?: ConciliacionFacturaItem[];
 }
@@ -2635,4 +2637,47 @@ export interface DisponiblesEstadoPago {
     montoCobrableUF: number;
   }[];
   adicionales: { id: string; numero: number; titulo: string; estado: EstadoAdicional; montoUF: number; cobradoEn: string | null }[];
+}
+
+// ---------- Reserva de materiales (Obras en curso > Abastecimiento) ----------
+
+export interface ItemReserva {
+  id: string;
+  materialId: string | null;
+  descripcion: string;
+  unidadMedida: string;
+  cantidad: number;
+  precioUnitario: number;
+  moneda: string;
+  /** Ya comprado para la obra en OC de compra, en la unidad de la reserva. */
+  comprado: number;
+  saldo: number;
+}
+
+export interface ReservaOC {
+  id: string;
+  numero: string;
+  estado: EstadoOC;
+  fechaEnvio: string | null;
+  creadoEn: string;
+  comentarios: string | null;
+  partida: { codigo: string; nombre: string } | null;
+  proveedor: { id: string; nombre: string } | null;
+  items: ItemReserva[];
+  /** Total por divisa (cada linea va en la suya). */
+  totales: Record<string, number>;
+}
+
+export interface GrupoPorReservar {
+  partida: { codigo: string; nombre: string };
+  proveedor: { id: string; nombre: string } | null;
+  materiales: number;
+  totales: Record<string, number>;
+}
+
+export interface ReservasObra {
+  aceptada: boolean;
+  version: { id: string; versionNumero: number } | null;
+  reservas: ReservaOC[];
+  porGenerar: GrupoPorReservar[];
 }

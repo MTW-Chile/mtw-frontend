@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type {
+  ReservasObra,
   ProyectosResponse,
   Proyecto,
   ProyectoVersion,
@@ -963,6 +964,22 @@ export async function getOrdenesCompra(params?: {
   page?: number;
 }): Promise<OrdenesCompraResponse> {
   const response = await apiClient.get<OrdenesCompraResponse>('/ordenes-compra', { params });
+  return response.data;
+}
+
+// Reserva de materiales de una obra (ver mtw-api src/modulos/compras/reservas.ts).
+export async function getReservasObra(proyectoId: string): Promise<ReservasObra> {
+  const response = await apiClient.get<{ data: ReservasObra }>(`/proyectos/${proyectoId}/reservas`);
+  return response.data.data;
+}
+
+export async function getResumenReservasObra(proyectoId: string): Promise<{ aceptada: boolean; generadas: number }> {
+  const response = await apiClient.get<{ data: { aceptada: boolean; generadas: number } }>(`/proyectos/${proyectoId}/reservas/resumen`);
+  return response.data.data;
+}
+
+export async function generarReservasObra(proyectoId: string): Promise<{ creadas: { id: string; numero: string }[] }> {
+  const response = await apiClient.post<{ creadas: { id: string; numero: string }[] }>(`/proyectos/${proyectoId}/reservas/generar`);
   return response.data;
 }
 
