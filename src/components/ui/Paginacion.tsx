@@ -95,7 +95,7 @@ export const Paginacion: React.FC<PaginacionProps> = ({
           </button>
           {rangoPaginas(paginaEfectiva, totalPaginas).map((p, i) =>
             p === '…' ? (
-              <span key={`e${i}`} className="px-1 text-xs text-slate-400">…</span>
+              <span key={`e${i}`} className="px-1 text-xs text-slate-500">…</span>
             ) : (
               <button
                 key={p}

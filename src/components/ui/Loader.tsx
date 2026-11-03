@@ -23,7 +23,7 @@ interface LoaderProps {
 // Loader estándar del frontend: el mismo Loader2 animado que usan Button y
 // los listados. Hereda la tipografía del body (Inter) -- no fijar fuente acá.
 export const Loader: React.FC<LoaderProps> = ({ label, size = 'md', block = false, className = '' }) => {
-  const icono = <Loader2 className={`${ICON_SIZE[size]} animate-spin text-slate-400 shrink-0`} />;
+  const icono = <Loader2 className={`${ICON_SIZE[size]} animate-spin text-slate-500 shrink-0`} />;
 
   if (!block) {
     return <span className={`inline-flex items-center ${className}`}>{icono}</span>;

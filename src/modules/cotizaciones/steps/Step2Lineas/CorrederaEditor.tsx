@@ -236,7 +236,7 @@ export const CorrederaEditor: React.FC<CorrederaEditorProps> = ({ ventana, onDra
                           </span>
                         </div>
                         <span
-                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border ${
+                          className={`px-2 py-0.5 rounded-md text-[11px] font-bold uppercase border ${
                             isHidden
                               ? 'bg-slate-200 text-slate-600 border-slate-300'
                               : hoja.carril === 1
@@ -254,7 +254,7 @@ export const CorrederaEditor: React.FC<CorrederaEditorProps> = ({ ventana, onDra
                       <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-3">
                         {/* Ancho del Tramo */}
                         <div className="sm:col-span-4 space-y-1">
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                             Ancho (mm)
                           </label>
                           <InputCompacto
@@ -272,7 +272,7 @@ export const CorrederaEditor: React.FC<CorrederaEditorProps> = ({ ventana, onDra
 
                         {/* Selector de Carril */}
                         <div className="sm:col-span-8 space-y-1">
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                             Carril / Riel
                           </label>
                           <Segmentado
@@ -292,7 +292,7 @@ export const CorrederaEditor: React.FC<CorrederaEditorProps> = ({ ventana, onDra
                         {/* Sentido de Movimiento */}
                         {!isHidden && (
                           <div className="sm:col-span-12 space-y-1 pt-1">
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                               Sentido de Movimiento
                             </label>
                             <Segmentado

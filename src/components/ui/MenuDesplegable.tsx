@@ -71,7 +71,7 @@ export function MenuDesplegable<T extends string | number>({
         }`}
       >
         {contenido}
-        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${abierto === (hacia === 'abajo') ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform duration-200 ${abierto === (hacia === 'abajo') ? 'rotate-180' : ''}`} />
       </button>
 
       {abierto && (

@@ -34,13 +34,13 @@ export function Segmentado<T extends string | number>({
             disabled={disabled}
             onClick={() => onChange(value)}
             className={`inline-flex items-center gap-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-              tamano === 'xs' ? 'px-2 py-1 text-[11px]' : 'px-3 py-1.5 text-xs'
+              tamano === 'xs' ? 'px-2 py-1 text-[11px] pointer-coarse:min-h-10' : 'px-3 py-1.5 text-xs pointer-coarse:min-h-11 pointer-coarse:px-3.5'
             } ${sel ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'}`}
           >
             {Icono && <Icono className="w-3.5 h-3.5" />}
             {label}
             {contador !== undefined && (
-              <span className={`text-[10px] font-bold tabular-nums rounded-full px-1.5 ${sel ? 'bg-brand-600/10 text-brand-700' : 'bg-slate-200 text-slate-500'}`}>{contador}</span>
+              <span className={`text-[11px] font-bold tabular-nums rounded-full px-1.5 ${sel ? 'bg-brand-600/10 text-brand-700' : 'bg-slate-200 text-slate-500'}`}>{contador}</span>
             )}
           </button>
         );

@@ -334,7 +334,7 @@ export const SolicitudMaterialesModal: React.FC<Props> = ({ proyectoId, proyecto
         </div>
 
         <div className="rounded-xl border border-slate-200 overflow-hidden">
-          <div className="hidden md:grid grid-cols-[1.75rem_1fr_5.5rem_4.5rem_5rem_7rem_2rem] gap-2 items-center px-3 py-2 bg-slate-50/70 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          <div className="hidden md:grid grid-cols-[1.75rem_1fr_5.5rem_4.5rem_5rem_7rem_2rem] gap-2 items-center px-3 py-2 bg-slate-50/70 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
             <span />
             <span>Material</span>
             <span className="text-right">Necesario</span>
@@ -346,7 +346,7 @@ export const SolicitudMaterialesModal: React.FC<Props> = ({ proyectoId, proyecto
           {!faseId && filasFase.length === 0 && extras.length === 0 ? (
             <p className="p-4 text-xs text-slate-500">Elige una fase para ver qué necesita, o agrega un material de abajo.</p>
           ) : cargandoRequerimiento ? (
-            <p className="p-4 text-xs text-slate-400 flex items-center gap-1.5">
+            <p className="p-4 text-xs text-slate-500 flex items-center gap-1.5">
               <Loader2 className="w-3.5 h-3.5 animate-spin" /> Calculando lo que necesita la fase…
             </p>
           ) : faseId && filasFase.length === 0 ? (
@@ -360,7 +360,7 @@ export const SolicitudMaterialesModal: React.FC<Props> = ({ proyectoId, proyecto
                 const cubierto = f.origen === 'fase' && categoriaDe(f) === 'con-stock';
                 const esTexto = f.origen === 'texto';
                 return (
-                  <li key={f.clave} className={`px-3 py-2 md:grid md:grid-cols-[1.75rem_1fr_5.5rem_4.5rem_5rem_7rem_2rem] md:gap-2 md:items-center flex flex-wrap gap-x-3 gap-y-1.5 ${e.marcada ? '' : 'text-slate-400'}`}>
+                  <li key={f.clave} className={`px-3 py-2 md:grid md:grid-cols-[1.75rem_1fr_5.5rem_4.5rem_5rem_7rem_2rem] md:gap-2 md:items-center flex flex-wrap gap-x-3 gap-y-1.5 ${e.marcada ? '' : 'text-slate-500'}`}>
                     <Casilla checked={e.marcada} onChange={(v) => setFila(f.clave, { marcada: v })} aria-label={`Pedir ${f.descripcion || 'ítem'}`} className="pointer-coarse:[&>input]:w-5 pointer-coarse:[&>input]:h-5" />
                     <div className="min-w-0 flex-1 basis-full md:basis-auto order-last md:order-none">
                       {esTexto ? (
@@ -382,7 +382,7 @@ export const SolicitudMaterialesModal: React.FC<Props> = ({ proyectoId, proyecto
                             {f.materialId && <Package className="inline w-3 h-3 text-sky-500 mr-1 -mt-0.5" />}
                             {f.descripcion}
                           </p>
-                          <p className="text-[10px] text-slate-400 truncate">
+                          <p className="text-[11px] text-slate-500 truncate">
                             {f.partida}
                             {f.pieza && <span className="text-sky-700 font-semibold"> · Pieza {f.pieza.anchoMm} × {f.pieza.altoMm} mm{f.pieza.referenciaVentana ? ` · ${f.pieza.referenciaVentana}` : ''}</span>}
                             {f.sinMedidas && <span className="text-amber-700 font-semibold"> · Sin medidas: va por m²</span>}
@@ -392,12 +392,12 @@ export const SolicitudMaterialesModal: React.FC<Props> = ({ proyectoId, proyecto
                       )}
                     </div>
                     {/* Números: en escritorio una columna cada uno; en angosto, en línea con su etiqueta. */}
-                    <span className="text-[11px] md:text-right md:text-xs"><span className="md:hidden text-slate-400">Necesario </span>{f.pieza ? <span title="Pieza a medida: una por ventana">{numero(f.necesario)}</span> : f.necesario > 0 ? numero(f.necesario) : '—'}</span>
-                    <span className="text-[11px] md:text-right md:text-xs"><span className="md:hidden text-slate-400">Obra </span>{f.pieza || f.sinMedidas ? '—' : numero(f.obra)}</span>
-                    <span className="text-[11px] md:text-right md:text-xs"><span className="md:hidden text-slate-400">O. May. </span>{f.pieza || f.sinMedidas ? '—' : numero(f.obrasMayores)}</span>
+                    <span className="text-[11px] md:text-right md:text-xs"><span className="md:hidden text-slate-500">Necesario </span>{f.pieza ? <span title="Pieza a medida: una por ventana">{numero(f.necesario)}</span> : f.necesario > 0 ? numero(f.necesario) : '—'}</span>
+                    <span className="text-[11px] md:text-right md:text-xs"><span className="md:hidden text-slate-500">Obra </span>{f.pieza || f.sinMedidas ? '—' : numero(f.obra)}</span>
+                    <span className="text-[11px] md:text-right md:text-xs"><span className="md:hidden text-slate-500">O. May. </span>{f.pieza || f.sinMedidas ? '—' : numero(f.obrasMayores)}</span>
                     <span className="flex items-center justify-end gap-1.5 ml-auto md:ml-0">
                       {cubierto && !e.marcada ? (
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-1.5 py-0.5">ya hay</span>
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-1.5 py-0.5">ya hay</span>
                       ) : (
                         <InputCompacto
                           aria-label={`Cantidad a pedir de ${f.descripcion || 'ítem'}`}
@@ -410,7 +410,7 @@ export const SolicitudMaterialesModal: React.FC<Props> = ({ proyectoId, proyecto
                           className="w-20 text-right font-mono pointer-coarse:min-h-11"
                         />
                       )}
-                      <span className="text-[10px] text-slate-400 w-8 truncate">{f.unidad.toLowerCase()}</span>
+                      <span className="text-[11px] text-slate-500 w-8 truncate">{f.unidad.toLowerCase()}</span>
                     </span>
                     <span className="flex justify-end">{f.origen !== 'fase' && <IconButton icono={Trash2} tono="peligro" etiqueta="Quitar" onClick={() => quitarExtra(f.clave)} />}</span>
                   </li>
@@ -426,14 +426,14 @@ export const SolicitudMaterialesModal: React.FC<Props> = ({ proyectoId, proyecto
             {busqueda.trim().length >= 2 && (
               <div className="absolute z-10 mt-1 w-full max-h-56 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100 bg-white shadow-lg">
                 {buscando ? (
-                  <div className="p-2.5 text-[11px] text-slate-400">Buscando…</div>
+                  <div className="p-2.5 text-[11px] text-slate-500">Buscando…</div>
                 ) : resultados.length === 0 ? (
-                  <div className="p-2.5 text-[11px] text-slate-400">Nada en el catálogo con ese texto. Agrégalo como texto libre.</div>
+                  <div className="p-2.5 text-[11px] text-slate-500">Nada en el catálogo con ese texto. Agrégalo como texto libre.</div>
                 ) : (
                   resultados.map((m) => (
                     <BotonFila key={m.id} onClick={() => elegirMaterial(m)}>
                       <div className="text-[11px] font-semibold text-slate-800 leading-tight">{m.descripcion}</div>
-                      <div className="text-[10px] text-slate-400">
+                      <div className="text-[11px] text-slate-500">
                         {m.skuInterno} · {unidadCompra(m)}
                         {(stockObra.get(m.id) || stockObrasMayores.get(m.id)) ? ` · stock obra ${fmtCantidad(stockObra.get(m.id) ?? 0)} · O. Mayores ${fmtCantidad(stockObrasMayores.get(m.id) ?? 0)}` : ''}
                       </div>

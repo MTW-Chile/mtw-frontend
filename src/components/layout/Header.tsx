@@ -139,7 +139,7 @@ export const Header: React.FC<HeaderProps> = ({
             </strong>
           </div>
           <ChevronDown
-            className={`hidden sm:block w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${
+            className={`hidden sm:block w-3.5 h-3.5 text-slate-500 transition-transform duration-200 shrink-0 ${
               isMenuOpen ? 'rotate-180 text-slate-700' : ''
             }`}
           />
@@ -151,7 +151,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="fixed left-2 right-2 top-14 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-64 rounded-2xl bg-white border border-slate-200 shadow-xl p-1.5 z-50 animate-fade-in divide-y divide-slate-100">
             {/* Header del dropdown con info de usuario */}
             <div className="px-3 py-2.5 pb-2">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Cuenta de Usuario
               </div>
               <div className="text-xs font-bold text-slate-900 truncate mt-0.5">
@@ -184,7 +184,7 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                   <div>
                     <div className="font-semibold text-slate-800">Notificaciones</div>
-                    <div className={`text-[10px] ${pendientes?.total ? 'text-amber-600' : 'text-slate-400'}`}>
+                    <div className={`text-[11px] ${pendientes?.total ? 'text-amber-600' : 'text-slate-500'}`}>
                       {pendientes?.total ? 'Notificaciones Pendientes' : 'Todo al día'}
                     </div>
                   </div>
@@ -202,7 +202,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
                 <div>
                   <div className="font-semibold text-slate-800">Mi configuración</div>
-                  <div className={`text-[10px] ${permisos?.tieneTokenClay ? 'text-slate-400' : 'text-amber-600'}`}>
+                  <div className={`text-[11px] ${permisos?.tieneTokenClay ? 'text-slate-500' : 'text-amber-600'}`}>
                     {permisos?.tieneTokenClay ? 'Mis datos y token de Clay' : 'Token de Clay sin configurar'}
                   </div>
                 </div>
@@ -220,7 +220,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
                 <div>
                   <div className="font-semibold text-rose-700">Cerrar Sesión</div>
-                  <div className="text-[10px] text-rose-400">Salir de Cloudflare Access</div>
+                  <div className="text-[11px] text-rose-400">Salir de Cloudflare Access</div>
                 </div>
               </button>
             </div>

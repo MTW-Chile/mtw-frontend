@@ -20,7 +20,7 @@ interface VentanaCardProps {
 // Etiqueta de sección dentro de la tarjeta (mismo criterio que el resto del módulo).
 const Dato: React.FC<{ label: string; children: React.ReactNode; className?: string }> = ({ label, children, className = '' }) => (
   <div className={`min-w-0 ${className}`}>
-    <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">{label}</div>
+    <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">{label}</div>
     <div className="text-xs font-semibold text-slate-900 truncate">{children}</div>
   </div>
 );
@@ -119,7 +119,7 @@ export const VentanaCard: React.FC<VentanaCardProps> = ({ ventana, onEditar, onD
         <div className="grid grid-cols-2 gap-3">
           <Dato label="Medidas">
             <span className="inline-flex items-center gap-1.5">
-              <Maximize2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <Maximize2 className="w-3.5 h-3.5 text-slate-500 shrink-0" />
               {formatNumber(ventana.anchoMm, 0)} × {formatNumber(ventana.altoMm, 0)} mm
             </span>
           </Dato>

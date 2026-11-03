@@ -177,7 +177,7 @@ export const MaestroProductos: React.FC = () => {
         </div>
       ) : materialesFiltradosPorColumna.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-10 sm:p-14 text-center space-y-3 shadow-xs">
-          <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-400">
+          <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-500">
             <Boxes className="w-6 h-6" />
           </div>
           <h3 className="text-sm font-bold text-slate-800">
@@ -264,7 +264,7 @@ export const MaestroProductos: React.FC = () => {
                       </Td>
                       <Td className="px-5 whitespace-nowrap">
                         <div className="font-semibold text-slate-800">{mat.tipoProducto?.nombre ?? '—'}</div>
-                        <div className="text-[10.5px] text-slate-400">{mat.tipoProducto?.partida?.nombre}</div>
+                        <div className="text-[11px] text-slate-500">{mat.tipoProducto?.partida?.nombre}</div>
                       </Td>
                       <Td className="px-5 text-slate-600 max-w-[14rem]">
                         <div className="truncate" title={mat.proveedor?.nombre}>
@@ -333,7 +333,7 @@ export const MaestroProductos: React.FC = () => {
 
                   <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1.5 font-mono text-slate-600">
-                      <span className="text-slate-400">Formato:</span>
+                      <span className="text-slate-500">Formato:</span>
                       <strong className="text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded text-[11px]">
                         {formatoCorto(mat)}
                       </strong>
@@ -353,7 +353,7 @@ export const MaestroProductos: React.FC = () => {
           {/* Renderizado por tandas -- ver TANDA_INICIAL más arriba */}
           {hayMasPorMostrar && (
             <div className="flex flex-col items-center gap-2 pt-1 pb-2">
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-slate-500">
                 Mostrando {materialesVisibles.length} de {materialesFiltradosPorColumna.length} materiales
               </p>
               <Button variant="outline" size="sm" onClick={() => setCantidadVisible((n) => n + TANDA_INCREMENTO)}>

@@ -8,7 +8,7 @@ interface SelectorPasoProps {
 }
 
 const Numero: React.FC<{ n: number; activo: boolean }> = ({ n, activo }) => (
-  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${activo ? 'bg-brand-600 text-white' : 'bg-slate-200 text-slate-600'}`}>{n}</span>
+  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${activo ? 'bg-brand-600 text-white' : 'bg-slate-200 text-slate-600'}`}>{n}</span>
 );
 
 /** Dropdown para saltar a cualquier paso del cotizador. Abre hacia arriba (vive en el footer). */

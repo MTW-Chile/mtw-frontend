@@ -9,6 +9,26 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - **Parche** (2.0.0 → 2.0.1): ajustes y mejoras acotadas, cada despliegue.
 - **Corrección urgente** sobre un parche (2.0.4 → 2.0.4.1; en package.json, 2.0.4-1): la decide Alfredo.
 
+## Sin publicar — uso con el dedo (tablet y celular)
+
+Revisión contra las pautas de NN/g para tablets (*Tablet Website and Application UX*).
+
+**Todo el sitio**
+- Con el dedo, todo botón, botón de ícono, selector, campo, casilla y la X de los modales mide al menos 44 px (~1 cm en tablet); en computador no cambia nada.
+- En celular los campos usan letra de 16 px: iPhone ya no hace zoom al tocarlos.
+- Texto secundario más oscuro (el gris claro no se leía con sol) y sin texto de 10 px.
+
+**Instalación**
+- El listado de instalaciones o pendientes se guarda en el dispositivo hasta enviarlo, con sus fotos: salir, recargar o volver de la cámara ya no lo pierde. El navegador pregunta antes de cerrar la pestaña con algo sin enviar.
+- Barra fija abajo con lo que falta enviar; en celular, al tocar una ventana la pantalla va a su ficha y hay un botón para volver al plano.
+- Cada estado de ventana lleva su ícono en el plano y en la leyenda, no solo el color.
+- Si una foto no sube, el aviso queda hasta cerrarlo.
+
+**Bodega**
+- Un error de carga se muestra como error (antes decía «sin recepciones» o «no hay bodegas»).
+- Stock y movimientos con buscador y, en celular, como tarjetas.
+- Cancelar una recepción con algo marcado pregunta antes.
+
 ## Sin publicar — obras legacy
 
 **Obras manuales (legacy): cubicar desde los documentos de fabricación**

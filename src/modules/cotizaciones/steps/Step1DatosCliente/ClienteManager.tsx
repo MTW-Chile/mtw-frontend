@@ -46,7 +46,7 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
             <User className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div>
-            <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+            <div className="text-[9px] sm:text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
               Identificación Comercial
             </div>
             <div className="text-xs sm:text-sm font-bold text-slate-900">

@@ -47,11 +47,11 @@ export const CentroNotificacionesPage: React.FC<CentroNotificacionesPageProps> =
       />
 
       {isLoading ? (
-        <div className="p-12 flex items-center justify-center text-slate-400">
+        <div className="p-12 flex items-center justify-center text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
       ) : gerencial.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
+        <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">
           Sin pendientes por ahora.
         </div>
       ) : (

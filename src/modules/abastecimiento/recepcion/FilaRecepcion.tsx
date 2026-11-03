@@ -78,7 +78,7 @@ export const FilaRecepcion: React.FC<{
           )}
         </div>
       )}
-      {!completa && !estado.marcada && <p className="pl-8 pointer-coarse:pl-9 text-xs text-slate-400">{textoNoLlego}</p>}
+      {!completa && !estado.marcada && <p className="pl-8 pointer-coarse:pl-9 text-xs text-slate-500">{textoNoLlego}</p>}
     </li>
   );
 };

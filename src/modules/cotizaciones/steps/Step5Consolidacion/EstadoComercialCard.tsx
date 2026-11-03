@@ -56,7 +56,7 @@ export const EstadoComercialCard: React.FC<EstadoComercialCardProps> = ({
           {activeVersion.esCongelado ? (
             <Lock className="w-4 h-4 text-slate-500" />
           ) : (
-            <Unlock className="w-4 h-4 text-slate-400" />
+            <Unlock className="w-4 h-4 text-slate-500" />
           )}
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
             Estado Comercial Interno

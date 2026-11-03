@@ -105,7 +105,7 @@ const ObservacionEditable: React.FC<{ ventana: Ventana; onGuardado: (v: Partial<
   if (!editando) {
     return (
       <div className="w-full">
-        <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Observación</span>
+        <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Observación</span>
         <ActivadorEdicion disabled={congelado} onClick={() => setEditando(true)} etiqueta="Editar la observación" className="w-full">
           <p className="text-xs text-slate-700">{ventana.comentarioPresupuesto}</p>
         </ActivadorEdicion>
@@ -356,7 +356,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
                   </span>
                 </div>
                 <div className="text-right shrink-0">
-                  <span className="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Total neto</span>
+                  <span className="block text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Total neto</span>
                   <span className="font-mono font-bold text-sm text-brand-600">{ufLabel(precio?.precioVentaCLP || 0, tasaUf)}</span>
                 </div>
               </header>
@@ -384,11 +384,11 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
                 {/* Datos técnicos */}
                 <dl className="text-xs space-y-2 min-w-0">
                   <div>
-                    <dt className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Apertura</dt>
+                    <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Apertura</dt>
                     <dd className="text-slate-900 font-medium">{apertura}</dd>
                   </div>
                   <div>
-                    <dt className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Acabado</dt>
+                    <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Acabado</dt>
                     <dd className="flex items-center gap-1.5 text-slate-900 font-medium">
                       {isFrameless ? (
                         '—'
@@ -401,7 +401,7 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Vidrio</dt>
+                    <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Vidrio</dt>
                     <dd className="text-slate-900 font-medium break-words">{vidrio || '—'}</dd>
                   </div>
                   <div className="pt-1">
@@ -417,11 +417,11 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
               {/* Valores comerciales de la línea */}
               <footer className="px-4 py-2.5 border-t border-slate-100 bg-slate-50/60 grid grid-cols-2 gap-3 text-xs">
                 <div>
-                  <span className="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Precio unitario</span>
+                  <span className="block text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Precio unitario</span>
                   <span className="font-mono font-bold text-slate-900">{ufLabel(precio?.precioUnitarioCLP || 0, tasaUf)}</span>
                 </div>
                 <div className="text-right">
-                  <span className="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Cantidad</span>
+                  <span className="block text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Cantidad</span>
                   <span className="font-mono font-bold text-slate-900">{v.unidades} ud{v.unidades === 1 ? '' : 'es'}</span>
                 </div>
               </footer>
@@ -431,9 +431,9 @@ export const PresupuestoOferta: React.FC<PresupuestoOfertaProps> = ({ proyecto, 
       </div>
 
       <div className="p-5 rounded-2xl bg-slate-900 text-white shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div><span className="block text-[11px] text-slate-400">Subtotal de venta · NETO</span><strong className="text-lg font-mono">{ufLabel(venta, tasaUf)}</strong></div>
-        <div><span className="block text-[11px] text-slate-400">IVA ({ivaPct}%)</span><strong className="text-lg font-mono">{ufLabel(iva, tasaUf)}</strong></div>
-        <div><span className="block text-[11px] text-slate-400">Total con IVA</span><strong className="text-xl font-mono">{ufLabel(totalConIva, tasaUf)}</strong></div>
+        <div><span className="block text-[11px] text-slate-500">Subtotal de venta · NETO</span><strong className="text-lg font-mono">{ufLabel(venta, tasaUf)}</strong></div>
+        <div><span className="block text-[11px] text-slate-500">IVA ({ivaPct}%)</span><strong className="text-lg font-mono">{ufLabel(iva, tasaUf)}</strong></div>
+        <div><span className="block text-[11px] text-slate-500">Total con IVA</span><strong className="text-xl font-mono">{ufLabel(totalConIva, tasaUf)}</strong></div>
       </div>
 
       <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">

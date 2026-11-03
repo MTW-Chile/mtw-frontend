@@ -253,7 +253,7 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
       <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-3">
         <div className="flex items-baseline justify-between gap-2">
           <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Ventana (opcional)</p>
-          {fabricaciones.length === 1 && <span className="text-[11px] text-slate-400 truncate">Documento: {nombreDocumento(fabricaciones[0])}</span>}
+          {fabricaciones.length === 1 && <span className="text-[11px] text-slate-500 truncate">Documento: {nombreDocumento(fabricaciones[0])}</span>}
         </div>
         {fabricaciones.length === 0 ? (
           <p className="text-xs text-slate-500">
@@ -286,7 +286,7 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
                   Ventana
                 </label>
                 {detalle.isLoading ? (
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" /> Cargando ventanas...
                   </div>
                 ) : (
@@ -328,7 +328,7 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
               <div>
                 <span className={etiqueta}>Vidrio de esta ventana</span>
                 {materiales.isLoading ? (
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" /> Leyendo vidrios de HETMO...
                   </div>
                 ) : vidrios.length > 0 ? (
@@ -419,7 +419,7 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
       </div>
 
       <div>
-        <Textarea label={<>Notas {notasObligatorias ? <span className="normal-case font-medium text-rose-600">· obligatorias para "Otro"</span> : <span className="normal-case font-medium text-slate-400">· opcional</span>}</>}
+        <Textarea label={<>Notas {notasObligatorias ? <span className="normal-case font-medium text-rose-600">· obligatorias para "Otro"</span> : <span className="normal-case font-medium text-slate-500">· opcional</span>}</>}
           id="pend-notas"
           value={notas}
           onChange={(e) => setNotas(e.target.value)}

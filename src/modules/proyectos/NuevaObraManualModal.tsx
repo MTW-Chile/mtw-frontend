@@ -120,7 +120,7 @@ export const NuevaObraManualModal: React.FC<Props> = ({ onClose, onCreada }) => 
               placeholder={siguiente.data ? String(siguiente.data.siguiente) : '…'}
               maxLength={10}
               error={errorNumero}
-              rightIcon={disponibilidad.isFetching ? <span className="text-[10px] text-slate-400">…</span> : undefined}
+              rightIcon={disponibilidad.isFetching ? <span className="text-[11px] text-slate-500">…</span> : undefined}
             />
           </div>
           <div className="col-span-2">

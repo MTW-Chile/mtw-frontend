@@ -9,7 +9,7 @@ export const BotonColapsar: React.FC<{ abierto: boolean; onClick: () => void; ch
   className = '',
 }) => (
   <button type="button" onClick={onClick} aria-expanded={abierto} className={`flex flex-wrap items-center gap-x-2.5 gap-y-1 min-w-0 text-left cursor-pointer ${className}`}>
-    <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${abierto ? '' : '-rotate-90'}`} />
+    <ChevronDown className={`w-4 h-4 text-slate-500 shrink-0 transition-transform ${abierto ? '' : '-rotate-90'}`} />
     {children}
   </button>
 );

@@ -37,7 +37,7 @@ export const TipoProyectoCard: React.FC<{ proyecto: Proyecto; congelado: boolean
         </div>
       </div>
       <div className="flex items-center gap-2">
-        {cambiar.isPending && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
+        {cambiar.isPending && <Loader2 className="w-4 h-4 animate-spin text-slate-500" />}
         <div className="min-w-[180px]">
           <Select
             aria-label="Tipo de proyecto"

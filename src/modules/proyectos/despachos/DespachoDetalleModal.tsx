@@ -205,20 +205,20 @@ export const DespachoDetalleModal: React.FC<Props> = ({ despachoId, proyectoId, 
 
           <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-xs">
             <div>
-              <dt className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Entrega</dt>
+              <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-bold">Entrega</dt>
               <dd className="text-slate-800">{[d.direccionEntrega, d.comunaEntrega, d.ciudadEntrega].filter(Boolean).join(', ') || '—'}</dd>
             </div>
             <div>
-              <dt className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Destinatario</dt>
+              <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-bold">Destinatario</dt>
               <dd className="text-slate-800">{d.destinatario || '—'}</dd>
             </div>
             <div>
-              <dt className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Transporte</dt>
+              <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-bold">Transporte</dt>
               <dd className="text-slate-800">{[d.transportista, d.patente].filter(Boolean).join(' · ') || '—'}</dd>
             </div>
             {d.notas && (
               <div>
-                <dt className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Notas</dt>
+                <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-bold">Notas</dt>
                 <dd className="text-slate-800 whitespace-pre-wrap">{d.notas}</dd>
               </div>
             )}

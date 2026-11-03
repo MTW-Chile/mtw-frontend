@@ -49,7 +49,7 @@ export const BREAKPOINT_DESKTOP = '(min-width: 768px)';
 // verdad no cabe (notebook chica + muchas columnas) hace scroll dentro de
 // la tarjeta en vez de cortar la columna Acciones.
 export const TABLE_CLASS =
-  'w-full text-xs [&_th]:px-3 [&_td]:px-3 [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4 [&_th]:whitespace-nowrap [&_thead_th]:font-semibold [&_thead_th]:text-[10.5px] [&_thead_th]:tracking-wider [&_thead_th]:text-slate-500';
+  'w-full text-xs [&_th]:px-3 [&_td]:px-3 [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4 [&_th]:whitespace-nowrap [&_thead_th]:font-semibold [&_thead_th]:text-[11px] [&_thead_th]:tracking-wider [&_thead_th]:text-slate-500';
 
 export const TABLE_WRAPPER_CLASS = 'table-scroll';
 

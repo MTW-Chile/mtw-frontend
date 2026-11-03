@@ -84,7 +84,7 @@ export const VisorDocumento: React.FC<{ proyectoId: string; item: ItemOneDrive; 
 };
 
 const Cargando: React.FC = () => (
-  <div className="p-12 flex items-center justify-center text-slate-400">
+  <div className="p-12 flex items-center justify-center text-slate-500">
     <Loader2 className="w-5 h-5 animate-spin" />
   </div>
 );

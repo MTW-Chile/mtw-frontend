@@ -133,11 +133,11 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
 
         <div className="flex-1 overflow-y-auto p-5 sm:p-6">
           {isLoading ? (
-            <div className="p-12 flex items-center justify-center text-slate-400">
+            <div className="p-12 flex items-center justify-center text-slate-500">
               <Loader2 className="w-5 h-5 animate-spin" />
             </div>
           ) : !proyecto ? (
-            <div className="p-12 text-center text-slate-400 text-xs">Proyecto no encontrado.</div>
+            <div className="p-12 text-center text-slate-500 text-xs">Proyecto no encontrado.</div>
           ) : (
             <>
               {seccion === 'general' && <InformacionGeneralTab proyecto={proyecto} activeVersion={activeVersion} />}

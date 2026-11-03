@@ -39,7 +39,7 @@ interface Props {
 
 const Dato: React.FC<{ etiqueta: string; children: React.ReactNode }> = ({ etiqueta, children }) => (
   <div className="min-w-0">
-    <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{etiqueta}</dt>
+    <dt className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{etiqueta}</dt>
     <dd className="text-xs text-slate-800 mt-0.5 break-words">{children}</dd>
   </div>
 );
@@ -174,7 +174,7 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
             {/* Compras del pendiente: reposicion (falla o daño) u otra, enlazadas a el. */}
             <div className="rounded-xl border border-slate-200 p-3 space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   Compras · sugerida: {ETIQUETA_NATURALEZA[p.naturalezaSugerida]}
                 </h4>
                 {tiene('compras.oc.solicitar') && p.estado !== 'RESUELTO' && (
@@ -184,7 +184,7 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
                 )}
               </div>
               {(p.ordenesCompra ?? []).length === 0 ? (
-                <p className="text-[11px] text-slate-400">Sin compras todavía.</p>
+                <p className="text-[11px] text-slate-500">Sin compras todavía.</p>
               ) : (
                 <ul className="flex flex-wrap gap-1.5">
                   {p.ordenesCompra.map((oc) => (
@@ -199,7 +199,7 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
             </div>
             {p.notas && (
               <div>
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Notas</h4>
+                <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Notas</h4>
                 <p className="text-xs text-slate-800 whitespace-pre-wrap break-words">{p.notas}</p>
               </div>
             )}
@@ -211,7 +211,7 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
               {p.estado !== 'RESUELTO' && (
                 <div className="flex flex-wrap items-end gap-2">
                   <div className="min-w-[12rem] flex-1">
-                    <label htmlFor="pend-etapa" className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                    <label htmlFor="pend-etapa" className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
                       Etapa
                     </label>
                     <SelectCompacto id="pend-etapa" value={etapaSeleccionada} onChange={(e) => setEtapaElegida(e.target.value)} className="w-full">
@@ -292,7 +292,7 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
 
             {/* Historial */}
             <div>
-              <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Historial</h4>
+              <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Historial</h4>
               <ol className="space-y-2 border-l-2 border-slate-100 pl-3">
                 {p.eventos.map((e) => (
                   <li key={e.id} className="text-xs">
@@ -300,7 +300,7 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
                       {ETIQUETA_ESTADO[e.estadoNuevo]}
                       {e.etapaNombre ? ` · ${e.etapaNombre}` : ''}
                     </span>
-                    <span className="text-slate-400">
+                    <span className="text-slate-500">
                       {' '}
                       — {e.usuario?.nombre || 'sistema'} · {formatoFechaHora(e.creadoEn)}
                     </span>

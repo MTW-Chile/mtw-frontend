@@ -5,7 +5,7 @@ import { Button } from './Button';
 
 /** Carga de una vista o sección (DESIGN.md 5). */
 export const Cargando: React.FC<{ texto?: string }> = ({ texto }) => (
-  <div className="p-12 flex flex-col items-center justify-center gap-2 text-slate-400" role="status">
+  <div className="p-12 flex flex-col items-center justify-center gap-2 text-slate-500" role="status">
     <Loader2 className="w-5 h-5 animate-spin" />
     {texto && <span className="text-xs">{texto}</span>}
   </div>
@@ -20,7 +20,7 @@ export const EstadoVacio: React.FC<{ icono?: LucideIcon; titulo: React.ReactNode
   enTarjeta = true,
 }) => (
   <div className={`p-10 text-center space-y-2 ${enTarjeta ? 'rounded-2xl bg-white border border-slate-200 shadow-sm' : ''}`}>
-    <div className="w-11 h-11 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-400">
+    <div className="w-11 h-11 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-500">
       <Icono className="w-5 h-5" />
     </div>
     <h3 className="text-sm font-bold text-slate-800">{titulo}</h3>

@@ -9,6 +9,7 @@ import { Cargando, ErrorCarga } from '../../../components/ui/Estados';
 import { Input } from '../../../components/ui/Input';
 import { OpcionesTarjeta, Textarea } from '../../../components/ui/Campos';
 import { useMigas } from '../../../lib/migas';
+import { useConfirmar } from '../../../components/ui/Confirmar';
 import { cantidad as fmtCantidad } from '../../../lib/formato';
 import { extraerErrorParaToast } from '../../../lib/toast';
 import { ESTADO_OC_LABEL, ESTADO_OC_VARIANT } from '../OrdenesCompraList';
@@ -24,6 +25,7 @@ import { estadoInicialRecepcion, filasDesdeOC, itemsRecepcion, marcarTodas, resu
  */
 export const RecepcionOCPage: React.FC<{ ocId: string; onVolver: () => void }> = ({ ocId, onVolver }) => {
   const queryClient = useQueryClient();
+  const { confirmar } = useConfirmar();
   const { data: oc, isLoading, isError, refetch } = useQuery({ queryKey: ['ordenCompra', ocId], queryFn: () => getOrdenCompraById(ocId) });
   const { data: tiposDocumento } = useQuery({ queryKey: ['tiposDocumento'], queryFn: getTiposDocumento });
   useMigas(2, [{ label: oc ? `Recepcionar ${oc.numero}` : 'Recepcionar' }]);
@@ -45,6 +47,11 @@ export const RecepcionOCPage: React.FC<{ ocId: string; onVolver: () => void }> =
   const resumen = resumenRecepcion(filas, estadoFilas);
   const documentoCompleto = !!tipoDocumentoId && !!numeroDocumento.trim();
   const puedeRecibir = !!oc && (oc.estado === 'ENVIADA' || oc.estado === 'RECIBIDA_PARCIAL');
+  // Cancelar con algo ya marcado o escrito pregunta antes (un toque accidental en tablet no borra el conteo).
+  const tocada = estado !== null || !!tipoDocumentoId || !!numeroDocumento.trim() || !!notas.trim();
+  const cancelar = async () => {
+    if (!tocada || (await confirmar({ titulo: '¿Salir sin registrar la recepción?', mensaje: 'Se pierde lo marcado y el documento ingresado.', confirmar: 'Salir sin registrar', peligro: true }))) onVolver();
+  };
 
   const mutation = useMutation({
     mutationFn: () => {
@@ -75,7 +82,7 @@ export const RecepcionOCPage: React.FC<{ ocId: string; onVolver: () => void }> =
 
   const cabecera = (
     <div className="rounded-2xl bg-white border border-slate-200 shadow-sm px-4 py-3 sm:px-5 flex flex-wrap items-center gap-x-4 gap-y-2">
-      <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="w-3.5 h-3.5" />} onClick={onVolver} className="pointer-coarse:min-h-11">
+      <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="w-3.5 h-3.5" />} onClick={creados ? onVolver : cancelar} className="pointer-coarse:min-h-11">
         Recepciones
       </Button>
       <div className="min-w-0 flex-1 flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -154,7 +161,7 @@ export const RecepcionOCPage: React.FC<{ ocId: string; onVolver: () => void }> =
       <section className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-4 py-3 sm:px-5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-            ② Qué llegó <span className="font-mono font-normal normal-case tracking-normal text-slate-400">· {resumen.marcadas} de {resumen.pendientes} ítems</span>
+            ② Qué llegó <span className="font-mono font-normal normal-case tracking-normal text-slate-500">· {resumen.marcadas} de {resumen.pendientes} ítems</span>
           </h2>
           <div className="flex gap-2 max-sm:w-full max-sm:[&>*]:flex-1">
             <Button size="sm" variant="outline" className="pointer-coarse:min-h-11" disabled={!puedeRecibir} onClick={() => actualizar(marcarTodas(filas, estadoFilas, true))}>
@@ -185,7 +192,7 @@ export const RecepcionOCPage: React.FC<{ ocId: string; onVolver: () => void }> =
             {!documentoCompleto && <span className="block text-amber-700">Falta el documento de respaldo.</span>}
           </p>
           <div className="flex gap-2 ml-auto max-sm:w-full max-sm:[&>*]:flex-1 pointer-coarse:[&>*]:min-h-11">
-            <Button variant="outline" onClick={onVolver} disabled={mutation.isPending}>
+            <Button variant="outline" onClick={cancelar} disabled={mutation.isPending}>
               Cancelar
             </Button>
             <Button

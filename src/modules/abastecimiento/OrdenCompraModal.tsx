@@ -98,16 +98,16 @@ const BuscadorProductoProveedor: React.FC<{
       {abierto && proveedorId && descripcion.trim().length >= 2 && (
         <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100 bg-white shadow-lg">
           {buscando ? (
-            <div className="p-2.5 text-[11px] text-slate-400 flex items-center gap-1.5">
+            <div className="p-2.5 text-[11px] text-slate-500 flex items-center gap-1.5">
               <Loader2 className="w-3 h-3 animate-spin" /> Buscando…
             </div>
           ) : resultados.length === 0 ? (
-            <div className="p-2.5 text-[11px] text-slate-400">Sin productos de este proveedor que coincidan: se guarda como ítem nuevo.</div>
+            <div className="p-2.5 text-[11px] text-slate-500">Sin productos de este proveedor que coincidan: se guarda como ítem nuevo.</div>
           ) : (
             resultados.map((m) => (
               <BotonFila key={m.id} onMouseDown={(e) => e.preventDefault()} onClick={() => { onSeleccionar(m); setAbierto(false); }}>
                 <div className="text-[11px] font-semibold text-slate-800 leading-tight">{m.descripcion}</div>
-                <div className="text-[10px] text-slate-400">
+                <div className="text-[11px] text-slate-500">
                   {m.skuInterno} · {unidadCompra(m)}
                 </div>
               </BotonFila>
@@ -176,7 +176,7 @@ const cubierto = (i: ItemOC) => !!i.materialId && i.solicitado > 0 && !(parseFlo
 // Un número de la fila: columna en escritorio, "Etiqueta valor" en angosto.
 const Num: React.FC<{ etiqueta: string; children: React.ReactNode; className?: string }> = ({ etiqueta, children, className = '' }) => (
   <span className={`text-[11px] md:text-xs md:text-right font-mono tabular-nums ${className}`}>
-    <span className="md:hidden font-sans text-slate-400">{etiqueta} </span>
+    <span className="md:hidden font-sans text-slate-500">{etiqueta} </span>
     {children}
   </span>
 );
@@ -564,7 +564,7 @@ export const OrdenCompraModal: React.FC<Props> = ({ modo, solicitudId, onClose }
           <div className="space-y-1">
             <span className="text-[11px] text-slate-500">Proveedores con materiales que faltan en esta fase (elige uno y se cargan sus ítems):</span>
             {grupos.length === 0 ? (
-              <p className="text-[11px] text-slate-400">Nada que comprar para esta fase (sin materiales calculados, o el stock ya cubre todo). Elige un proveedor y agrega ítems a mano.</p>
+              <p className="text-[11px] text-slate-500">Nada que comprar para esta fase (sin materiales calculados, o el stock ya cubre todo). Elige un proveedor y agrega ítems a mano.</p>
             ) : (
               <div className="flex flex-wrap gap-1.5">
                 {grupos.map((g) => (
@@ -616,7 +616,7 @@ export const OrdenCompraModal: React.FC<Props> = ({ modo, solicitudId, onClose }
           )}
         </div>
         <div className="rounded-xl border border-slate-200 overflow-hidden">
-          <div className={`hidden md:grid ${gridCols} gap-2 items-center px-3 py-2 bg-slate-50/70 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500`}>
+          <div className={`hidden md:grid ${gridCols} gap-2 items-center px-3 py-2 bg-slate-50/70 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500`}>
             <span>Material</span>
             <span className="text-right">Solicitado</span>
             {conStock && <span className="text-right">Obra</span>}
@@ -632,7 +632,7 @@ export const OrdenCompraModal: React.FC<Props> = ({ modo, solicitudId, onClose }
               {modo === 'crear' && !faseId ? 'Elige una fase para cargar lo que falta, o agrega ítems a mano.' : 'Sin ítems todavía.'}
             </p>
           ) : visibles.length === 0 ? (
-            <p className="p-4 text-xs text-slate-400">Nada en este filtro.</p>
+            <p className="p-4 text-xs text-slate-500">Nada en este filtro.</p>
           ) : (
             <ul className="divide-y divide-slate-100">
               {visibles.map((i) => {
@@ -649,7 +649,7 @@ export const OrdenCompraModal: React.FC<Props> = ({ modo, solicitudId, onClose }
                         ? `Referencia ${clp(i.precioReferencia)}`
                         : undefined;
                 return (
-                  <li key={i.clave} className={`px-3 py-2 md:grid ${gridCols} md:gap-2 md:items-center flex flex-wrap gap-x-3 gap-y-1.5 ${esCubierto ? 'text-slate-400 bg-slate-50/50' : ''}`}>
+                  <li key={i.clave} className={`px-3 py-2 md:grid ${gridCols} md:gap-2 md:items-center flex flex-wrap gap-x-3 gap-y-1.5 ${esCubierto ? 'text-slate-500 bg-slate-50/50' : ''}`}>
                     <div className="min-w-0 basis-full md:basis-auto">
                       {i.materialId || i.solicitado > 0 ? (
                         <>
@@ -657,7 +657,7 @@ export const OrdenCompraModal: React.FC<Props> = ({ modo, solicitudId, onClose }
                             {i.materialId && <Package className="inline w-3 h-3 text-sky-500 mr-1 -mt-0.5" />}
                             {i.descripcion}
                           </p>
-                          <p className="text-[10px] text-slate-400 truncate">
+                          <p className="text-[11px] text-slate-500 truncate">
                             {i.unidadMedida.toLowerCase()}
                             {esPieza(i) && <span className="text-sky-700 font-semibold"> · Pieza {i.anchoMm} × {i.altoMm} mm{i.referenciaVentana ? ` · ${i.referenciaVentana}` : ''}</span>}
                             {i.sinMedidas && <span className="text-amber-700 font-semibold"> · Sin medidas: va por m²</span>}
@@ -719,7 +719,7 @@ export const OrdenCompraModal: React.FC<Props> = ({ modo, solicitudId, onClose }
                         title={avisoPrecio}
                       />
                       {ultimo && Math.round(ultimo.precioUnitario) !== Math.round(precio) && (
-                        <span className="text-[10px] text-amber-700 whitespace-nowrap" title={avisoPrecio}>
+                        <span className="text-[11px] text-amber-700 whitespace-nowrap" title={avisoPrecio}>
                           últ. pagado {clp(ultimo.precioUnitario)}
                         </span>
                       )}

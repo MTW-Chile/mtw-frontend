@@ -117,7 +117,7 @@ export const ImportarFabricacionModal: React.FC<Props> = ({ proyectoId, onClose,
 
           {data.tipos.length > 0 && (
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Tipos que se crean o reutilizan</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Tipos que se crean o reutilizan</p>
               <div className="flex flex-wrap gap-1.5">
                 {data.tipos.map((t) => (
                   <Badge key={t.codigo} size="sm" variant={t.existente ? 'outline' : 'brand'} title={`${t.sistema} · ${formatoMm(t.anchoMm)} × ${formatoMm(t.altoMm)} mm${t.cuadros !== null ? ` · ${t.cuadros} hoja(s)` : ''}`}>

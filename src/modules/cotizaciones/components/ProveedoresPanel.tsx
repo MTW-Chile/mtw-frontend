@@ -130,7 +130,7 @@ export const ProveedoresPanel: React.FC = () => {
         <ErrorCarga que="el maestro de proveedores" onReintentar={refetch} />
       ) : filtrados.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-10 sm:p-14 text-center space-y-3 shadow-xs">
-          <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-400">
+          <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-500">
             <Building2 className="w-6 h-6" />
           </div>
           <h3 className="text-sm font-bold text-slate-800">No se encontraron proveedores</h3>
@@ -242,20 +242,20 @@ export const ProveedoresPanel: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
                   <div>
-                    <span className="text-slate-400">RUT:</span>{' '}
+                    <span className="text-slate-500">RUT:</span>{' '}
                     <span className="font-semibold text-slate-700">{p.rut || '—'}</span>
                   </div>
                   <div className="truncate">
-                    <span className="text-slate-400">Email:</span>{' '}
+                    <span className="text-slate-500">Email:</span>{' '}
                     <span className="font-semibold text-slate-700">{p.email || '—'}</span>
                   </div>
                   <div className="col-span-2">
-                    <span className="text-slate-400">Condiciones de Pago:</span>{' '}
+                    <span className="text-slate-500">Condiciones de Pago:</span>{' '}
                     <span className="font-semibold text-slate-700">{p.condicionesPago || '—'}</span>
                   </div>
                   {p._count && !sinUso && (
                     <div className="col-span-2">
-                      <span className="text-slate-400">Uso:</span>{' '}
+                      <span className="text-slate-500">Uso:</span>{' '}
                       <span className="font-semibold text-slate-700 font-mono">
                         {p._count.materiales} mat · {p._count.ordenesCompra} OC
                       </span>

@@ -240,17 +240,17 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
               <div className="space-y-3 pt-1 text-xs shrink-0">
                 <div className="grid grid-cols-2 gap-2 text-slate-700">
                   <div className="flex items-center gap-1.5 font-bold text-slate-900 text-sm">
-                    <Maximize2 className="w-4 h-4 text-slate-400 shrink-0" />
+                    <Maximize2 className="w-4 h-4 text-slate-500 shrink-0" />
                     <span>{formatNumber(v.anchoMm, 0)} × {formatNumber(v.altoMm, 0)} mm</span>
                   </div>
                   <div className="flex items-center gap-1.5 justify-end text-sm">
-                    <span className="text-slate-400">Área:</span>
+                    <span className="text-slate-500">Área:</span>
                     <span className=" font-bold text-slate-900">{formatNumber(sup, 2)} m²</span>
                   </div>
                 </div>
 
                 <div className="pt-2 border-t border-slate-100">
-                  <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                  <div className="flex items-center gap-1.5 text-[11px] uppercase font-bold text-slate-500 tracking-wider">
                     <DoorClosed className="w-3.5 h-3.5" />
                     <span>Apertura</span>
                   </div>
@@ -259,8 +259,8 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
 
                 {!isFrameless && (
                   <div className="pt-2 border-t border-slate-100 flex items-center gap-2">
-                    <Paintbrush className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Acabado:</span>
+                    <Paintbrush className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    <span className="text-[11px] uppercase font-bold text-slate-500 tracking-wider">Acabado:</span>
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border border-slate-200 bg-slate-50 text-slate-800">
                       <span className="w-2.5 h-2.5 rounded-full border border-slate-300 shadow-inner shrink-0" style={{ backgroundColor: finish.frame }} />
                       <span>{finishLabel}</span>
@@ -306,7 +306,7 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
                   <span className="flex items-center gap-2 text-xs font-bold text-slate-800">
                     <Sliders className="w-4 h-4 text-slate-500" />
                     Apertura de corredera
-                    {v.correccionGeometria?.hojas?.length ? <span className="text-[10px] text-brand-600">· ajustada</span> : null}
+                    {v.correccionGeometria?.hojas?.length ? <span className="text-[11px] text-brand-600">· ajustada</span> : null}
                   </span>,
                   <CorrederaEditor
                     key={corrKey}
@@ -327,7 +327,7 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
                     <Rows3 className="w-4 h-4 text-slate-500" />
                     Travesaños
                     {v.correccionGeometria?.travesanos?.length ? (
-                      <span className="text-[10px] text-brand-600">· {v.correccionGeometria.travesanos.length} manuales</span>
+                      <span className="text-[11px] text-brand-600">· {v.correccionGeometria.travesanos.length} manuales</span>
                     ) : null}
                   </span>,
                   <TravesanosEditor
@@ -350,7 +350,7 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
                   return sectionShell(
                     `fam:${fam}`,
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide uppercase border ${badgeStyle}`}>{fam}</span>
+                      <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold tracking-wide uppercase border ${badgeStyle}`}>{fam}</span>
                       <span className="text-xs font-bold text-slate-800">
                         {items.length} {items.length === 1 ? 'artículo' : 'artículos'}
                       </span>
@@ -358,7 +358,7 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
                     </div>,
                     <Tabla>
                           <Thead>
-                            <Tr className="text-[10px] font-bold uppercase text-slate-400 border-b border-slate-100">
+                            <Tr className="text-[11px] font-bold uppercase text-slate-500 border-b border-slate-100">
                               <Th className="pb-2 px-2">SKU / Insumo</Th>
                               <Th alinear="derecha" className="pb-2 px-2">Cant. / Longitud</Th>
                               <Th alinear="centro" className="pb-2 px-2">Acabado</Th>
@@ -392,14 +392,14 @@ export const EditarLineaModal: React.FC<EditarLineaModalProps> = ({
                                       {Number(m.cantidad || 1).toLocaleString('es-CL')} un
                                     </div>
                                     {m.longitudMm && (
-                                      <div className="text-[10px] text-slate-400">
+                                      <div className="text-[11px] text-slate-500">
                                         {Number(m.longitudMm).toLocaleString('es-CL')} mm
                                       </div>
                                     )}
                                   </Td>
                                   <Td alinear="centro" className="px-2 align-top text-[11px] whitespace-nowrap">
                                     {m.acabado ? (
-                                      <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px]">
+                                      <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px]">
                                         {m.acabado}
                                       </span>
                                     ) : (

@@ -111,7 +111,7 @@ export const Sidebar: React.FC<{
             className={`relative w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
               isActive
                 ? 'bg-white/10 text-white font-semibold before:absolute before:left-0 before:top-2 before:bottom-2 before:w-[3px] before:rounded-r before:bg-brand-400'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                : 'text-slate-500 hover:text-white hover:bg-white/5'
             } ${anidado && expandido ? 'pl-9' : ''} ${expandido ? '' : 'md:justify-center md:px-0'}`}
           >
             <div className={`flex items-center gap-3 min-w-0 ${expandido ? '' : 'md:gap-0'}`}>
@@ -122,7 +122,7 @@ export const Sidebar: React.FC<{
             </div>
 
             {item.enConstruccion && (
-              <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-white/8 text-slate-500 ${ocultarEnRiel}`}>Pronto</span>
+              <span className={`px-1.5 py-0.5 rounded-md text-[11px] font-semibold bg-white/8 text-slate-500 ${ocultarEnRiel}`}>Pronto</span>
             )}
 
           </button>
@@ -173,13 +173,13 @@ export const Sidebar: React.FC<{
               />
               <div className={`min-w-0 ${ocultarEnRiel}`}>
                 <h2 className="text-xs font-black tracking-tight uppercase text-white">MTW ERP</h2>
-                <span className="text-[10px] font-mono text-brand-300 tracking-wider font-medium" title={`Versión ${VERSION}`}>{VERSION_VISIBLE}</span>
+                <span className="text-[11px] font-mono text-brand-300 tracking-wider font-medium" title={`Versión ${VERSION}`}>{VERSION_VISIBLE}</span>
               </div>
             </button>
 
             <button
               onClick={toggleFijado}
-              className="hidden md:inline-flex p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+              className="hidden md:inline-flex p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
               aria-pressed={fijado}
               aria-label={fijado ? 'Contraer menú' : 'Expandir menú'}
               title={fijado ? 'Contraer menú' : 'Expandir menú'}
@@ -189,7 +189,7 @@ export const Sidebar: React.FC<{
 
             <button
               onClick={onClose}
-              className="p-2 rounded-xl md:hidden text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-2 rounded-xl md:hidden text-slate-500 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               aria-label="Cerrar menú"
             >
               <X className="w-5 h-5" />
@@ -198,7 +198,7 @@ export const Sidebar: React.FC<{
 
           {/* Navegación: si no cabe (pantalla baja, móvil), hace scroll sin mover la marca ni Configuración. */}
           <div className="space-y-1.5 min-h-0 flex-1 overflow-y-auto overscroll-contain -mx-1 px-1 [scrollbar-width:thin]">
-            <div className={`text-[10px] font-bold uppercase tracking-[0.14em] px-3 py-1 text-slate-500 ${ocultarEnRiel}`}>
+            <div className={`text-[11px] font-bold uppercase tracking-[0.14em] px-3 py-1 text-slate-500 ${ocultarEnRiel}`}>
               Menú Principal
             </div>
             <nav className="space-y-1">
@@ -234,7 +234,7 @@ export const Sidebar: React.FC<{
                       onClick={() => alternarGrupo(entrada.id)}
                       aria-expanded={abierto === entrada.id}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-colors cursor-pointer hover:bg-white/5 ${
-                        contieneActiva && abierto !== entrada.id ? 'text-white' : 'text-slate-400 hover:text-white'
+                        contieneActiva && abierto !== entrada.id ? 'text-white' : 'text-slate-500 hover:text-white'
                       } ${expandido ? '' : 'md:hidden'}`}
                     >
                       <span className="flex items-center gap-3 min-w-0">

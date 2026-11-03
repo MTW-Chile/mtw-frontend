@@ -30,7 +30,7 @@ const aviso = (e: unknown) => {
 
 const Dato: React.FC<{ titulo: string; valor: React.ReactNode; detalle?: React.ReactNode }> = ({ titulo, valor, detalle }) => (
   <div className="rounded-xl bg-white border border-slate-200 px-3 py-2.5 min-w-0">
-    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{titulo}</p>
+    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{titulo}</p>
     <p className="text-sm font-black text-slate-900 mt-0.5 truncate">{valor}</p>
     {detalle && <p className="text-[11px] text-slate-500 truncate">{detalle}</p>}
   </div>
@@ -203,7 +203,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
 
   if (isLoading) {
     return (
-      <div className="p-12 flex items-center justify-center text-slate-400">
+      <div className="p-12 flex items-center justify-center text-slate-500">
         <Loader2 className="w-5 h-5 animate-spin" />
       </div>
     );
@@ -298,7 +298,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
                   Crear cubicación única
                 </Button>
               </div>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-slate-500">
                 ¿Ya tienes una planilla de cubicación (la de siempre)?{' '}
                 <Button variant="link" size="sm" onClick={() => entrada.current?.click()}>Súbela</Button>
                 .

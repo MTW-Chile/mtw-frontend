@@ -77,7 +77,7 @@ export const DetalleItemsOC: React.FC<{ oc: OrdenCompra; mostrarConciliacion?: b
     )}
     {(oc.items.some((i) => (i.recepciones || []).length > 0)) && (
       <div className="mb-2 pb-2 border-b border-slate-200 space-y-1">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Lotes recibidos</span>
+        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Lotes recibidos</span>
         <div className="flex flex-wrap gap-1.5">
           {oc.items.flatMap((i) =>
             (i.recepciones || []).map((r) => (
@@ -91,11 +91,11 @@ export const DetalleItemsOC: React.FC<{ oc: OrdenCompra; mostrarConciliacion?: b
       </div>
     )}
     {oc.items.length === 0 ? (
-      <p className="text-[11px] text-slate-400">Esta OC no tiene items.</p>
+      <p className="text-[11px] text-slate-500">Esta OC no tiene items.</p>
     ) : (
       <Tabla>
       <Thead>
-        <Tr className="text-left text-slate-400 uppercase tracking-wider">
+        <Tr className="text-left text-slate-500 uppercase tracking-wider">
           <Th className="pb-1.5 font-bold">Item</Th>
           <Th className="pb-1.5 font-bold">Categoría</Th>
           <Th alinear="derecha" className="pb-1.5 font-bold">Cantidad</Th>
@@ -137,7 +137,7 @@ export const DetalleItemsOC: React.FC<{ oc: OrdenCompra; mostrarConciliacion?: b
                         {pendienteConciliar.toLocaleString('es-CL', { maximumFractionDigits: 2 })} {item.unidadMedida}
                       </Badge>
                       {pendienteRecepcionar > 0 && (
-                        <span className="text-[10px] text-slate-400">
+                        <span className="text-[11px] text-slate-500">
                           También pendiente de recepcionar ({pendienteRecepcionar.toLocaleString('es-CL', { maximumFractionDigits: 2 })})
                         </span>
                       )}
@@ -475,24 +475,24 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
       </div>
 
       {isLoading ? (
-        <div className="p-12 flex items-center justify-center text-slate-400">
+        <div className="p-12 flex items-center justify-center text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
       ) : ordenes.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
+        <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">
           {proyectoId ? 'No hay solicitudes de materiales' : 'No hay Órdenes de Compra'}
           {filtroEstado ? ` en estado "${ESTADO_OC_LABEL[filtroEstado]}"` : ''}
           {proyectoId ? ' para esta obra' : ''} todavía.
         </div>
       ) : ordenesFiltradas.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
+        <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">
           Ninguna OC coincide con los filtros.
         </div>
       ) : isDesktop ? (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
           <Tabla>
             <Thead>
-              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[11px]">
                 <Th className="font-bold">Número</Th>
                 {!proyectoId && <Th className="font-bold">Obra</Th>}
                 <Th className="font-bold">Proveedor</Th>
@@ -531,7 +531,7 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                     )}
                     <Td className="text-slate-700 min-w-[7rem] max-w-[16rem]" title={oc.proveedor?.nombre}>
                       {oc.proveedor?.nombre ? <div className="line-clamp-2 leading-snug">{oc.proveedor.nombre}</div> : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold uppercase tracking-wide">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-bold uppercase tracking-wide">
                           Solicitud
                         </span>
                       )}
@@ -574,16 +574,16 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
                 <div className="min-w-0 space-y-0.5">
                   <div className="flex items-center gap-1.5 font-mono font-bold text-xs text-slate-900">
                     {expandidas.has(oc.id) ? (
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                     ) : (
-                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                     )}
                     {oc.numero}
                   </div>
                   {!proyectoId && <p className="text-[11px] text-slate-500 truncate pl-5">{oc.proyecto?.obra || oc.centroCosto?.nombre || '—'}</p>}
                   <p className="text-[11px] text-slate-500 truncate pl-5">
                     {oc.proveedor?.nombre || (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold uppercase tracking-wide">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-bold uppercase tracking-wide">
                         Solicitud
                       </span>
                     )}

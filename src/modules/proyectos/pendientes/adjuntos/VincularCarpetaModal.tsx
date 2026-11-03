@@ -66,12 +66,12 @@ export const VincularCarpetaModal: React.FC<Props> = ({ proyectoId, onClose }) =
   const nombreNuevaFinal = nombreNueva ?? estado?.nombreSugeridoNueva ?? '';
   const Fila: React.FC<{ c: CarpetaOneDriveSugerida; destacada?: boolean }> = ({ c, destacada }) => (
     <li className={`flex items-center gap-2 rounded-xl border p-2.5 ${destacada ? 'border-brand-300 bg-brand-50/50' : 'border-slate-200 bg-white'}`}>
-      <Folder className="w-4 h-4 text-slate-400 shrink-0" />
+      <Folder className="w-4 h-4 text-slate-500 shrink-0" />
       <span className="flex-1 min-w-0 text-xs font-bold text-slate-800 truncate" title={c.nombre}>
         {c.nombre}
       </span>
       {c.url && (
-        <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-brand-600" aria-label={`Abrir ${c.nombre} en OneDrive`}>
+        <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-brand-600" aria-label={`Abrir ${c.nombre} en OneDrive`}>
           <ExternalLink className="w-3.5 h-3.5" />
         </a>
       )}
@@ -89,21 +89,21 @@ export const VincularCarpetaModal: React.FC<Props> = ({ proyectoId, onClose }) =
       onClose={onClose}
     >
       {isLoading ? (
-        <div className="p-8 flex justify-center text-slate-400">
+        <div className="p-8 flex justify-center text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
       ) : (
         <>
           {estado?.carpeta && (
             <div className="space-y-2 rounded-xl border border-brand-200 bg-brand-50/40 p-3">
-              <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Carpeta vinculada</h4>
+              <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Carpeta vinculada</h4>
               <div className="flex flex-wrap items-center gap-2">
                 <Folder className="w-4 h-4 text-brand-600 shrink-0" />
                 <span className="flex-1 min-w-0 text-xs font-bold text-slate-800 truncate" title={estado.carpeta.nombre ?? ''}>
                   {estado.carpeta.nombre}
                 </span>
                 {estado.carpeta.url && (
-                  <a href={estado.carpeta.url} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-brand-600" aria-label="Abrir la carpeta en OneDrive">
+                  <a href={estado.carpeta.url} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-brand-600" aria-label="Abrir la carpeta en OneDrive">
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 )}
@@ -125,7 +125,7 @@ export const VincularCarpetaModal: React.FC<Props> = ({ proyectoId, onClose }) =
 
           {!estado?.carpeta && (
           <div className="space-y-2">
-            <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Parece ser esta</h4>
+            <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Parece ser esta</h4>
             {estado && estado.sugerencias.length > 0 ? (
               <ul className="space-y-1.5">
                 {estado.sugerencias.map((c, i) => (
@@ -139,7 +139,7 @@ export const VincularCarpetaModal: React.FC<Props> = ({ proyectoId, onClose }) =
           )}
 
           <div className="space-y-2">
-            <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{estado?.carpeta ? 'Cambiar por otra carpeta' : 'Buscar otra carpeta'}</h4>
+            <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{estado?.carpeta ? 'Cambiar por otra carpeta' : 'Buscar otra carpeta'}</h4>
             <form
               className="flex gap-2"
               onSubmit={(e) => {
@@ -152,7 +152,7 @@ export const VincularCarpetaModal: React.FC<Props> = ({ proyectoId, onClose }) =
                 Buscar
               </Button>
             </form>
-            {encontradas.isFetching && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
+            {encontradas.isFetching && <Loader2 className="w-4 h-4 animate-spin text-slate-500" />}
             {encontradas.isError && <p className="text-xs text-rose-700">No se pudo buscar en OneDrive.</p>}
             {consulta && encontradas.data && (
               encontradas.data.length === 0 ? (
@@ -168,7 +168,7 @@ export const VincularCarpetaModal: React.FC<Props> = ({ proyectoId, onClose }) =
           </div>
 
           <div className="space-y-2 border-t border-slate-100 pt-3">
-            <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">O crear una carpeta nueva</h4>
+            <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">O crear una carpeta nueva</h4>
             {!confirmarNueva ? (
               <Button size="sm" variant="outline" onClick={() => setConfirmarNueva(true)}>
                 Crear carpeta nueva…

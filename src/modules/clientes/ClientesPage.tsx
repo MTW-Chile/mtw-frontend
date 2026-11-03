@@ -81,7 +81,7 @@ export const ClientesPage: React.FC = () => {
   const CobranzaBadge = () => (
     <span
       title="Todavía no conectado con Finanzas"
-      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-50 text-slate-400 border border-slate-200 text-[10px] font-semibold"
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-50 text-slate-500 border border-slate-200 text-[11px] font-semibold"
     >
       <Receipt className="w-2.5 h-2.5" /> Sin datos
     </span>
@@ -113,7 +113,7 @@ export const ClientesPage: React.FC = () => {
         </div>
       ) : filtrados.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-10 sm:p-14 text-center space-y-3 shadow-xs">
-          <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-400">
+          <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-500">
             <Users className="w-6 h-6" />
           </div>
           <h3 className="text-sm font-bold text-slate-800">No se encontraron clientes</h3>
@@ -158,7 +158,7 @@ export const ClientesPage: React.FC = () => {
                           {/* Solo si dice algo distinto al nombre -- antes se repetia
                               tal cual en gris debajo en casi todas las filas. */}
                           {c.razonSocial && c.razonSocial !== c.nombre && (
-                            <span className="block text-[11px] text-slate-400 font-normal truncate max-w-[18rem]" title={c.razonSocial}>
+                            <span className="block text-[11px] text-slate-500 font-normal truncate max-w-[18rem]" title={c.razonSocial}>
                               {c.razonSocial}
                             </span>
                           )}
@@ -220,7 +220,7 @@ export const ClientesPage: React.FC = () => {
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <h4 className="text-xs font-bold text-slate-900 leading-snug">{c.nombre}</h4>
-                        {c.razonSocial && <p className="text-[11px] text-slate-400">{c.razonSocial}</p>}
+                        {c.razonSocial && <p className="text-[11px] text-slate-500">{c.razonSocial}</p>}
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {sinUso && <Badge variant="warning" size="sm">Sin uso</Badge>}
@@ -230,18 +230,18 @@ export const ClientesPage: React.FC = () => {
 
                     <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
                       <div>
-                        <span className="text-slate-400">RUT:</span> <span className="font-semibold text-slate-700">{c.rut || '—'}</span>
+                        <span className="text-slate-500">RUT:</span> <span className="font-semibold text-slate-700">{c.rut || '—'}</span>
                       </div>
                       <div className="truncate">
-                        <span className="text-slate-400">Contacto:</span>{' '}
+                        <span className="text-slate-500">Contacto:</span>{' '}
                         <span className="font-semibold text-slate-700">{c.contacto || '—'}</span>
                       </div>
                       <div className="col-span-2">
-                        <span className="text-slate-400">Giro:</span> <span className="font-semibold text-slate-700">{c.giro || '—'}</span>
+                        <span className="text-slate-500">Giro:</span> <span className="font-semibold text-slate-700">{c.giro || '—'}</span>
                       </div>
                       {c._count && !sinUso && (
                         <div className="col-span-2">
-                          <span className="text-slate-400">Proyectos:</span>{' '}
+                          <span className="text-slate-500">Proyectos:</span>{' '}
                           <span className="font-semibold text-slate-700 font-mono">{c._count.proyectos}</span>
                         </div>
                       )}

@@ -6,10 +6,10 @@ import React, { useEffect, useId, useState } from 'react';
  */
 
 const BASE =
-  'w-full rounded-xl bg-slate-50 border text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-brand-600 focus:ring-2 focus:ring-brand-600/10 transition-all disabled:bg-slate-100 disabled:text-slate-500';
+  'w-full rounded-xl bg-slate-50 border text-xs pointer-coarse:max-md:text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-brand-600 focus:ring-2 focus:ring-brand-600/10 transition-all disabled:bg-slate-100 disabled:text-slate-500';
 /** Control compacto para tablas editables en línea. */
 export const CAMPO_COMPACTO =
-  'text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-brand-600 bg-white disabled:bg-slate-50 disabled:text-slate-500';
+  'text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-brand-600 bg-white disabled:bg-slate-50 disabled:text-slate-500 pointer-coarse:min-h-11 pointer-coarse:max-md:text-base';
 
 /** Envoltorio de un campo: etiqueta, control, ayuda y error. */
 export const Campo: React.FC<{ label?: React.ReactNode; htmlFor?: string; helperText?: React.ReactNode; error?: string; className?: string; children: React.ReactNode }> = ({
@@ -27,7 +27,7 @@ export const Campo: React.FC<{ label?: React.ReactNode; htmlFor?: string; helper
       </label>
     )}
     {children}
-    {error ? <p className="text-[11px] font-semibold text-rose-600">{error}</p> : helperText ? <p className="text-[11px] text-slate-400">{helperText}</p> : null}
+    {error ? <p className="text-[11px] font-semibold text-rose-600">{error}</p> : helperText ? <p className="text-[11px] text-slate-500">{helperText}</p> : null}
   </div>
 );
 
@@ -92,7 +92,7 @@ export const NumeroInput: React.FC<{
         onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
         className={`${compacto ? CAMPO_COMPACTO : `${BASE} px-3.5 py-2.5 border-slate-200`} text-right tabular-nums ${className}`}
       />
-      {sufijo && <span className="text-[11px] text-slate-400">{sufijo}</span>}
+      {sufijo && <span className="text-[11px] text-slate-500">{sufijo}</span>}
     </span>
   );
 };
@@ -250,10 +250,10 @@ export const Casilla: React.FC<{
   className?: string;
   'aria-label'?: string;
 }> = ({ checked, onChange, disabled, label, descripcion, className = '', ...rest }) => (
-  <label className={`inline-flex ${descripcion ? 'items-start' : 'items-center'} gap-2 text-xs ${disabled ? 'opacity-60' : 'cursor-pointer'} ${className}`}>
+  <label className={`inline-flex ${descripcion ? 'items-start' : 'items-center'} gap-2 text-xs pointer-coarse:min-h-11 pointer-coarse:gap-2.5 ${disabled ? 'opacity-60' : 'cursor-pointer'} ${className}`}>
     <input
       type="checkbox"
-      className={`accent-brand-600 w-3.5 h-3.5 shrink-0 ${descripcion ? 'mt-0.5' : ''}`}
+      className={`accent-brand-600 w-3.5 h-3.5 pointer-coarse:w-5 pointer-coarse:h-5 shrink-0 ${descripcion ? 'mt-0.5' : ''}`}
       checked={checked}
       disabled={disabled}
       aria-label={rest['aria-label']}

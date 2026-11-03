@@ -76,7 +76,7 @@ export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: strin
 
   if (isLoading || !a) {
     return (
-      <div className="p-12 flex items-center justify-center text-slate-400">
+      <div className="p-12 flex items-center justify-center text-slate-500">
         <Loader2 className="w-5 h-5 animate-spin" />
       </div>
     );
@@ -203,7 +203,7 @@ export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: strin
             <label className="flex items-center gap-2 pt-2">
               <span className="text-slate-600">Margen de venta</span>
               <NumeroEditable valor={Number(a.margenPct)} disabled={!borrador} onGuardar={(v) => editar.mutate({ margenPct: Math.min(99, v) })} className="w-20" />
-              <span className="text-slate-400">%</span>
+              <span className="text-slate-500">%</span>
             </label>
           ) : (
             <p className="pt-2 text-slate-500">El margen y los costos de flete e instalación se fijan en la Hoja de fijación de abajo.</p>
@@ -214,7 +214,7 @@ export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: strin
           <dd className="text-right font-mono">{clp(a.totales.costo)}</dd>
           <dt className="text-slate-500">Venta neto</dt>
           <dd className="text-right font-mono font-bold text-slate-900">
-            {clp(a.totales.venta)} <span className="text-slate-400 font-normal">({uf(a.totales.ventaUf)})</span>
+            {clp(a.totales.venta)} <span className="text-slate-500 font-normal">({uf(a.totales.ventaUf)})</span>
           </dd>
           <dt className="text-slate-500">IVA ({a.totales.ivaPct}%)</dt>
           <dd className="text-right font-mono">{clp(a.totales.iva)}</dd>
@@ -268,7 +268,7 @@ export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: strin
               <Tr key={i.id} className={i.porClasificar ? 'bg-amber-50/50' : ''}>
                 <Td>
                   <div className="font-semibold text-slate-800">{i.descripcion}</div>
-                  <div className="text-[10px] text-slate-400">{i.materialId ? 'Catálogo · precio vigente' : 'Ítem libre'}</div>
+                  <div className="text-[11px] text-slate-500">{i.materialId ? 'Catálogo · precio vigente' : 'Ítem libre'}</div>
                 </Td>
                 <Td>
                   {!i.materialId && puedeEditar ? (
@@ -297,7 +297,7 @@ export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: strin
                   ) : (
                     Number(i.cantidad).toLocaleString('es-CL')
                   )}{' '}
-                  <span className="text-slate-400">{i.unidad}</span>
+                  <span className="text-slate-500">{i.unidad}</span>
                 </Td>
                 <Td alinear="derecha" className="font-mono">
                   {borrador && !i.materialId ? (
@@ -317,7 +317,7 @@ export const AdicionalDetalle: React.FC<{ proyecto: Proyecto; adicionalId: strin
             ))}
             {a.items.length === 0 && (
               <Tr>
-                <Td colSpan={7} alinear="centro" className="py-8 text-slate-400">
+                <Td colSpan={7} alinear="centro" className="py-8 text-slate-500">
                   Sin ítems todavía.
                 </Td>
               </Tr>

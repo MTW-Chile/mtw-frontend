@@ -61,7 +61,7 @@ export const ClientePicker: React.FC<Props> = ({ value, onChange }) => {
       <Buscador valor={texto} onChange={setTexto} placeholder="Buscar por nombre o RUT…" etiqueta="Buscar cliente" />
       <div className="mt-2 max-h-40 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100 bg-white">
         {isLoading ? (
-          <div className="p-3 flex items-center justify-center text-slate-400">
+          <div className="p-3 flex items-center justify-center text-slate-500">
             <Loader2 className="w-4 h-4 animate-spin" />
           </div>
         ) : clientes.length === 0 ? (
@@ -69,7 +69,7 @@ export const ClientePicker: React.FC<Props> = ({ value, onChange }) => {
         ) : (
           clientes.map((c) => (
             <BotonFila key={c.id} onClick={() => onChange(c)} className="flex items-center gap-2">
-              <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <User className="w-3.5 h-3.5 text-slate-500 shrink-0" />
               <span className="min-w-0">
                 <span className="block text-xs font-bold text-slate-900 truncate">{c.nombre}</span>
                 <span className="block text-[11px] text-slate-500 truncate">{c.rut || 'Sin RUT'}</span>

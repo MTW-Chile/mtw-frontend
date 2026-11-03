@@ -38,7 +38,7 @@ export const ToastContainer: React.FC = () => {
             <div className="flex-1 min-w-0">
               <p className="font-bold break-words">{item.mensaje}</p>
               {item.detalle && (
-                <p className={`text-[10px] mt-0.5 break-words font-mono ${esInfo ? 'text-emerald-700/80' : 'text-rose-600/80'}`}>
+                <p className={`text-[11px] mt-0.5 break-words font-mono ${esInfo ? 'text-emerald-700/80' : 'text-rose-600/80'}`}>
                   {item.detalle}
                 </p>
               )}

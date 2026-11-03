@@ -116,7 +116,7 @@ export const TravesanosEditor: React.FC<TravesanosEditorProps> = ({ ventana, onD
                       className="w-28"
                       placeholder="mm"
                     />
-                    <span className="text-[11px] text-slate-400 flex-1">
+                    <span className="text-[11px] text-slate-500 flex-1">
                       {t.eje === 'horizontal' ? 'desde arriba' : 'desde la izquierda'}
                     </span>
                     <IconButton icono={Trash2} tono="peligro" etiqueta="Quitar travesaño" onClick={() => setDraft((prev) => prev.filter((_, idx) => idx !== i))} />
@@ -141,7 +141,7 @@ export const TravesanosEditor: React.FC<TravesanosEditorProps> = ({ ventana, onD
               Agregar travesaño
             </Button>
             {!permiteVerticalSinPano && (
-              <p className="text-[11px] text-slate-400">El travesaño vertical solo está disponible en ventanas fijas o compuestas.</p>
+              <p className="text-[11px] text-slate-500">El travesaño vertical solo está disponible en ventanas fijas o compuestas.</p>
             )}
             <div className="flex items-center justify-between gap-2 pt-1">
         <p className="text-xs text-rose-600 font-medium">{error}</p>

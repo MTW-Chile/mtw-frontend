@@ -68,13 +68,13 @@ export const MaterialPicker: React.FC<MaterialPickerProps> = ({ onSelect, placeh
       {term.trim().length >= 2 && (
         <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 divide-y divide-slate-100 bg-white">
           {visibles.length === 0 && !isLoading ? (
-            <div className="p-3 text-[11px] text-slate-400 text-center">Sin resultados</div>
+            <div className="p-3 text-[11px] text-slate-500 text-center">Sin resultados</div>
           ) : (
             visibles.map((m) => (
               <BotonFila key={m.id} onClick={() => onSelect(m)}>
                 <div className="font-mono font-semibold text-[11px] text-slate-900">{m.skuInterno}</div>
                 <div className="text-[11px] text-slate-600 leading-tight">{m.descripcion}</div>
-                <div className="text-[10px] text-slate-400">{m.tipoProducto?.nombre ?? m.familia}</div>
+                <div className="text-[11px] text-slate-500">{m.tipoProducto?.nombre ?? m.familia}</div>
               </BotonFila>
             ))
           )}

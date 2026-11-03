@@ -101,7 +101,7 @@ const BotonReemplazar: React.FC<{ disabled: boolean; onClick: () => void }> = ({
 // Dato con etiqueta encima (mismo patrón que la tarjeta de línea).
 const Campo: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <div className="min-w-0">
-    <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">{label}</div>
+    <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-1">{label}</div>
     <div className="text-xs text-slate-800">{children}</div>
   </div>
 );
@@ -573,17 +573,17 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
         {/* Resumen: una sola barra con los tres indicadores */}
         <div className="grid grid-cols-1 sm:grid-cols-3 rounded-xl border border-slate-200 bg-slate-50/60 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
           <div className="px-4 py-2.5">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Insumos visibles / activos</div>
+            <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Insumos visibles / activos</div>
             <div className="text-lg font-extrabold text-slate-900 mt-1 tabular-nums">
               {filteredMateriales.filter((m) => !m.excluido).length} <span className="text-xs font-semibold text-slate-500">artículos</span>
             </div>
           </div>
           <div className="px-4 py-2.5">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Costo materiales (CLP)</div>
+            <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Costo materiales (CLP)</div>
             <div className="text-lg font-extrabold text-slate-900 mt-1 tabular-nums whitespace-nowrap">$ {formatNumber(costoTotalCLP, 0)}</div>
           </div>
           <div className="px-4 py-2.5">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Costo materiales (UF)</div>
+            <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Costo materiales (UF)</div>
             <div className="text-lg font-extrabold text-brand-600 mt-1 tabular-nums whitespace-nowrap">{formatUF(costoTotalUF)} UF</div>
           </div>
         </div>
@@ -692,7 +692,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                               </Td>
                               <Td alinear="derecha" className="align-top">
                                 <div className="flex items-center justify-end gap-1">
-                                  <span className="text-slate-400 text-[10px]">{resolverMoneda(m.monedaOrigen, monedas).simbolo}</span>
+                                  <span className="text-slate-500 text-[11px]">{resolverMoneda(m.monedaOrigen, monedas).simbolo}</span>
                                   <PrecioEditable
                                     valor={m.precioOrigen}
                                     disabled={edicionBloqueada}
@@ -702,7 +702,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                               </Td>
                               <Td alinear="derecha" className="align-top">
                                 <div className="flex items-center justify-end gap-1">
-                                  <span className="text-slate-400 text-[10px]">$</span>
+                                  <span className="text-slate-500 text-[11px]">$</span>
                                   <PrecioEditable
                                     valor={Math.round(m.precioCLP * 100) / 100}
                                     disabled={edicionBloqueada}
@@ -711,12 +711,12 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                 </div>
                               </Td>
                               <Td numero className="align-top text-slate-800">
-                                {formatNumber(m.cantidadTotal, decimalesCantidad(m.cantidadTotal))} <span className="text-slate-400">{m.unidad.simbolo}</span>
+                                {formatNumber(m.cantidadTotal, decimalesCantidad(m.cantidadTotal))} <span className="text-slate-500">{m.unidad.simbolo}</span>
                               </Td>
                               <Td numero className="align-top font-bold text-slate-900">
                                 $ {formatNumber(m.precioCompraNeto * m.cantidadTotal, 0)}
                                 {/* Referencia: el mismo total en la moneda de origen (con el descuento de la partida). */}
-                                <div className="text-[10px] font-normal text-slate-400">{formatMonto(totalOrigen(m), resolverMoneda(m.monedaOrigen, monedas))}</div>
+                                <div className="text-[11px] font-normal text-slate-500">{formatMonto(totalOrigen(m), resolverMoneda(m.monedaOrigen, monedas))}</div>
                               </Td>
                               <Td alinear="centro" className="align-top">
                                 <div className="flex items-center justify-center gap-2">
@@ -788,7 +788,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                           <div className="grid grid-cols-2 gap-3">
                             <Campo label="Precio origen">
                               <div className="flex items-center gap-1">
-                                <span className="text-slate-400 text-[10px]">{resolverMoneda(m.monedaOrigen, monedas).simbolo}</span>
+                                <span className="text-slate-500 text-[11px]">{resolverMoneda(m.monedaOrigen, monedas).simbolo}</span>
                                 <PrecioEditable
                                   valor={m.precioOrigen}
                                   disabled={edicionBloqueada}
@@ -798,7 +798,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                             </Campo>
                             <Campo label="Precio CLP">
                               <div className="flex items-center gap-1">
-                                <span className="text-slate-400 text-[10px]">$</span>
+                                <span className="text-slate-500 text-[11px]">$</span>
                                 <PrecioEditable
                                   valor={Math.round(m.precioCLP * 100) / 100}
                                   disabled={edicionBloqueada}
@@ -810,11 +810,11 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                               <span className="tabular-nums font-semibold">
                                 {formatNumber(m.cantidadTotal, decimalesCantidad(m.cantidadTotal))}
                               </span>{' '}
-                              <span className="text-slate-400">{m.unidad.simbolo}</span>
+                              <span className="text-slate-500">{m.unidad.simbolo}</span>
                             </Campo>
                             <Campo label="Total CLP">
                               <span className="tabular-nums font-bold">$ {formatNumber(m.precioCompraNeto * m.cantidadTotal, 0)}</span>{' '}
-                              <span className="text-[10px] text-slate-400 tabular-nums">{formatMonto(totalOrigen(m), resolverMoneda(m.monedaOrigen, monedas))}</span>
+                              <span className="text-[11px] text-slate-500 tabular-nums">{formatMonto(totalOrigen(m), resolverMoneda(m.monedaOrigen, monedas))}</span>
                             </Campo>
                           </div>
                         </li>

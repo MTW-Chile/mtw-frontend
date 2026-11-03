@@ -44,7 +44,7 @@ const ResumenLote: React.FC<{ datos: ResumenMaterialesFabricacion }> = ({ datos 
         <div key={familia} className="rounded-xl border border-slate-200 bg-white overflow-hidden">
           <Tabla>
             <Thead>
-              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[11px]">
                 <Th className="font-bold">{familia}</Th>
                 <Th className="font-bold">Acabado</Th>
                 <Th alinear="derecha" className="font-bold">Uds</Th>
@@ -63,7 +63,7 @@ const ResumenLote: React.FC<{ datos: ResumenMaterialesFabricacion }> = ({ datos 
                   <Td>
                     <span className="font-mono text-slate-500 mr-2">{f.codigoArticulo}</span>
                     <span className="text-slate-800">{f.descripcion}</span>
-                    {f.ventanaModelo && <span className="ml-2 text-[10px] text-slate-400">{f.ventanaModelo}</span>}
+                    {f.ventanaModelo && <span className="ml-2 text-[11px] text-slate-500">{f.ventanaModelo}</span>}
                     {f.esRetal && <Badge size="sm" variant="outline" className="ml-2">retal</Badge>}
                     {(f.anchoMm || f.altoMm) && <span className="ml-2 font-mono text-slate-500">{formatoMm(f.anchoMm)} × {formatoMm(f.altoMm)} mm</span>}
                   </Td>
@@ -166,17 +166,17 @@ const Materiales: React.FC<{ datos: MaterialesFabricacion }> = ({ datos }) => (
           <span className="font-mono text-slate-500">
             {formatoMm(ventana.anchoMm)} × {formatoMm(ventana.altoMm)} mm
           </span>
-          <span className="text-slate-400">
+          <span className="text-slate-500">
             {vidrios.length} vidrio(s) · {materiales.length} material(es)
           </span>
         </summary>
         <div className="px-3 pb-3 space-y-3 border-t border-slate-100 pt-3">
           {vidrios.length === 0 && materiales.length === 0 && (
-            <p className="text-xs text-slate-400">HETMO no trae materiales ni vidrios para esta ventana.</p>
+            <p className="text-xs text-slate-500">HETMO no trae materiales ni vidrios para esta ventana.</p>
           )}
           {vidrios.length > 0 && (
             <div>
-              <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Vidrios</h4>
+              <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Vidrios</h4>
               <ul className="text-xs divide-y divide-slate-50">
                 {vidrios.map((v) => (
                   <li key={v.material_hetmo} className="py-1.5 flex flex-wrap items-center justify-between gap-2">
@@ -194,7 +194,7 @@ const Materiales: React.FC<{ datos: MaterialesFabricacion }> = ({ datos }) => (
           )}
           {agruparPorFamilia(materiales).map(([familia, items]) => (
             <div key={familia}>
-              <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">{familia}</h4>
+              <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">{familia}</h4>
               <ul className="text-xs divide-y divide-slate-50">
                 {items.map((m, i) => (
                   <li key={`${m.codigo_articulo}-${i}`} className="py-1.5 flex flex-wrap items-center justify-between gap-2">
@@ -257,7 +257,7 @@ const CeldaVinculoCubicacion: React.FC<{ fabricacionId: string; ventana: Fabrica
   if (candidatos.isLoading) return <span className="text-slate-300">...</span>;
   const opciones = candidatos.data?.candidatos ?? [];
   if (opciones.length === 0) {
-    return <span className="text-slate-400">Sin candidatas</span>;
+    return <span className="text-slate-500">Sin candidatas</span>;
   }
   return (
     <div className="flex items-center gap-1">
@@ -313,7 +313,7 @@ export const FabricacionDetalle: React.FC<Props> = ({ proyectoId, fabricacionId 
 
   if (detalle.isLoading) {
     return (
-      <div className="p-6 flex items-center justify-center text-slate-400">
+      <div className="p-6 flex items-center justify-center text-slate-500">
         <Loader2 className="w-4 h-4 animate-spin" />
       </div>
     );
@@ -337,7 +337,7 @@ export const FabricacionDetalle: React.FC<Props> = ({ proyectoId, fabricacionId 
         <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
           <Tabla>
             <Thead>
-              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[11px]">
                 <Th className="font-bold">Pos</Th>
                 <Th className="font-bold">Modelo</Th>
                 <Th alinear="derecha" className="font-bold">Medida (mm)</Th>
@@ -372,13 +372,13 @@ export const FabricacionDetalle: React.FC<Props> = ({ proyectoId, fabricacionId 
               ))}
             </Tbody>
           </Tabla>
-          {ventanas.length === 0 && <p className="p-4 text-center text-xs text-slate-400">El documento no trae ventanas.</p>}
+          {ventanas.length === 0 && <p className="p-4 text-center text-xs text-slate-500">El documento no trae ventanas.</p>}
         </div>
       )}
 
       {vista === 'materiales' &&
         (materiales.isLoading ? (
-          <div className="p-6 flex items-center justify-center text-slate-400 gap-2 text-xs">
+          <div className="p-6 flex items-center justify-center text-slate-500 gap-2 text-xs">
             <Loader2 className="w-4 h-4 animate-spin" /> Leyendo materiales de HETMO...
           </div>
         ) : materiales.isError || !materiales.data ? (
@@ -389,7 +389,7 @@ export const FabricacionDetalle: React.FC<Props> = ({ proyectoId, fabricacionId 
 
       {vista === 'resumen' &&
         (resumen.isLoading ? (
-          <div className="p-6 flex items-center justify-center text-slate-400 gap-2 text-xs">
+          <div className="p-6 flex items-center justify-center text-slate-500 gap-2 text-xs">
             <Loader2 className="w-4 h-4 animate-spin" /> Cargando el resumen del lote...
           </div>
         ) : resumen.isError || !resumen.data ? (

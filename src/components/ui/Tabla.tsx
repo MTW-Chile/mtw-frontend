@@ -64,7 +64,7 @@ export const Td: React.FC<React.TdHTMLAttributes<HTMLTableCellElement> & { aline
 
 export const FilaVacia: React.FC<{ columnas: number; children: React.ReactNode }> = ({ columnas, children }) => (
   <tr>
-    <td colSpan={columnas} className="py-8 text-center text-xs text-slate-400">
+    <td colSpan={columnas} className="py-8 text-center text-xs text-slate-500">
       {children}
     </td>
   </tr>

@@ -99,7 +99,7 @@ export const TiposProyectoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
             const guardando = guardar.isPending && guardar.variables?.id === t.id;
             return (
               <Tr key={t.id} tono={t.activo ? undefined : 'atenuada'}>
-                <Td className="font-mono text-[10px] text-slate-500">{t.codigo}</Td>
+                <Td className="font-mono text-[11px] text-slate-500">{t.codigo}</Td>
                 <Td>
                   {puedeEditar ? (
                     <InputCompacto aria-label="Nombre" value={nombreDe(t)} onChange={(e) => setNombres((p) => ({ ...p, [t.id]: e.target.value }))} className="w-full" />

@@ -141,7 +141,7 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({ cliente, onC
           <Input label="Correo Electrónico" type="email" value={formData.email} onChange={set('email')} />
         </>
       ) : (
-        <div className="py-10 text-center text-xs text-slate-400 space-y-2">
+        <div className="py-10 text-center text-xs text-slate-500 space-y-2">
           <Receipt className="w-8 h-8 mx-auto text-slate-300" />
           <p className="text-slate-500 font-semibold">Sin información de cobranza todavía</p>
           <p className="max-w-xs mx-auto">

@@ -37,7 +37,7 @@ export const ClayCentroCostoEditor: React.FC<{ proyectoId: string; valor: string
           setEditando(true);
         }}
       >
-        <span className="text-slate-400">Centro de costo Clay: </span>
+        <span className="text-slate-500">Centro de costo Clay: </span>
         <span className={`font-semibold ${valor ? 'text-slate-800' : 'text-amber-600'}`}>{valor || 'Sin configurar'}</span>
       </ActivadorEdicion>
     );
@@ -61,7 +61,7 @@ export const ClayCentroCostoEditor: React.FC<{ proyectoId: string; valor: string
         <IconButton icono={Check} tono="marca" etiqueta="Guardar" onClick={() => mutation.mutate()} cargando={mutation.isPending} />
         <IconButton icono={X} etiqueta="Cancelar" onClick={() => setEditando(false)} disabled={mutation.isPending} />
       </div>
-      {error && <span className="text-[10px] text-rose-600">{error}</span>}
+      {error && <span className="text-[11px] text-rose-600">{error}</span>}
     </div>
   );
 };

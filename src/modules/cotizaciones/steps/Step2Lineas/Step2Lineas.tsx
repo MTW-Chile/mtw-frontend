@@ -183,7 +183,7 @@ export const Step2Lineas: React.FC<Step2LineasProps> = ({
               <Layers className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Catálogo técnico de obra</div>
+              <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Catálogo técnico de obra</div>
               <h2 className="text-base font-extrabold text-slate-900">Revisión técnica de líneas</h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 {filteredVentanas.length} de {ventanas.length} líneas · {totalVentanasFiltradas} ventanas ·{' '}

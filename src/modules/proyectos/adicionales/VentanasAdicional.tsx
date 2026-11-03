@@ -100,20 +100,20 @@ export const VentanasAdicional: React.FC<{ proyecto: Proyecto; adicional: Adicio
               <li key={v.id} className="px-4 py-2 flex items-center justify-between gap-3">
                 <span>
                   <span className="font-semibold text-slate-800">{v.modelo}</span>
-                  <span className="text-slate-400"> · línea {v.lineaHetmo} · {Number(v.anchoMm)} × {Number(v.altoMm)} mm</span>
+                  <span className="text-slate-500"> · línea {v.lineaHetmo} · {Number(v.anchoMm)} × {Number(v.altoMm)} mm</span>
                 </span>
                 <span className="tabular-nums text-slate-600">{v.unidades} un.</span>
               </li>
             ))}
           </ul>
         ) : (
-          !esHetmo && <p className="px-4 py-6 text-center text-xs text-slate-400">Elige las ventanas de la cotización que se recotizan en este adicional.</p>
+          !esHetmo && <p className="px-4 py-6 text-center text-xs text-slate-500">Elige las ventanas de la cotización que se recotizan en este adicional.</p>
         )}
       </section>
 
       {adicional.versionId &&
         (isLoading || !version ? (
-          <div className="p-10 flex items-center justify-center text-slate-400">
+          <div className="p-10 flex items-center justify-center text-slate-500">
             <Loader2 className="w-5 h-5 animate-spin" />
           </div>
         ) : (

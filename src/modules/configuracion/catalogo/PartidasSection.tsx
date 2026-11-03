@@ -104,7 +104,7 @@ export const PartidasSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdita
                 <Td>
                   <InputCompacto aria-label="Orden" type="number" min={0} value={nueva.orden} onChange={(e) => setNueva({ ...nueva, orden: e.target.value })} className="w-full text-right" />
                 </Td>
-                <Td className="text-slate-400">—</Td>
+                <Td className="text-slate-500">—</Td>
                 <Td />
                 <Td className="text-right whitespace-nowrap">
                   <Button size="sm" onClick={() => crear.mutate(nueva)} disabled={!nueva.codigo.trim() || !nueva.nombre.trim()} isLoading={crear.isPending}>
@@ -119,7 +119,7 @@ export const PartidasSection: React.FC<{ puedeEditar: boolean }> = ({ puedeEdita
               const guardando = guardar.isPending && guardar.variables?.id === p.id;
               return (
                 <Tr key={p.id} tono={p.activa ? undefined : 'atenuada'}>
-                  <Td className="font-mono text-[10px] text-slate-500">
+                  <Td className="font-mono text-[11px] text-slate-500">
                     {p.codigo}
                     {p.porDefecto && (
                       <Badge size="sm" variant="warning" className="ml-1.5" title="Recibe lo que todavía no tiene partida">

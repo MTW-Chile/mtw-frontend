@@ -52,7 +52,7 @@ export const RepararDuplicadosModal: React.FC<{ onClose: () => void }> = ({ onCl
       }
     >
       {isLoading && (
-        <div className="py-10 flex items-center justify-center text-slate-400 gap-2 text-xs">
+        <div className="py-10 flex items-center justify-center text-slate-500 gap-2 text-xs">
           <Loader2 className="w-4 h-4 animate-spin" /> Consultando HETMO…
         </div>
       )}
@@ -84,7 +84,7 @@ export const RepararDuplicadosModal: React.FC<{ onClose: () => void }> = ({ onCl
               <li key={f.origen.id} className="px-4 py-3 text-xs">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-semibold text-slate-900">{f.origen.nombre}</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-500" />
                   <span className="font-semibold text-brand-700">{f.destino.nombre}</span>
                 </div>
                 <div className="text-[11px] text-slate-500 mt-0.5">

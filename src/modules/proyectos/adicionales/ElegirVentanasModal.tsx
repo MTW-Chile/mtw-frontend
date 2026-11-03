@@ -74,7 +74,7 @@ export const ElegirVentanasModal: React.FC<{
                   <>
                 <span className="min-w-0">
                   <span className="font-semibold text-slate-800">{v.modelo}</span>
-                  <span className="text-slate-400"> · línea {v.lineaHetmo} · {Number(v.anchoMm)} × {Number(v.altoMm)} mm</span>
+                  <span className="text-slate-500"> · línea {v.lineaHetmo} · {Number(v.anchoMm)} × {Number(v.altoMm)} mm</span>
                 </span>
                   </>
                 }
@@ -90,12 +90,12 @@ export const ElegirVentanasModal: React.FC<{
                   onChange={(e) => setElegidas((prev) => ({ ...prev, [v.id]: Math.min(v.unidades, Math.max(1, Math.round(Number(e.target.value) || 1))) }))}
                   className="w-16 text-right"
                 />
-                <span className="text-slate-400">de {v.unidades}</span>
+                <span className="text-slate-500">de {v.unidades}</span>
               </span>
             </li>
           );
         })}
-        {filtradas.length === 0 && <li className="px-3 py-6 text-center text-slate-400 text-xs">Sin ventanas.</li>}
+        {filtradas.length === 0 && <li className="px-3 py-6 text-center text-slate-500 text-xs">Sin ventanas.</li>}
       </ul>
     </Modal>
   );

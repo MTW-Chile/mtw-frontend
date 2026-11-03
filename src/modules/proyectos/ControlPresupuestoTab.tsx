@@ -88,7 +88,7 @@ export const ControlPresupuestoTab: React.FC<{ proyecto: Proyecto; activeVersion
 
   if ((cargandoAnalitica || cargandoControl) && filas.length === 0) {
     return (
-      <div className="p-12 flex items-center justify-center text-slate-400">
+      <div className="p-12 flex items-center justify-center text-slate-500">
         <Loader2 className="w-5 h-5 animate-spin" />
       </div>
     );
@@ -150,7 +150,7 @@ export const ControlPresupuestoTab: React.FC<{ proyecto: Proyecto; activeVersion
         <div className="border-t border-slate-100">
           <Tabla>
             <Thead>
-              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[11px]">
                 <Th className="font-bold">Partida</Th>
                 <Th alinear="derecha" className="font-bold">Presupuestado</Th>
                 <Th alinear="derecha" className="font-bold">En OC</Th>
@@ -191,7 +191,7 @@ export const ControlPresupuestoTab: React.FC<{ proyecto: Proyecto; activeVersion
               })}
               {filas.length === 0 && (
                 <Tr>
-                  <Td colSpan={8} alinear="centro" className="py-8 text-slate-400">
+                  <Td colSpan={8} alinear="centro" className="py-8 text-slate-500">
                     Sin materiales ni Órdenes de Compra todavía para esta versión.
                   </Td>
                 </Tr>

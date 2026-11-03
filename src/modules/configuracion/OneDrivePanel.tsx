@@ -129,7 +129,7 @@ export const OneDrivePanel: React.FC = () => {
                 )}
               </div>
               {estado.cuenta?.nombre && <p className="text-xs text-slate-500">{estado.cuenta.nombre}</p>}
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-slate-500">
                 Conectada por {estado.conectadoPorEmail} · {estado.conectadoEn ? formatoFechaHora(estado.conectadoEn) : ''}
               </p>
             </div>

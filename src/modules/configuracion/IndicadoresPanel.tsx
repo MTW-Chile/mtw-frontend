@@ -66,7 +66,7 @@ export const IndicadoresPanel: React.FC<{ puedeEditar: boolean }> = ({ puedeEdit
                 ] as const
               ).map(([k, valor, dec]) => (
                 <div key={k} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                  <dt className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">{k}</dt>
+                  <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-bold">{k}</dt>
                   <dd className="font-mono tabular-nums text-slate-800 font-semibold">{valor != null ? `$${formatNumber(valor, dec)}` : '—'}</dd>
                 </div>
               ))}

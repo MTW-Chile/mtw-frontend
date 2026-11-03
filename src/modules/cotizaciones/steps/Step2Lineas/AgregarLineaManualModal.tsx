@@ -170,7 +170,7 @@ export const AgregarLineaManualModal: React.FC<AgregarLineaManualModalProps> = (
 
       {/* Vidrio */}
       <div className="space-y-2">
-        <span className="text-[10px] font-bold uppercase text-slate-500">Vidrio</span>
+        <span className="text-[11px] font-bold uppercase text-slate-500">Vidrio</span>
         {vidrio ? (
           <div className="flex items-center justify-between gap-2 bg-white rounded-lg border border-slate-200 px-3 py-2">
             <div className="min-w-0">

@@ -82,7 +82,7 @@ export const BsalePanel: React.FC<{ puedeEditar: boolean }> = ({ puedeEditar }) 
             <span className="text-slate-500">
               {data.origen === 'configuracion' ? 'Token cargado desde el ERP.' : data.origen === 'entorno' ? 'Token tomado de las variables del servidor (BSALE_ACCESS_TOKEN); cárgalo aquí para administrarlo desde el ERP.' : 'Los despachos se emiten con guía manual o sin guía.'}
             </span>
-            {data.url && <span className="text-slate-400 font-mono">{data.url}</span>}
+            {data.url && <span className="text-slate-500 font-mono">{data.url}</span>}
           </div>
           {puedeEditar && (
             <div className="flex flex-col sm:flex-row sm:items-end gap-2">

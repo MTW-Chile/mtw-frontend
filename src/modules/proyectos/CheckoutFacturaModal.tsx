@@ -303,9 +303,9 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
             <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Factura en Clay</h3>
             <div className="p-3 rounded-xl border border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
               <div className="col-span-2">
-                <span className="block text-[11px] text-slate-400">Emisor</span>
+                <span className="block text-[11px] text-slate-500">Emisor</span>
                 <span className="font-semibold text-slate-800">{data.factura.issuer.company_name}</span>
-                <span className="text-slate-400">
+                <span className="text-slate-500">
                   {' '}
                   · {data.factura.issuer.rut}-{data.factura.issuer.dv}
                 </span>
@@ -316,23 +316,23 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                 )}
               </div>
               <div>
-                <span className="block text-[11px] text-slate-400">Folio</span>
+                <span className="block text-[11px] text-slate-500">Folio</span>
                 <span className="font-mono font-semibold text-slate-800">{data.factura.number}</span>
               </div>
               <div>
-                <span className="block text-[11px] text-slate-400">Fecha</span>
+                <span className="block text-[11px] text-slate-500">Fecha</span>
                 <span className="font-semibold text-slate-800">{formatFecha(data.factura.issue_date)}</span>
               </div>
               <div>
-                <span className="block text-[11px] text-slate-400">Neto</span>
+                <span className="block text-[11px] text-slate-500">Neto</span>
                 <span className="font-mono font-semibold text-slate-800">{formatCLP(data.netoFactura)}</span>
               </div>
               <div>
-                <span className="block text-[11px] text-slate-400">IVA</span>
+                <span className="block text-[11px] text-slate-500">IVA</span>
                 <span className="font-mono text-slate-700">{formatCLP(data.factura.total.vat)}</span>
               </div>
               <div>
-                <span className="block text-[11px] text-slate-400">Total</span>
+                <span className="block text-[11px] text-slate-500">Total</span>
                 <span className="font-mono font-bold text-slate-900">{formatCLP(data.factura.total.total)}</span>
               </div>
             </div>
@@ -392,14 +392,14 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                 )}
 
                 {filas.length === 0 ? (
-                  <p className="text-xs text-slate-400 p-3 rounded-xl border border-dashed border-slate-200">
+                  <p className="text-xs text-slate-500 p-3 rounded-xl border border-dashed border-slate-200">
                     No hay items pendientes de conciliar en esta OC.
                   </p>
                 ) : (
                   <div className="rounded-xl border border-slate-200 overflow-hidden">
                     <Tabla>
                       <Thead>
-                        <Tr className="border-b border-slate-200 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                        <Tr className="border-b border-slate-200 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[11px]">
                           <Th className="font-bold">Item de la OC</Th>
                           <Th alinear="derecha" className="font-bold">Cantidad</Th>
                           <Th className="font-bold">Línea de la factura</Th>
@@ -427,7 +427,7 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                             <Tr key={fila.ordenCompraItemId} className="border-b border-slate-50 align-top">
                               <Td>
                                 <span className="font-semibold text-slate-800">{item.descripcion}</span>
-                                <span className="block text-[10px] text-slate-400">
+                                <span className="block text-[11px] text-slate-500">
                                   {item.codigo && <span className="font-mono">{item.codigo} · </span>}
                                   {item.unidadMedida} · {formatCLP(Number(item.precioUnitario ?? 0))} c/u
                                   {item.pendienteRecepcionar > 0 && <span className="text-amber-600"> · sin recepcionar</span>}
@@ -537,19 +537,19 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                 <div className="p-3 rounded-xl border border-slate-200 space-y-2.5 text-xs">
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div>
-                      <span className="block text-[11px] text-slate-400">Total OC</span>
+                      <span className="block text-[11px] text-slate-500">Total OC</span>
                       <span className="font-mono font-semibold text-slate-800">{formatCLP(data.totalOC)}</span>
                     </div>
                     <div>
-                      <span className="block text-[11px] text-slate-400">Ya facturado</span>
+                      <span className="block text-[11px] text-slate-500">Ya facturado</span>
                       <span className="font-mono text-slate-700">{formatCLP(data.facturadoPrevio)}</span>
                     </div>
                     <div>
-                      <span className="block text-[11px] text-slate-400">Facturado con esta</span>
+                      <span className="block text-[11px] text-slate-500">Facturado con esta</span>
                       <span className="font-mono font-semibold text-slate-800">{formatCLP(data.facturadoTotal)}</span>
                     </div>
                     <div>
-                      <span className="block text-[11px] text-slate-400">Diferencia</span>
+                      <span className="block text-[11px] text-slate-500">Diferencia</span>
                       <span className={`font-mono font-bold ${data.cuadra ? 'text-emerald-700' : 'text-amber-700'}`}>
                         {data.diferencia > 0 ? '+' : ''}
                         {formatCLP(data.diferencia)}
@@ -594,11 +594,11 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                 <div className="p-3 rounded-xl border border-slate-200 space-y-3 text-xs">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <span className="block text-[11px] text-slate-400">Comprometido emparejado</span>
+                      <span className="block text-[11px] text-slate-500">Comprometido emparejado</span>
                       <span className="font-mono font-semibold text-slate-800">{formatCLP(comprometidoPareado)}</span>
                     </div>
                     <div>
-                      <span className="block text-[11px] text-slate-400">Facturado emparejado</span>
+                      <span className="block text-[11px] text-slate-500">Facturado emparejado</span>
                       <span className="font-mono font-semibold text-slate-800">{formatCLP(facturadoPareado)}</span>
                     </div>
                   </div>
@@ -607,7 +607,7 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                     <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
                       <p className="text-[11px] font-bold text-slate-500 mb-1">Items de la OC pendientes</p>
                       {itemsSinParear.length === 0 ? (
-                        <p className="text-[11px] text-slate-400">Todos los items quedan cubiertos con esta factura.</p>
+                        <p className="text-[11px] text-slate-500">Todos los items quedan cubiertos con esta factura.</p>
                       ) : (
                         <ul className="space-y-0.5">
                           {itemsSinParear.map(({ item, restante }) => (
@@ -624,7 +624,7 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                     <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
                       <p className="text-[11px] font-bold text-slate-500 mb-1">Líneas de la factura por asignar</p>
                       {lineasSinUsar.length === 0 ? (
-                        <p className="text-[11px] text-slate-400">No quedan líneas sin asignar.</p>
+                        <p className="text-[11px] text-slate-500">No quedan líneas sin asignar.</p>
                       ) : (
                         <ul className="space-y-0.5">
                           {lineasSinUsar.map((l) => (
@@ -668,14 +668,14 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
           <section className="space-y-2">
             <div className="flex items-baseline justify-between gap-2 flex-wrap">
               <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Asiento que se creará en Clay</h3>
-              <span className="text-[11px] text-slate-400">
+              <span className="text-[11px] text-slate-500">
                 Fecha contable {formatFecha(asiento.fecha)} · {asiento.glosa}
               </span>
             </div>
             <div className="rounded-xl border border-slate-200 overflow-hidden">
               <Tabla>
                 <Thead>
-                  <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                  <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[11px]">
                     <Th className="font-bold">Cuenta contable</Th>
                     <Th className="font-bold">Centro de costo</Th>
                     <Th alinear="derecha" className="font-bold">Debe</Th>
@@ -688,7 +688,7 @@ export const CheckoutFacturaModal: React.FC<CheckoutFacturaModalProps> = ({
                       <Td>
                         <span className="font-mono text-slate-500">{l.cuenta}</span>{' '}
                         <span className="font-semibold text-slate-800">{l.nombreCuenta}</span>
-                        {l.partidas.length > 0 && <span className="block text-[11px] text-slate-400">Partida: {l.partidas.join(', ')}</span>}
+                        {l.partidas.length > 0 && <span className="block text-[11px] text-slate-500">Partida: {l.partidas.join(', ')}</span>}
                       </Td>
                       <Td className="text-slate-600">{l.centroCosto || <span className="text-slate-300">—</span>}</Td>
                       <Td alinear="derecha" className="font-mono text-slate-800">{l.debe ? formatCLP(l.debe) : ''}</Td>

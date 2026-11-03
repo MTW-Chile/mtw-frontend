@@ -92,7 +92,7 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
               <Button size="sm" type="submit">Buscar</Button>
             </div>
           ) : (
-            <span className="hidden sm:block absolute right-4 top-1/2 -translate-y-1/2 text-[11px] font-mono text-slate-400">Presiona Enter ↵</span>
+            <span className="hidden sm:block absolute right-4 top-1/2 -translate-y-1/2 text-[11px] font-mono text-slate-500">Presiona Enter ↵</span>
           )}
         </form>
 
@@ -124,11 +124,11 @@ const Hoy: React.FC = () => {
       <div className="lg:ml-auto flex flex-wrap items-center gap-2">
         {filas.map(([k, v, dec]) => (
           <div key={k} className="min-w-0 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{k}</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{k}</span>
             <span className="font-mono font-semibold text-xs text-slate-800 tabular-nums whitespace-nowrap">{v != null ? `$${formatNumber(v, dec)}` : '—'}</span>
           </div>
         ))}
-        <span className={`flex items-center gap-1 text-[10px] font-mono ${isErrorIndicadores || indicadores?.desactualizado ? 'text-amber-700 font-semibold' : 'text-slate-400'}`} title={indicadores ? `Fuente: ${indicadores.fuente}` : undefined}>
+        <span className={`flex items-center gap-1 text-[11px] font-mono ${isErrorIndicadores || indicadores?.desactualizado ? 'text-amber-700 font-semibold' : 'text-slate-500'}`} title={indicadores ? `Fuente: ${indicadores.fuente}` : undefined}>
           <TrendingUp className="w-3 h-3" />
           {isErrorIndicadores ? 'indicadores no disponibles' : indicadores ? (indicadores.desactualizado ? `último valor: ${indicadores.fecha}` : indicadores.fuente) : '…'}
         </span>
@@ -141,7 +141,7 @@ const n = (v: number) => v.toLocaleString('es-CL');
 
 const Dato: React.FC<{ etiqueta: string; valor: string; detalle?: string }> = ({ etiqueta, valor, detalle }) => (
   <div className="min-w-0 rounded-lg bg-slate-50 border border-slate-200 px-2 py-1.5" title={detalle}>
-    <dt className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">{etiqueta}</dt>
+    <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-bold">{etiqueta}</dt>
     <dd className="font-mono tabular-nums text-slate-800 font-semibold truncate">{valor}</dd>
   </div>
 );
@@ -178,7 +178,7 @@ const ObrasEnCurso: React.FC<{ obras: InicioData['obras'] }> = ({ obras }) => {
                     <span className="block text-sm font-bold text-slate-900 truncate">{o.obra}</span>
                     <span className="block text-xs text-slate-500 truncate">{o.clienteNombreRaw}</span>
                   </span>
-                  <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono font-semibold">{o.codigoInterno || `PRJ-${o.numeroPresupuesto}`}</span>
+                  <span className="shrink-0 text-[11px] px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono font-semibold">{o.codigoInterno || `PRJ-${o.numeroPresupuesto}`}</span>
                 </span>
                 {/* Comercial: venta, OC, cobro. */}
                 <dl className="grid grid-cols-3 gap-2 text-[11px]">
@@ -240,7 +240,7 @@ const Recientes: React.FC<{ onNavigate: (tabId: string) => void }> = ({ onNaviga
   return (
     <div>
       <div className="mb-3 px-1 flex items-center gap-2">
-        <History className="w-3.5 h-3.5 text-slate-400" />
+        <History className="w-3.5 h-3.5 text-slate-500" />
         <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">Visitado recientemente</h2>
       </div>
       {recientes.length === 0 ? (
@@ -262,7 +262,7 @@ const Recientes: React.FC<{ onNavigate: (tabId: string) => void }> = ({ onNaviga
             };
             return (
               <BotonFila sinRelleno key={r.href + r.visitadoEn} onClick={abrir} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-brand-600/40 hover:shadow-md transition-all group text-left">
-                <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   <Icono className="w-3.5 h-3.5" />
                   <span className="truncate">{entrada?.label ?? r.seccion}</span>
                   <span className="ml-auto font-medium normal-case tracking-normal">{haceCuanto(r.visitadoEn)}</span>
@@ -270,7 +270,7 @@ const Recientes: React.FC<{ onNavigate: (tabId: string) => void }> = ({ onNaviga
                 <span className="mt-2 flex items-center gap-1.5 min-w-0">
                   <span className="font-bold text-sm text-slate-900 group-hover:text-brand-700 truncate">{titulo}</span>
                   {r.codigo && r.ruta.length > 0 && (
-                    <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 font-mono font-bold text-slate-600">{r.codigo}</span>
+                    <span className="shrink-0 text-[11px] px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 font-mono font-bold text-slate-600">{r.codigo}</span>
                   )}
                 </span>
                 {resto.length > 0 && <span className="block mt-0.5 text-xs text-slate-500 truncate">{resto.join(' › ')}</span>}

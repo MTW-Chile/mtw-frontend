@@ -174,7 +174,7 @@ const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyect
       </div>
 
       {isLoading ? (
-        <div className="p-12 flex items-center justify-center text-slate-400">
+        <div className="p-12 flex items-center justify-center text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
       ) : isError ? (
@@ -202,7 +202,7 @@ const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyect
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-bold text-slate-900 truncate">{nombreDocumento(f)}</span>
-                        {f.nombre?.trim() && f.descripcion && f.nombre.trim() !== f.descripcion && <span className="text-[11px] text-slate-400 truncate">({f.descripcion})</span>}
+                        {f.nombre?.trim() && f.descripcion && f.nombre.trim() !== f.descripcion && <span className="text-[11px] text-slate-500 truncate">({f.descripcion})</span>}
                         <Badge size="sm" variant={varianteEstadoFabricacion(f.estadoHetmo)}>
                           {textoEstadoFabricacion(f.estadoHetmo, f.estadoGlosa)}
                         </Badge>

@@ -34,7 +34,7 @@ export const DivisasForm: React.FC<DivisasFormProps> = ({ dolar, setDolar, uf, s
           <Coins className="w-4 h-4" />
         </div>
         <div className="min-w-0">
-          <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Parámetros económicos</div>
+          <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Parámetros económicos</div>
           <h2 className="text-base font-extrabold text-slate-900">Divisas de la obra</h2>
           <p className="text-xs text-slate-500 mt-0.5">
             Tipos de cambio para convertir las compras en USD y EUR a pesos chilenos, y cotizar en UF. Son propios de este presupuesto.

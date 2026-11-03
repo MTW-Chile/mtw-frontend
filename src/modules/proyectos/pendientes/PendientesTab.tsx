@@ -141,7 +141,7 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
       </div>
 
       {isLoading ? (
-        <div className="p-12 flex items-center justify-center text-slate-400">
+        <div className="p-12 flex items-center justify-center text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
       ) : isError ? (
@@ -160,7 +160,7 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
           <Tabla>
             <Thead>
-              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[11px]">
                 <Th className="font-bold">N°</Th>
                 {central && <Th className="font-bold">Obra</Th>}
                 <Th className="font-bold">Pendiente</Th>
@@ -181,7 +181,7 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
                         <div className="font-semibold text-slate-800 truncate" title={p.proyecto?.obra}>
                           {p.proyecto?.obra}
                         </div>
-                        <div className="text-[10px] font-mono text-slate-400">{codigoObra(p)}</div>
+                        <div className="text-[11px] font-mono text-slate-500">{codigoObra(p)}</div>
                       </Td>
                     )}
                     <Td className="min-w-0 max-w-[26rem]">
@@ -191,7 +191,7 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
                         </Badge>
                         {p.descripcion}
                         {!!p._count?.adjuntos && (
-                          <span className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] font-bold text-slate-400 align-middle" title={`${p._count.adjuntos} adjunto(s)`}>
+                          <span className="ml-1.5 inline-flex items-center gap-0.5 text-[11px] font-bold text-slate-500 align-middle" title={`${p._count.adjuntos} adjunto(s)`}>
                             <Paperclip className="w-3 h-3" />
                             {p._count.adjuntos}
                           </span>
@@ -233,7 +233,7 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
                 <p className="text-sm font-bold text-slate-900 break-words">
                   {p.descripcion}
                   {!!p._count?.adjuntos && (
-                    <span className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] font-bold text-slate-400 align-middle">
+                    <span className="ml-1.5 inline-flex items-center gap-0.5 text-[11px] font-bold text-slate-500 align-middle">
                       <Paperclip className="w-3 h-3" />
                       {p._count.adjuntos}
                     </span>

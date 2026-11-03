@@ -46,7 +46,7 @@ export const PorClasificarTab: React.FC = () => {
 
   if (isLoading || !data) {
     return (
-      <div className="p-12 flex items-center justify-center text-slate-400">
+      <div className="p-12 flex items-center justify-center text-slate-500">
         <Loader2 className="w-5 h-5 animate-spin" />
       </div>
     );
@@ -84,7 +84,7 @@ export const PorClasificarTab: React.FC = () => {
                   <Td className="font-mono text-[11px]">{i.ordenCompra.numero}</Td>
                   <Td>
                     <div className="font-semibold text-slate-800">{i.descripcion}</div>
-                    <div className="text-[10px] text-slate-400">{i.ordenCompra.proveedor?.nombre ?? 'Sin proveedor'}</div>
+                    <div className="text-[11px] text-slate-500">{i.ordenCompra.proveedor?.nombre ?? 'Sin proveedor'}</div>
                   </Td>
                   <Td className="text-[11px]">{i.ordenCompra.proyecto?.obra ?? 'Obras Mayores'}</Td>
                   <Td alinear="derecha" className="font-mono">{clp(Number(i.cantidad) * Number(i.precioUnitario ?? 0))}</Td>
@@ -116,7 +116,7 @@ export const PorClasificarTab: React.FC = () => {
                   <Td className="font-mono text-[11px]">A{i.adicional.numero}</Td>
                   <Td>
                     <div className="font-semibold text-slate-800">{i.descripcion}</div>
-                    <div className="text-[10px] text-slate-400">{i.adicional.titulo}</div>
+                    <div className="text-[11px] text-slate-500">{i.adicional.titulo}</div>
                   </Td>
                   <Td className="text-[11px]">{i.adicional.proyecto.obra}</Td>
                   <Td alinear="derecha" className="font-mono">{clp(Number(i.cantidad) * Number(i.costoUnitario))}</Td>

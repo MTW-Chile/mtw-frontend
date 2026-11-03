@@ -72,7 +72,7 @@ export const TiposProductoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
                 </Td>
                 <Td>{t.partida.nombre}</Td>
                 <Td className="whitespace-nowrap">
-                  {MEDICION_LABEL[t.medicion]} <span className="text-slate-400">({t.unidadConsumo.simbolo})</span>
+                  {MEDICION_LABEL[t.medicion]} <span className="text-slate-500">({t.unidadConsumo.simbolo})</span>
                 </Td>
                 <Td className="text-[11px]">
                   {formato(t)}

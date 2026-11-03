@@ -56,7 +56,7 @@ export const TiposCubicacion: React.FC<Props> = ({ proyectoId, moneda, tipos, le
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
           <Tabla>
             <Thead>
-              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[11px]">
                 <Th className="font-bold">Código</Th>
                 <Th className="font-bold">Apertura</Th>
                 <Th className="font-bold">{legacy ? 'Medida (mm)' : 'Plano (mm)'}</Th>

@@ -70,7 +70,7 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
             <GitBranch className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Versión a presupuestar</div>
+            <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Versión a presupuestar</div>
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
               <h2 className="text-base font-extrabold text-slate-900">Revisión {activeVersion?.versionNumero ?? '—'}</h2>
               {activeVersion?.fechaDocumento && (
@@ -93,7 +93,7 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
           ) : (
             <span className="text-xs text-slate-500">Única versión sincronizada desde HETMO</span>
           )}
-          {isSaving && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
+          {isSaving && <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />}
 
           <Button
             variant="outline"
@@ -118,7 +118,7 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
           <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
             <Building2 className="w-4 h-4" />
           </div>
-          <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold leading-tight">
+          <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold leading-tight">
             Nombre de la
             <br />
             obra
@@ -139,7 +139,7 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
             placeholder="Nombre de la obra"
             className="flex-1 min-w-0 sm:max-w-md text-sm! py-2! font-semibold"
           />
-          {isSavingObra && <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin shrink-0" />}
+          {isSavingObra && <Loader2 className="w-3.5 h-3.5 text-slate-500 animate-spin shrink-0" />}
         </div>
       </div>
 
@@ -149,7 +149,7 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
           <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
             <Hash className="w-4 h-4" />
           </div>
-          <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold leading-tight">
+          <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold leading-tight">
             Número de presupuesto
             <br />
             interno (MTW)
@@ -169,7 +169,7 @@ export const VersionActivaCard: React.FC<VersionActivaCardProps> = ({
             placeholder="Ej: 4521"
             className="w-36 text-sm! py-2! font-mono font-bold"
           />
-          {isSavingNumeroInterno && <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin shrink-0" />}
+          {isSavingNumeroInterno && <Loader2 className="w-3.5 h-3.5 text-slate-500 animate-spin shrink-0" />}
           {draftNumero.trim() && (
             <span className="text-xs text-slate-500">
               se presupuesta como <strong className="font-mono text-slate-800">{draftNumero.trim()}-{activeVersion?.versionNumero ?? '—'}</strong>

@@ -20,7 +20,7 @@ export const BotonAtras: React.FC = () => {
     <button
       onClick={() => window.history.back()}
       disabled={!puedeVolver}
-      className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-35 disabled:hover:bg-transparent disabled:cursor-default transition-colors cursor-pointer shrink-0"
+      className="w-8 h-8 sm:w-9 sm:h-9 pointer-coarse:w-11 pointer-coarse:h-11 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-35 disabled:hover:bg-transparent disabled:cursor-default transition-colors cursor-pointer shrink-0"
       aria-label="Volver a la pantalla anterior"
       title="Volver a la pantalla anterior (Alt + ←)"
     >
@@ -41,7 +41,7 @@ export const BotonRecargar: React.FC = () => {
   return (
     <button
       onClick={() => queryClient.invalidateQueries()}
-      className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+      className="w-8 h-8 sm:w-9 sm:h-9 pointer-coarse:w-11 pointer-coarse:h-11 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
       aria-label="Actualizar datos"
       title={cargando ? 'Actualizando datos…' : 'Actualizar datos de esta pantalla'}
     >
@@ -94,7 +94,7 @@ export const MigasDePan: React.FC<{ seccion: string; titulo: string }> = ({ secc
   const compactas = anteriores.length > 2 ? anteriores.slice(1) : anteriores;
   const codigo = (m: Miga, clase = '') =>
     m.codigo && (
-      <span className={`shrink-0 text-[10px] px-1.5 py-px rounded-full bg-slate-100 border border-slate-200 font-mono font-bold text-slate-600 ${clase}`} title="Código">
+      <span className={`shrink-0 text-[11px] px-1.5 py-px rounded-full bg-slate-100 border border-slate-200 font-mono font-bold text-slate-600 ${clase}`} title="Código">
         {m.codigo}
       </span>
     );

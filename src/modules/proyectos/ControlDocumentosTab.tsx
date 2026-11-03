@@ -132,7 +132,7 @@ export const ControlDocumentosTab: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="p-12 flex items-center justify-center text-slate-400">
+      <div className="p-12 flex items-center justify-center text-slate-500">
         <Loader2 className="w-5 h-5 animate-spin" />
       </div>
     );
@@ -164,12 +164,12 @@ export const ControlDocumentosTab: React.FC = () => {
       )}
 
       {ordenes.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
+        <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">
           <FileCheck2 className="w-6 h-6 mx-auto mb-2 text-slate-300" />
           Todavía no hay OC recibidas para conciliar.
         </div>
       ) : ordenesFiltradas.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
+        <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">
           Ninguna OC coincide con la búsqueda.
         </div>
       ) : (
@@ -188,7 +188,7 @@ export const ControlDocumentosTab: React.FC = () => {
                   <BotonColapsar abierto={expandidas.has(oc.id)} onClick={() => toggleExpandida(oc.id)}>
                     <span className="font-mono font-bold text-sm text-slate-900">{oc.numero}</span>
                     <span className="text-xs text-slate-500">{oc.proveedor?.nombre}</span>
-                    <span className="text-xs text-slate-400">· {oc.proyecto?.obra || oc.centroCosto?.nombre || 'Obras Mayores'}</span>
+                    <span className="text-xs text-slate-500">· {oc.proyecto?.obra || oc.centroCosto?.nombre || 'Obras Mayores'}</span>
                     <Badge variant={ESTADO_OC_VARIANT[oc.estado]} size="sm">
                       {ESTADO_OC_LABEL[oc.estado]}
                     </Badge>
@@ -245,9 +245,9 @@ export const ControlDocumentosTab: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="font-mono font-semibold text-slate-800">
-                            {formatCLP(netoConciliacion(c))} <span className="text-slate-400 font-normal">neto</span>
+                            {formatCLP(netoConciliacion(c))} <span className="text-slate-500 font-normal">neto</span>
                             {!c.pagada && Number(c.montoPagado) > 0 && (
-                              <span className="text-slate-400 font-normal"> · pagado {formatCLP(Number(c.montoPagado))}</span>
+                              <span className="text-slate-500 font-normal"> · pagado {formatCLP(Number(c.montoPagado))}</span>
                             )}
                           </span>
                           <IconButton
@@ -274,7 +274,7 @@ export const ControlDocumentosTab: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[11px] text-slate-400 mr-0.5">Filtros:</span>
+                      <span className="text-[11px] text-slate-500 mr-0.5">Filtros:</span>
                       <ChipFiltro
                         activo={filtros.rut}
                         label={filtros.rut ? `RUT ${rutProveedor || 'del proveedor'}` : 'RUT del proveedor'}
@@ -294,7 +294,7 @@ export const ControlDocumentosTab: React.FC = () => {
                     </div>
 
                     {buscandoFacturas && (
-                      <div className="p-6 flex items-center justify-center text-slate-400">
+                      <div className="p-6 flex items-center justify-center text-slate-500">
                         <Loader2 className="w-4 h-4 animate-spin" />
                       </div>
                     )}
@@ -307,7 +307,7 @@ export const ControlDocumentosTab: React.FC = () => {
                     )}
 
                     {sugerenciasData && !buscandoFacturas && sugerenciasData.sugeridas.length === 0 && (
-                      <p className="text-xs text-slate-400 px-1 py-3">
+                      <p className="text-xs text-slate-500 px-1 py-3">
                         No hay facturas sin contabilizar {filtros.rut ? 'de este proveedor ' : ''}
                         {filtros.monto ? 'por un monto similar ' : ''}en el rango de fechas de la OC.
                         {(filtros.rut || filtros.monto) && ' Prueba quitando un filtro.'}
@@ -322,7 +322,7 @@ export const ControlDocumentosTab: React.FC = () => {
                         >
                           <div className="flex items-center gap-2.5 min-w-0 text-xs flex-wrap">
                             <span className="font-mono font-bold text-slate-700 shrink-0">Folio {s.factura.number}</span>
-                            <span className="text-slate-400 shrink-0">{formatFecha(s.factura.issue_date)}</span>
+                            <span className="text-slate-500 shrink-0">{formatFecha(s.factura.issue_date)}</span>
                             <span className="text-slate-500 truncate">{s.factura.issuer.company_name}</span>
                             {!s.mismoProveedor && (
                               <Badge variant="warning" size="sm">
@@ -335,7 +335,7 @@ export const ControlDocumentosTab: React.FC = () => {
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <span className="font-mono font-semibold text-slate-800">
-                              {formatCLP(s.netoFactura)} <span className="text-slate-400 font-normal">neto</span>
+                              {formatCLP(s.netoFactura)} <span className="text-slate-500 font-normal">neto</span>
                             </span>
                             <Button
                               size="sm"

@@ -225,7 +225,7 @@ export const RequisicionesSection: React.FC<{ proyecto?: Proyecto; activeVersion
             <div className="space-y-1.5">
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Materiales de la fase</p>
               {cargandoSugeridos ? (
-                <div className="p-4 flex items-center justify-center text-slate-400">
+                <div className="p-4 flex items-center justify-center text-slate-500">
                   <Loader2 className="w-4 h-4 animate-spin" />
                 </div>
               ) : sugeridos.length === 0 ? (
@@ -329,11 +329,11 @@ export const RequisicionesSection: React.FC<{ proyecto?: Proyecto; activeVersion
       />
 
       {isLoading ? (
-        <div className="p-8 flex items-center justify-center text-slate-400">
+        <div className="p-8 flex items-center justify-center text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
       ) : solicitudes.length === 0 ? (
-        <div className="p-8 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
+        <div className="p-8 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">
           {vista === 'pendientes' ? 'Sin requisiciones pendientes.' : 'Todavía no hay requisiciones entregadas.'}
         </div>
       ) : (

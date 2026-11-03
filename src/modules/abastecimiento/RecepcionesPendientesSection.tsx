@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2, PackageCheck } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { ErrorCarga } from '../../components/ui/Estados';
 import { getOrdenesCompra } from '../../api/client';
 import { usePermisos } from '../../lib/permisos';
 import { actualizarParams } from '../../lib/navigation';
@@ -24,7 +25,7 @@ const itemsPendientes = (oc: OrdenCompra) =>
  */
 export const RecepcionesPendientesSection: React.FC<{ proyectoId?: string }> = ({ proyectoId }) => {
   const { tiene } = usePermisos();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['ordenesCompra', 'pendientes-recepcion', proyectoId ?? 'global'],
     queryFn: () => getOrdenesCompra({ proyectoId, limit: 200 }),
   });
@@ -39,11 +40,14 @@ export const RecepcionesPendientesSection: React.FC<{ proyectoId?: string }> = (
       </h3>
 
       {isLoading ? (
-        <div className="p-8 flex items-center justify-center text-slate-400">
+        <div className="p-8 flex items-center justify-center text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
+      ) : isError ? (
+        // Un error no es "no hay nada": con mal Wi-Fi en bodega, decir "sin recepciones" engaña (pauta 123 de NN/g).
+        <ErrorCarga que="las órdenes de compra por recepcionar" onReintentar={refetch} />
       ) : pendientes.length === 0 ? (
-        <div className="p-8 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
+        <div className="p-8 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">
           Sin recepciones pendientes por ahora.
         </div>
       ) : (
@@ -57,12 +61,12 @@ export const RecepcionesPendientesSection: React.FC<{ proyectoId?: string }> = (
                 <span className="font-mono font-bold text-xs text-slate-900">{oc.numero}</span>
                 <span className="text-xs text-slate-600">{oc.proveedor?.nombre}</span>
                 {!proyectoId && (
-                  <span className="text-xs text-slate-400">· {oc.proyecto?.obra || oc.centroCosto?.nombre || 'Obras Mayores'}</span>
+                  <span className="text-xs text-slate-500">· {oc.proyecto?.obra || oc.centroCosto?.nombre || 'Obras Mayores'}</span>
                 )}
                 <Badge variant={oc.estado === 'RECIBIDA_PARCIAL' ? 'warning' : 'info'} size="sm">
                   {oc.estado === 'RECIBIDA_PARCIAL' ? 'Recibida parcial' : 'Enviada'}
                 </Badge>
-                <span className="text-[11px] text-slate-400 font-mono">
+                <span className="text-[11px] text-slate-500 font-mono">
                   {itemsPendientes(oc)} de {oc.items.length} ítems pendientes
                 </span>
               </div>

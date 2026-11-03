@@ -39,7 +39,7 @@ export function NavLateral<T extends string>({ grupos, activo, onChange }: { gru
       <nav aria-label="Secciones" className="hidden md:block w-56 shrink-0 space-y-5">
         {grupos.map((g) => (
           <div key={g.titulo} className="space-y-1">
-            <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">{g.titulo}</p>
+            <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">{g.titulo}</p>
             {g.items.map(({ id, label, icono: Icono, descripcion }) => {
               const sel = id === activo;
               return (
@@ -53,7 +53,7 @@ export function NavLateral<T extends string>({ grupos, activo, onChange }: { gru
                     sel ? 'bg-brand-600/10 text-brand-700 font-bold' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 font-semibold'
                   }`}
                 >
-                  {Icono && <Icono className={`w-4 h-4 shrink-0 ${sel ? 'text-brand-600' : 'text-slate-400'}`} />}
+                  {Icono && <Icono className={`w-4 h-4 shrink-0 ${sel ? 'text-brand-600' : 'text-slate-500'}`} />}
                   <span className="truncate">{label}</span>
                 </button>
               );

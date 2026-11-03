@@ -242,7 +242,7 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
   });
 
   if (!activeVersion) {
-    return <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">Sin versión activa.</div>;
+    return <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">Sin versión activa.</div>;
   }
 
   const formAbierto = editando !== null;
@@ -359,13 +359,13 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                 Fase 0
               </Badge>
               <span className="text-xs font-semibold text-slate-600">{faseBase.nombre}</span>
-              <span className="text-[11px] text-slate-400">Total del proyecto — solo referencia</span>
+              <span className="text-[11px] text-slate-500">Total del proyecto — solo referencia</span>
             </div>
           </div>
         )}
 
         {fasesReales.length === 0 && !formAbierto ? (
-          <div className="p-8 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
+          <div className="p-8 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">
             Todavía no hay fases de producción planificadas para esta versión.
           </div>
         ) : (
@@ -384,7 +384,7 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                     <Badge variant={ESTADO_VARIANT[fase.estado]} size="sm">
                       {ESTADO_LABEL[fase.estado]}
                     </Badge>
-                    <span className="text-[11px] text-slate-400 whitespace-nowrap">
+                    <span className="text-[11px] text-slate-500 whitespace-nowrap">
                       {lineasAsignadas} línea{lineasAsignadas === 1 ? '' : 's'} · {unidadesFase} unidades
                     </span>
                   </div>
@@ -427,13 +427,13 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                     independiente. */}
                 <div className="pt-3 border-t border-slate-100 space-y-2">
                   {!infoMateriales || infoMateriales.partidas.length === 0 ? (
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-slate-500">
                       Sin materiales calculados todavía para esta fase (asegúrate de que tenga líneas asignadas arriba).
                     </p>
                   ) : (
                     <>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Materiales por partida</span>
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Materiales por partida</span>
                         <span className="text-[11px] font-bold text-slate-900 whitespace-nowrap">
                           Total: {formatoMoneda(infoMateriales.montoTotal)}
                         </span>
@@ -461,7 +461,7 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                                 <div className="flex items-center gap-2 flex-wrap min-w-0">
                                   <BotonColapsar abierto={expandidaCat} onClick={() => toggleExpandida(key)} className="text-xs font-bold text-slate-700 hover:text-brand-600">
                                     {c.nombre}
-                                    <span className="font-mono font-normal text-slate-400">
+                                    <span className="font-mono font-normal text-slate-500">
                                       · {c.items.length} item{c.items.length === 1 ? '' : 's'}
                                     </span>
                                   </BotonColapsar>
@@ -492,7 +492,7 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                                 <div className="border-t border-slate-100 overflow-hidden">
                                   <Tabla>
                                     <Thead>
-                                      <Tr className="text-left text-slate-400 uppercase tracking-wider">
+                                      <Tr className="text-left text-slate-500 uppercase tracking-wider">
                                         <Th className="font-bold">Item</Th>
                                         <Th className="font-bold">Proveedor</Th>
                                         <Th alinear="derecha" className="font-bold">Cantidad</Th>
@@ -508,14 +508,14 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                                               <Package className="w-3 h-3 text-sky-500 shrink-0" />
                                               {it.descripcion}
                                             </span>
-                                            {it.referenciaVentana && <span className="block pl-[18px] text-[10px] text-slate-400">{it.referenciaVentana}</span>}
-                                            {it.sinMedidas && <span className="block pl-[18px] text-[10px] text-amber-700">Sin medidas de HETMO todavía: va por m²</span>}
+                                            {it.referenciaVentana && <span className="block pl-[18px] text-[11px] text-slate-500">{it.referenciaVentana}</span>}
+                                            {it.sinMedidas && <span className="block pl-[18px] text-[11px] text-amber-700">Sin medidas de HETMO todavía: va por m²</span>}
                                           </Td>
                                           <Td className="text-slate-500">{it.proveedorNombre}</Td>
                                           <Td alinear="derecha" className="font-mono text-slate-700">
                                             {it.cantidad.toLocaleString('es-CL', { maximumFractionDigits: 2 })} {it.unidad}
                                             {(stockPorMaterial.get(it.materialId) ?? 0) > 0 && (
-                                              <span className="block text-[10px] text-emerald-600 font-normal">
+                                              <span className="block text-[11px] text-emerald-600 font-normal">
                                                 en bodega {(stockPorMaterial.get(it.materialId) ?? 0).toLocaleString('es-CL', { maximumFractionDigits: 2 })}
                                                 {(stockPorMaterial.get(it.materialId) ?? 0) - (stockObraPorMaterial.get(it.materialId) ?? 0) > 0.0001 && (
                                                   <span className="text-amber-700"> ({((stockPorMaterial.get(it.materialId) ?? 0) - (stockObraPorMaterial.get(it.materialId) ?? 0)).toLocaleString('es-CL', { maximumFractionDigits: 2 })} en Obras Mayores)</span>

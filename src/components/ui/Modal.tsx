@@ -69,7 +69,7 @@ export const Modal: React.FC<ModalProps> & { Pie: typeof Pie } = ({ titulo, subt
             onClick={onClose}
             disabled={!cerrable}
             aria-label="Cerrar"
-            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+            className="w-8 h-8 pointer-coarse:w-11 pointer-coarse:h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-colors cursor-pointer disabled:opacity-50 shrink-0"
           >
             <X className="w-4 h-4" />
           </button>

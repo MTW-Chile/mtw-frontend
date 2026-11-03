@@ -88,7 +88,7 @@ export const ProveedorEditModal: React.FC<ProveedorEditModalProps> = ({ proveedo
   }
 
   const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 pt-2 first:pt-0">{children}</h3>
+    <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 pt-2 first:pt-0">{children}</h3>
   );
 
   return (

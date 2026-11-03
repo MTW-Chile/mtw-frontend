@@ -47,7 +47,7 @@ export const CotizacionDetalleModal: React.FC<{
       subtitulo={
         <>
           Cliente: <span className="text-slate-800 font-semibold">{proyecto?.clienteNombreRaw}</span>
-          {proyecto?.clienteRutRaw && <span className="ml-1.5 font-mono text-slate-400">({proyecto.clienteRutRaw})</span>}
+          {proyecto?.clienteRutRaw && <span className="ml-1.5 font-mono text-slate-500">({proyecto.clienteRutRaw})</span>}
         </>
       }
       onClose={onClose}
@@ -73,7 +73,7 @@ export const CotizacionDetalleModal: React.FC<{
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Version Picker */}
         <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-          <div className="text-[10px] uppercase tracking-wider font-bold text-slate-500 flex items-center gap-1.5">
+          <div className="text-[11px] uppercase tracking-wider font-bold text-slate-500 flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-brand-600" />
             <span>Versión HETMO</span>
           </div>
@@ -84,7 +84,7 @@ export const CotizacionDetalleModal: React.FC<{
             onChange={setSelectedVersionIdx}
             opciones={(proyecto?.versiones ?? []).map((v, idx) => ({ value: idx, label: `v${v.versionNumero}` }))}
           />
-          <div className="text-[10px] text-slate-500">
+          <div className="text-[11px] text-slate-500">
             Estado:{' '}
             <span className="text-emerald-700 font-bold">
               {glosaEstadoPresupuesto(version?.estadoHetmo)}
@@ -94,7 +94,7 @@ export const CotizacionDetalleModal: React.FC<{
 
         {/* Superficie Total */}
         <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-          <div className="text-[10px] uppercase tracking-wider font-bold text-slate-500 flex items-center gap-1.5">
+          <div className="text-[11px] uppercase tracking-wider font-bold text-slate-500 flex items-center gap-1.5">
             <Ruler className="w-3.5 h-3.5 text-sky-600" />
             <span>Superficie Total</span>
           </div>
@@ -102,12 +102,12 @@ export const CotizacionDetalleModal: React.FC<{
             {formatNumber(version?.totalM2Ventanas, 2)}{' '}
             <span className="text-xs font-normal text-slate-500 font-sans">m²</span>
           </div>
-          <div className="text-[10px] text-slate-400">Calculado sobre paños reales</div>
+          <div className="text-[11px] text-slate-500">Calculado sobre paños reales</div>
         </div>
 
         {/* Cantidad Ventanas */}
         <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-          <div className="text-[10px] uppercase tracking-wider font-bold text-slate-500 flex items-center gap-1.5">
+          <div className="text-[11px] uppercase tracking-wider font-bold text-slate-500 flex items-center gap-1.5">
             <Boxes className="w-3.5 h-3.5 text-amber-600" />
             <span>Ventanas Físicas</span>
           </div>
@@ -115,19 +115,19 @@ export const CotizacionDetalleModal: React.FC<{
             {ventanas.length}{' '}
             <span className="text-xs font-normal text-slate-500 font-sans">unidades</span>
           </div>
-          <div className="text-[10px] text-slate-400">Total elementos presupuestados</div>
+          <div className="text-[11px] text-slate-500">Total elementos presupuestados</div>
         </div>
 
         {/* Moneda / Monto */}
         <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-          <div className="text-[10px] uppercase tracking-wider font-bold text-slate-500 flex items-center gap-1.5">
+          <div className="text-[11px] uppercase tracking-wider font-bold text-slate-500 flex items-center gap-1.5">
             <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
             <span>Moneda Base</span>
           </div>
           <div className="text-lg font-black text-slate-900 truncate">
             {version?.monedaDescripcion || 'UF'}
           </div>
-          <div className="text-[10px] text-slate-400 font-mono">
+          <div className="text-[11px] text-slate-500 font-mono">
             TC: {version?.tipoCambio || '1.0'}
           </div>
         </div>
@@ -166,14 +166,14 @@ export const CotizacionDetalleModal: React.FC<{
                   <Td className="font-semibold text-slate-900">
                     <div>{v.modelo}</div>
                     {v.descripcionCorta && (
-                      <span className="text-[10px] text-slate-400 block font-normal">
+                      <span className="text-[11px] text-slate-500 block font-normal">
                         {v.descripcionCorta}
                       </span>
                     )}
                   </Td>
                   <Td className="font-mono text-brand-600 font-bold">
                     {formatNumber(v.anchoMm, 0)} × {formatNumber(v.altoMm, 0)}{' '}
-                    <span className="text-[10px] text-slate-400 font-normal">mm</span>
+                    <span className="text-[11px] text-slate-500 font-normal">mm</span>
                   </Td>
                   <Td alinear="centro" className="font-bold text-slate-900">
                     {v.unidades}
@@ -182,7 +182,7 @@ export const CotizacionDetalleModal: React.FC<{
                     {formatNumber(v.m2Ventana, 2)} m²
                   </Td>
                   <Td alinear="centro">
-                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[10px] text-slate-700 border border-slate-200">
+                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[11px] text-slate-700 border border-slate-200">
                       {v.geometrias?.length || 0} cotas 2D
                     </span>
                   </Td>

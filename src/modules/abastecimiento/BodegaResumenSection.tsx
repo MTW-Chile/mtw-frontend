@@ -20,12 +20,12 @@ const n = (v: number) => v.toLocaleString('es-CL');
  * Se calcula con lo que ya traen las vistas del módulo (sin rutas nuevas).
  */
 export const BodegaResumenSection: React.FC = () => {
-  const { data: global } = useQuery({ queryKey: ['bodegaGlobal'], queryFn: getBodegaGlobal });
-  const { data: ordenes } = useQuery({
+  const { data: global, isError: errorGlobal } = useQuery({ queryKey: ['bodegaGlobal'], queryFn: getBodegaGlobal });
+  const { data: ordenes, isError: errorOrdenes } = useQuery({
     queryKey: ['ordenesCompra', 'pendientes-recepcion', 'global'],
     queryFn: () => getOrdenesCompra({ limit: 200 }),
   });
-  const { data: solicitudes } = useQuery({ queryKey: ['solicitudesMaterial', 'global'], queryFn: () => getSolicitudesMaterial({}) });
+  const { data: solicitudes, isError: errorSolicitudes } = useQuery({ queryKey: ['solicitudesMaterial', 'global'], queryFn: () => getSolicitudesMaterial({}) });
 
   // Corte de "reciente" fijado al montar: el resumen no cambia solo con el paso de los segundos.
   const [desde] = useState(() => Date.now() - DIAS_RECIENTES * 24 * 60 * 60 * 1000);
@@ -52,10 +52,14 @@ export const BodegaResumenSection: React.FC = () => {
     };
   }, [global, ordenes, solicitudes, desde]);
 
+  // Con un error se muestra "—" y el aviso, en vez de quedar cargando para siempre.
+  const conError = errorGlobal || errorOrdenes || errorSolicitudes;
   const cargando = !global || !ordenes || !solicitudes;
-  const valor = (v: number) => (cargando ? '…' : n(v));
+  const valor = (v: number) => (conError ? '—' : cargando ? '…' : n(v));
 
   return (
+    <div className="space-y-2">
+    {conError && <p className="text-xs font-semibold text-rose-700">No se pudieron cargar todos los indicadores. Revisa la conexión y vuelve a abrir la pestaña.</p>}
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       <StatCard
         title="Materiales en stock"
@@ -89,6 +93,7 @@ export const BodegaResumenSection: React.FC = () => {
         iconColor="text-violet-600"
         iconBgColor="bg-violet-50 border-violet-100"
       />
+    </div>
     </div>
   );
 };

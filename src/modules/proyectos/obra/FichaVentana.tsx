@@ -27,8 +27,8 @@ const FotoInstalacion: React.FC<{ instalacionId: string; adjunto: AdjuntoInstala
     enabled: esImagen(adjunto.mime),
     staleTime: Infinity,
   });
-  if (!esImagen(adjunto.mime)) return <span className="text-[10px] text-slate-400 p-2 truncate">{adjunto.nombre}</span>;
-  if (isError) return <span className="text-[10px] text-slate-400 p-2">No disponible</span>;
+  if (!esImagen(adjunto.mime)) return <span className="text-[11px] text-slate-500 p-2 truncate">{adjunto.nombre}</span>;
+  if (isError) return <span className="text-[11px] text-slate-500 p-2">No disponible</span>;
   if (!url) return <Loader2 className="w-4 h-4 animate-spin text-slate-300" />;
   return (
     <a href={url} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
@@ -39,7 +39,7 @@ const FotoInstalacion: React.FC<{ instalacionId: string; adjunto: AdjuntoInstala
 
 const Dato: React.FC<{ k: string; children: React.ReactNode }> = ({ k, children }) => (
   <div className="min-w-0">
-    <dt className="text-[10px] uppercase tracking-wider text-slate-400">{k}</dt>
+    <dt className="text-[11px] uppercase tracking-wider text-slate-500">{k}</dt>
     <dd className="text-xs text-slate-800 break-words">{children}</dd>
   </div>
 );
@@ -53,7 +53,7 @@ const HistorialVentana: React.FC<{ ventanaId: string }> = ({ ventanaId }) => {
     <div className="px-3 pb-3 space-y-3 text-xs">
       {data.instalaciones.length > 0 && (
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Instalación certificada</p>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Instalación certificada</p>
           <ul className="space-y-2">
             {data.instalaciones.map((i) => (
               <li key={i.id} className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-2.5 space-y-2">
@@ -82,14 +82,14 @@ const HistorialVentana: React.FC<{ ventanaId: string }> = ({ ventanaId }) => {
         </div>
       )}
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Historial</p>
+        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Historial</p>
         {data.eventos.length === 0 ? (
-          <p className="text-[11px] text-slate-400">Sin movimientos todavía.</p>
+          <p className="text-[11px] text-slate-500">Sin movimientos todavía.</p>
         ) : (
           <ul className="space-y-1 text-[11px] text-slate-600">
             {[...data.eventos].reverse().map((e) => (
               <li key={e.id}>
-                <span className="font-mono text-slate-400">{fechaHora(e.creadoEn)}</span> · {ETIQUETA_ESTADO_VENTANA[e.estadoNuevo]}
+                <span className="font-mono text-slate-500">{fechaHora(e.creadoEn)}</span> · {ETIQUETA_ESTADO_VENTANA[e.estadoNuevo]}
                 {e.parte !== 'COMPLETA' ? ` (${ETIQUETA_PARTE_CORTA[e.parte]})` : ''}
                 {e.usuario ? ` · ${e.usuario.nombre}` : ''}
                 {e.comentario ? ` — ${e.comentario}` : ''}
@@ -162,9 +162,9 @@ export const FichaVentana: React.FC<{ proyectoId: string; ficha: FichaVentanaObr
         {tecnicoAbierto && (
           <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-3 text-xs px-3 pb-3">
             <div className="rounded-lg border border-slate-200 p-2.5 space-y-1 max-h-52 overflow-y-auto">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Marcos y hojas</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Marcos y hojas</p>
               {ficha.cuadros.length === 0 ? (
-                <p className="text-slate-400">{fv ? 'El lote aún no trae los cuadros (se optimiza después).' : 'Sin documento de fabricación.'}</p>
+                <p className="text-slate-500">{fv ? 'El lote aún no trae los cuadros (se optimiza después).' : 'Sin documento de fabricación.'}</p>
               ) : (
                 ficha.cuadros.map((c) => (
                   <div key={c.id}>
@@ -191,13 +191,13 @@ export const FichaVentana: React.FC<{ proyectoId: string; ficha: FichaVentanaObr
               )}
             </div>
             <div className="rounded-lg border border-slate-200 p-2.5 space-y-1 max-h-52 overflow-y-auto">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Materiales ({ficha.materiales.length})</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Materiales ({ficha.materiales.length})</p>
               {ficha.materiales.length === 0 ? (
-                <p className="text-slate-400">{ficha.hetmoError ?? 'Sin materiales en la línea.'}</p>
+                <p className="text-slate-500">{ficha.hetmoError ?? 'Sin materiales en la línea.'}</p>
               ) : (
                 ficha.materiales.map((m, i) => (
                   <p key={`${m.codigo_articulo}-${i}`} className="text-slate-700 truncate" title={`${m.descripcion_articulo} (${m.codigo_articulo})`}>
-                    {m.descripcion_articulo} <span className="text-slate-400 font-mono">{m.codigo_articulo}</span>
+                    {m.descripcion_articulo} <span className="text-slate-500 font-mono">{m.codigo_articulo}</span>
                   </p>
                 ))
               )}
@@ -217,7 +217,7 @@ export const FichaVentana: React.FC<{ proyectoId: string; ficha: FichaVentanaObr
 
       {abiertos.length > 0 && (
         <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-2.5 text-xs space-y-0.5">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800">Pendientes abiertos de esta ventana</p>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-amber-800">Pendientes abiertos de esta ventana</p>
           {abiertos.map((p) => (
             <p key={p.id} className="text-amber-900 truncate">
               <span className="font-mono font-bold">{codigoPendiente(p.numero)}</span> · {ETIQUETA_TIPO[p.tipo]} · {ETIQUETA_MOTIVO[p.motivo]} · {p.descripcion} · {fecha(p.fechaReporte)}

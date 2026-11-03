@@ -73,7 +73,7 @@ export const ReemplazarMaterialModal: React.FC<ReemplazarMaterialModalProps> = (
       {error && <Aviso tono="peligro">{error}</Aviso>}
 
       <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-1">
-        <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Material actual</div>
+        <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Material actual</div>
         <div className="text-[11px] font-semibold text-slate-900">{original.skuInterno}</div>
         <div className="text-xs text-slate-700 leading-snug">{original.descripcion}</div>
         <div className="text-[11px] text-slate-500">
@@ -83,12 +83,12 @@ export const ReemplazarMaterialModal: React.FC<ReemplazarMaterialModalProps> = (
 
       {!selected ? (
         <div className="space-y-2">
-          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Nuevo material (maestro)</div>
+          <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Nuevo material (maestro)</div>
           <MaterialPicker onSelect={setSelected} filtrar={filtrar} placeholder={`Buscar material en ${unidadOriginal || 'la misma unidad'}…`} />
         </div>
       ) : (
         <div className="space-y-2">
-          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Nuevo material</div>
+          <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Nuevo material</div>
           <div className="flex items-start justify-between gap-3 p-3 rounded-lg border border-brand-600/30 bg-brand-600/5">
             <div className="min-w-0">
               <div className="font-mono font-semibold text-[11px] text-slate-900">{selected.skuInterno}</div>

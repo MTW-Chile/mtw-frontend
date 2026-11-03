@@ -215,7 +215,7 @@ export const CotizacionesPage: React.FC<{
             <span className="hidden @3xl:inline">{isSyncing ? 'Sincronizando...' : 'Sincronizar HETMO'}</span>
           </Button>
           {/* Ultima importacion: indicador chico bajo el boton, solo donde cabe. */}
-          <span className="hidden @3xl:flex items-center gap-1 text-[10px] leading-none text-slate-500" title="Última importación desde HETMO">
+          <span className="hidden @3xl:flex items-center gap-1 text-[11px] leading-none text-slate-500" title="Última importación desde HETMO">
             <Clock className="w-3 h-3 text-brand-600" />
             Última importación{' '}
             <strong className="font-mono text-slate-700">
@@ -280,7 +280,7 @@ export const CotizacionesPage: React.FC<{
             </div>
           ) : filteredProyectos.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-200 p-10 sm:p-12 text-center space-y-3 shadow-xs">
-              <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-400">
+              <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-500">
                 <Building2 className="w-6 h-6" />
               </div>
               <h3 className="text-sm font-bold text-slate-800">
@@ -371,19 +371,19 @@ export const CotizacionesPage: React.FC<{
                               {p.clienteNombreRaw}
                             </div>
                             {p.clienteRutRaw && (
-                              <div className="text-[10px] font-mono text-slate-400 whitespace-nowrap">
+                              <div className="text-[11px] font-mono text-slate-500 whitespace-nowrap">
                                 {p.clienteRutRaw}
                               </div>
                             )}
                           </Td>
                           <Td alinear="centro" className="px-5 py-4 whitespace-nowrap hidden 2xl:table-cell">
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 whitespace-nowrap">
+                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 whitespace-nowrap">
                               v{activeVersion?.versionNumero || 1}
                             </span>
                           </Td>
                           <Td alinear="derecha" className="px-5 py-4 font-mono font-bold text-slate-900 whitespace-nowrap">
                             {formatNumber(activeVersion?.totalM2Ventanas, 2)}{' '}
-                            <span className="text-[10px] font-normal text-slate-500">
+                            <span className="text-[11px] font-normal text-slate-500">
                               m²
                             </span>
                           </Td>
@@ -465,7 +465,7 @@ export const CotizacionesPage: React.FC<{
                           {p.clienteNombreRaw}
                         </p>
                         {p.clienteDireccionRaw && (
-                          <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                          <p className="text-[11px] text-slate-500 truncate mt-0.5">
                             {p.clienteDireccionRaw}
                           </p>
                         )}
@@ -473,7 +473,7 @@ export const CotizacionesPage: React.FC<{
 
                       <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-center">
                         <div>
-                          <div className="text-[10px] uppercase font-bold text-slate-400 whitespace-nowrap">
+                          <div className="text-[11px] uppercase font-bold text-slate-500 whitespace-nowrap">
                             Versión
                           </div>
                           <div className="font-mono font-bold text-xs text-slate-800 whitespace-nowrap">
@@ -481,7 +481,7 @@ export const CotizacionesPage: React.FC<{
                           </div>
                         </div>
                         <div>
-                          <div className="text-[10px] uppercase font-bold text-slate-400 whitespace-nowrap">
+                          <div className="text-[11px] uppercase font-bold text-slate-500 whitespace-nowrap">
                             Superficie
                           </div>
                           <div className="font-mono font-bold text-xs text-slate-800 whitespace-nowrap">
@@ -489,7 +489,7 @@ export const CotizacionesPage: React.FC<{
                           </div>
                         </div>
                         <div>
-                          <div className="text-[10px] uppercase font-bold text-slate-400 whitespace-nowrap">
+                          <div className="text-[11px] uppercase font-bold text-slate-500 whitespace-nowrap">
                             Ventanas
                           </div>
                           <div className="font-mono font-bold text-xs text-slate-800 whitespace-nowrap">

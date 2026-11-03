@@ -45,7 +45,7 @@ export const AdicionalesTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }) =
       </div>
 
       {isLoading ? (
-        <div className="p-12 flex items-center justify-center text-slate-400">
+        <div className="p-12 flex items-center justify-center text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
       ) : adicionales.length === 0 ? (
@@ -83,7 +83,7 @@ export const AdicionalesTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }) =
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="text-right">
                     <div className="text-sm font-bold font-mono text-slate-900">{clp(a.totales.venta)}</div>
-                    <div className="text-[10px] text-slate-400">{uf(a.totales.ventaUf)} neto</div>
+                    <div className="text-[11px] text-slate-500">{uf(a.totales.ventaUf)} neto</div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-slate-300" />
                 </div>

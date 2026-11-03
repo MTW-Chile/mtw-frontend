@@ -59,6 +59,14 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       lg: 'text-sm px-5 py-2.5 rounded-xl gap-2.5',
       icon: 'p-2 rounded-xl justify-center',
     };
+    // Con el dedo (tablet, celular) todo botón mide al menos 44 px de alto (pauta de NN/g: ~1 cm).
+    // En computador no cambia nada. El estilo "link" va dentro de un texto: no se agranda.
+    const tactil: Record<ButtonSize, string> = {
+      sm: 'pointer-coarse:min-h-11 pointer-coarse:px-3.5',
+      md: 'pointer-coarse:min-h-11',
+      lg: 'pointer-coarse:min-h-12',
+      icon: 'pointer-coarse:min-h-11 pointer-coarse:min-w-11',
+    };
 
     const isDisabled = disabled || isLoading;
     const tipo = props.type ?? 'button';
@@ -68,7 +76,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={isDisabled}
         type={tipo}
-        className={`inline-flex items-center justify-center transition-all duration-150 select-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none active:scale-[0.98] ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
+        className={`inline-flex items-center justify-center transition-all duration-150 select-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none active:scale-[0.98] ${variantStyles[variant]} ${sizeStyles[size]} ${variant === 'link' ? '' : tactil[size]} ${className}`}
         {...props}
       >
         {isLoading ? (

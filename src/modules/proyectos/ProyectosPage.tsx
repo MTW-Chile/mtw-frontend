@@ -25,7 +25,7 @@ import { clp, uf } from '../../lib/formato';
 // Barra de avance compacta para la columna Fases (antes un texto largo
 // "3/4 en producción o completadas" que forzaba el ancho de la tabla).
 const AvanceFases: React.FC<{ resumen?: { total: number; enProduccionOCompletadas: number } }> = ({ resumen }) => {
-  if (!resumen || resumen.total === 0) return <span className="text-slate-400">Sin fases</span>;
+  if (!resumen || resumen.total === 0) return <span className="text-slate-500">Sin fases</span>;
   const pct = Math.round((resumen.enProduccionOCompletadas / resumen.total) * 100);
   return (
     <span className="inline-flex items-center gap-2">
@@ -49,7 +49,7 @@ const ventaContratada = (p: Proyecto) => {
 
 // Barra "x de y" para las columnas de avance (ventanas, fases).
 const Avance: React.FC<{ valor: number; total: number; color?: string; titulo?: string }> = ({ valor, total, color = 'bg-brand-500', titulo }) => {
-  if (total === 0) return <span className="text-slate-400">—</span>;
+  if (total === 0) return <span className="text-slate-500">—</span>;
   const pct = Math.min(100, Math.round((valor / total) * 100));
   return (
     <span className="inline-flex items-center gap-2" title={titulo ?? `${valor} de ${total}`}>
@@ -170,7 +170,7 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
   // Pendientes abiertos: en ambas listas, como insignia (0 no se muestra).
   const pendientes = (p: Proyecto) => {
     const n = ro(p)?.pendientesAbiertos ?? 0;
-    return n > 0 ? <span className="inline-block text-[10px] px-1.5 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 font-mono font-semibold">{n} pend.</span> : <span className="text-slate-300">—</span>;
+    return n > 0 ? <span className="inline-block text-[11px] px-1.5 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 font-mono font-semibold">{n} pend.</span> : <span className="text-slate-300">—</span>;
   };
 
   return (
@@ -188,7 +188,7 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
       />
 
       {isLoading ? (
-        <div className="p-12 flex items-center justify-center text-slate-400">
+        <div className="p-12 flex items-center justify-center text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
       ) : isError ? (
@@ -197,11 +197,11 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
           {(error as any)?.response?.data?.error || 'No se pudo cargar la lista de obras. Intenta de nuevo en unos minutos.'}
         </div>
       ) : proyectosEnCurso.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
+        <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">
           Todavía no hay obras en curso. Una obra pasa a "en curso" cuando su versión llega a estado ACEPTADO_CLIENTE en Presupuestos, o la creas a mano con "Nueva obra manual".
         </div>
       ) : filtrados.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs">
+        <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">
           Ninguna obra coincide con los filtros.
         </div>
       ) : isDesktop ? (
@@ -209,7 +209,7 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
           <Tabla>
             <Thead>
               {/* Cada lista muestra lo suyo: Comercial, venta y cobro; Taller, el avance físico. */}
-              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[11px]">
                 <Th className="font-bold">Obra</Th>
                 <Th className="font-bold">Cliente</Th>
                 {esFabricacion ? (
@@ -253,7 +253,7 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
                     <div className="text-xs font-bold text-slate-900 line-clamp-2 leading-snug" title={p.obra}>
                       {p.obra}
                     </div>
-                    <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono font-semibold">
+                    <span className="inline-block mt-1 text-[11px] px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono font-semibold">
                       {p.codigoInterno || `PRJ-${p.numeroPresupuesto}`}
                     </span>
                   </Td>
@@ -285,14 +285,14 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
                       <Td alinear="derecha" className="text-xs font-mono text-slate-700 whitespace-nowrap">
                         {p.montoComprometidoOC ? clp(p.montoComprometidoOC) : '—'}
                         {!!p.otrasMonedasOC?.length && (
-                          <span className="block text-[10px] text-slate-400 font-normal">+ {p.otrasMonedasOC.join(', ')}</span>
+                          <span className="block text-[11px] text-slate-500 font-normal">+ {p.otrasMonedasOC.join(', ')}</span>
                         )}
                       </Td>
                       <Td alinear="derecha" className="text-xs font-mono text-slate-700 whitespace-nowrap" title="Neto de los estados de pago presentados (pagado entre paréntesis)">
                         {ro(p)?.estadosPago?.vigentes ? (
                           <>
                             {uf(ro(p)!.estadosPago!.netoUF)}
-                            <span className="block text-[10px] text-slate-400 font-normal">
+                            <span className="block text-[11px] text-slate-500 font-normal">
                               {ro(p)!.estadosPago!.vigentes} EP · pagado {uf(ro(p)!.estadosPago!.pagadoUF)}
                             </span>
                           </>
@@ -323,7 +323,7 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
               <div className="min-w-0 space-y-1">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-slate-900 truncate">{p.obra}</h3>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 font-mono font-bold shrink-0">
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 font-mono font-bold shrink-0">
                     {p.codigoInterno || `PRJ-${p.numeroPresupuesto}`}
                   </span>
                 </div>
@@ -344,7 +344,7 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
                     {pendientes(p)}
                   </div>
                 )}
-                <p className="text-[11px] text-slate-400">{filaFases(p)}</p>
+                <p className="text-[11px] text-slate-500">{filaFases(p)}</p>
               </div>
               <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
             </BotonFila>

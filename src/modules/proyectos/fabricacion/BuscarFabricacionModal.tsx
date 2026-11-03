@@ -158,7 +158,7 @@ export const BuscarFabricacionModal: React.FC<Props> = ({ proyectoId, onClose })
 
       <div className="flex-1 overflow-y-auto px-5 pb-5 min-h-[12rem]">
         {isLoading ? (
-          <div className="p-10 flex items-center justify-center text-slate-400">
+          <div className="p-10 flex items-center justify-center text-slate-500">
             <Loader2 className="w-5 h-5 animate-spin" />
           </div>
         ) : isError ? (
@@ -172,7 +172,7 @@ export const BuscarFabricacionModal: React.FC<Props> = ({ proyectoId, onClose })
         ) : isDesktop ? (
           <Tabla>
             <Thead>
-              <Tr className="border-b border-slate-100 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+              <Tr className="border-b border-slate-100 text-left text-slate-500 uppercase tracking-wider text-[11px]">
                 <Th className="pr-3 font-bold w-8"></Th>
                 <Th className="pr-3 font-bold">Documento</Th>
                 <Th className="pr-3 font-bold">Estado</Th>

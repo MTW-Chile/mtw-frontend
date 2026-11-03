@@ -31,8 +31,8 @@ const Miniatura: React.FC<{ pendienteId: string; adjunto: AdjuntoPendiente }> = 
     gcTime: 1000 * 60 * 10,
   });
 
-  if (!esImagen(adjunto.mime)) return <FileText className="w-6 h-6 text-slate-400" />;
-  if (isError) return <span className="text-[10px] text-slate-400 text-center">No disponible</span>;
+  if (!esImagen(adjunto.mime)) return <FileText className="w-6 h-6 text-slate-500" />;
+  if (isError) return <span className="text-[11px] text-slate-500 text-center">No disponible</span>;
   if (!url) return <Loader2 className="w-4 h-4 animate-spin text-slate-300" />;
   return <img src={url} alt={adjunto.nombre} className="w-full h-full object-cover" />;
 };
@@ -93,7 +93,7 @@ export const AdjuntosDetalle: React.FC<Props> = ({ proyectoId, pendienteId, adju
 
   return (
     <div className="space-y-2">
-      <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Fotos y documentos ({adjuntos.length})</h4>
+      <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Fotos y documentos ({adjuntos.length})</h4>
       {adjuntos.length > 0 && (
         <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2" aria-label="Adjuntos">
           {adjuntos.map((a) => (
@@ -103,12 +103,12 @@ export const AdjuntosDetalle: React.FC<Props> = ({ proyectoId, pendienteId, adju
                 <p className="text-[11px] font-bold text-slate-800 truncate" title={a.nombre}>
                   {a.nombre}
                 </p>
-                <p className="text-[10px] text-slate-400">
+                <p className="text-[11px] text-slate-500">
                   {formatoTamano(a.tamano)} · {a.subidoPor?.nombre || '—'} · {formatoFechaHora(a.creadoEn)}
                 </p>
                 <div className="flex items-center gap-2 pt-0.5">
                   {a.webUrl && (
-                    <a href={a.webUrl} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-brand-600" aria-label="Ver en OneDrive" title="Ver en OneDrive">
+                    <a href={a.webUrl} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-brand-600" aria-label="Ver en OneDrive" title="Ver en OneDrive">
                       <ExternalLink className="w-3.5 h-3.5" />
                     </a>
                   )}

@@ -97,7 +97,7 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
         {unidad.nomenclatura ? (
           <span className="font-mono font-bold text-xs text-slate-800">{unidad.nomenclatura}</span>
         ) : (
-          <span className="font-mono text-xs text-slate-400" title="Aún sin unidad asignada ni cubicación única">
+          <span className="font-mono text-xs text-slate-500" title="Aún sin unidad asignada ni cubicación única">
             {unidad.codigo} <Badge size="sm" variant="outline">sin nomenclatura</Badge>
           </span>
         )}
@@ -136,7 +136,7 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
           <InputCompacto aria-label={`Rasgo ancho de ${unidad.nomenclatura ?? unidad.codigo}`} inputMode="decimal" value={ancho} onChange={(e) => setAncho(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.blur(), intentarGuardar())} placeholder="ancho" className={`${invalido ? 'border-rose-300' : ''}`} />
           <span className="text-slate-300">×</span>
           <InputCompacto aria-label={`Rasgo alto de ${unidad.nomenclatura ?? unidad.codigo}`} inputMode="decimal" value={alto} onChange={(e) => setAlto(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.blur(), intentarGuardar())} placeholder="alto" className={`${invalido ? 'border-rose-300' : ''}`} />
-          {guardar.isPending && <Loader2 className="w-3 h-3 animate-spin text-slate-400 shrink-0" />}
+          {guardar.isPending && <Loader2 className="w-3 h-3 animate-spin text-slate-500 shrink-0" />}
         </div>
       </Td>
       <Td className="text-xs font-mono whitespace-nowrap">
@@ -237,7 +237,7 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
       </div>
 
       {isLoading ? (
-        <div className="p-12 flex items-center justify-center text-slate-400">
+        <div className="p-12 flex items-center justify-center text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
       ) : isError ? (
@@ -254,7 +254,7 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
           <Tabla>
             <Thead>
-              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+              <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[11px]">
                 <Th className="font-bold">Nomenclatura</Th>
                 <Th className="font-bold">Ubicación</Th>
                 <Th className="font-bold">Apertura</Th>
@@ -299,11 +299,11 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
 
       {(comunes.data?.unidades.length ?? 0) > 0 && (
         <div className="space-y-2">
-          <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Áreas comunes y fachada ({comunes.data!.unidades.length})</h3>
+          <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Áreas comunes y fachada ({comunes.data!.unidades.length})</h3>
           <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
             <Tabla>
               <Thead>
-                <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[10px]">
+                <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[11px]">
                   <Th className="font-bold">Código</Th>
                   <Th className="font-bold">Descripción</Th>
                   <Th alinear="derecha" className="font-bold">Cantidad</Th>
@@ -322,7 +322,7 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
               </Tbody>
             </Tabla>
           </div>
-          <p className="text-[11px] text-slate-400">Por ahora cada ítem cuenta como una sola unidad; tendrán sus propias etapas y estado de pago.</p>
+          <p className="text-[11px] text-slate-500">Por ahora cada ítem cuenta como una sola unidad; tendrán sus propias etapas y estado de pago.</p>
         </div>
       )}
 

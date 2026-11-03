@@ -103,9 +103,9 @@ export const FormularioInstalacion: React.FC<{ proyectoId: string; ventana: Vent
               <ul className="space-y-1">
                 {fotos.map((f, i) => (
                   <li key={`${f.name}-${i}`} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs">
-                    <ImageIcon className={`w-3.5 h-3.5 shrink-0 ${esImagen(mimeDeArchivo(f.name, f.type)) ? 'text-emerald-600' : 'text-slate-400'}`} />
+                    <ImageIcon className={`w-3.5 h-3.5 shrink-0 ${esImagen(mimeDeArchivo(f.name, f.type)) ? 'text-emerald-600' : 'text-slate-500'}`} />
                     <span className="flex-1 min-w-0 truncate text-slate-800">{f.name}</span>
-                    <span className="text-slate-400 shrink-0">{formatoTamano(f.size)}</span>
+                    <span className="text-slate-500 shrink-0">{formatoTamano(f.size)}</span>
                     <IconButton icono={X} etiqueta={`Quitar ${f.name}`} tono="peligro" onClick={() => setFotos((s) => s.filter((_, j) => j !== i))} />
                   </li>
                 ))}

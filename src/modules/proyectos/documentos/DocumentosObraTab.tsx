@@ -142,13 +142,13 @@ export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }
       )}
 
       {isLoading ? (
-        <div className="p-12 flex items-center justify-center text-slate-400">
+        <div className="p-12 flex items-center justify-center text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
       ) : isError ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-800">No se pudo leer el contenido de la carpeta.</div>
       ) : !data?.items.length ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">Esta carpeta está vacía.</div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">Esta carpeta está vacía.</div>
       ) : (
         <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white overflow-hidden">
           {data.items.map((item) => (
@@ -161,22 +161,22 @@ export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }
                 {item.tipo === 'carpeta' ? (
                   <Folder className="w-4.5 h-4.5 text-brand-500 shrink-0" />
                 ) : item.mime?.startsWith('image/') ? (
-                  <FileText className="w-4.5 h-4.5 text-slate-400 shrink-0" />
+                  <FileText className="w-4.5 h-4.5 text-slate-500 shrink-0" />
                 ) : (
-                  <File className="w-4.5 h-4.5 text-slate-400 shrink-0" />
+                  <File className="w-4.5 h-4.5 text-slate-500 shrink-0" />
                 )}
                 <span className="flex-1 min-w-0 text-xs font-bold text-slate-800 truncate" title={item.nombre}>
                   {item.nombre}
                 </span>
               </BotonFila>
-              <span className="text-[11px] text-slate-400 shrink-0 hidden sm:inline">{item.tamano != null ? formatoTamano(item.tamano) : ''}</span>
-              <span className="text-[11px] text-slate-400 shrink-0 hidden md:inline">{formatoFechaHora(item.modificadoEn)}</span>
+              <span className="text-[11px] text-slate-500 shrink-0 hidden sm:inline">{item.tamano != null ? formatoTamano(item.tamano) : ''}</span>
+              <span className="text-[11px] text-slate-500 shrink-0 hidden md:inline">{formatoFechaHora(item.modificadoEn)}</span>
               {item.webUrl && (
                 <a
                   href={item.webUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-slate-400 hover:text-brand-600 shrink-0"
+                  className="text-slate-500 hover:text-brand-600 shrink-0"
                   aria-label={`Abrir ${item.nombre} en OneDrive`}
                   title="Abrir en OneDrive"
                 >

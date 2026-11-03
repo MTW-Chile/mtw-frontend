@@ -55,7 +55,7 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
 
   if (isLoading) {
     return (
-      <div className="p-6 flex items-center justify-center text-slate-400">
+      <div className="p-6 flex items-center justify-center text-slate-500">
         <Loader2 className="w-4 h-4 animate-spin" />
       </div>
     );
@@ -66,7 +66,7 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
   const unica = data.unica ?? [];
   if (data.torres.length === 0 && unica.length === 0) {
     return (
-      <p className="p-4 text-xs text-slate-400">
+      <p className="p-4 text-xs text-slate-500">
         Esta obra todavía no tiene nada cubicado: arma el edificio o las casas en el cubicador visual, o crea la cubicación única, en la pestaña Cubicación.
       </p>
     );
@@ -87,7 +87,7 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
       <div className="flex items-center gap-1.5 py-1">
         <IconButton icono={expandidas.has(nodo.id) ? ChevronDown : ChevronRight} etiqueta="Expandir" onClick={() => expandir(nodo.id)} />
         <Casilla checked={unidadIds.has(nodo.id)} onChange={() => alternar(unidadIds, setUnidadIds, nodo.id)} label={<><span className="font-mono font-bold text-slate-800">{nodo.nombre}</span>
-          <span className="text-slate-400">({nodo.ventanas.length} ventana(s))</span></>} />
+          <span className="text-slate-500">({nodo.ventanas.length} ventana(s))</span></>} />
       </div>
       {expandidas.has(nodo.id) && (
         <div className="pl-6 pb-1 space-y-0.5">
@@ -100,7 +100,7 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
               label={
                 <>
                   <span className="font-mono">{v.codigo}</span>
-                  {v.nomenclatura && <span className="text-slate-400 ml-1.5">{v.nomenclatura}</span>}
+                  {v.nomenclatura && <span className="text-slate-500 ml-1.5">{v.nomenclatura}</span>}
                 </>
               }
             />
@@ -122,7 +122,7 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
               onChange={alternarTodasUnica}
               label={
                 <>
-                  <span className="font-bold text-slate-800">{legacy ? 'Ventanas sin ubicar' : 'Cubicación única'}</span> <span className="text-slate-400">({unica.length} ventana(s))</span>
+                  <span className="font-bold text-slate-800">{legacy ? 'Ventanas sin ubicar' : 'Cubicación única'}</span> <span className="text-slate-500">({unica.length} ventana(s))</span>
                 </>
               }
             />
@@ -155,7 +155,7 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
                   <div className="flex items-center gap-1.5 py-1">
                     <IconButton icono={expandidas.has(piso.id) ? ChevronDown : ChevronRight} etiqueta="Expandir piso" onClick={() => expandir(piso.id)} />
                     <Casilla checked={pisoIds.has(piso.id)} onChange={() => alternar(pisoIds, setPisoIds, piso.id)} label={<><span className="font-bold text-slate-800">Piso {piso.numero}</span>
-                      <span className="text-slate-400">({piso.deptos.length} {voc.unidadCorta}(s))</span></>} />
+                      <span className="text-slate-500">({piso.deptos.length} {voc.unidadCorta}(s))</span></>} />
                   </div>
                   {expandidas.has(piso.id) && <div className="pl-4">{piso.deptos.map(filaUnidad)}</div>}
                 </div>

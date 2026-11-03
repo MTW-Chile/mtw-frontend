@@ -143,7 +143,7 @@ const TarjetaUnidad: React.FC<{
       className={`rounded-lg border border-dashed p-1.5 min-w-0 ${sobre === clave ? 'border-brand-400 bg-brand-50/60' : 'border-slate-200 bg-white/60'}`}
     >
       <div className="flex items-center justify-between gap-1 mb-1">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{titulo ?? 'Sin ubicación'}</span>
+        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{titulo ?? 'Sin ubicación'}</span>
         <div className="flex items-center gap-0.5">
           {tipoActivo && titulo !== null && (
             <Button size="sm" onClick={() => onAgregarUna(ubicacion)} title={`Agregar una ${tipoActivo.codigo} en ${titulo}`}>+ 1 {tipoActivo.codigo}</Button>
@@ -157,7 +157,7 @@ const TarjetaUnidad: React.FC<{
         </div>
       </div>
       <div className="flex flex-wrap gap-1">
-        {ventanas.length === 0 && <span className="text-[11px] text-slate-400">arrastra ventanas aquí</span>}
+        {ventanas.length === 0 && <span className="text-[11px] text-slate-500">arrastra ventanas aquí</span>}
         {ventanas.map((v) => chip(v, false))}
       </div>
     </div>
@@ -200,7 +200,7 @@ const TarjetaUnidad: React.FC<{
         </div>
       ) : (
         <div className="flex flex-wrap gap-1">
-          {nodo.ventanas.length === 0 && <span className="text-[11px] text-slate-400">arrastra ventanas aquí</span>}
+          {nodo.ventanas.length === 0 && <span className="text-[11px] text-slate-500">arrastra ventanas aquí</span>}
           {nodo.ventanas.map((v) => chip(v, voc.modo === 'EDIFICIO'))}
         </div>
       )}
@@ -418,7 +418,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
 
   if (isLoading) {
     return (
-      <div className="p-10 flex items-center justify-center text-slate-400">
+      <div className="p-10 flex items-center justify-center text-slate-500">
         <Loader2 className="w-5 h-5 animate-spin" />
       </div>
     );
@@ -475,7 +475,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
           data-testid="pool-ventanas"
         >
           <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Por ubicar</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Por ubicar</p>
             <Badge size="sm" variant={(legacy ? porUbicarLegacy.length : documentoId ? (data.libres ?? []).filter((l) => l.fabricacionId === documentoId).reduce((s, l) => s + l.cantidad, 0) : data.sinPosicion) > 0 ? 'warning' : 'success'}>
               {(() => {
                 const n = legacy ? porUbicarLegacy.length : documentoId ? (data.libres ?? []).filter((l) => l.fabricacionId === documentoId).reduce((s, l) => s + l.cantidad, 0) : data.sinPosicion;
@@ -501,7 +501,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
             </div>
           )}
           <div className="max-h-[60dvh] overflow-y-auto space-y-1.5 pr-0.5">
-            {legacy && porUbicarLegacy.length === 0 && <p className="text-xs text-slate-400 py-3 text-center">{documentoId ? 'No quedan ventanas por ubicar de este documento.' : 'Todas las ventanas tienen lugar.'}</p>}
+            {legacy && porUbicarLegacy.length === 0 && <p className="text-xs text-slate-500 py-3 text-center">{documentoId ? 'No quedan ventanas por ubicar de este documento.' : 'Todas las ventanas tienen lugar.'}</p>}
             {legacy &&
               porUbicarLegacy.map((v) => (
                 <div
@@ -521,7 +521,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono font-bold text-xs text-slate-900 truncate">{v.nomenclatura ?? v.codigo}</span>
-                    <span className="text-[10px] font-mono text-slate-400 shrink-0">
+                    <span className="text-[11px] font-mono text-slate-500 shrink-0">
                       {formatoMm(v.anchoFabricacionMm ?? v.anchoPlanoMm)} × {formatoMm(v.altoFabricacionMm ?? v.altoPlanoMm)}
                     </span>
                   </div>
@@ -531,7 +531,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                   </p>
                 </div>
               ))}
-            {!legacy && visibles.length === 0 && <p className="text-xs text-slate-400 py-3 text-center">{documentoId ? 'No quedan ventanas por ubicar de este documento.' : 'No hay tipos.'}</p>}
+            {!legacy && visibles.length === 0 && <p className="text-xs text-slate-500 py-3 text-center">{documentoId ? 'No quedan ventanas por ubicar de este documento.' : 'No hay tipos.'}</p>}
             {!legacy && visibles.map((t) => {
               const saldo = saldoDe(t);
               const completo = saldo <= 0;
@@ -555,11 +555,11 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono font-bold text-xs text-slate-900">{t.codigo}</span>
-                    <span className={`text-[10px] font-bold ${completo ? 'text-emerald-700' : 'text-amber-700'}`}>{completo ? 'completo' : `${saldo} por ubicar`}</span>
+                    <span className={`text-[11px] font-bold ${completo ? 'text-emerald-700' : 'text-amber-700'}`}>{completo ? 'completo' : `${saldo} por ubicar`}</span>
                   </div>
                   <p className="text-[11px] text-slate-500 truncate">{t.sistema}</p>
                   {t.anchoPlanoMm != null && (
-                    <p className="text-[10px] font-mono text-slate-400">
+                    <p className="text-[11px] font-mono text-slate-500">
                       {formatoMm(t.anchoPlanoMm)} × {formatoMm(t.altoPlanoMm)} · {t.cantidadContratada} contratadas
                     </p>
                   )}
@@ -599,7 +599,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                 <section key={torre.id} className="rounded-2xl bg-white border border-slate-200 shadow-sm" data-testid={`torre-${torre.nombre || 'sin'}`}>
                   <header className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-100 bg-slate-50/70 rounded-t-2xl">
                     <div className="flex items-center gap-2">
-                      <IconoEstructura className="w-4 h-4 text-slate-400" />
+                      <IconoEstructura className="w-4 h-4 text-slate-500" />
                       <h3 className="text-sm font-black text-slate-900">{voc.textoTorre(torre.nombre)}</h3>
                       <span className="text-[11px] text-slate-500">
                         {torre.pisos.length} piso(s) · {contarVentanas(torre)} ventana(s)
@@ -634,7 +634,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                   </header>
 
                   {torre.pisos.length === 0 ? (
-                    <p className="px-4 py-5 text-xs text-slate-400">Esta {voc.contenedor} aún no tiene pisos.</p>
+                    <p className="px-4 py-5 text-xs text-slate-500">Esta {voc.contenedor} aún no tiene pisos.</p>
                   ) : (
                     <div className="divide-y divide-slate-100">
                       {[...torre.pisos].reverse().map((piso) => {
@@ -669,7 +669,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                           </div>
 
                           <div className={`grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-2 min-w-0 content-start ${cerrado ? 'hidden' : ''}`}>
-                            {piso.deptos.length === 0 && <p className="text-xs text-slate-400 py-2">Sin {voc.unidades}.</p>}
+                            {piso.deptos.length === 0 && <p className="text-xs text-slate-500 py-2">Sin {voc.unidades}.</p>}
                             {piso.deptos.map((depto) => (
                               <TarjetaUnidad
                                 key={depto.id}
@@ -740,7 +740,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
               );
             })
           )}
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[11px] text-slate-500">
             {legacy ? 'Toca una ventana para editar su ubicación y tipo; su medida es la del documento de fabricación.' : 'Verde = ventana ya rectificada (con rasgo medido). Toca una ventana para editar su ubicación, tipo y rasgo.'}
           </p>
         </div>

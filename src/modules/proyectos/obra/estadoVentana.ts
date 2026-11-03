@@ -1,3 +1,5 @@
+import type { LucideIcon } from 'lucide-react';
+import { CheckCircle2, Circle, CircleDashed, Hammer, Package, PackageCheck, Truck } from 'lucide-react';
 import type { BadgeVariant } from '../../../components/ui/Badge';
 import type { EstadoDespacho, EstadoEstadoPago, EstadoVentanaObra, HitoCobro, ParteVentana, TipoGuiaDespacho } from '../../../types';
 
@@ -27,9 +29,21 @@ export const VARIANTE_ESTADO_VENTANA: Record<EstadoVentanaObra, BadgeVariant> = 
   INSTALADA: 'success',
 };
 
+// Ícono de cada estado: el color pastel solo no se distingue bajo el sol de la obra ni para quien no distingue
+// colores (pauta 11 de NN/g); el ícono va en el chip del plano y en la leyenda del avance.
+export const ICONO_ESTADO_VENTANA: Record<EstadoVentanaObra, LucideIcon> = {
+  SIN_POSICION: CircleDashed,
+  CUBICADA: Circle,
+  EN_FABRICACION: Hammer,
+  FABRICADA: Package,
+  DESPACHADA: Truck,
+  RECIBIDA: PackageCheck,
+  INSTALADA: CheckCircle2,
+};
+
 // Color de fondo del chip de una ventana en el plano de instalación (móvil primero: el color es la lectura rápida).
 export const CLASE_CHIP_ESTADO: Record<EstadoVentanaObra, string> = {
-  SIN_POSICION: 'bg-slate-50 border-slate-200 text-slate-400',
+  SIN_POSICION: 'bg-slate-50 border-slate-200 text-slate-500',
   CUBICADA: 'bg-white border-slate-200 text-slate-700',
   EN_FABRICACION: 'bg-amber-50 border-amber-200 text-amber-800',
   FABRICADA: 'bg-sky-50 border-sky-200 text-sky-800',

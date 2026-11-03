@@ -212,7 +212,7 @@ export const EstadoPagoDetalleModal: React.FC<Props> = ({ proyecto, estadoPagoId
                     <Tr key={i.id}>
                       <Td>
                         <span className="text-xs text-slate-800">{i.descripcion}</span>
-                        <span className="block text-[10px] text-slate-400">
+                        <span className="block text-[11px] text-slate-500">
                           {i.fase ? `Fase ${i.fase.numeroFase}` : i.adicional ? `Adicional A${i.adicional.numero}` : i.ventanaIndividualizada ? 'Ventana' : 'Ítem libre'}
                           {i.hito ? ` · ${ETIQUETA_HITO[i.hito]}` : i.ventanaIndividualizada ? ' · completa' : ''}
                         </span>
@@ -236,7 +236,7 @@ export const EstadoPagoDetalleModal: React.FC<Props> = ({ proyecto, estadoPagoId
                 ['Neto', uf(e.totales.montoNetoUF)],
               ].map(([k, v]) => (
                 <div key={k} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                  <dt className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">{k}</dt>
+                  <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-bold">{k}</dt>
                   <dd className="font-mono tabular-nums text-slate-800 font-semibold">{v}</dd>
                 </div>
               ))}
@@ -248,7 +248,7 @@ export const EstadoPagoDetalleModal: React.FC<Props> = ({ proyecto, estadoPagoId
               <ul className="space-y-1 text-[11px] text-slate-600">
                 {e.eventos.map((ev) => (
                   <li key={ev.id}>
-                    <span className="font-mono text-slate-400">{fechaHora(ev.creadoEn)}</span> · {ETIQUETA_ESTADO_PAGO[ev.estadoNuevo]}
+                    <span className="font-mono text-slate-500">{fechaHora(ev.creadoEn)}</span> · {ETIQUETA_ESTADO_PAGO[ev.estadoNuevo]}
                     {ev.usuario ? ` · ${ev.usuario.nombre}` : ''}
                     {ev.comentario ? ` — ${ev.comentario}` : ''}
                   </li>

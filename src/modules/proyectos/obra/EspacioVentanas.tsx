@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, ArrowLeft, Building2, CheckCircle2, ClipboardList, Home, PackageCheck, Send, ShoppingCart, Square, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowUp, Building2, CheckCircle2, ClipboardList, Home, PackageCheck, Send, ShoppingCart, Square, Trash2 } from 'lucide-react';
 import { actualizarFabricacionesObra, certificarInstalacion, crearPendientesLote, getFichaVentana, getInstalacionObra, getVentanasObra, subirFotoInstalacion } from '../../../api/client';
 import { Seccion } from '../../../components/ui/Seccion';
 import { Modal } from '../../../components/ui/Modal';
@@ -20,8 +20,10 @@ import { useMigas } from '../../../lib/migas';
 import { useAnchoContenedor } from '../../../lib/useAnchoContenedor';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import { fecha } from '../../../lib/formato';
+import { borrarBorrador, guardarBorrador, leerBorrador } from '../../../lib/borradorLocal';
+import { useSession } from '../../../lib/useCloudflareAccessSession';
 import type { DespachoPorRecibir, EstadoVentanaObra, InstalacionObra, NodoUnidadInstalacion, ParteVentana, Proyecto, VentanaObra } from '../../../types';
-import { CLASE_BARRA_ESTADO, CLASE_CHIP_ESTADO, ETIQUETA_ESTADO_VENTANA, ORDEN_ESTADO_VENTANA, VARIANTE_ESTADO_VENTANA, nombreVentana } from './estadoVentana';
+import { CLASE_BARRA_ESTADO, CLASE_CHIP_ESTADO, ETIQUETA_ESTADO_VENTANA, ICONO_ESTADO_VENTANA, ORDEN_ESTADO_VENTANA, VARIANTE_ESTADO_VENTANA, nombreVentana } from './estadoVentana';
 import { vocabulario } from '../cubicacion/vocabulario';
 import { ETIQUETA_MOTIVO, ETIQUETA_TIPO } from '../pendientes/utils';
 import { subirArchivos } from '../pendientes/adjuntos/subirArchivos';
@@ -68,7 +70,9 @@ const textoBusqueda = (v: VentanaObra) =>
     .join(' ')
     .toLowerCase();
 
-const ChipVentana: React.FC<{ v: VentanaObra; activa: boolean; enCarrito: number; onClick: () => void }> = ({ v, activa, enCarrito, onClick }) => (
+const ChipVentana: React.FC<{ v: VentanaObra; activa: boolean; enCarrito: number; onClick: () => void }> = ({ v, activa, enCarrito, onClick }) => {
+  const IconoEstado = ICONO_ESTADO_VENTANA[v.estado];
+  return (
   // eslint-disable-next-line react/forbid-elements -- chip táctil del plano (mínimo 44 px en móvil)
   <button
     type="button"
@@ -79,13 +83,14 @@ const ChipVentana: React.FC<{ v: VentanaObra; activa: boolean; enCarrito: number
       activa ? 'ring-2 ring-brand-500 ring-offset-1' : ''
     }`}
   >
-    {v.estado === 'INSTALADA' ? '✓ ' : ''}
+    <IconoEstado className="w-3 h-3 shrink-0" aria-label={ETIQUETA_ESTADO_VENTANA[v.estado]} />
     {nombreVentana(v)}
-    {v.separada && <span className="font-sans font-normal text-[10px] opacity-80">½</span>}
-    {enCarrito > 0 && <span className="rounded-full bg-brand-600 text-white px-1.5 text-[10px] font-sans">{enCarrito}</span>}
+    {v.separada && <span className="font-sans font-normal text-[11px] opacity-80">½</span>}
+    {enCarrito > 0 && <span className="rounded-full bg-brand-600 text-white px-1.5 text-[11px] font-sans">{enCarrito}</span>}
     {v.pendientesAbiertos > 0 && <AlertTriangle className="w-3 h-3 text-amber-600" aria-label="Con pendiente abierto" />}
   </button>
-);
+  );
+};
 
 const TarjetaUnidad: React.FC<{ nodo: NodoUnidadInstalacion; ventanas: VentanaObra[]; etiqueta: string; activa: string | null; conteo: (id: string) => number; onVentana: (v: VentanaObra) => void; avance?: boolean }> = ({
   nodo,
@@ -103,11 +108,11 @@ const TarjetaUnidad: React.FC<{ nodo: NodoUnidadInstalacion; ventanas: VentanaOb
     <div className={`rounded-xl border p-2.5 space-y-1.5 ${completa ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200 bg-white'}`}>
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-bold text-slate-900 truncate">
-          <span className="text-[10px] font-normal uppercase tracking-wider text-slate-400 mr-1">{etiqueta}</span>
+          <span className="text-[11px] font-normal uppercase tracking-wider text-slate-500 mr-1">{etiqueta}</span>
           {nodo.nombre}
         </p>
         {avance && (
-          <span className={`text-[10px] font-mono tabular-nums ${completa ? 'text-emerald-700' : 'text-slate-500'}`}>
+          <span className={`text-[11px] font-mono tabular-nums ${completa ? 'text-emerald-700' : 'text-slate-500'}`}>
             {instaladas}/{ventanas.length}
           </span>
         )}
@@ -165,6 +170,46 @@ export const EspacioVentanas: React.FC<Props> = ({ proyecto, modo, onCerrar }) =
   const [abiertosPisos, setAbiertosPisos] = useState<Set<string>>(new Set());
   const [especialesAbiertas, setEspecialesAbiertas] = useState<Set<string>>(new Set());
   const [despachosAbiertos, setDespachosAbiertos] = useState(false);
+  const refFicha = useRef<HTMLDivElement>(null);
+  const refPlano = useRef<HTMLDivElement>(null);
+
+  // El listado se guarda en este dispositivo mientras no se envía (con sus fotos): salir de la pantalla, que el
+  // navegador recargue la pestaña al volver de la cámara o quedarse sin batería ya no lo pierde. Va por persona y
+  // por obra: en una tablet compartida, cada uno ve solo lo suyo.
+  const { usuario } = useSession();
+  const claveBorrador = `listado:${modo}:${proyecto.id}:${usuario?.email ?? 'local'}`;
+  // Clave cuyo borrador ya se leyó: hasta entonces no se guarda (no se pisa lo guardado con el listado vacío).
+  const [claveLeida, setClaveLeida] = useState<string | null>(null);
+  const borradorListo = claveLeida === claveBorrador;
+  useEffect(() => {
+    let vigente = true;
+    leerBorrador<ItemCarrito[]>(claveBorrador).then((guardado) => {
+      if (!vigente) return;
+      if (guardado?.length) {
+        setCarrito((actual) => (actual.length ? actual : guardado));
+        mostrarToast(`Se recuperó un listado sin enviar (${guardado.length}).`, { tipo: 'info' });
+      }
+      setClaveLeida(claveBorrador);
+    });
+    return () => {
+      vigente = false;
+    };
+  }, [claveBorrador]);
+  useEffect(() => {
+    if (!borradorListo) return;
+    if (carrito.length) void guardarBorrador(claveBorrador, carrito);
+    else void borrarBorrador(claveBorrador);
+  }, [carrito, borradorListo, claveBorrador]);
+  // Cerrar o recargar la pestaña con algo sin enviar: el navegador pregunta (el borrador queda igual).
+  useEffect(() => {
+    if (carrito.length === 0) return;
+    const alSalir = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', alSalir);
+    return () => window.removeEventListener('beforeunload', alSalir);
+  }, [carrito.length]);
 
   const arbol = useQuery<InstalacionObra>({
     queryKey: esInstalacion ? ['instalacion', proyecto.id] : ['ventanasObra', proyecto.id],
@@ -198,6 +243,12 @@ export const EspacioVentanas: React.FC<Props> = ({ proyecto, modo, onCerrar }) =
     return m;
   }, [data]);
   const activa = activaId ? (ventanaPorId.get(activaId) ?? null) : null;
+  // En una columna la ficha queda arriba del plano: al elegir una ventana la pantalla va hasta ella (si no, en un
+  // edificio largo parece que tocar la ventana no hizo nada).
+  useEffect(() => {
+    if (activaId && !dosColumnas) refFicha.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [activaId, dosColumnas]);
+  const volverAlPlano = () => refPlano.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const ficha = useQuery({ queryKey: ['fichaVentana', proyecto.id, activaId], queryFn: () => getFichaVentana(proyecto.id, activaId!), enabled: !!activaId, staleTime: 60_000 });
 
   const voc = vocabulario(data?.modo, proyecto.obra);
@@ -259,7 +310,8 @@ export const EspacioVentanas: React.FC<Props> = ({ proyecto, modo, onCerrar }) =
       const quedan = carrito.filter((c) => !hechos.has(c.clave));
       setCarrito(quedan);
       mostrarToast(tipoCarrito === 'PENDIENTE' ? `${hechos.size} pendiente(s) ingresado(s).` : `${hechos.size} de ${total} instalación(es) certificada(s).`, { tipo: 'info' });
-      if (fallos.length) mostrarToast(`${tipoCarrito === 'PENDIENTE' ? 'No se pudo subir' : 'Quedó pendiente'}: ${fallos.join(' · ')}.`);
+      // Hasta que se cierre: una foto que no subió no puede pasar inadvertida (pauta 121 de NN/g).
+      if (fallos.length) mostrarToast(`${tipoCarrito === 'PENDIENTE' ? 'No se pudo subir' : 'Quedó pendiente'}: ${fallos.join(' · ')}.`, { duracionMs: 0 });
       if (quedan.length === 0) {
         setRevisando(false);
         if (tipoCarrito === 'PENDIENTE') onCerrar?.();
@@ -286,7 +338,7 @@ export const EspacioVentanas: React.FC<Props> = ({ proyecto, modo, onCerrar }) =
     if (await confirmar({ titulo: `¿Vaciar el listado de ${tipoCarrito === 'PENDIENTE' ? 'pendientes' : 'instalaciones'}?`, mensaje: 'Lo que está en el listado se pierde.', confirmar: 'Vaciar', peligro: true })) setCarrito([]);
   };
   const salir = async () => {
-    if (carrito.length === 0 || (await confirmar({ titulo: `¿Salir sin enviar ${carrito.length} pendiente(s)?`, mensaje: 'Lo que está en el listado se pierde.', confirmar: 'Salir', peligro: true }))) onCerrar?.();
+    if (carrito.length === 0 || (await confirmar({ titulo: `¿Salir sin enviar ${carrito.length} pendiente(s)?`, mensaje: 'El listado queda guardado en este dispositivo y vuelve a aparecer cuando entres de nuevo a esta obra.', confirmar: 'Salir' }))) onCerrar?.();
   };
 
   const hayEstructura = useMemo(() => !!data && (data.torres.some((t) => t.pisos.length || t.especiales.length) || data.unica.length > 0 || data.areasComunes.length > 0), [data]);
@@ -313,7 +365,7 @@ export const EspacioVentanas: React.FC<Props> = ({ proyecto, modo, onCerrar }) =
       }
     >
       {carrito.length === 0 ? (
-        <p className="px-4 py-6 text-xs text-slate-400 text-center">Elige una ventana y agrega su registro.</p>
+        <p className="px-4 py-6 text-xs text-slate-500 text-center">Elige una ventana y agrega su registro.</p>
       ) : (
         <Lista>
           {carrito.map((c) => (
@@ -398,7 +450,10 @@ export const EspacioVentanas: React.FC<Props> = ({ proyecto, modo, onCerrar }) =
           <div className="flex flex-wrap gap-1.5">
             {ORDEN_ESTADO_VENTANA.filter((e) => resumen[e] > 0).map((e: EstadoVentanaObra) => (
               <Badge key={e} size="sm" variant={VARIANTE_ESTADO_VENTANA[e]}>
-                {ETIQUETA_ESTADO_VENTANA[e]} {resumen[e]}
+                <span className="inline-flex items-center gap-1">
+                  {React.createElement(ICONO_ESTADO_VENTANA[e], { className: 'w-3 h-3', 'aria-hidden': true })}
+                  {ETIQUETA_ESTADO_VENTANA[e]} {resumen[e]}
+                </span>
               </Badge>
             ))}
           </div>
@@ -408,7 +463,7 @@ export const EspacioVentanas: React.FC<Props> = ({ proyecto, modo, onCerrar }) =
       {esInstalacion && !!data?.despachosPorRecibir.length && (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm">
           <BotonColapsar abierto={despachosAbiertos} onClick={() => setDespachosAbiertos((x) => !x)} className="w-full px-4 py-3">
-            <PackageCheck className="w-4 h-4 text-slate-400" />
+            <PackageCheck className="w-4 h-4 text-slate-500" />
             <span className="text-xs font-bold text-slate-800">Por recibir en obra</span>
             <Badge size="sm" variant="warning">{data.despachosPorRecibir.length}</Badge>
           </BotonColapsar>
@@ -456,7 +511,7 @@ export const EspacioVentanas: React.FC<Props> = ({ proyecto, modo, onCerrar }) =
         /* Dos columnas (plano y ficha) si caben; el listado ingresado es el carrito del encabezado. */
         <div className={`grid gap-4 items-start ${dosColumnas ? (anchoPagina >= 1000 ? 'grid-cols-[20rem_1fr]' : 'grid-cols-[15rem_1fr]') : 'grid-cols-1'}`}>
           {/* Árbol */}
-          <div className={`space-y-2 pr-0.5 ${dosColumnas ? 'sticky top-4 max-h-[80dvh] overflow-y-auto' : ''}`}>
+          <div ref={refPlano} className={`space-y-2 pr-0.5 scroll-mt-4 ${dosColumnas ? 'sticky top-4 max-h-[80dvh] overflow-y-auto' : ''}`}>
             <Buscador valor={busqueda} onChange={setBusqueda} placeholder="Piso 10, depto 1004, V01_1004A, documento…" etiqueta="Buscar ventanas" />
             {esInstalacion && (
               <SelectCompacto value={filtro} onChange={(e) => setFiltro(e.target.value as FiltroEstado)} aria-label="Filtrar ventanas por estado" className="w-full">
@@ -549,11 +604,11 @@ export const EspacioVentanas: React.FC<Props> = ({ proyecto, modo, onCerrar }) =
                 </div>
               </Seccion>
             )}
-            {data.sinPosicion > 0 && <p className="text-[11px] text-slate-400">{data.sinPosicion} ventana(s) contratadas aún sin posición en la cubicación (no se muestran).</p>}
+            {data.sinPosicion > 0 && <p className="text-[11px] text-slate-500">{data.sinPosicion} ventana(s) contratadas aún sin posición en la cubicación (no se muestran).</p>}
           </div>
 
           {/* Ficha y acción */}
-          <div className={`space-y-4 min-w-0 ${!dosColumnas && activa ? 'order-first' : ''}`}>
+          <div ref={refFicha} className={`space-y-4 min-w-0 scroll-mt-4 ${!dosColumnas && activa ? 'order-first' : ''}`}>
             {!activa ? (
               <EstadoVacio icono={Square} titulo="Elige una ventana" descripcion={esInstalacion ? 'Toca una ventana del plano para ver su ficha y registrar un pendiente o su instalación.' : 'Toca una ventana del plano para ver todo lo que sabemos de ella y detallar su pendiente.'} />
             ) : ficha.isLoading ? (
@@ -628,9 +683,26 @@ export const EspacioVentanas: React.FC<Props> = ({ proyecto, modo, onCerrar }) =
                     )}
                   </Seccion>
                 )}
+                {!dosColumnas && (
+                  <Button variant="outline" leftIcon={<ArrowUp className="w-3.5 h-3.5" />} onClick={volverAlPlano} className="w-full">
+                    Elegir otra ventana en el plano
+                  </Button>
+                )}
               </>
             )}
           </div>
+        </div>
+      )}
+      {/* Barra fija mientras haya algo sin enviar: en un edificio largo, el botón del encabezado queda muy arriba (pauta 9). */}
+      {carrito.length > 0 && (
+        <div className="sticky bottom-2 z-10 rounded-2xl bg-white/95 backdrop-blur border border-slate-200 shadow-lg px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-slate-600 min-w-0">
+            <b className="text-slate-900 tabular-nums">{carrito.length}</b> {tipoCarrito === 'INSTALACION' ? 'instalación(es)' : 'pendiente(s)'} sin enviar
+            <span className="block text-[11px] text-slate-500">Guardado en este dispositivo hasta enviarlo.</span>
+          </p>
+          <Button variant="primary" leftIcon={<ShoppingCart className="w-3.5 h-3.5" />} onClick={() => setRevisando(true)} className="max-sm:flex-1">
+            Revisar y enviar ({carrito.length})
+          </Button>
         </div>
       )}
       {listadoModal}

@@ -460,7 +460,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
   const setNumero = (campo: CampoNumerico, max?: number) => (v: number | null) =>
     setDraft((prev) => ({ ...prev, [campo]: Math.min(max ?? Infinity, Math.max(0, v ?? 0)) }));
   // "(12% venta)" junto a un monto, solo con "Analizar precio".
-  const analisis = (monto: number) => (mostrarAnalisis ? <span className="text-slate-400 font-normal ml-1.5">({pctLabel(monto, venta)})</span> : null);
+  const analisis = (monto: number) => (mostrarAnalisis ? <span className="text-slate-500 font-normal ml-1.5">({pctLabel(monto, venta)})</span> : null);
   const haySinAsignar = extrasSinPartida > 0 || presupuestoPorPartida.some((p) => p.codigo === codigoSinAsignar);
 
   const estadoBadge = congelado ? (
@@ -483,7 +483,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
     <div key={key} className={`flex items-center justify-between gap-3 px-5 text-xs ${alta ? 'flex-1 py-2.5' : 'py-1.5'}`}>
       <div className="min-w-0">
         <div className="text-slate-600">{label}</div>
-        {ayuda && <div className="text-[10px] text-slate-400">{ayuda}</div>}
+        {ayuda && <div className="text-[11px] text-slate-500">{ayuda}</div>}
       </div>
       <div className="shrink-0 font-mono font-bold text-slate-900 tabular-nums">{valor}</div>
     </div>
@@ -671,7 +671,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <Resultado etiqueta="Costo total NETO" valor={ufLabel(costoTotal, tasaUf)} detalle={clpLabel(costoTotal)} />
               <div className="p-3.5 rounded-xl border border-slate-200 bg-white">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Margen de venta</div>
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Margen de venta</div>
                 <div className="mt-1.5">
                   <NumeroInput valor={draft.margenVentaPct} onGuardar={setNumero('margenVentaPct', 99)} max={99} disabled={congelado} sufijo="%" aria-label="Margen de venta" className="w-20 text-sm! font-bold" />
                 </div>
@@ -679,7 +679,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
               <Resultado etiqueta="Valor por m²" valor={ufLabel(valorM2, tasaUf)} detalle="por m² de ventana" />
               <Resultado etiqueta="Valor de venta NETO" valor={ufLabel(venta, tasaUf)} detalle={clpLabel(venta)} destacado />
             </div>
-            <p className="mt-2 text-[10px] text-slate-400 text-right">UF usada para el presupuesto: $ {tasaUfTexto}</p>
+            <p className="mt-2 text-[11px] text-slate-500 text-right">UF usada para el presupuesto: $ {tasaUfTexto}</p>
           </div>
         </>
       ) : (
@@ -714,8 +714,8 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
                 ))}
                 {extras.map((extra, idx) => (
                   <Tr key={`e-${idx}`}>
-                    <Td className="font-semibold text-slate-800">{extra.glosa || <span className="text-slate-400 font-normal">Extra sin glosa</span>}</Td>
-                    <Td numero className="text-slate-400">—</Td>
+                    <Td className="font-semibold text-slate-800">{extra.glosa || <span className="text-slate-500 font-normal">Extra sin glosa</span>}</Td>
+                    <Td numero className="text-slate-500">—</Td>
                     <Td numero fuerte>{clpLabel(extra.monto)}</Td>
                     <Td>
                       <SelectorPartida
@@ -773,7 +773,7 @@ export const Step4Fijaciones: React.FC<Step4FijacionesProps> = ({
 
 const Resultado: React.FC<{ etiqueta: string; valor: string; detalle?: string; destacado?: boolean }> = ({ etiqueta, valor, detalle, destacado }) => (
   <div className={`p-3.5 rounded-xl border ${destacado ? 'border-brand-600/30 bg-brand-50/60' : 'border-slate-200 bg-white'}`}>
-    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{etiqueta}</div>
+    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{etiqueta}</div>
     <div className={`mt-1 text-lg font-black tabular-nums ${destacado ? 'text-brand-700' : 'text-slate-900'}`}>{valor}</div>
     {detalle && <div className="text-[11px] font-mono text-slate-500 tabular-nums">{detalle}</div>}
   </div>

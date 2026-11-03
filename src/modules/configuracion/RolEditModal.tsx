@@ -173,7 +173,7 @@ export const RolEditModal: React.FC<RolEditModalProps> = ({ rol, onClose }) => {
               Volver a todos
             </Button>
           ) : (
-            <span className="text-[11px] text-slate-400">Todos los módulos, en el orden por defecto</span>
+            <span className="text-[11px] text-slate-500">Todos los módulos, en el orden por defecto</span>
           )}
         </div>
         <div className="divide-y divide-slate-100">

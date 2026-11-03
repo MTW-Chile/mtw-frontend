@@ -26,8 +26,9 @@ export function mostrarToast(mensaje: string, opts?: { tipo?: ToastTipo; detalle
   const id = ++contador;
   items = [...items, { id, mensaje, detalle: opts?.detalle, tipo: opts?.tipo ?? 'error' }];
   emitir();
+  // duracionMs 0: queda hasta que la persona lo cierre (errores que no se pueden perder de vista).
   const duracion = opts?.duracionMs ?? 10000;
-  setTimeout(() => quitarToast(id), duracion);
+  if (duracion > 0) setTimeout(() => quitarToast(id), duracion);
 }
 
 export function quitarToast(id: number): void {
