@@ -38,7 +38,7 @@ const Dato: React.FC<{ titulo: string; valor: React.ReactNode; detalle?: React.R
 // Legacy: las medidas vienen finales de los documentos de fabricación, no hay rectificación ni contrato que mostrar.
 const ResumenLegacy: React.FC<{ r: ResumenCubicacion; documentos: number | undefined }> = ({ r, documentos }) => (
   <div className="grid grid-cols-2 lg:grid-cols-4 gap-2" data-testid="resumen-cubicacion">
-    <Dato titulo="Ventanas con nomenclatura" valor={`${r.posicionadas} de ${r.ventanas}`} detalle={r.sinPosicion > 0 ? `${r.sinPosicion} sin ubicar ni nombre` : 'todas tienen su nombre'} />
+    <Dato titulo="Ventanas ubicadas" valor={`${r.posicionadas} de ${r.ventanas}`} detalle={r.sinPosicion > 0 ? `${r.sinPosicion} por ubicar` : 'todas tienen su lugar'} />
     <Dato titulo="Documentos de fabricación" valor={documentos ?? '—'} detalle="vinculados en Fases y documentos" />
     <Dato titulo="Superficie" valor={`${r.m2.toLocaleString('es-CL', { maximumFractionDigits: 1 })} m²`} detalle="según las medidas de fabricación" />
     <Dato titulo="Tipos de ventana" valor={r.tipos} detalle="armados desde los documentos" />
@@ -349,15 +349,16 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
           ) : (
             <TiposCubicacion proyectoId={proyecto.id} moneda={resumen.moneda ?? 'UF'} tipos={resumen.porTipo} legacy={legacy} />
           )}
-          <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 border-t border-slate-100 pt-3">
+          {/* Obra legacy: sin holgura ni nomenclatura que configurar (cada ventana conserva el nombre de su documento). */}
+          {!legacy && <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 border-t border-slate-100 pt-3">
             <span className="mr-2">
-              {!legacy && <>Holgura: <b>{cubicacion.holguraMm} mm</b> · </>}Nomenclatura: <b className="font-mono">{cubicacion.formatoNomenclatura}</b>
+              Holgura: <b>{cubicacion.holguraMm} mm</b> · Nomenclatura: <b className="font-mono">{cubicacion.formatoNomenclatura}</b>
             </span>
             {/* Sin "Actualizar desde el presupuesto": la obra ya tiene su presupuesto aceptado y congelado; se lee una sola vez al activar. */}
             <Button variant="ghost" size="sm" leftIcon={<Settings2 className="w-3.5 h-3.5" />} onClick={() => setConfig(true)}>
               Configuración
             </Button>
-          </div>
+          </div>}
         </>
       )}
 
