@@ -12,7 +12,7 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 ## Sin publicar — fases creadas en HETMO
 
 **Obras en curso › Fases**, en obras cotizadas en HETMO (se activa con `HETMO_FASES_ESCRITURA` en la API y la escritura del agente).
-- Al crear una fase desde la cubicación, se crea también en HETMO con las mismas ventanas y unidades. Si HETMO no la acepta (por ejemplo, pide más unidades de las que quedan), la fase no se crea.
+- Al crear una fase desde la cubicación, se crea también en HETMO: una línea por ventana cubicada, con su nomenclatura como nombre y su medida rectificada. Si HETMO no la acepta (por ejemplo, pide más unidades de las que quedan), la fase no se crea.
 - Cada fase muestra su número de fase en HETMO y el estado de su documento allá.
 - Si HETMO no alcanza a responder, la fase queda «sin confirmar» con el botón «Confirmar en HETMO», que primero revisa si ya existe allá.
 - Una fase que existe en HETMO no se puede eliminar desde el ERP.
