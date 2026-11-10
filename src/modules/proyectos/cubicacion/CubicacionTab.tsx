@@ -35,13 +35,13 @@ const Dato: React.FC<{ titulo: string; valor: React.ReactNode; detalle?: React.R
   </div>
 );
 
-// Legacy: las medidas vienen finales de los documentos de fabricación, no hay rectificación ni contrato que mostrar.
+// Legacy: no hay tipos, solo ventanas; las medidas vienen finales de los documentos de fabricación, no hay
+// rectificación ni contrato que mostrar.
 const ResumenLegacy: React.FC<{ r: ResumenCubicacion; documentos: number | undefined }> = ({ r, documentos }) => (
-  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2" data-testid="resumen-cubicacion">
+  <div className="grid grid-cols-2 lg:grid-cols-3 gap-2" data-testid="resumen-cubicacion">
     <Dato titulo="Ventanas ubicadas" valor={`${r.posicionadas} de ${r.ventanas}`} detalle={r.sinPosicion > 0 ? `${r.sinPosicion} por ubicar` : 'todas tienen su lugar'} />
     <Dato titulo="Documentos de fabricación" valor={documentos ?? '—'} detalle="vinculados en Fases y documentos" />
     <Dato titulo="Superficie" valor={`${r.m2.toLocaleString('es-CL', { maximumFractionDigits: 1 })} m²`} detalle="según las medidas de fabricación" />
-    <Dato titulo="Tipos de ventana" valor={r.tipos} detalle="armados desde los documentos" />
   </div>
 );
 
@@ -225,7 +225,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
               : 'Paso previo de las fases: cada ventana necesita su nomenclatura y su medida rectificada. Lo que ya sabemos del presupuesto de HETMO (tipos, descripción, medidas, cantidades y precios) ya está cargado: aquí solo se completa dónde va cada ventana y su rasgo medido en obra, en pantalla o con la planilla para completar. Si la obra no se reparte por torres y pisos, usa la cubicación única.'}
           </p>
         </div>
-        {resumen.tipos > 0 && (
+        {(legacy ? resumen.ventanas > 0 : resumen.tipos > 0) && (
           <div className="flex flex-wrap items-center gap-2">
             {botonPlanillaControl('outline')}
             {legacy && tiene('obras.regularizar') && resumen.posicionadas > 0 && (
@@ -293,10 +293,10 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
         </div>
       )}
 
-      {resumen.tipos === 0 ? (
+      {(legacy ? resumen.ventanas === 0 : resumen.tipos === 0) ? (
         <div className="p-8 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs space-y-3">
           <Ruler className="w-6 h-6 text-slate-300 mx-auto" />
-          <p className="font-bold text-slate-700">Esta obra aún no tiene tipos de ventana cargados.</p>
+          <p className="font-bold text-slate-700">{legacy ? 'Esta obra aún no tiene ventanas.' : 'Esta obra aún no tiene tipos de ventana cargados.'}</p>
           {presupuesto ? (
             <>
               <p className="max-w-xl mx-auto" data-testid="presupuesto-disponible">
@@ -315,9 +315,11 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
               </p>
               <div className="flex flex-wrap items-center justify-center gap-2">
                 {botonPlanillaControl('primary')}
-                <Button variant="outline" size="sm" onClick={() => setVista('tipos')}>
-                  Ir a Tipos
-                </Button>
+                {!legacy && (
+                  <Button variant="outline" size="sm" onClick={() => setVista('tipos')}>
+                    Ir a Tipos
+                  </Button>
+                )}
               </div>
             </>
           )}
@@ -337,7 +339,8 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
             tabs={[
               { id: 'estructura', label: 'Cubicador visual' },
               { id: 'ventanas', label: `Ventanas (${resumen.ventanas})` },
-              { id: 'tipos', label: `Tipos (${resumen.tipos})` },
+              // Obra legacy: no hay tipos, solo ventanas (cada una con su nombre y descripción del documento).
+              ...(legacy ? [] : [{ id: 'tipos' as const, label: `Tipos (${resumen.tipos})` }]),
             ]}
             active={vista}
             onChange={setVista}

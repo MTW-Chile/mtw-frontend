@@ -83,7 +83,6 @@ export function lineasReporteImportacion(r: ReporteImportacionCubicacion): strin
   const lineas = [
     `${r.ventanasPlanilla} ventana(s) en la hoja «${r.hoja}». La planilla ubica solo las que también están fabricadas: ${v.ubicadas} ubicada(s) ahora, ${v.movidas} corregida(s) de lugar y ${v.yaEstaban} ya estaban en su lugar.`,
     `Sobran en la planilla (sin ventana fabricada): ${v.sobranEnPlanilla}. Fabricadas que no están en la planilla: ${v.fueraDePlanilla}. Repetidas (posibles reposiciones): ${v.repetidas}.`,
-    `Tipos: ${r.tipos.actualizados} actualizado(s) con lo contratado de la hoja BASE${r.tipos.renombrados.length ? ` (${r.tipos.renombrados.join(', ')})` : ''}.`,
   ];
   if (e.torres || e.pisos || e.unidades || e.quitadas) {
     lineas.push(`Estructura: ${e.torres} torre(s), ${e.pisos} piso(s) y ${e.unidades} departamento(s) nuevos${e.quitadas ? `; ${e.quitadas} departamento(s) sin torre quedaron vacíos y se quitaron` : ''}.`);

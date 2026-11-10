@@ -741,7 +741,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
             })
           )}
           <p className="text-[11px] text-slate-500">
-            {legacy ? 'Toca una ventana para editar su ubicación y tipo; su medida es la del documento de fabricación.' : 'Verde = ventana ya rectificada (con rasgo medido). Toca una ventana para editar su ubicación, tipo y rasgo.'}
+            {legacy ? 'Toca una ventana para ver su dibujo y editar su ubicación; su medida y descripción son las del documento de fabricación.' : 'Verde = ventana ya rectificada (con rasgo medido). Toca una ventana para editar su ubicación, tipo y rasgo.'}
           </p>
         </div>
       </div>

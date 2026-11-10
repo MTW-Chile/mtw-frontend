@@ -119,7 +119,8 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
         <DibujoVentana proyectoId={proyectoId} ventanaId={tipo?.ventanaId} lineaHetmo={tipo?.lineaHetmo} className="h-44 md:h-full md:min-h-72" etiqueta={tipo ? `Dibujo del tipo ${tipo.codigo}` : 'Dibujo de la ventana'} />
       )}
       <div className="space-y-4 min-w-0">
-      <div>
+      {/* Obra legacy: no hay tipos, solo ventanas; la ventana es la que vino de su documento de fabricación. */}
+      {!legacy && <div>
         <Select label="Tipo" id="uni-tipo" value={tipoId} onChange={(e) => setTipoId(e.target.value)} className={campo}>
           <option value="">— elegir tipo —</option>
           {tiposVentana.map((t) => (
@@ -129,7 +130,7 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
             </option>
           ))}
         </Select>
-      </div>
+      </div>}
 
       <div className="grid grid-cols-3 gap-3">
         <div>
@@ -156,8 +157,8 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
 
       {legacy ? (
         <p className="text-[11px] text-slate-500">
-          {fv?.descripcionCorta && <>Descripción: <b className="text-slate-800">{fv.descripcionCorta}</b> · </>}
-          Medida final: <b className="font-mono text-slate-800">{unidad?.anchoFabricacionMm != null ? `${formatoMm(unidad.anchoFabricacionMm)} × ${formatoMm(unidad.altoFabricacionMm)} mm` : tipo?.anchoPlanoMm != null ? `${formatoMm(tipo.anchoPlanoMm)} × ${formatoMm(tipo.altoPlanoMm)} mm (del tipo)` : '—'}</b>
+          {(fv?.descripcionCorta || unidad?.sistema) && <>Descripción: <b className="text-slate-800">{fv?.descripcionCorta || unidad?.sistema}</b> · </>}
+          Medida final: <b className="font-mono text-slate-800">{unidad?.anchoFabricacionMm != null ? `${formatoMm(unidad.anchoFabricacionMm)} × ${formatoMm(unidad.altoFabricacionMm)} mm` : '—'}</b>
           {unidad?.documento && <> · documento <b>{unidad.documento.nombre}</b></>}. Viene del documento de fabricación; un cambio de medida se pide como pendiente.
         </p>
       ) : (

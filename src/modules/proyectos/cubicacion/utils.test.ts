@@ -82,7 +82,7 @@ describe('texto de los reportes', () => {
     const l = lineasReporteImportacion(r);
     expect(l[0]).toBe('1095 ventana(s) en la hoja «SAN PABLO». La planilla ubica solo las que también están fabricadas: 328 ubicada(s) ahora, 2 corregida(s) de lugar y 0 ya estaban en su lugar.');
     expect(l[1]).toBe('Sobran en la planilla (sin ventana fabricada): 765. Fabricadas que no están en la planilla: 29. Repetidas (posibles reposiciones): 3.');
-    expect(l[2]).toContain('PV1 → PV01');
+    expect(l.join(' ')).not.toMatch(/tipo/i);
     expect(seccionesDiferenciasControl(r).map((s) => s.titulo)).toEqual([
       'Sobran en la planilla, fila por fila (no se crearon)',
       'Diferencias dentro de la planilla (detalle contra hoja BASE)',
