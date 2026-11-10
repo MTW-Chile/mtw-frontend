@@ -9,6 +9,15 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - **Parche** (2.0.0 → 2.0.1): ajustes y mejoras acotadas, cada despliegue.
 - **Corrección urgente** sobre un parche (2.0.4 → 2.0.4.1; en package.json, 2.0.4-1): la decide Alfredo.
 
+## Sin publicar — fases creadas en HETMO
+
+**Obras en curso › Fases**, en obras cotizadas en HETMO (se activa con `HETMO_FASES_ESCRITURA` en la API y la escritura del agente).
+- Al crear una fase desde la cubicación, se crea también en HETMO con las mismas ventanas y unidades. Si HETMO no la acepta (por ejemplo, pide más unidades de las que quedan), la fase no se crea.
+- Cada fase muestra su número de fase en HETMO y el estado de su documento allá.
+- Si HETMO no alcanza a responder, la fase queda «sin confirmar» con el botón «Confirmar en HETMO», que primero revisa si ya existe allá.
+- Una fase que existe en HETMO no se puede eliminar desde el ERP.
+- El documento de fabricación de una fase creada así se vincula solo a la fase y a sus ventanas cubicadas.
+
 ## Sin publicar — reserva de materiales
 
 **Obras en curso › Abastecimiento** se separa en *Reserva de materiales* y *Compras*.

@@ -453,11 +453,19 @@ export async function createFase(
     // Siempre desde la cubicación: torres/pisos/deptos/ventanas ya nombradas (ver SeleccionFaseCubicacion).
     seleccionCubicacion: SeleccionFaseCubicacion;
   }
-): Promise<{ success: boolean; fase: Fase; avisos: ExclusionFaseCubicacion[] }> {
-  const response = await apiClient.post<{ success: boolean; fase: Fase; avisos: ExclusionFaseCubicacion[] }>(
+): Promise<{ success: boolean; fase: Fase; avisos: ExclusionFaseCubicacion[]; avisoHetmo?: string | null }> {
+  // En una obra cotizada en HETMO la fase se crea tambien alla: puede tardar un par de minutos.
+  const response = await apiClient.post<{ success: boolean; fase: Fase; avisos: ExclusionFaseCubicacion[]; avisoHetmo?: string | null }>(
     `/versiones/${versionId}/fases`,
-    payload
+    payload,
+    { timeout: 200_000 }
   );
+  return response.data;
+}
+
+// Crea en HETMO una fase que quedo sin confirmar o con error. Si ya existe alla, solo la enlaza.
+export async function crearFaseEnHetmo(faseId: string): Promise<{ success: boolean; fase: Fase; resultado: { estado: Fase['hetmoCreacion']; mensaje: string | null; conciliada: boolean } }> {
+  const response = await apiClient.post(`/fases/${faseId}/hetmo`, undefined, { timeout: 200_000 });
   return response.data;
 }
 

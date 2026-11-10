@@ -313,6 +313,15 @@ export interface Fase {
   estado: 'BORRADOR' | 'PLANIFICADA' | 'EN_PRODUCCION' | 'COMPLETADA';
   fechaInicio: string | null;
   fechaEntrega: string | null;
+  // La misma fase en HETMO (obras cotizadas alla): se crea sola al crear la fase.
+  // PENDIENTE = falta confirmar si quedo creada; ERROR = HETMO no la creo.
+  // hetmoEstado/Glosa: estado del documento de la fase en HETMO.
+  hetmoCreacion?: 'NO_APLICA' | 'PENDIENTE' | 'CREADA' | 'ERROR';
+  hetmoFaseId?: number | null;
+  hetmoNumeroFase?: number | null;
+  hetmoEstado?: number | null;
+  hetmoEstadoGlosa?: string | null;
+  hetmoError?: string | null;
   ventanasFase?: VentanaFase[];
   // ventanasIndividualizadas > 0 = se creo seleccionando desde la cubicación
   // (tiene ventanas EXACTAS, ver FaseVentanaIndividualizada) -- requisito

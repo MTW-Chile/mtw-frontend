@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Layers, Plus, Pencil, Trash2, AlertCircle, X as XIcon, ShoppingCart, Package, FileSpreadsheet, PackageOpen } from 'lucide-react';
+import { Loader2, Layers, Plus, Pencil, Trash2, AlertCircle, X as XIcon, ShoppingCart, Package, FileSpreadsheet, PackageOpen, RefreshCw } from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { StatCard } from '../../components/ui/StatCard';
-import { createFase, updateFase, deleteFase, descargarInformeHetmoFase, getBodegaProyecto, getOrdenesCompra, getSolicitudesMaterial } from '../../api/client';
+import { createFase, updateFase, deleteFase, crearFaseEnHetmo, descargarInformeHetmoFase, getBodegaProyecto, getOrdenesCompra, getSolicitudesMaterial } from '../../api/client';
 import { usePermisos } from '../../lib/permisos';
 import { actualizarParams } from '../../lib/navigation';
 import { estadoPartida } from './estadoSolicitudPartida';
@@ -212,14 +212,27 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
       }
       return updateFase(editando!, { nombre: nombre.trim(), fechaInicio: fechaInicio || undefined, fechaEntrega: fechaEntrega || undefined });
     },
-    onSuccess: (resultado: { success: boolean; fase: Fase; avisos?: { nivel: string; nombre: string }[] }) => {
+    onSuccess: (resultado: { success: boolean; fase: Fase; avisos?: { nivel: string; nombre: string }[]; avisoHetmo?: string | null }) => {
       queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyecto.id] });
+      if (resultado.avisoHetmo) mostrarToast('La fase se creó en el ERP, pero falta confirmarla en HETMO.', { detalle: resultado.avisoHetmo });
       if (resultado.avisos && resultado.avisos.length) {
         mostrarToast(`Fase creada. ${resultado.avisos.length} exclusión(es): algo ya pertenecía a otra fase.`, { tipo: 'info' });
       }
       resetForm();
     },
     onError: (err: any) => setError(err?.response?.data?.error || 'No se pudo guardar la fase.'),
+  });
+
+  // Fase que quedo sin confirmar o con error en HETMO: el backend primero mira
+  // si ya existe alla y solo la crea si no esta.
+  const hetmoMutation = useMutation({
+    mutationFn: (faseId: string) => crearFaseEnHetmo(faseId),
+    onSuccess: ({ resultado }) => {
+      queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyecto.id] });
+      if (resultado.estado === 'CREADA') mostrarToast(resultado.conciliada ? 'La fase ya estaba en HETMO: quedó enlazada.' : 'Fase creada en HETMO.', { tipo: 'info' });
+      else mostrarToast('La fase sigue sin crearse en HETMO.', { detalle: resultado.mensaje ?? undefined });
+    },
+    onError: (err: any) => setError(err?.response?.data?.error || 'No se pudo crear la fase en HETMO.'),
   });
 
   const eliminarMutation = useMutation({
@@ -387,8 +400,35 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                     <span className="text-[11px] text-slate-500 whitespace-nowrap">
                       {lineasAsignadas} línea{lineasAsignadas === 1 ? '' : 's'} · {unidadesFase} unidades
                     </span>
+                    {fase.hetmoFaseId ? (
+                      <Badge variant={fase.hetmoError ? 'warning' : 'outline'} size="sm" title={fase.hetmoError ?? `Documento ${fase.hetmoFaseId} de HETMO`}>
+                        HETMO{fase.hetmoNumeroFase ? ` · fase ${fase.hetmoNumeroFase}` : ''}
+                        {fase.hetmoEstadoGlosa ? ` · ${fase.hetmoEstadoGlosa}` : ''}
+                      </Badge>
+                    ) : fase.hetmoCreacion === 'PENDIENTE' ? (
+                      <Badge variant="warning" size="sm" title={fase.hetmoError ?? undefined}>
+                        HETMO · sin confirmar
+                      </Badge>
+                    ) : fase.hetmoCreacion === 'ERROR' ? (
+                      <Badge variant="danger" size="sm" title={fase.hetmoError ?? undefined}>
+                        HETMO · no creada
+                      </Badge>
+                    ) : null}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
+                    {!fase.hetmoFaseId && (fase.hetmoCreacion === 'PENDIENTE' || fase.hetmoCreacion === 'ERROR') && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+                        isLoading={hetmoMutation.isPending && hetmoMutation.variables === fase.id}
+                        disabled={!tiene('obras.fases.editar')}
+                        onClick={() => hetmoMutation.mutate(fase.id)}
+                        title="Revisa si la fase ya existe en HETMO y, si no, la crea"
+                      >
+                        {fase.hetmoCreacion === 'PENDIENTE' ? 'Confirmar en HETMO' : 'Crear en HETMO'}
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="ghost"

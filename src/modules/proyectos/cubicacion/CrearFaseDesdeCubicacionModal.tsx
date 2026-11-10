@@ -25,13 +25,15 @@ export const CrearFaseDesdeCubicacionModal: React.FC<Props> = ({ proyectoId, ver
 
   const crear = useMutation({
     mutationFn: () => createFase(versionId, { nombre: nombre.trim(), seleccionCubicacion: seleccion }),
-    onSuccess: ({ avisos }) => {
+    onSuccess: ({ avisos, avisoHetmo, fase }) => {
       queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyectoId] });
       queryClient.invalidateQueries({ queryKey: ['cubicacion', proyectoId] });
       queryClient.invalidateQueries({ queryKey: ['cubicacionEstructura', proyectoId] });
       if (avisos.length) {
         mostrarToast(`Fase creada. ${avisos.length} exclusión(es): algo ya pertenecía a otra fase.`, { tipo: 'info' });
       }
+      if (avisoHetmo) mostrarToast('La fase se creó en el ERP, pero falta confirmarla en HETMO.', { detalle: avisoHetmo });
+      else if (fase.hetmoFaseId) mostrarToast(`Fase creada también en HETMO${fase.hetmoNumeroFase ? ` (fase ${fase.hetmoNumeroFase})` : ''}.`, { tipo: 'info' });
       onClose();
     },
     onError: (e) => {
@@ -72,6 +74,7 @@ export const CrearFaseDesdeCubicacionModal: React.FC<Props> = ({ proyectoId, ver
           }}
         />
         <p className="text-[11px] text-slate-500 mt-1">Seleccionado: {resumenSeleccion}. Una ventana que ya esté en otra fase se excluye sola, con aviso.</p>
+        {crear.isPending && <p className="text-[11px] text-slate-500 mt-1">Creando la fase. Si la obra está cotizada en HETMO, también se crea allá y puede tardar un par de minutos.</p>}
       </div>
     </Modal>
   );
