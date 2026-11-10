@@ -19,7 +19,9 @@ interface Props {
 // resolverSeleccionParaFase en cubicador-estructura.ts: una ventana ya
 // asignada a otra fase se excluye sola, con aviso, al guardar). Acá solo se
 // marca la intención; por eso casillas en distintos niveles pueden
-// superponerse sin problema (el backend las une sin duplicar).
+// superponerse sin problema (el backend las une sin duplicar). Una fase solo
+// lleva ventanas rectificadas: aca se marcan las que faltan y el backend
+// rechaza la seleccion si entra alguna.
 export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onChange, legacy }) => {
   const voc = useVocabulario(proyectoId);
   const { data, isLoading, isError } = useQuery({ queryKey: ['cubicacionEstructura', proyectoId], queryFn: () => getEstructuraCubicacion(proyectoId) });
@@ -82,12 +84,17 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
     setVentanaIds(next);
   };
 
-  const filaUnidad = (nodo: NodoDeptoCubicacion) => (
+  const sinRectificar = <span className="ml-1.5 rounded bg-amber-50 px-1 text-[10px] font-semibold text-amber-700">sin rectificar</span>;
+
+  const filaUnidad = (nodo: NodoDeptoCubicacion) => {
+    const faltan = nodo.ventanas.filter((v) => !v.rectificada).length;
+    return (
     <div key={nodo.id} className="pl-4 border-l border-slate-100">
       <div className="flex items-center gap-1.5 py-1">
         <IconButton icono={expandidas.has(nodo.id) ? ChevronDown : ChevronRight} etiqueta="Expandir" onClick={() => expandir(nodo.id)} />
         <Casilla checked={unidadIds.has(nodo.id)} onChange={() => alternar(unidadIds, setUnidadIds, nodo.id)} label={<><span className="font-mono font-bold text-slate-800">{nodo.nombre}</span>
-          <span className="text-slate-500">({nodo.ventanas.length} ventana(s))</span></>} />
+          <span className="text-slate-500">({nodo.ventanas.length} ventana(s))</span>
+          {faltan > 0 && <span className="ml-1.5 text-amber-700">{faltan} sin rectificar</span>}</>} />
       </div>
       {expandidas.has(nodo.id) && (
         <div className="pl-6 pb-1 space-y-0.5">
@@ -101,6 +108,7 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
                 <>
                   <span className="font-mono">{v.codigo}</span>
                   {v.nomenclatura && <span className="text-slate-500 ml-1.5">{v.nomenclatura}</span>}
+                  {!v.rectificada && sinRectificar}
                 </>
               }
             />
@@ -109,7 +117,8 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
         </div>
       )}
     </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-1 max-h-80 overflow-auto rounded-xl border border-slate-200 bg-white p-2">
@@ -135,7 +144,12 @@ export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onCha
                   className="flex! text-[11px]! text-slate-600"
                   checked={ventanaIds.has(v.id)}
                   onChange={() => alternar(ventanaIds, setVentanaIds, v.id)}
-                  label={<span className="font-mono">{v.nomenclatura}</span>}
+                  label={
+                    <>
+                      <span className="font-mono">{v.nomenclatura}</span>
+                      {!v.rectificada && sinRectificar}
+                    </>
+                  }
                 />
               ))}
             </div>

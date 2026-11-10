@@ -73,7 +73,7 @@ export const CrearFaseDesdeCubicacionModal: React.FC<Props> = ({ proyectoId, ver
             setResumenSeleccion(resumen);
           }}
         />
-        <p className="text-[11px] text-slate-500 mt-1">Seleccionado: {resumenSeleccion}. Una ventana que ya esté en otra fase se excluye sola, con aviso.</p>
+        <p className="text-[11px] text-slate-500 mt-1">Seleccionado: {resumenSeleccion}. Una ventana que ya esté en otra fase se excluye sola, con aviso. Solo entran ventanas con la medida rectificada: si la selección trae alguna sin rectificar, la fase no se crea.</p>
         {crear.isPending && <p className="text-[11px] text-slate-500 mt-1">Creando la fase. Si la obra está cotizada en HETMO, también se crea allá y puede tardar un par de minutos.</p>}
       </div>
     </Modal>

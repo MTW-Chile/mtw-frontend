@@ -16,6 +16,7 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - Cada fase muestra su número de fase en HETMO y el estado de su documento allá.
 - Si HETMO no alcanza a responder, la fase queda «sin confirmar» con el botón «Confirmar en HETMO», que primero revisa si ya existe allá.
 - Una fase que existe en HETMO no se puede eliminar desde el ERP.
+- Una fase solo se puede crear con ventanas ya rectificadas (en cualquier obra). El selector marca las que faltan; si la selección trae alguna, la fase no se crea y se listan.
 - El documento de fabricación de una fase creada así se vincula solo a la fase y a sus ventanas cubicadas.
 
 ## Sin publicar — reserva de materiales
