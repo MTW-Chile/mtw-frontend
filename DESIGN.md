@@ -142,6 +142,27 @@ Montos, fechas y unidades se formatean **siempre** con `src/lib/formato.ts`
   el pie. Lo que se usa en tablet (recepción) es página, no modal: filas de
   dos renglones, `ContadorTactil`, "Llegó todo" en un toque.
 
+### Pantallas de terreno (tablet): Instaladores
+
+Reglas que salen de la investigación de 2026-11 (Material/Android *window size classes* y *canonical layouts*, Apple HIG
+*split views*, NN/g sobre asistentes, listas desplegables, confirmaciones y tamaño táctil, web.dev *offline UX*). Aplican a
+toda pantalla que se use de pie, con el dedo, en la obra o en bodega:
+
+- **Dos paneles solo desde 840 px de ancho ÚTIL** (`useAnchoContenedor`, no el ancho de la pantalla): tablet horizontal.
+  Bajo eso, una columna que muestra la lista o el detalle, con «Volver» arriba. No se apilan lista y detalle.
+- **Un formulario visible, no un asistente por pasos**: lo que se repite decenas de veces no lleva «Siguiente».
+- **Hasta 6 opciones excluyentes van como tarjetas** (`OpcionesTarjeta`, con `columnasMovil={2}` si son cortas), con icono
+  y texto; nunca solo icono, nunca `Select`.
+- **Valores por defecto = lo último que se eligió** en ese dispositivo (tipo y motivo del pendiente).
+- **Varios a la vez**: tocar marca, y cada grupo (departamento, piso) tiene su «Todo». Lo común al lote (qué quedó
+  instalado, notas) se pide una vez; la evidencia (la foto) se pide por cada ítem.
+- **La acción principal va en una barra fija abajo, a la derecha** (`size="lg"`), y dice lo que hace con su número:
+  «Certificar 14 instalaciones», «Confirmar recepción (8)». Mientras envía, el mismo botón lo dice.
+- **Revisar antes de enviar es una página**, no una ventana emergente; lo ingresado se guarda en el dispositivo
+  (`borradorLocal`) hasta enviarlo y se avisa por ítem lo que no se pudo enviar.
+- **Tamaños con el dedo**: 48 px para lo que se toca seguido (chips del plano, tarjetas de opción, botones `lg`), 44 px
+  como mínimo para el resto; texto de las filas que se eligen en `text-sm`.
+
 ## 6. Textos
 
 Español de Chile, tuteo, frases cortas. Los botones dicen la acción

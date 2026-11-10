@@ -777,6 +777,8 @@ export interface TipoProducto {
   compraDesdeResumenHetmo: boolean;
   // Se compra y se recibe por pieza a medida (ej. vidrios).
   compraPorPieza: boolean;
+  // Se ofrece al ingresar un pendiente de «Material» (accesorios, herrajes).
+  reponibleEnObra: boolean;
   moneda: string;
   monedaFija: boolean;
   individualizado: boolean;
@@ -1646,6 +1648,8 @@ export interface MaterialFabricacion {
   cantidad: number;
   longitud_total_mm?: number | null;
   piezas?: number | null;
+  /** Ficha de ventana: su tipo de producto se repone suelto en la obra (accesorios, herrajes). */
+  reponibleEnObra?: boolean;
 }
 
 export interface MaterialesFabricacion {
@@ -1674,7 +1678,8 @@ export type EstadoPendiente = 'INGRESADO' | 'EN_CURSO' | 'RESUELTO';
 // Area a la que va el pendiente; la asigna el servidor segun tipo y motivo.
 export type DestinoPendiente = 'TECNICA' | 'FABRICA';
 export type OrigenPendiente = 'FABRICACION' | 'OBRA';
-export type TipoElementoPendiente = 'VENTANA' | 'HOJA' | 'MATERIAL' | 'VIDRIO' | 'OTRO';
+// OTRO existe solo en pendientes antiguos: ya no se ingresa.
+export type TipoElementoPendiente = 'VENTANA' | 'MARCO' | 'HOJA' | 'MATERIAL' | 'VIDRIO' | 'OTRO';
 export type MotivoPendiente = 'FALLA' | 'DANO_OBRA' | 'DANO_INSTALACION' | 'NO_RECEPCION' | 'NO_FABRICADO' | 'CAMBIO_CLIENTE';
 
 // A cargo de quien va un pendiente: cliente o instalador -> adicional (se les
@@ -2353,6 +2358,8 @@ export interface ObraInstalacion {
   ventanas: number;
   instaladas: number;
   despachosPorRecibir: number;
+  /** Despachos ya recibidos completos. */
+  despachosRecibidos: number;
   pendientesAbiertos: number;
 }
 

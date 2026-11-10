@@ -23,7 +23,8 @@ export const ETIQUETA_ESTADO: Record<EstadoPendiente, string> = {
 export const ETIQUETA_DESTINO: Record<DestinoPendiente, string> = { TECNICA: 'Área técnica', FABRICA: 'Fábrica' };
 export const ETIQUETA_ORIGEN: Record<OrigenPendiente, string> = { OBRA: 'Obra', FABRICACION: 'Fábrica' };
 export const ETIQUETA_TIPO: Record<TipoElementoPendiente, string> = {
-  VENTANA: 'Ventana',
+  VENTANA: 'Ventana completa',
+  MARCO: 'Marco',
   HOJA: 'Hoja',
   VIDRIO: 'Vidrio',
   MATERIAL: 'Material',
@@ -41,16 +42,17 @@ export const ETIQUETA_MOTIVO: Record<MotivoPendiente, string> = {
 export const ESTADOS_PENDIENTE: EstadoPendiente[] = ['INGRESADO', 'EN_CURSO', 'RESUELTO'];
 export const DESTINOS_PENDIENTE: DestinoPendiente[] = ['TECNICA', 'FABRICA'];
 export const ORIGENES_PENDIENTE: OrigenPendiente[] = ['OBRA', 'FABRICACION'];
-export const TIPOS_PENDIENTE: TipoElementoPendiente[] = ['VIDRIO', 'HOJA', 'VENTANA', 'MATERIAL', 'OTRO'];
+// Lo que se puede ingresar, en el orden en que se ofrece. OTRO queda solo para los pendientes antiguos.
+export const TIPOS_PENDIENTE: TipoElementoPendiente[] = ['MARCO', 'HOJA', 'VIDRIO', 'MATERIAL', 'VENTANA'];
 export const MOTIVOS_PENDIENTE: MotivoPendiente[] = ['FALLA', 'DANO_OBRA', 'DANO_INSTALACION', 'CAMBIO_CLIENTE', 'NO_RECEPCION', 'NO_FABRICADO'];
 
 // ---- Reglas (espejo de mtw-api/src/pendientes-reglas.ts; el servidor es quien manda) ----
 
-// Lo "no fabricado" y lo "no recibido" van a Fabrica; ventana y hoja tambien; vidrio,
+// Lo "no fabricado" y lo "no recibido" van a Fabrica; ventana completa, marco y hoja tambien; vidrio,
 // material y otro van al area tecnica (revisa y envia a Compras la OC).
 export function areaDelPendiente(tipo: TipoElementoPendiente, motivo: MotivoPendiente): DestinoPendiente {
   if (motivo === 'NO_FABRICADO' || motivo === 'NO_RECEPCION') return 'FABRICA';
-  return tipo === 'VENTANA' || tipo === 'HOJA' ? 'FABRICA' : 'TECNICA';
+  return tipo === 'VENTANA' || tipo === 'MARCO' || tipo === 'HOJA' ? 'FABRICA' : 'TECNICA';
 }
 
 /** Solo una ventana (se pide a Fabrica) o un vidrio se pueden rectificar. */
@@ -92,6 +94,7 @@ export interface DatosSugerencia {
   ventanaModelo?: string;
   vidrio?: { codigo: string; ancho: number; alto: number } | null;
   hoja?: { numero: number; ancho?: number | string | null; alto?: number | string | null } | null;
+  marco?: { numero: number; ancho?: number | string | null; alto?: number | string | null } | null;
   material?: { codigo: string; descripcion: string } | null;
   // Pieza cortada puntual (perfil de un cuadro) cuando el tipo es MATERIAL.
   pieza?: Pick<FabricacionPieza, 'codigoArticulo' | 'descripcion' | 'acabadoDescripcion' | 'longitudMm' | 'posicion' | 'numeroCuadro'> & { cuadro?: string | null };
@@ -145,6 +148,11 @@ export function sugerirDescripcion(d: DatosSugerencia): string {
       if (!d.hoja) return '';
       const medida = d.hoja.ancho != null && d.hoja.alto != null ? ` · ${formatoMm(d.hoja.ancho)} × ${formatoMm(d.hoja.alto)} mm` : '';
       return `Hoja ${d.hoja.numero}${medida}`;
+    }
+    case 'MARCO': {
+      if (!d.marco) return '';
+      const medida = d.marco.ancho != null && d.marco.alto != null ? ` · ${formatoMm(d.marco.ancho)} × ${formatoMm(d.marco.alto)} mm` : '';
+      return `Marco ${d.marco.numero}${medida}`;
     }
     case 'MATERIAL':
       if (d.pieza) {

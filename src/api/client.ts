@@ -756,6 +756,7 @@ export interface TipoProductoPayload {
   factorCompra: number;
   compraDesdeResumenHetmo: boolean;
   compraPorPieza?: boolean;
+  reponibleEnObra?: boolean;
   moneda: string;
   monedaFija: boolean;
   individualizado: boolean;

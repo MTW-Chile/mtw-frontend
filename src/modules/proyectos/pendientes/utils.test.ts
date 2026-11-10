@@ -101,6 +101,7 @@ describe('areaDelPendiente', () => {
   it('ventana y hoja van a Fábrica', () => {
     expect(areaDelPendiente('VENTANA', 'FALLA')).toBe('FABRICA');
     expect(areaDelPendiente('HOJA', 'DANO_OBRA')).toBe('FABRICA');
+    expect(areaDelPendiente('MARCO', 'DANO_INSTALACION')).toBe('FABRICA');
   });
   it('vidrio, material y otro van al área técnica', () => {
     expect(areaDelPendiente('VIDRIO', 'FALLA')).toBe('TECNICA');

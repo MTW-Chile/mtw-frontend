@@ -1,10 +1,13 @@
 import type { ElementType } from 'react';
-import { LayoutDashboard, Building, Building2, FolderKanban, Settings, FileText, DoorClosed, ShieldCheck, Warehouse, ShoppingCart, Users, ListChecks, Cloud, Boxes, SlidersHorizontal, Tags, Calculator, Ruler, Workflow, AlertTriangle, Factory, Briefcase, Hammer, Truck, Forklift, Megaphone, HardHat, BarChart3, TrendingUp, Receipt } from 'lucide-react';
+import { LayoutDashboard, Building, Building2, FolderKanban, Settings, FileText, DoorClosed, ShieldCheck, Warehouse, ShoppingCart, Users, ListChecks, Cloud, Boxes, SlidersHorizontal, Tags, Calculator, Ruler, Workflow, AlertTriangle, Factory, Briefcase, Hammer, Truck, Forklift, Megaphone, HardHat, PackageCheck, ClipboardPlus, BarChart3, TrendingUp, Receipt } from 'lucide-react';
 import type { Permiso } from '../types';
 
 export interface EntradaAcceso {
   id: string;
   label: string;
+  // Nombre fuera del menú (encabezado, pestaña del navegador, Accesos del Inicio) cuando el del menú se
+  // entiende solo dentro de su grupo: «Pendientes» en Instaladores es «Ingreso de pendientes».
+  titulo?: string;
   icon: ElementType;
   // Se muestra si el usuario tiene AL MENOS UNO de estos permisos (catalogo de
   // mtw-api). La API exige lo mismo en sus rutas: ocultar aca es solo UX.
@@ -79,8 +82,12 @@ export const SECCIONES_FRONTEND: EntradaAcceso[] = [
   // propia (antes era una pestaña de Fabricación): la ve quien ve las obras;
   // emitir exige obras.despachar (lo controla la pantalla).
   { id: 'despachos', label: 'Despachos', icon: Truck, permisos: ['obras.ver'] },
-  // Instalación: el Supervisor de Instalación recibe despachos y certifica la instalación.
+  // Instaladores (grupo del menú): tres secciones que parten de la lista de obras en curso. Recepción e
+  // Instalación se ven con instalacion.ver (actuar exige instalacion.recibir / instalacion.certificar, lo
+  // controla cada pantalla); el ingreso de pendientes, con pendientes.crear.
+  { id: 'recepcion-obra', label: 'Recepción', titulo: 'Recepción en obra', icon: PackageCheck, permisos: ['instalacion.ver'] },
   { id: 'instalacion', label: 'Instalación', icon: HardHat, permisos: ['instalacion.ver'] },
+  { id: 'ingreso-pendientes', label: 'Pendientes', titulo: 'Ingreso de pendientes', icon: ClipboardPlus, permisos: ['pendientes.crear'] },
   { id: 'compras', label: 'Compras', icon: ShoppingCart, permisos: ['compras.ver'] },
   // Bodega: modulo propio (resumen, bodegas, recepciones de OC y requisiciones de las obras).
   { id: 'bodega', label: 'Bodega', icon: Warehouse, permisos: ['bodega.ver'] },
@@ -93,9 +100,10 @@ export const SECCIONES_FRONTEND: EntradaAcceso[] = [
 /**
  * Menú lateral: entradas sueltas y grupos que se despliegan. Una sección puede
  * estar en más de un grupo (Pendientes en Comercial, Taller y Abastecimiento).
- * Despachos, Instalación y Bodega van sueltas, debajo del grupo con el que
- * trabajan (Taller y Abastecimiento), en el orden del flujo: se fabrica, se
- * despacha, se instala. Configuración va siempre fijada abajo, fuera
+ * Despachos y Bodega van sueltas, debajo del grupo con el que trabajan
+ * (Taller y Abastecimiento), en el orden del flujo: se fabrica, se despacha,
+ * se instala. Instaladores agrupa lo que se hace en la obra: recibir,
+ * certificar la instalación e ingresar pendientes. Configuración va siempre fijada abajo, fuera
  * de esta lista.
  */
 export type EntradaMenu = { tipo: 'seccion'; id: string } | { tipo: 'grupo'; id: string; titulo: string; icon: ElementType; secciones: string[] };
@@ -105,7 +113,7 @@ export const MENU_LATERAL: EntradaMenu[] = [
   { tipo: 'grupo', id: 'comercial', titulo: 'Comercial', icon: Briefcase, secciones: ['clientes', 'proveedores', 'cotizaciones', 'proyectos', 'pendientes'] },
   { tipo: 'grupo', id: 'taller', titulo: 'Taller', icon: Hammer, secciones: ['fabricacion', 'pendientes'] },
   { tipo: 'seccion', id: 'despachos' },
-  { tipo: 'seccion', id: 'instalacion' },
+  { tipo: 'grupo', id: 'instaladores', titulo: 'Instaladores', icon: HardHat, secciones: ['recepcion-obra', 'instalacion', 'ingreso-pendientes'] },
   { tipo: 'grupo', id: 'abastecimiento', titulo: 'Abastecimiento', icon: Forklift, secciones: ['compras', 'maestro', 'pendientes'] },
   { tipo: 'seccion', id: 'bodega' },
   { tipo: 'seccion', id: 'contabilidad' },

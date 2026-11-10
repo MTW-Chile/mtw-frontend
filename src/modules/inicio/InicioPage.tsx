@@ -32,7 +32,9 @@ const DESCRIPCION_SECCION: Record<string, string> = {
   pendientes: 'Lo que falta o falló en todas las obras.',
   fabricacion: 'Cubicación, fases y requisiciones.',
   despachos: 'Ventanas fabricadas que salen a obra, con su guía de despacho.',
-  instalacion: 'Recibir despachos y certificar ventanas en obra.',
+  'recepcion-obra': 'Instaladores: despachos por recibir y ya recibidos en cada obra.',
+  instalacion: 'Instaladores: certificar las ventanas instaladas, con su foto.',
+  'ingreso-pendientes': 'Instaladores: ingresar lo que falta o falló en una ventana.',
   compras: 'Órdenes de compra y conciliación de facturas.',
   bodega: 'Stock, recepciones y requisiciones.',
   maestro: 'Materiales del catálogo.',
@@ -221,7 +223,7 @@ const Accesos: React.FC<{ onNavigate: (tabId: string) => void }> = ({ onNavigate
             <BotonFila key={s.id} sinRelleno onClick={() => onNavigate(s.id)} className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-brand-600/40 hover:shadow-md transition-all group text-left pointer-coarse:min-h-20">
               <span className="flex items-center gap-2">
                 <Icono className="w-4 h-4 text-brand-600 shrink-0" />
-                <span className="text-xs font-bold text-slate-900 group-hover:text-brand-700 truncate">{s.label}</span>
+                <span className="text-xs font-bold text-slate-900 group-hover:text-brand-700 truncate">{s.titulo ?? s.label}</span>
                 {s.enConstruccion && <Badge size="sm" variant="subtle">Pronto</Badge>}
               </span>
               <span className="block mt-1 text-[11px] text-slate-500 line-clamp-2">{DESCRIPCION_SECCION[s.id] ?? ''}</span>

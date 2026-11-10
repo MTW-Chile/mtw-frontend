@@ -9,6 +9,15 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - **Parche** (2.0.0 → 2.0.1): ajustes y mejoras acotadas, cada despliegue.
 - **Corrección urgente** sobre un parche (2.0.4 → 2.0.4.1; en package.json, 2.0.4-1): la decide Alfredo.
 
+## Sin publicar — Instaladores (recepción, instalación y pendientes en tablet)
+
+«Instalación» pasa a ser el grupo **Instaladores** del menú, con tres secciones que parten de la lista de obras en curso:
+- **Recepción**: despachos por recibir y ya recibidos de la obra; el acuse de recibo es una página (antes una ventana emergente), con el lugar de cada ventana y las recepciones anteriores.
+- **Instalación**: se marcan una o varias ventanas (o un departamento o un piso entero con «Todo») y se certifican juntas, cada una con su propia foto.
+- **Pendientes**: ingreso de lo que falta o falló. Lo que se puede pedir: **Marco, Hoja, Vidrio, Material y Ventana completa** («Otro» queda solo en los pendientes antiguos). En *Material* se ofrecen solo accesorios y herrajes (los tipos de producto marcados «Se repone en obra» en Configuración › Tipos de producto).
+- Pensado para tablet: desde 840 px de ancho útil, plano y detalle lado a lado; bajo eso, una columna con «Volver al plano». Tipo y motivo se eligen tocando tarjetas (ya no listas desplegables) y el formulario recuerda lo último elegido. El listado («carrito») se revisa en la página y la acción principal queda fija abajo a la derecha.
+- Permisos: Recepción e Instalación se ven con «Ver instalación» (actuar exige «Recibir en obra» / «Certificar instalación»); Pendientes, con «Crear pendientes».
+
 ## Sin publicar — reserva de materiales
 
 **Obras en curso › Abastecimiento** se separa en *Reserva de materiales* y *Compras*.
