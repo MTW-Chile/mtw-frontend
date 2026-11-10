@@ -155,10 +155,8 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
     );
   }
 
-  // Ambas vistas parten en Información General. Una obra manual no tiene
-  // presupuesto ni fases planificadas: en el taller entra directo a
-  // Fabricacion, que es donde se le vinculan sus documentos.
-  const abrir = (p: Proyecto) => actualizarParams({ proyecto: p.id, seccion: esFabricacion && p.origen === 'MANUAL_OBRA' ? 'fabricacion' : null });
+  // Toda obra parte en Información General, también la obra legacy (manual) en el taller.
+  const abrir = (p: Proyecto) => actualizarParams({ proyecto: p.id, seccion: null });
 
 
   const filaFases = (p: Proyecto) => {

@@ -76,6 +76,9 @@ const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyect
   const invalidar = (fabId?: string) => {
     queryClient.invalidateQueries({ queryKey: ['fabricaciones', proyecto.id] });
     queryClient.invalidateQueries({ queryKey: ['hetmoFabricaciones'] });
+    // En una obra legacy, vincular o releer un documento lleva sus ventanas a la cubicación.
+    queryClient.invalidateQueries({ queryKey: ['cubicacion', proyecto.id] });
+    queryClient.invalidateQueries({ queryKey: ['cubicacionEstructura', proyecto.id] });
     if (fabId) {
       queryClient.invalidateQueries({ queryKey: ['fabricacionDetalle', proyecto.id, fabId] });
       queryClient.invalidateQueries({ queryKey: ['fabricacionMateriales', proyecto.id, fabId] });
@@ -119,8 +122,6 @@ const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyect
     mutationFn: ({ fabId, nombre }: { fabId: string; nombre: string }) => renombrarFabricacion(proyecto.id, fabId, nombre),
     onSuccess: () => {
       invalidar();
-      queryClient.invalidateQueries({ queryKey: ['cubicacion', proyecto.id] });
-      queryClient.invalidateQueries({ queryKey: ['propuestaFabricacion', proyecto.id] });
     },
   });
   const pedirNombre = async (f: FabricacionHetmo) => {

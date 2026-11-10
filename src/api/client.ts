@@ -79,13 +79,11 @@ import type {
   TipoCubicacion,
   UnidadCubicacion,
   ReporteImportacionCubicacion,
+  CubicacionAlAbrir,
   ReporteSincronizacionCubicacion,
   ReporteCubicacionUnica,
   InfoPresupuestoCubicacion,
   FiltroUnidadesCubicacion,
-  PropuestaCubicacionFabricacion,
-  FilaPropuestaCubicacion,
-  ReporteAplicacionPropuesta,
   EstadoDestinoAvance,
   ReporteAvanceVentanas,
   EstructuraCubicacion,
@@ -1700,8 +1698,9 @@ export async function desconectarOneDrive(): Promise<void> {
 
 export async function getCubicacion(
   proyectoId: string
-): Promise<{ cubicacion: ConfigCubicacion; resumen: ResumenCubicacion; presupuesto: InfoPresupuestoCubicacion | null }> {
-  const response = await apiClient.get(`/proyectos/${proyectoId}/cubicacion`);
+): Promise<{ cubicacion: ConfigCubicacion; resumen: ResumenCubicacion; presupuesto: InfoPresupuestoCubicacion | null; alAbrir?: CubicacionAlAbrir | null }> {
+  // Al abrirla, una obra cotizada lee su presupuesto (la primera vez) y una legacy trae lo de sus documentos: puede tardar.
+  const response = await apiClient.get(`/proyectos/${proyectoId}/cubicacion`, { timeout: 180000 });
   return response.data;
 }
 
@@ -1710,18 +1709,6 @@ export async function sincronizarCubicacion(proyectoId: string) {
   const response = await apiClient.post<{ reporte: ReporteSincronizacionCubicacion; cubicacion: ConfigCubicacion; resumen: ResumenCubicacion }>(
     `/proyectos/${proyectoId}/cubicacion/sincronizar`
   );
-  return response.data;
-}
-
-// Obras legacy sin presupuesto: propuesta de cubicación a partir de los documentos de fabricación vinculados
-// (ventanas del lote todavía no cubicadas), y su aplicación con las filas ya revisadas.
-export async function getPropuestaCubicacionFabricacion(proyectoId: string): Promise<PropuestaCubicacionFabricacion> {
-  const response = await apiClient.get<PropuestaCubicacionFabricacion>(`/proyectos/${proyectoId}/cubicacion/propuesta-fabricacion`);
-  return response.data;
-}
-
-export async function aplicarPropuestaCubicacionFabricacion(proyectoId: string, ventanas: FilaPropuestaCubicacion[]) {
-  const response = await apiClient.post<{ reporte: ReporteAplicacionPropuesta }>(`/proyectos/${proyectoId}/cubicacion/propuesta-fabricacion/aplicar`, { ventanas }, { timeout: 180000 });
   return response.data;
 }
 
@@ -1761,12 +1748,13 @@ export async function actualizarCubicacion(proyectoId: string, payload: { holgur
   return response.data;
 }
 
-// Importa la planilla (.xlsx) tal cual en el cuerpo. No pisa lo ya trabajado.
+// Sube la planilla (.xlsx) tal cual en el cuerpo: obra cotizada, la que descargó completada; obra legacy, su
+// planilla de control (arma la cubicación). No pisa lo ya trabajado.
 export async function importarPlanillaCubicacion(proyectoId: string, archivo: Blob) {
   const response = await apiClient.post<{ reporte: ReporteImportacionCubicacion; cubicacion: ConfigCubicacion; resumen: ResumenCubicacion }>(
     `/proyectos/${proyectoId}/cubicacion/importar`,
     archivo,
-    { headers: { 'Content-Type': 'application/octet-stream' }, timeout: 180000 }
+    { headers: { 'Content-Type': 'application/octet-stream' }, timeout: 360000 }
   );
   return response.data;
 }

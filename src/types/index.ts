@@ -1606,6 +1606,8 @@ export interface ReporteVinculacionCubicacion {
   sinMatch: { fabricacionVentanaId: string; modelo: string }[];
   faseInferida: { id: string; nombre: string } | null;
   faseConflicto: boolean;
+  // Obra legacy: ventanas del documento que entraron solas a la cubicación (null en una obra cotizada).
+  cubicacion?: { creadas: number; porUbicar: number; vinculadas: number; reposiciones: number; avisos: string[] } | null;
 }
 
 export interface ResultadoVinculoFabricacion {
@@ -2030,7 +2032,8 @@ export interface ReporteSincronizacionCubicacion {
   avisos: string[];
 }
 
-// Resultado de subir una planilla: la que descarga el sistema ('plantilla') o la HR de siempre ('hr').
+// Resultado de subir una planilla: la que descarga el sistema ('plantilla', obra cotizada) o la planilla de
+// control de una obra legacy ('control'), de la que se arma su cubicación.
 export type ReporteImportacionCubicacion =
   | {
       formato: 'plantilla';
@@ -2041,85 +2044,32 @@ export type ReporteImportacionCubicacion =
       rectificadasAhora: number;
       advertencias: string[];
     }
-  | {
-      formato: 'hr';
-      tipos: { nuevos: number; actualizados: number };
-      unidades: { nuevas: number; asignadas: number; existentes: number; rectificadasAhora: number; areasComunes: number };
-      advertencias: string[];
-    };
+  | ReportePlanillaControl;
 
-// ---- Cubicar desde los documentos de fabricacion (obras legacy sin presupuesto) ----
-// Ver mtw-api/src/dominio/obras/propuesta-cubicacion.ts: el sistema interpreta el
-// modelo de cada ventana del lote ("2115 V02") y el nombre del documento ("EX_P21").
-export type ConfianzaPropuesta = 'ALTA' | 'MEDIA' | 'BAJA';
-
-export interface VentanaPropuestaCubicacion {
-  fabricacionVentanaId: string;
-  fabricacionId: string;
-  orden: number;
-  modelo: string;
-  descripcionCorta: string | null;
-  anchoMm: number;
-  altoMm: number;
-  unidades: number;
-  hojas: number | null;
-  codigo: string;
-  torre: string;
-  piso: number | null;
-  unidad: string | null;
-  especial: boolean;
-  ubicacion: string | null;
-  confianza: ConfianzaPropuesta;
-  avisos: string[];
-  nomenclaturaPropuesta: string | null;
+// Ver mtw-api/src/modulos/obras/cubicacion-fabricacion.ts (importarPlanillaControl).
+export interface ReportePlanillaControl {
+  formato: 'control';
+  hoja: string;
+  obra: string | null;
+  ventanasPlanilla: number;
+  tipos: { actualizados: number; renombrados: string[] };
+  ventanas: { yaEstaban: number; ubicadas: number; movidas: number; sobranEnPlanilla: number; fueraDePlanilla: number; repetidas: number };
+  estructura: { torres: number; pisos: number; unidades: number; quitadas: number };
+  diferenciasPlanilla: string[];
+  fueraDePlanilla: string[];
+  sobrantes: string[];
+  sobrantesPorPiso: string[];
+  repetidas: string[];
+  medidas: string[];
+  reposiciones: string[];
+  advertencias: string[];
 }
 
-export interface DocumentoPropuestaCubicacion {
-  fabricacionId: string;
-  hetmoId: number;
-  numero: number | null;
-  descripcion: string | null;
-  nombre: string | null;
-  estadoHetmo: number;
-  estadoGlosa: string | null;
-  pistas: { torre: string | null; piso: number | null };
-  ventanas: VentanaPropuestaCubicacion[];
-}
-
-export interface TipoPropuestoCubicacion {
-  codigo: string;
-  sistema: string;
-  anchoMm: number | null;
-  altoMm: number | null;
-  cuadros: number | null;
-  ventanas: number;
-  existente: boolean;
-}
-
-export interface PropuestaCubicacionFabricacion {
-  documentos: DocumentoPropuestaCubicacion[];
-  tipos: TipoPropuestoCubicacion[];
-  resumen: { ventanas: number; conPosicion: number; sinPosicion: number; porRevisar: number };
-  formatoNomenclatura: string;
-  modo: ModoCubicacion;
-}
-
-// Una fila ya revisada por la persona, lista para aplicar.
-export interface FilaPropuestaCubicacion {
-  fabricacionVentanaId: string;
-  codigo: string;
-  torre: string;
-  piso: number | null;
-  unidad: string | null;
-  especial: boolean;
-  ubicacion: string | null;
-}
-
-export interface ReporteAplicacionPropuesta {
-  tipos: { nuevos: number; existentes: number };
-  ventanas: { creadas: number; conPosicion: number; sinPosicion: number };
-  estructura: { torres: number; pisos: number; unidades: number };
-  avisos: string[];
+// Ventanas que la obra legacy trajo sola de sus documentos de fabricación al abrir la cubicación.
+export interface CubicacionAlAbrir {
+  creadas: number;
+  porUbicar: number;
+  vinculadas: number;
 }
 
 // Avance masivo del estado de las ventanas de una obra en ejecucion (legacy).

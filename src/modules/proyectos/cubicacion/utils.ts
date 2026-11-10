@@ -71,19 +71,38 @@ export function descargarBlob(blob: Blob, nombre: string) {
 /** "2200,5" para mostrar un numero de mm en un campo de texto (coma decimal, sin separador de miles). */
 export const mmATexto = (n: number | null | undefined): string => (n === null || n === undefined ? '' : String(n).replace('.', ','));
 
-// Lineas de texto para mostrar el resultado de subir una planilla o de leer el presupuesto.
+// Lineas de texto para mostrar el resultado de subir una planilla.
 export function lineasReporteImportacion(r: ReporteImportacionCubicacion): string[] {
   if (r.formato === 'plantilla') {
     const partes = [`${r.actualizadas} ventana(s) actualizada(s) de ${r.filas} filas`, `${r.posicionadasAhora} con posición nueva`, `${r.rectificadasAhora} rectificada(s)`];
     if (r.sinCambios > 0) partes.push(`${r.sinCambios} sin cambios`);
     return [partes.join(' · ')];
   }
-  const u = r.unidades;
-  return [
-    `Tipos: ${r.tipos.nuevos} nuevos, ${r.tipos.actualizados} actualizados`,
-    `Ventanas: ${u.asignadas} asignadas a ventanas del presupuesto, ${u.nuevas} nuevas, ${u.existentes} ya existían${u.rectificadasAhora > 0 ? `, ${u.rectificadasAhora} con rasgo cargado` : ''}`,
-    `Áreas comunes: ${u.areasComunes}`,
+  const v = r.ventanas;
+  const e = r.estructura;
+  const lineas = [
+    `${r.ventanasPlanilla} ventana(s) en la hoja «${r.hoja}». La planilla ubica solo las que también están fabricadas: ${v.ubicadas} ubicada(s) ahora, ${v.movidas} corregida(s) de lugar y ${v.yaEstaban} ya estaban en su lugar.`,
+    `Sobran en la planilla (sin ventana fabricada): ${v.sobranEnPlanilla}. Fabricadas que no están en la planilla: ${v.fueraDePlanilla}. Repetidas (posibles reposiciones): ${v.repetidas}.`,
+    `Tipos: ${r.tipos.actualizados} actualizado(s) con lo contratado de la hoja BASE${r.tipos.renombrados.length ? ` (${r.tipos.renombrados.join(', ')})` : ''}.`,
   ];
+  if (e.torres || e.pisos || e.unidades || e.quitadas) {
+    lineas.push(`Estructura: ${e.torres} torre(s), ${e.pisos} piso(s) y ${e.unidades} departamento(s) nuevos${e.quitadas ? `; ${e.quitadas} departamento(s) sin torre quedaron vacíos y se quitaron` : ''}.`);
+  }
+  return lineas;
+}
+
+// Secciones de diferencias de la planilla de control, en el orden en que conviene revisarlas.
+export function seccionesDiferenciasControl(r: Extract<ReporteImportacionCubicacion, { formato: 'control' }>): { titulo: string; items: string[] }[] {
+  return [
+    { titulo: 'Fabricadas que no están en la planilla (quedaron por ubicar)', items: r.fueraDePlanilla },
+    { titulo: 'Repetidas: posibles reposiciones (quedaron por ubicar)', items: r.repetidas },
+    { titulo: 'Sobran en la planilla, por piso', items: r.sobrantesPorPiso },
+    { titulo: 'Sobran en la planilla, fila por fila (no se crearon)', items: r.sobrantes },
+    { titulo: 'Diferencias dentro de la planilla (detalle contra hoja BASE)', items: r.diferenciasPlanilla },
+    { titulo: 'Medidas fabricadas muy distintas a la planilla', items: r.medidas },
+    { titulo: 'Reposiciones en los documentos (no entraron a la cubicación)', items: r.reposiciones },
+    { titulo: 'Otros avisos', items: r.advertencias },
+  ].filter((s) => s.items.length > 0);
 }
 
 export function lineaReporteSincronizacion(r: ReporteSincronizacionCubicacion): string {

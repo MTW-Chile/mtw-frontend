@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FORMATO_NOMENCLATURA_CASA, FORMATO_NOMENCLATURA_DEFECTO, estadoSaldo, formatoMonto, generarNomenclatura, leerEntero, leerTorres, lineaReporteSincronizacion, lineasReporteImportacion, mensajeAsignacion, mensajeCopiaPiso, mmATexto, leerLista, rangoPisos, validarFormato } from './utils';
+import { FORMATO_NOMENCLATURA_CASA, FORMATO_NOMENCLATURA_DEFECTO, estadoSaldo, formatoMonto, generarNomenclatura, leerEntero, leerTorres, lineaReporteSincronizacion, lineasReporteImportacion, mensajeAsignacion, seccionesDiferenciasControl, mensajeCopiaPiso, mmATexto, leerLista, rangoPisos, validarFormato } from './utils';
 import { vocabulario } from './vocabulario';
 
 describe('nomenclatura por casa', () => {
@@ -61,14 +61,33 @@ describe('texto de los reportes', () => {
       '3 ventana(s) actualizada(s) de 1336 filas · 3 con posición nueva · 1 rectificada(s)',
     ]);
   });
-  it('planilla HR', () => {
-    const l = lineasReporteImportacion({
-      formato: 'hr',
-      tipos: { nuevos: 0, actualizados: 32 },
-      unidades: { nuevas: 0, asignadas: 95, existentes: 0, rectificadasAhora: 2, areasComunes: 0 },
+  it('planilla de control de una obra legacy', () => {
+    const r = {
+      formato: 'control' as const,
+      hoja: 'SAN PABLO',
+      obra: 'SAN PABLO',
+      ventanasPlanilla: 1095,
+      tipos: { actualizados: 30, renombrados: ['PV1 → PV01'] },
+      ventanas: { yaEstaban: 0, ubicadas: 328, movidas: 2, sobranEnPlanilla: 765, fueraDePlanilla: 29, repetidas: 3 },
+      estructura: { torres: 3, pisos: 25, unidades: 305, quitadas: 0 },
+      diferenciasPlanilla: ['V01: el detalle trae 77 ventana(s) y la hoja BASE 75 (+2).'],
+      fueraDePlanilla: [],
+      sobrantes: ['Fila 8: V04 en torre A, piso 2, depto 201 (DORM. 1)'],
+      sobrantesPorPiso: [],
+      repetidas: [],
+      medidas: [],
+      reposiciones: ['SP R10B: 1023-V11.'],
       advertencias: [],
-    });
-    expect(l[1]).toBe('Ventanas: 95 asignadas a ventanas del presupuesto, 0 nuevas, 0 ya existían, 2 con rasgo cargado');
+    };
+    const l = lineasReporteImportacion(r);
+    expect(l[0]).toBe('1095 ventana(s) en la hoja «SAN PABLO». La planilla ubica solo las que también están fabricadas: 328 ubicada(s) ahora, 2 corregida(s) de lugar y 0 ya estaban en su lugar.');
+    expect(l[1]).toBe('Sobran en la planilla (sin ventana fabricada): 765. Fabricadas que no están en la planilla: 29. Repetidas (posibles reposiciones): 3.');
+    expect(l[2]).toContain('PV1 → PV01');
+    expect(seccionesDiferenciasControl(r).map((s) => s.titulo)).toEqual([
+      'Sobran en la planilla, fila por fila (no se crearon)',
+      'Diferencias dentro de la planilla (detalle contra hoja BASE)',
+      'Reposiciones en los documentos (no entraron a la cubicación)',
+    ]);
   });
   it('sincronización con el presupuesto', () => {
     expect(lineaReporteSincronizacion({ tipos: { nuevos: 1, actualizados: 31 }, unidadesCreadas: 7, unidadesQuitadas: 3, avisos: [] })).toBe(

@@ -44,8 +44,14 @@ export function resumenCuadros(cuadros: FabricacionCuadro[] | undefined): string
 // al aviso de "Actualizado:" de siempre, no es un aviso aparte.
 export function textoVinculacionCubicacion(r: ReporteVinculacionCubicacion): string {
   const partes: string[] = [];
-  if (r.vinculadas > 0) partes.push(`${r.vinculadas} ventana(s) conectada(s) con la cubicación`);
-  if (r.sinMatch.length > 0) partes.push(`${r.sinMatch.length} sin match de nomenclatura (vincular a mano abajo)`);
+  const c = r.cubicacion;
+  if (c) {
+    // Obra legacy: las ventanas del documento entran solas a la cubicación.
+    if (c.creadas > 0) partes.push(`${c.creadas} ventana(s) nueva(s) en la cubicación, por ubicar (las ubica la planilla de control)`);
+    if (r.vinculadas > 0) partes.push(`${r.vinculadas} conectada(s) con ventanas ya ubicadas`);
+    if (c.reposiciones > 0) partes.push(`${c.reposiciones} reposición(es) de ventanas ya fabricadas`);
+  } else if (r.vinculadas > 0) partes.push(`${r.vinculadas} ventana(s) conectada(s) con la cubicación`);
+  if (r.sinMatch.length > 0 && !c) partes.push(`${r.sinMatch.length} sin match de nomenclatura (vincular a mano abajo)`);
   if (r.faseInferida) partes.push(`fase detectada: ${r.faseInferida.nombre}`);
   else if (r.faseConflicto) partes.push('ventanas de más de una fase nuestra: revisar a mano');
   return partes.length ? partes.join(', ') + '.' : '';
