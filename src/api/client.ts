@@ -222,6 +222,11 @@ export async function updateDireccionObra(
   await apiClient.patch(`/proyectos/${proyectoId}/direccion-obra`, payload);
 }
 
+/** Cambia el cliente (del maestro) de una obra manual. */
+export async function updateClienteObraManual(proyectoId: string, clienteId: string): Promise<void> {
+  await apiClient.patch(`/obras/${proyectoId}/cliente`, { clienteId });
+}
+
 // Sin número: solo el siguiente libre. Con número: si está libre y quién lo usa si no.
 export async function getNumeroObraManual(numero?: number): Promise<DisponibilidadNumeroProyecto> {
   const response = await apiClient.get<DisponibilidadNumeroProyecto>('/obras/manual/numero', { params: numero ? { numero } : undefined });
@@ -1375,6 +1380,19 @@ export async function reemplazarVentanaMaterial(
 // Reemplazo del mismo material en TODAS las líneas de la versión que lo
 // contengan -- desde la Analítica de materiales (Paso 3). Ver comentario junto
 // al endpoint homónimo en mtw-api/src/index.ts.
+// Deshace el reemplazo que dejó a este material en la versión (el que se ve
+// como "Reemplazado" en la Analítica): vuelve al material anterior en cada línea.
+export async function deshacerReemplazoMaterialEnVersion(
+  versionId: string,
+  materialId: string
+): Promise<{ success: boolean; lineasAfectadas: number }> {
+  const response = await apiClient.post<{ success: boolean; lineasAfectadas: number }>(
+    `/versiones/${versionId}/materiales/deshacer-reemplazo`,
+    { materialId }
+  );
+  return response.data;
+}
+
 export async function reemplazarMaterialEnVersion(
   versionId: string,
   payload: { materialIdOriginal: string; materialIdNuevo: string }

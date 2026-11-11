@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Boxes, Search, FileSpreadsheet, FileDown, CheckCircle2, Check, ShieldCheck, ArrowRightLeft } from 'lucide-react';
+import { Boxes, Search, FileSpreadsheet, FileDown, CheckCircle2, Check, ShieldCheck, ArrowRightLeft, Undo2 } from 'lucide-react';
 import { Badge } from '../../../../components/ui/Badge';
 import { Button } from '../../../../components/ui/Button';
 import { TABLE_WRAPPER_CLASS } from '../../../../lib/designSystem';
 import { formatNumber } from '../../../../lib/utils';
 import { useMonedas, resolverMoneda, formatMonto } from '../../../../lib/monedas';
 import {
+  deshacerReemplazoMaterialEnVersion,
   reemplazarMaterialEnVersion,
   saveMaterialAjuste,
   setPartidaAprobacion,
@@ -27,6 +28,8 @@ import { BadgeBoton } from '../../../../components/ui/BadgeBoton';
 import { IconButton } from '../../../../components/ui/IconButton';
 import { Input } from '../../../../components/ui/Input';
 import { BotonColapsar } from '../../../../components/ui/BotonColapsar';
+import { useConfirmar } from '../../../../components/ui/Confirmar';
+import { Aviso } from '../../../../components/ui/Aviso';
 
 interface Step3MaterialesProps {
   proyecto: Proyecto;
@@ -96,6 +99,17 @@ const BotonReemplazar: React.FC<{ disabled: boolean; onClick: () => void }> = ({
     etiqueta={disabled ? 'Partida aprobada o presupuesto congelado -- no se puede modificar' : 'Reemplazar este material en todas las líneas'}
     className="border border-slate-200 bg-white"
   />
+);
+
+// Etiqueta "Reemplazado" con su "Deshacer": vuelve al material anterior en
+// todas las líneas (POST /versiones/:id/materiales/deshacer-reemplazo).
+const EtiquetaReemplazado: React.FC<{ disabled: boolean; pending: boolean; onDeshacer: () => void }> = ({ disabled, pending, onDeshacer }) => (
+  <span className="inline-flex items-center gap-1">
+    <Badge size="sm" variant="violet">Reemplazado</Badge>
+    {!disabled && (
+      <IconButton icono={Undo2} tono="marca" className="w-6! h-6!" etiqueta="Deshacer el reemplazo (vuelve al material anterior)" onClick={onDeshacer} cargando={pending} />
+    )}
+  </span>
 );
 
 // Dato con etiqueta encima (mismo patrón que la tarjeta de línea).
@@ -255,6 +269,28 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
       setReemplazoOrigen(null);
     },
   });
+
+  const { confirmar } = useConfirmar();
+  const [errorDeshacer, setErrorDeshacer] = useState<string | null>(null);
+  const deshacerMutation = useMutation({
+    mutationFn: (materialId: string) => {
+      if (!versionId) return Promise.reject(new Error('No hay una versión activa.'));
+      return deshacerReemplazoMaterialEnVersion(versionId, materialId);
+    },
+    onSuccess: () => {
+      setErrorDeshacer(null);
+      invalidar();
+    },
+    onError: (err) => setErrorDeshacer(mensajeDeError(err, 'No se pudo deshacer el reemplazo.')),
+  });
+  const deshacerReemplazo = async (m: MaterialAnalitica) => {
+    const ok = await confirmar({
+      titulo: '¿Deshacer el reemplazo?',
+      mensaje: `${m.skuInterno} · ${m.descripcion} vuelve a ser el material que había antes en todas las líneas de la versión.`,
+      confirmar: 'Deshacer reemplazo',
+    });
+    if (ok) deshacerMutation.mutate(m.materialId);
+  };
 
   // Analítica calculada en mtw-api (motor único) con las tasas que se ven en
   // pantalla: al editar una divisa se recalcula sin guardarla.
@@ -475,6 +511,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
 
   return (
     <div className="space-y-5 sm:space-y-6 animate-fade-in">
+      {errorDeshacer && <Aviso tono="peligro">{errorDeshacer}</Aviso>}
       {/* 1. PARÁMETROS ECONÓMICOS (en un adicional, las fija el adicional) */}
       {modoAdicional ? null : !divisasEditables ? (
         <DivisasResumen dolar={dolar} uf={uf} euro={euro} congelado={congelado} onEditar={() => setEditandoDivisas(true)} />
@@ -687,7 +724,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                                 <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                                   <span className="text-[11px] text-slate-500">{m.proveedorNombre}</span>
                                   {m.precioModificado && <Badge size="sm" variant="info">Precio editado</Badge>}
-                                  {m.reemplazado && <Badge size="sm" variant="violet">Reemplazado</Badge>}
+                                  {m.reemplazado && <EtiquetaReemplazado disabled={edicionBloqueada} pending={deshacerMutation.isPending && deshacerMutation.variables === m.materialId} onDeshacer={() => deshacerReemplazo(m)} />}
                                 </div>
                               </Td>
                               <Td alinear="derecha" className="align-top">
@@ -763,7 +800,7 @@ export const Step3Materiales: React.FC<Step3MaterialesProps> = ({
                               <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                 <span className="text-[11px] text-slate-500">{m.proveedorNombre}</span>
                                 {m.precioModificado && <Badge size="sm" variant="info">Precio editado</Badge>}
-                                {m.reemplazado && <Badge size="sm" variant="violet">Reemplazado</Badge>}
+                                {m.reemplazado && <EtiquetaReemplazado disabled={edicionBloqueada} pending={deshacerMutation.isPending && deshacerMutation.variables === m.materialId} onDeshacer={() => deshacerReemplazo(m)} />}
                               </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
