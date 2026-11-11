@@ -90,7 +90,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
   const queryClient = useQueryClient();
   const entrada = useRef<HTMLInputElement>(null);
   const [vista, setVista] = useState<'estructura' | 'ventanas' | 'tipos' | 'conciliacion'>('estructura');
-  useMigas(2, [{ label: { estructura: 'Cubicador visual', ventanas: 'Ventanas', tipos: 'Tipos' }[vista] }]);
+  useMigas(2, [{ label: { estructura: 'Cubicador visual', ventanas: 'Ventanas', tipos: 'Tipos', conciliacion: 'Conciliación' }[vista] }]);
   const [config, setConfig] = useState(false);
   const [filtro, setFiltro] = useState<FiltroVentanas>({ pisoId: '', torreId: '' });
   const [panel, setPanel] = useState<ResultadoPanel | null>(null);
