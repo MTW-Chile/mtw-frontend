@@ -1638,6 +1638,8 @@ export interface VidrioFabricacion {
   ANCHO: number;
   ALTO: number;
   m2: number;
+  /** Material de catálogo (ficha de ventana): con él, lo recibido por un pendiente entra a la bodega de la obra. */
+  materialId?: string | null;
 }
 
 export interface MaterialFabricacion {
@@ -1648,6 +1650,7 @@ export interface MaterialFabricacion {
   cantidad: number;
   longitud_total_mm?: number | null;
   piezas?: number | null;
+  materialId?: string | null;
   /** Ficha de ventana: su tipo de producto se repone suelto en la obra (accesorios, herrajes). */
   reponibleEnObra?: boolean;
 }
@@ -1676,7 +1679,10 @@ export interface MaterialesFabricacion {
 // ==========================================
 export type EstadoPendiente = 'INGRESADO' | 'EN_CURSO' | 'RESUELTO';
 // Area a la que va el pendiente; la asigna el servidor segun tipo y motivo.
-export type DestinoPendiente = 'TECNICA' | 'FABRICA';
+// Hoy: marco, hoja y ventana completa van a FABRICA (taller); vidrio y material, a COMPRAS. TECNICA queda en los antiguos.
+export type DestinoPendiente = 'TECNICA' | 'FABRICA' | 'COMPRAS';
+// Pasos de un pendiente de obra legacy (obra manual). null en los de obras cotizadas (su gestión está en construcción).
+export type PasoPendiente = 'INGRESADO' | 'RECIBIDO' | 'EN_PROCESO_COMPRA' | 'EN_PRODUCCION' | 'LISTO_DESPACHO' | 'DESPACHADO';
 export type OrigenPendiente = 'FABRICACION' | 'OBRA';
 // OTRO existe solo en pendientes antiguos: ya no se ingresa.
 export type TipoElementoPendiente = 'VENTANA' | 'MARCO' | 'HOJA' | 'MATERIAL' | 'VIDRIO' | 'OTRO';
@@ -1718,12 +1724,18 @@ export interface ObraPendiente {
   numero: number;
   proyectoId: string;
   // Solo en el visor central (GET /pendientes).
-  proyecto?: { id: string; obra: string; codigoInterno: string | null; numeroPresupuesto: number };
+  proyecto?: { id: string; obra: string; codigoInterno: string | null; numeroPresupuesto: number; origen?: Proyecto['origen'] };
   origen: OrigenPendiente;
   destino: DestinoPendiente;
   tipo: TipoElementoPendiente;
   motivo: MotivoPendiente;
   estado: EstadoPendiente;
+  // Flujo legacy: en qué paso va, quién del área lo abrió, la fecha estimada de fábrica y lo que recibió compras.
+  paso: PasoPendiente | null;
+  recibidoPor?: { id: string; nombre: string } | null;
+  fechaRecibido: string | null;
+  fechaEstimada: string | null;
+  cantidadRecibida: number | null;
   etapaId: string | null;
   etapa: { id: string; nombre: string } | null;
   // Titulo armado por el sistema; lo que escribe la persona va en `notas`.
@@ -1768,6 +1780,8 @@ export interface AdjuntoPendiente {
   mime: string;
   tamano: number;
   webUrl: string | null;
+  // 'OC': la orden de compra que subió Compras; null: foto o documento.
+  categoria?: string | null;
   subidoPor?: { id: string; nombre: string } | null;
   creadoEn: string;
   puedeQuitar?: boolean;
@@ -1826,6 +1840,9 @@ export interface ObraPendienteDetalle extends Omit<ObraPendiente, 'material'> {
   // Quien creo el pendiente (o un administrador): el unico que puede
   // resolverlo, reabrirlo, editarlo o eliminarlo.
   puedeResolver: boolean;
+  // Flujo legacy: quien consulta es del área que lo gestiona; y el despacho que lo lleva o lo llevó.
+  puedeGestionarArea: boolean;
+  despacho: { id: string; numero: number; codigo: string; estado: EstadoDespacho; fechaDespacho: string | null; numeroGuia: string | null } | null;
 }
 
 export interface NuevoPendientePayload {
@@ -2279,7 +2296,23 @@ export interface DespachoObraItem {
   cantidad: number;
   cantidadRecibida: number;
   descripcion: string;
-  ventana: VentanaObra;
+  // Una línea es una ventana de la cubicación o un pendiente listo para despacho: una de las dos.
+  ventana: VentanaObra | null;
+  pendiente: { id: string; numero: number; codigo: string; tipo: TipoElementoPendiente; descripcion: string; ventanaRef: string | null } | null;
+}
+
+/** Pendiente listo para despacho que todavía no va en ningún despacho. */
+export interface PendienteListoDespacho {
+  id: string;
+  numero: number;
+  codigo: string;
+  tipo: TipoElementoPendiente;
+  motivo: MotivoPendiente;
+  destino: DestinoPendiente;
+  descripcion: string;
+  ventanaRef: string | null;
+  cantidadRecibida: number | null;
+  fechaRequerida: string | null;
 }
 
 export interface RecepcionObra {
@@ -2378,6 +2411,8 @@ export interface ObraDespachos {
   ventanas: number;
   /** Ventanas distintas en algun despacho emitido o recibido. */
   despachadas: number;
+  /** Pendientes listos para despacho que aún no van en un despacho. */
+  pendientesPorDespachar: number;
   borradores: number;
   /** Despachos emitidos o recibidos en parte, que la obra todavia debe acusar. */
   porRecibir: number;

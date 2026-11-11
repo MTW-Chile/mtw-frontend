@@ -6,24 +6,28 @@ import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
 import { BREAKPOINT_DESKTOP } from '../../../lib/designSystem';
-import type { DestinoPendiente, EstadoPendiente, ObraPendiente, Proyecto } from '../../../types';
+import type { DestinoPendiente, EstadoPendiente, ObraPendiente, PasoPendiente, Proyecto } from '../../../types';
 import { formatoFechaHora } from '../fabricacion/utils';
 import { CrearPendientesPage } from './CrearPendientesPage';
 import { useUrlParam } from '../../../lib/navigation';
 import { PendienteDetalleModal } from './PendienteDetalleModal';
+import { PendienteLegacyModal } from './PendienteLegacyModal';
 import {
   DESTINOS_PENDIENTE,
   ESTADOS_PENDIENTE,
   ETIQUETA_DESTINO,
   ETIQUETA_ESTADO,
   ETIQUETA_MOTIVO,
+  ETIQUETA_PASO,
   ETIQUETA_TIPO,
+  areaDe,
   codigoPendiente,
   contarPorEstado,
   referenciaPendiente,
   textoEstadoPendiente,
   textoRectificacion,
   varianteEstadoPendiente,
+  type AreaPendiente,
 } from './utils';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
 import { SelectCompacto } from '../../../components/ui/Campos';
@@ -34,7 +38,11 @@ import { BotonFila } from '../../../components/ui/Lista';
 interface Props {
   // Sin obra: visor central con los pendientes de todas las obras.
   proyecto?: Proyecto;
+  // Visor de un área (Taller o Abastecimiento): solo sus pendientes; abrir uno lo deja «Recibido».
+  area?: AreaPendiente;
 }
+
+const PASOS_FILTRO: PasoPendiente[] = ['INGRESADO', 'RECIBIDO', 'EN_PROCESO_COMPRA', 'EN_PRODUCCION', 'LISTO_DESPACHO', 'DESPACHADO'];
 
 
 // Seccion "Control de pendientes" de una obra: lo que falta o fallo (ventanas,
@@ -42,14 +50,16 @@ interface Props {
 // obra. Cada pendiente va a Compras o a Fabricacion, sigue sus etapas y lo
 // resuelve quien lo creo. Sin `proyecto` es el visor central (Pendientes en
 // obra del Sidebar): todos los pendientes de todas las obras, con su obra.
-export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
+export const PendientesTab: React.FC<Props> = ({ proyecto, area }) => {
   const isDesktop = useMediaQuery(BREAKPOINT_DESKTOP);
   const [estado, setEstado] = useState<EstadoPendiente | ''>('');
   const [destino, setDestino] = useState<DestinoPendiente | ''>('');
   const [texto, setTexto] = useState('');
   // Alta de pendientes: página propia (varias ventanas de la cubicación de una vez), con la URL como estado.
   const [modoNuevo, setModoNuevo] = useUrlParam('pendientes');
-  const [abierto, setAbierto] = useState<ObraPendiente | null>(null);
+  // El pendiente abierto va en la URL (?pendiente=): es el enlace que llega por correo al área.
+  const [abiertoId, setAbiertoId] = useUrlParam('pendiente');
+  const [paso, setPaso] = useState<PasoPendiente | ''>('');
   const [obraId, setObraId] = useState('');
   const central = !proyecto;
   const creando = !!proyecto && modoNuevo === 'nuevo';
@@ -64,19 +74,22 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
     for (const p of data ?? []) if (p.proyecto) mapa.set(p.proyecto.id, p.proyecto.obra);
     return [...mapa].sort((a, b) => a[1].localeCompare(b[1], 'es'));
   }, [data]);
-  const todos = useMemo(() => data ?? [], [data]);
+  const todos = useMemo(() => (data ?? []).filter((p) => !area || areaDe(p.destino) === area), [data, area]);
+  const abierto = abiertoId ? ((data ?? []).find((p) => p.id === abiertoId) ?? null) : null;
+  const pasosArea = PASOS_FILTRO.filter((x) => !area || (area === 'FABRICA' ? x !== 'EN_PROCESO_COMPRA' : x !== 'EN_PRODUCCION'));
   const conteo = useMemo(() => contarPorEstado(todos), [todos]);
 
   const visibles = useMemo(() => {
     const t = texto.trim().toLowerCase();
     return todos.filter((p) => {
       if (estado && p.estado !== estado) return false;
-      if (destino && p.destino !== destino) return false;
+      if (destino && areaDe(p.destino) !== destino) return false;
+      if (paso && p.paso !== paso) return false;
       if (obraId && p.proyectoId !== obraId) return false;
       if (!t) return true;
       return `${codigoPendiente(p.numero)} ${p.descripcion} ${referenciaPendiente(p)} ${p.proyecto?.obra ?? ''}`.toLowerCase().includes(t);
     });
-  }, [todos, estado, destino, texto, obraId]);
+  }, [todos, estado, destino, paso, texto, obraId]);
   const codigoObra = (p: ObraPendiente) => (p.proyecto ? p.proyecto.codigoInterno || `PRJ-${p.proyecto.numeroPresupuesto}` : '');
 
   const filas = (p: ObraPendiente) => ({
@@ -92,9 +105,13 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
         <div>
           <h2 className="text-sm font-black text-slate-900">Pendientes</h2>
           <p className="text-xs text-slate-500 max-w-xl">
-            {central
-              ? 'Todos los pendientes de todas las obras: lo que falta o falló, su área, su estado y quién lo solicitó. Se crean desde cada obra.'
-              : 'Lo que falta o falló en esta obra, solicitado desde la obra o desde la fábrica. Cada pendiente va solo al área que corresponde (técnica o fábrica) y lo resuelve quien lo solicitó.'}
+            {area === 'FABRICA'
+              ? 'Marcos, hojas y ventanas completas por reponer en las obras. Al abrir uno queda recibido por ti; déjalo en producción con su fecha estimada o listo para despacho.'
+              : area === 'COMPRAS'
+                ? 'Vidrios y materiales por comprar para las obras. Al abrir uno queda recibido por ti; sube la orden de compra y márcalo recibido cuando llegue.'
+                : central
+                  ? 'Todos los pendientes de todas las obras: lo que falta o falló, su área y en qué paso va. Fábrica y Compras gestionan los suyos desde su menú.'
+                  : 'Lo que falta o falló en esta obra. Cada pendiente va solo al área que corresponde: marcos, hojas y ventanas a Fábrica; vidrios y materiales a Compras.'}
           </p>
         </div>
         {proyecto && (
@@ -130,11 +147,21 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
             ))}
           </SelectCompacto>
         )}
-        <SelectCompacto value={destino} onChange={(e) => setDestino(e.target.value as DestinoPendiente | '')} aria-label="Filtrar por área">
-          <option value="">Todas las áreas</option>
-          {DESTINOS_PENDIENTE.map((d) => (
-            <option key={d} value={d}>
-              {ETIQUETA_DESTINO[d]}
+        {!area && (
+          <SelectCompacto value={destino} onChange={(e) => setDestino(e.target.value as DestinoPendiente | '')} aria-label="Filtrar por área">
+            <option value="">Todas las áreas</option>
+            {DESTINOS_PENDIENTE.map((d) => (
+              <option key={d} value={d}>
+                {ETIQUETA_DESTINO[d]}
+              </option>
+            ))}
+          </SelectCompacto>
+        )}
+        <SelectCompacto value={paso} onChange={(e) => setPaso(e.target.value as PasoPendiente | '')} aria-label="Filtrar por paso">
+          <option value="">Todos los pasos</option>
+          {pasosArea.map((x) => (
+            <option key={x} value={x}>
+              {ETIQUETA_PASO[x]}
             </option>
           ))}
         </SelectCompacto>
@@ -151,8 +178,8 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
       ) : todos.length === 0 ? (
         <div className="p-10 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs space-y-1">
           <ClipboardList className="w-6 h-6 text-slate-300 mx-auto" />
-          <p className="font-bold text-slate-700">{central ? 'No hay pendientes en ninguna obra.' : 'Esta obra aún no tiene pendientes.'}</p>
-          <p>{central ? 'Se registran desde el Control de pendientes de cada obra.' : 'Usa "Nuevo pendiente" para registrar lo que falta o falló en una ventana, hoja, vidrio o material.'}</p>
+          <p className="font-bold text-slate-700">{area ? 'No hay pendientes para esta área.' : central ? 'No hay pendientes en ninguna obra.' : 'Esta obra aún no tiene pendientes.'}</p>
+          <p>{central ? 'Se ingresan desde Instaladores › Pendientes.' : 'Usa «Nuevos pendientes» para registrar lo que falta o falló en una ventana.'}</p>
         </div>
       ) : visibles.length === 0 ? (
         <div className="p-8 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">Ningún pendiente coincide con los filtros.</div>
@@ -165,7 +192,7 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
                 {central && <Th className="font-bold">Obra</Th>}
                 <Th className="font-bold">Pendiente</Th>
                 <Th className="font-bold">Motivo</Th>
-                <Th className="font-bold">Área</Th>
+                {!area && <Th className="font-bold">Área</Th>}
                 <Th className="font-bold">Estado</Th>
                 <Th className="font-bold">Solicitante</Th>
               </Tr>
@@ -174,7 +201,7 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
               {visibles.map((p) => {
                 const f = filas(p);
                 return (
-                  <Tr key={p.id} onClick={() => setAbierto(p)} className="border-b border-slate-50 hover:bg-slate-50/70 cursor-pointer">
+                  <Tr key={p.id} onClick={() => setAbiertoId(p.id)} className="border-b border-slate-50 hover:bg-slate-50/70 cursor-pointer">
                     <Td className="font-mono font-bold text-slate-600 whitespace-nowrap">{f.codigo}</Td>
                     {central && (
                       <Td className="max-w-[14rem]">
@@ -201,9 +228,9 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
                       {textoRectificacion(p) && <div className="text-[11px] font-bold text-brand-700 truncate">{textoRectificacion(p)}</div>}
                     </Td>
                     <Td className="text-slate-600 whitespace-nowrap">{ETIQUETA_MOTIVO[p.motivo]}</Td>
-                    <Td className="text-slate-600 whitespace-nowrap">{ETIQUETA_DESTINO[p.destino]}</Td>
+                    {!area && <Td className="text-slate-600 whitespace-nowrap">{ETIQUETA_DESTINO[p.destino]}</Td>}
                     <Td className="whitespace-nowrap">
-                      <Badge size="sm" variant={varianteEstadoPendiente(p.estado)}>
+                      <Badge size="sm" variant={varianteEstadoPendiente(p.estado, p.paso)}>
                         {textoEstadoPendiente(p)}
                       </Badge>
                     </Td>
@@ -222,11 +249,11 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
           {visibles.map((p) => {
             const f = filas(p);
             return (
-              <BotonFila key={p.id} onClick={() => setAbierto(p)} className="px-4! py-3.5! space-y-1.5">
+              <BotonFila key={p.id} onClick={() => setAbiertoId(p.id)} className="px-4! py-3.5! space-y-1.5">
                 {central && <p className="text-[11px] font-semibold text-slate-500 truncate">{p.proyecto?.obra} · {codigoObra(p)}</p>}
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-mono font-bold text-xs text-slate-600">{f.codigo}</span>
-                  <Badge size="sm" variant={varianteEstadoPendiente(p.estado)}>
+                  <Badge size="sm" variant={varianteEstadoPendiente(p.estado, p.paso)}>
                     {textoEstadoPendiente(p)}
                   </Badge>
                 </div>
@@ -250,7 +277,13 @@ export const PendientesTab: React.FC<Props> = ({ proyecto }) => {
         </div>
       )}
 
-      {abierto && <PendienteDetalleModal proyectoId={abierto.proyectoId} pendienteId={abierto.id} onClose={() => setAbierto(null)} />}
+      {/* Obra legacy: su flujo por pasos. Obra cotizada: el detalle de siempre (su gestión está en construcción). */}
+      {abierto &&
+        (abierto.paso ? (
+          <PendienteLegacyModal proyectoId={abierto.proyectoId} pendienteId={abierto.id} desdeArea={area} onClose={() => setAbiertoId(null)} />
+        ) : (
+          <PendienteDetalleModal proyectoId={abierto.proyectoId} pendienteId={abierto.id} onClose={() => setAbiertoId(null)} />
+        ))}
     </div>
   );
 };

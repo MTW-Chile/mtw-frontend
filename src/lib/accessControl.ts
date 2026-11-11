@@ -73,8 +73,12 @@ export const SECCIONES_FRONTEND: EntradaAcceso[] = [
   { id: 'cotizaciones', label: 'Presupuestos', icon: Building2, permisos: ['presupuestos.ver'] },
   // Igual: el id sigue siendo 'proyectos'.
   { id: 'proyectos', label: 'Obras en curso', icon: FolderKanban, permisos: ['obras.ver'] },
-  // Visor global de los pendientes de todas las obras: lo que falta o falló (de ahí el icono de alerta).
+  // Visor de los pendientes de todas las obras: lo que falta o falló (de ahí el icono de alerta). Son tres
+  // secciones distintas, una por menú, para que cada área vea los suyos y el menú marque solo donde se está:
+  // Comercial ve todos; Taller, los de fábrica (marco, hoja, ventana); Abastecimiento, los de compras (vidrio, material).
   { id: 'pendientes', label: 'Pendientes', icon: AlertTriangle, permisos: ['pendientes.ver'] },
+  { id: 'pendientes-taller', label: 'Pendientes', titulo: 'Pendientes de fábrica', icon: AlertTriangle, permisos: ['pendientes.fabrica'] },
+  { id: 'pendientes-compras', label: 'Pendientes', titulo: 'Pendientes de compras', icon: AlertTriangle, permisos: ['pendientes.compras'] },
   // Fabricación: las obras en curso vistas desde el taller (cubicación,
   // fases, requisiciones a bodega y pendientes; ver modules/proyectos/seccionesObra.ts).
   { id: 'fabricacion', label: 'Fabricación', icon: Factory, permisos: ['obras.ver'] },
@@ -98,8 +102,8 @@ export const SECCIONES_FRONTEND: EntradaAcceso[] = [
 ];
 
 /**
- * Menú lateral: entradas sueltas y grupos que se despliegan. Una sección puede
- * estar en más de un grupo (Pendientes en Comercial, Taller y Abastecimiento).
+ * Menú lateral: entradas sueltas y grupos que se despliegan. Cada sección va en
+ * un solo grupo (los pendientes tienen una sección por área: ver arriba).
  * Despachos y Bodega van sueltas, debajo del grupo con el que trabajan
  * (Taller y Abastecimiento), en el orden del flujo: se fabrica, se despacha,
  * se instala. Instaladores agrupa lo que se hace en la obra: recibir,
@@ -111,10 +115,10 @@ export type EntradaMenu = { tipo: 'seccion'; id: string } | { tipo: 'grupo'; id:
 export const MENU_LATERAL: EntradaMenu[] = [
   { tipo: 'seccion', id: 'inicio' },
   { tipo: 'grupo', id: 'comercial', titulo: 'Comercial', icon: Briefcase, secciones: ['clientes', 'proveedores', 'cotizaciones', 'proyectos', 'pendientes'] },
-  { tipo: 'grupo', id: 'taller', titulo: 'Taller', icon: Hammer, secciones: ['fabricacion', 'pendientes'] },
+  { tipo: 'grupo', id: 'taller', titulo: 'Taller', icon: Hammer, secciones: ['fabricacion', 'pendientes-taller'] },
   { tipo: 'seccion', id: 'despachos' },
   { tipo: 'grupo', id: 'instaladores', titulo: 'Instaladores', icon: HardHat, secciones: ['recepcion-obra', 'instalacion', 'ingreso-pendientes'] },
-  { tipo: 'grupo', id: 'abastecimiento', titulo: 'Abastecimiento', icon: Forklift, secciones: ['compras', 'maestro', 'pendientes'] },
+  { tipo: 'grupo', id: 'abastecimiento', titulo: 'Abastecimiento', icon: Forklift, secciones: ['compras', 'maestro', 'pendientes-compras'] },
   { tipo: 'seccion', id: 'bodega' },
   { tipo: 'seccion', id: 'contabilidad' },
   { tipo: 'seccion', id: 'reportes' },

@@ -100,6 +100,8 @@ import type {
   EstadoPendiente,
   DestinoPendiente,
   NuevoPendientePayload,
+  PasoPendiente,
+  PendienteListoDespacho,
   FichaVentanaObra,
   UltimoPrecioProveedor,
   ConfiguracionBsale,
@@ -1576,6 +1578,33 @@ export async function eliminarPendiente(id: string): Promise<void> {
   await apiClient.post(`/pendientes/${id}/eliminar`);
 }
 
+// ---- Flujo de los pendientes de obras legacy ----
+
+/** Alguien del área abrió el pendiente: si estaba Ingresado, queda Recibido con su nombre. */
+export async function abrirPendiente(id: string): Promise<{ paso: PasoPendiente; cambio: boolean }> {
+  const response = await apiClient.post(`/pendientes/${id}/abrir`);
+  return response.data;
+}
+
+export async function avanzarPendiente(
+  id: string,
+  payload: { paso: 'EN_PROCESO_COMPRA' | 'EN_PRODUCCION' | 'LISTO_DESPACHO'; fechaEstimada?: string | null; comentario?: string | null; cantidad?: number | null }
+): Promise<{ paso: PasoPendiente; enBodega: boolean }> {
+  const response = await apiClient.post(`/pendientes/${id}/avanzar`, payload);
+  return response.data;
+}
+
+export async function getPendientesListosDespacho(proyectoId: string): Promise<PendienteListoDespacho[]> {
+  const response = await apiClient.get<PendienteListoDespacho[]>(`/proyectos/${proyectoId}/despachos/pendientes-listos`);
+  return response.data;
+}
+
+/** Arma un despacho en borrador con pendientes listos; se emite (con su guía) como cualquier despacho. */
+export async function crearDespachoDePendientes(proyectoId: string, pendienteIds: string[]): Promise<{ despacho: DespachoObraDetalle; avisos: string[] }> {
+  const response = await apiClient.post(`/proyectos/${proyectoId}/despachos/de-pendientes`, { pendienteIds });
+  return response.data;
+}
+
 export async function getEtapasPendiente(todas = false): Promise<EtapaPendiente[]> {
   const response = await apiClient.get<EtapaPendiente[]>('/pendientes-etapas', { params: todas ? { todas: 1 } : undefined });
   return response.data;
@@ -1620,9 +1649,10 @@ export async function desvincularCarpetaOneDrive(proyectoId: string): Promise<vo
 }
 
 // Sube el archivo tal cual en el cuerpo (sin multipart); el nombre va en la URL.
-export async function subirAdjuntoPendiente(pendienteId: string, archivo: Blob, nombre: string, mime: string): Promise<AdjuntoPendiente> {
+/** `categoria: 'OC'` marca el archivo como la orden de compra del pendiente (flujo legacy de Compras). */
+export async function subirAdjuntoPendiente(pendienteId: string, archivo: Blob, nombre: string, mime: string, categoria?: 'OC'): Promise<AdjuntoPendiente> {
   const response = await apiClient.post<AdjuntoPendiente>(`/pendientes/${pendienteId}/adjuntos`, archivo, {
-    params: { nombre },
+    params: { nombre, categoria },
     headers: { 'Content-Type': mime },
     timeout: 120000,
   });

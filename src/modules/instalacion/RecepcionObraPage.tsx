@@ -26,7 +26,7 @@ import { ObraNoDisponible, ObrasInstaladores, useObraInstaladores } from './Obra
 const POR_RECIBIR: DespachoObra['estado'][] = ['EMITIDO', 'RECIBIDO_PARCIAL'];
 
 /** "Torre A · piso 3 · depto 301 · dormitorio": dónde va la ventana, para ubicarla al descargar. */
-const lugarVentana = (v: VentanaObra) => [v.torre, v.piso != null ? `piso ${v.piso}` : null, v.nombreUnidad, v.ubicacion].filter(Boolean).join(' · ');
+const lugarVentana = (v: VentanaObra | null) => (v ? [v.torre, v.piso != null ? `piso ${v.piso}` : null, v.nombreUnidad, v.ubicacion].filter(Boolean).join(' · ') : 'Reposición por pendiente');
 
 const textoGuia = (d: Pick<DespachoObra, 'tipoGuia' | 'numeroGuia'>) => `${ETIQUETA_TIPO_GUIA[d.tipoGuia]}${d.numeroGuia ? ` N° ${d.numeroGuia}` : ''}`;
 

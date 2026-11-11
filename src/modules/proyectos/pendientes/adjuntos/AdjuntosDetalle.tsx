@@ -56,10 +56,12 @@ interface Props {
   adjuntos: AdjuntoPendiente[];
   /** Un pendiente resuelto sigue mostrando sus adjuntos pero ya no recibe nuevos. */
   puedeAgregar: boolean;
+  /** Encabezado de la lista (por defecto «Fotos y documentos»). */
+  titulo?: string;
 }
 
 // Adjuntos de un pendiente (detalle): miniaturas, abrir, quitar y agregar mas.
-export const AdjuntosDetalle: React.FC<Props> = ({ proyectoId, pendienteId, adjuntos, puedeAgregar }) => {
+export const AdjuntosDetalle: React.FC<Props> = ({ proyectoId, pendienteId, adjuntos, puedeAgregar, titulo = 'Fotos y documentos' }) => {
   const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
   const [subiendo, setSubiendo] = useState<{ hechos: number; total: number } | null>(null);
@@ -93,7 +95,7 @@ export const AdjuntosDetalle: React.FC<Props> = ({ proyectoId, pendienteId, adju
 
   return (
     <div className="space-y-2">
-      <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Fotos y documentos ({adjuntos.length})</h4>
+      <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{titulo} ({adjuntos.length})</h4>
       {adjuntos.length > 0 && (
         <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2" aria-label="Adjuntos">
           {adjuntos.map((a) => (

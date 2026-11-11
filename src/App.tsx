@@ -277,6 +277,8 @@ const AppContent: React.FC = () => {
           {activeTab === 'maestro' && <MaestroMaterialesPage />}
 
           {activeTab === 'pendientes' && <PendientesPage />}
+          {activeTab === 'pendientes-taller' && <PendientesPage area="FABRICA" />}
+          {activeTab === 'pendientes-compras' && <PendientesPage area="COMPRAS" />}
 
           {(activeTab === 'contabilidad' || activeTab === 'reportes') && <EnConstruccionPage seccion={activeTab} titulo={MODULE_TITLES[activeTab]} />}
 

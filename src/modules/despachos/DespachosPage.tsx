@@ -83,6 +83,11 @@ export const DespachosPage: React.FC = () => {
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-sm font-bold text-slate-900 truncate">{o.obra}</h3>
                     <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 font-mono font-bold shrink-0">{o.codigoInterno || `PRJ-${o.numeroPresupuesto}`}</span>
+                    {o.pendientesPorDespachar > 0 && (
+                      <Badge size="sm" variant="info">
+                        {o.pendientesPorDespachar} pendiente(s) listo(s)
+                      </Badge>
+                    )}
                     {o.borradores > 0 && (
                       <Badge size="sm" variant="warning">
                         {o.borradores} borrador(es)

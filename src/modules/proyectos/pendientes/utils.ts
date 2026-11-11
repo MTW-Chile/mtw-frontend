@@ -6,6 +6,7 @@ import type {
   MotivoPendiente,
   ObraPendiente,
   OrigenPendiente,
+  PasoPendiente,
   TipoElementoPendiente,
   FabricacionPieza,
 } from '../../../types';
@@ -20,7 +21,7 @@ export const ETIQUETA_ESTADO: Record<EstadoPendiente, string> = {
   RESUELTO: 'Resuelto',
 };
 // El area la asigna el sistema (ver areaDelPendiente); aca solo se muestra.
-export const ETIQUETA_DESTINO: Record<DestinoPendiente, string> = { TECNICA: 'Área técnica', FABRICA: 'Fábrica' };
+export const ETIQUETA_DESTINO: Record<DestinoPendiente, string> = { TECNICA: 'Área técnica', FABRICA: 'Fábrica', COMPRAS: 'Compras' };
 export const ETIQUETA_ORIGEN: Record<OrigenPendiente, string> = { OBRA: 'Obra', FABRICACION: 'Fábrica' };
 export const ETIQUETA_TIPO: Record<TipoElementoPendiente, string> = {
   VENTANA: 'Ventana completa',
@@ -41,7 +42,12 @@ export const ETIQUETA_MOTIVO: Record<MotivoPendiente, string> = {
 };
 
 export const ESTADOS_PENDIENTE: EstadoPendiente[] = ['INGRESADO', 'EN_CURSO', 'RESUELTO'];
-export const DESTINOS_PENDIENTE: DestinoPendiente[] = ['TECNICA', 'FABRICA'];
+// Áreas vigentes (TECNICA queda solo en pendientes antiguos y se ve junto a Compras).
+export const DESTINOS_PENDIENTE: DestinoPendiente[] = ['FABRICA', 'COMPRAS'];
+
+/** Área que gestiona el pendiente: los antiguos de «área técnica» son de Compras. */
+export type AreaPendiente = 'FABRICA' | 'COMPRAS';
+export const areaDe = (destino: DestinoPendiente): AreaPendiente => (destino === 'FABRICA' ? 'FABRICA' : 'COMPRAS');
 export const ORIGENES_PENDIENTE: OrigenPendiente[] = ['OBRA', 'FABRICACION'];
 // Lo que se puede ingresar, en el orden en que se ofrece. OTRO queda solo para los pendientes antiguos.
 export const TIPOS_PENDIENTE: TipoElementoPendiente[] = ['MARCO', 'HOJA', 'VIDRIO', 'MATERIAL', 'VENTANA'];
@@ -50,11 +56,34 @@ export const MOTIVOS_PENDIENTE: MotivoPendiente[] = ['DANO_OBRA', 'NO_RECEPCION'
 
 // ---- Reglas (espejo de mtw-api/src/pendientes-reglas.ts; el servidor es quien manda) ----
 
-// Lo "no fabricado" y lo "no recibido" van a Fabrica; ventana completa, marco y hoja tambien; vidrio,
-// material y otro van al area tecnica (revisa y envia a Compras la OC).
-export function areaDelPendiente(tipo: TipoElementoPendiente, motivo: MotivoPendiente): DestinoPendiente {
-  if (motivo === 'NO_FABRICADO' || motivo === 'NO_RECEPCION') return 'FABRICA';
-  return tipo === 'VENTANA' || tipo === 'MARCO' || tipo === 'HOJA' ? 'FABRICA' : 'TECNICA';
+// El área depende solo de lo pedido: marco, hoja y ventana completa van a Fábrica (taller); vidrio y material, a Compras.
+export function areaDelPendiente(tipo: TipoElementoPendiente, _motivo?: MotivoPendiente): DestinoPendiente {
+  return tipo === 'VENTANA' || tipo === 'MARCO' || tipo === 'HOJA' ? 'FABRICA' : 'COMPRAS';
+}
+
+// ---- Flujo de los pendientes de obras legacy (espejo de pasosDeArea / pasosSiguientes del servidor) ----
+
+export const ETIQUETA_PASO: Record<PasoPendiente, string> = {
+  INGRESADO: 'Ingresado',
+  RECIBIDO: 'Recibido',
+  EN_PROCESO_COMPRA: 'En proceso de compra',
+  EN_PRODUCCION: 'En producción',
+  LISTO_DESPACHO: 'Listo para despacho',
+  DESPACHADO: 'Despachado',
+};
+
+export const VARIANTE_PASO: Record<PasoPendiente, BadgeVariant> = {
+  INGRESADO: 'info',
+  RECIBIDO: 'warning',
+  EN_PROCESO_COMPRA: 'warning',
+  EN_PRODUCCION: 'warning',
+  LISTO_DESPACHO: 'violet',
+  DESPACHADO: 'success',
+};
+
+/** Los pasos de un área, en orden (Fábrica puede saltarse «En producción» si el producto ya está en la fábrica). */
+export function pasosDeArea(destino: DestinoPendiente): PasoPendiente[] {
+  return ['INGRESADO', 'RECIBIDO', destino === 'FABRICA' ? 'EN_PRODUCCION' : 'EN_PROCESO_COMPRA', 'LISTO_DESPACHO', 'DESPACHADO'];
 }
 
 /** Solo una ventana (se pide a Fabrica) o un vidrio se pueden rectificar. */
@@ -68,14 +97,17 @@ export function leerMilimetros(texto: string): number | null {
   return Number.isFinite(n) && n > 0 && n <= 20000 ? Math.round(n * 100) / 100 : null;
 }
 
-export function varianteEstadoPendiente(estado: EstadoPendiente): BadgeVariant {
+export function varianteEstadoPendiente(estado: EstadoPendiente, paso?: PasoPendiente | null): BadgeVariant {
+  if (paso) return VARIANTE_PASO[paso];
   if (estado === 'EN_CURSO') return 'warning';
   if (estado === 'RESUELTO') return 'success';
   return 'info';
 }
 
 // "En curso · Orden de compra enviada": dentro de EN_CURSO lo que importa es la etapa.
-export function textoEstadoPendiente(p: { estado: EstadoPendiente; etapa?: { nombre: string } | null }): string {
+// Un pendiente de obra legacy muestra su paso ("Listo para despacho").
+export function textoEstadoPendiente(p: { estado: EstadoPendiente; paso?: PasoPendiente | null; etapa?: { nombre: string } | null }): string {
+  if (p.paso) return ETIQUETA_PASO[p.paso];
   if (p.estado === 'EN_CURSO' && p.etapa) return `${ETIQUETA_ESTADO.EN_CURSO} · ${p.etapa.nombre}`;
   return ETIQUETA_ESTADO[p.estado];
 }

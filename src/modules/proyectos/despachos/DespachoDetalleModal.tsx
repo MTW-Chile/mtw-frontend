@@ -74,6 +74,10 @@ export const DespachoDetalleModal: React.FC<Props> = ({ despachoId, proyectoId, 
     queryClient.invalidateQueries({ queryKey: ['despachos', proyectoId] });
     queryClient.invalidateQueries({ queryKey: ['despachosDisponibles', proyectoId] });
     queryClient.invalidateQueries({ queryKey: ['instalacion'] });
+    // Un despacho de pendientes los deja despachados (o los devuelve a «listo» si se anula).
+    queryClient.invalidateQueries({ queryKey: ['pendientes'] });
+    queryClient.invalidateQueries({ queryKey: ['pendientesListos', proyectoId] });
+    queryClient.invalidateQueries({ queryKey: ['despachosObras'] });
   };
   const alFallar = (e: unknown) => {
     const { mensaje, detalle } = extraerErrorParaToast(e);
@@ -265,19 +269,25 @@ export const DespachoDetalleModal: React.FC<Props> = ({ despachoId, proyectoId, 
           )}
 
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Ventanas</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">{d.items.every((i) => i.pendiente) ? 'Pendientes' : 'Ventanas'}</p>
             <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 overflow-hidden">
               {d.items.map((i) => (
                 <li key={i.id} className="flex items-center gap-3 px-3 py-2 text-xs">
                   <div className="min-w-0 flex-1">
-                    <span className="font-mono font-bold text-slate-900">{i.ventana.nomenclatura ?? i.ventana.codigo}</span>
+                    <span className="font-mono font-bold text-slate-900">{i.ventana ? (i.ventana.nomenclatura ?? i.ventana.codigo) : i.pendiente?.codigo}</span>
                     {i.parte !== 'COMPLETA' && <span className="ml-1.5 text-slate-500">({ETIQUETA_PARTE_CORTA[i.parte]})</span>}
                     <p className="text-[11px] text-slate-500 truncate">{i.descripcion}</p>
                   </div>
                   {i.cantidad > 1 && <span className="font-mono text-slate-600 tabular-nums">{i.cantidadRecibida}/{i.cantidad}</span>}
-                  <Badge size="sm" variant={VARIANTE_ESTADO_VENTANA[i.ventana.estado]}>
-                    {ETIQUETA_ESTADO_VENTANA[i.ventana.estado]}
-                  </Badge>
+                  {i.ventana ? (
+                    <Badge size="sm" variant={VARIANTE_ESTADO_VENTANA[i.ventana.estado]}>
+                      {ETIQUETA_ESTADO_VENTANA[i.ventana.estado]}
+                    </Badge>
+                  ) : (
+                    <Badge size="sm" variant={i.cantidadRecibida >= i.cantidad ? 'success' : 'outline'}>
+                      {i.cantidadRecibida >= i.cantidad ? 'Recibido en obra' : 'Pendiente'}
+                    </Badge>
+                  )}
                 </li>
               ))}
             </ul>

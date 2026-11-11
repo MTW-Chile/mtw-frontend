@@ -113,7 +113,7 @@ const HistorialVentana: React.FC<{ ventanaId: string }> = ({ ventanaId }) => {
  * El dibujo y la descripción salen de la ficha (geometría del documento de venta del lote: obras manuales y cotizadas
  * por igual) y, si la ficha no la trae, de la línea cotizada de la obra.
  */
-export const FichaVentana: React.FC<{ proyectoId: string; ficha: FichaVentanaObra; conHistorial?: boolean; /** Nombre de la ventana, como primera línea. */ titulo?: React.ReactNode }> = ({ proyectoId, ficha, conHistorial, titulo }) => {
+export const FichaVentana: React.FC<{ proyectoId: string; ficha: FichaVentanaObra; conHistorial?: boolean; /** Nombre de la ventana, como primera línea. */ titulo?: React.ReactNode; /** Dentro del detalle de un pendiente: sin la lista de pendientes abiertos de la ventana. */ sinPendientes?: boolean }> = ({ proyectoId, ficha, conHistorial, titulo, sinPendientes }) => {
   const v = ficha.ventana;
   const fv = ficha.fabricacionVentana;
   const abiertos = ficha.pendientes.filter((p) => p.estado !== 'RESUELTO');
@@ -141,7 +141,7 @@ export const FichaVentana: React.FC<{ proyectoId: string; ficha: FichaVentanaObr
             ) : (
               <Badge size="sm" variant={VARIANTE_ESTADO_VENTANA[v.estado]}>{ETIQUETA_ESTADO_VENTANA[v.estado]}</Badge>
             )}
-            {abiertos.length > 0 && <Badge size="sm" variant="warning">{abiertos.length} pendiente(s) abierto(s)</Badge>}
+            {abiertos.length > 0 && !sinPendientes && <Badge size="sm" variant="warning">{abiertos.length} pendiente(s) abierto(s)</Badge>}
           </div>
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 items-baseline">
             <Dato k="Ubicación">{lugar}</Dato>
@@ -162,7 +162,7 @@ export const FichaVentana: React.FC<{ proyectoId: string; ficha: FichaVentanaObr
         </div>
       )}
 
-      {abiertos.length > 0 && (
+      {abiertos.length > 0 && !sinPendientes && (
         <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-2.5 text-xs space-y-0.5">
           <p className="text-[11px] font-bold uppercase tracking-wider text-amber-800">Pendientes abiertos de esta ventana</p>
           {abiertos.map((p) => (

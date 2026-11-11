@@ -30,6 +30,8 @@ const DESCRIPCION_SECCION: Record<string, string> = {
   cotizaciones: 'Presupuestos en negociación.',
   proyectos: 'Obras aceptadas: abastecimiento, adicionales y estados de pago.',
   pendientes: 'Lo que falta o falló en todas las obras.',
+  'pendientes-taller': 'Taller: marcos, hojas y ventanas por reponer.',
+  'pendientes-compras': 'Abastecimiento: vidrios y materiales por comprar.',
   fabricacion: 'Cubicación, fases y requisiciones.',
   despachos: 'Ventanas fabricadas que salen a obra, con su guía de despacho.',
   'recepcion-obra': 'Instaladores: despachos por recibir y ya recibidos en cada obra.',

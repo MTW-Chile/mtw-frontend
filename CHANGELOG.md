@@ -9,6 +9,17 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - **Parche** (2.0.0 → 2.0.1): ajustes y mejoras acotadas, cada despliegue.
 - **Corrección urgente** sobre un parche (2.0.4 → 2.0.4.1; en package.json, 2.0.4-1): la decide Alfredo.
 
+## Sin publicar — flujo de los pendientes de obras legacy
+
+Los pendientes de las obras manuales (sus compras no se hicieron en el ERP) siguen pasos fijos por área, sin etapas configurables ni OC del sistema.
+- **A quién va**: marco, hoja y ventana completa van a **Fábrica**; vidrio y material, a **Compras**. Al ingresarlos, cada área recibe un correo con el detalle y el enlace para abrir cada pendiente.
+- **Visores separados**: Comercial › Pendientes muestra todos; Taller › Pendientes, los de fábrica; Abastecimiento › Pendientes, los de compras. Son secciones distintas (el menú marca solo la que está abierta).
+- **Pasos**: Ingresado (quién) → Recibido (quién del área lo abrió) → *Compras:* En proceso de compra (subiendo la OC, que queda en la carpeta de OneDrive de la obra) → Listo para despacho (al marcarlo recibido: entra a la bodega de la obra, que se crea sola) · *Fábrica:* En producción (con fecha estimada y comentarios; se salta si ya está en fábrica) → Listo para despacho → Despachado.
+- **Despacho**: en Despachos › obra aparecen los «Pendientes listos para despacho»; se arma un despacho con ellos, se emite con su guía y quedan Despachado (lo que estaba en la bodega de la obra sale). La obra lo recibe en Instaladores › Recepción.
+- **Ingreso**: «Qué falta o falló» y «Motivo» vuelven a ser desplegables, lado a lado.
+- **Permisos nuevos**: «Gestionar pendientes de fábrica» (rol Producción / Taller) y «Gestionar pendientes de compras» (rol Compras).
+- Los pendientes de obras cotizadas conservan su detalle de siempre; su gestión por pasos está en construcción.
+
 ## Sin publicar — Instaladores (recepción, instalación y pendientes en tablet)
 
 «Instalación» pasa a ser el grupo **Instaladores** del menú, con tres secciones que parten de la lista de obras en curso:

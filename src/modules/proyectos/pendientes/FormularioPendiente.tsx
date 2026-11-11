@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { AppWindow, DoorOpen, Frame, Grid2x2, Plus, Ruler, Wrench, type LucideIcon } from 'lucide-react';
+import { Plus, Ruler } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
-import { Textarea, OpcionesTarjeta, OpcionesTarjetaMultiple } from '../../../components/ui/Campos';
+import { Select } from '../../../components/ui/Select';
+import { Textarea, OpcionesTarjetaMultiple } from '../../../components/ui/Campos';
 import { Aviso } from '../../../components/ui/Aviso';
 import type { FabricacionPieza, FichaVentanaObra, MotivoPendiente, NuevoPendientePayload, TipoElementoPendiente } from '../../../types';
 import { formatoMm } from '../fabricacion/utils';
@@ -45,8 +46,6 @@ interface Props {
   onAgregar: (p: PendientePreparado[]) => void;
 }
 
-const ICONO_TIPO: Partial<Record<TipoElementoPendiente, LucideIcon>> = { MARCO: Frame, HOJA: DoorOpen, VIDRIO: Grid2x2, MATERIAL: Wrench, VENTANA: AppWindow };
-
 // Lo último que se eligió en este dispositivo: en terreno los pendientes vienen en racha (el mismo tipo y motivo
 // varias veces seguidas), así que el formulario parte con lo anterior en vez de con un valor fijo.
 const CLAVE_ULTIMO = 'mtw-pendiente-ultimo';
@@ -68,7 +67,7 @@ function guardarUltimo(tipo: TipoElementoPendiente, motivo: MotivoPendiente) {
 
 /**
  * Detalle de UN pendiente para la ventana elegida (ingreso de pendientes). Qué falta (marco, hoja, vidrio, material o
- * la ventana completa) y el motivo se eligen tocando una tarjeta; el elemento puntual sale de la ficha de la ventana y
+ * la ventana completa) y el motivo se eligen en dos desplegables lado a lado; el elemento puntual sale de la ficha de la ventana y
  * el título lo arma el sistema. En «Material» solo van los que se reponen sueltos en la obra (accesorios y herrajes:
  * lo marca el tipo de producto). Al agregar se limpia para el siguiente, sin cerrar nada.
  */
@@ -132,12 +131,13 @@ export const FormularioPendiente: React.FC<Props> = ({ proyectoId, ficha, onAgre
 
   const base: DatosSugerencia = { tipo, ventanaModelo: nombreVentana(v) };
   // Un objetivo por cada elemento marcado; sin ninguno sale un solo pendiente del tipo elegido.
-  type Objetivo = { datos: DatosSugerencia; cuadroId?: string };
+  // materialId: el material de catálogo del vidrio o accesorio; con él, lo que Compras reciba entra a la bodega de la obra.
+  type Objetivo = { datos: DatosSugerencia; cuadroId?: string; materialId?: string | null };
   const objetivos: Objetivo[] = (() => {
-    if (vidriosElegidos.length > 0) return vidriosElegidos.map((g) => ({ datos: { ...base, vidrio: { codigo: g.codigo_articulo, ancho: g.ANCHO, alto: g.ALTO } } }));
+    if (vidriosElegidos.length > 0) return vidriosElegidos.map((g) => ({ datos: { ...base, vidrio: { codigo: g.codigo_articulo, ancho: g.ANCHO, alto: g.ALTO } }, materialId: g.materialId }));
     if (hojasElegidas.length > 0) return hojasElegidas.map((h) => ({ datos: { ...base, hoja: { numero: h.numeroCuadro, ancho: h.anchoMm, alto: h.altoMm } }, cuadroId: h.id }));
     if (marcosElegidos.length > 0) return marcosElegidos.map((m) => ({ datos: { ...base, marco: { numero: m.numeroCuadro, ancho: m.anchoMm, alto: m.altoMm } }, cuadroId: m.id }));
-    if (materialesElegidos.length > 0) return materialesElegidos.map(({ m }) => ({ datos: { ...base, material: { codigo: m.codigo_articulo, descripcion: m.descripcion_articulo } } }));
+    if (materialesElegidos.length > 0) return materialesElegidos.map(({ m }) => ({ datos: { ...base, material: { codigo: m.codigo_articulo, descripcion: m.descripcion_articulo } }, materialId: m.materialId }));
     return [{ datos: { ...base } }];
   })();
 
@@ -165,6 +165,7 @@ export const FormularioPendiente: React.FC<Props> = ({ proyectoId, ficha, onAgre
         ventanaIndividualizadaId: v.id,
         fabricacionVentanaId: ficha.fabricacionVentana?.id,
         fabricacionCuadroId: o.cuadroId,
+        materialId: o.materialId ?? undefined,
         fechaRequerida: fechaRequerida || undefined,
       };
       // Con varios elementos marcados las fotos se adjuntan al primero (no se repiten en cada pendiente).
@@ -183,18 +184,23 @@ export const FormularioPendiente: React.FC<Props> = ({ proyectoId, ficha, onAgre
 
   return (
     <div className="space-y-4" data-testid="formulario-pendiente">
-      <OpcionesTarjeta
-        legend="Qué falta o falló"
-        columnas={3}
-        columnasMovil={2}
-        valor={tipo}
-        onChange={cambiarTipo}
-        opciones={TIPOS_PENDIENTE.map((t) => {
-          const Icono = ICONO_TIPO[t];
-          return { value: t, label: ETIQUETA_TIPO[t], icono: Icono ? <Icono className="w-4 h-4 text-brand-600 shrink-0" aria-hidden /> : undefined };
-        })}
-      />
-      <OpcionesTarjeta legend="Motivo" columnas={3} columnasMovil={2} valor={motivo} onChange={setMotivo} opciones={MOTIVOS_PENDIENTE.map((m) => ({ value: m, label: ETIQUETA_MOTIVO[m] }))} />
+      {/* Dos desplegables lado a lado: la ficha de la ventana y lo que se elige de ella caben en la pantalla sin bajar. */}
+      <div className="grid grid-cols-2 gap-3">
+        <Select label="Qué falta o falló" id="np-tipo" value={tipo} onChange={(e) => cambiarTipo(e.target.value as TipoElementoPendiente)}>
+          {TIPOS_PENDIENTE.map((t) => (
+            <option key={t} value={t}>
+              {ETIQUETA_TIPO[t]}
+            </option>
+          ))}
+        </Select>
+        <Select label="Motivo" id="np-motivo" value={motivo} onChange={(e) => setMotivo(e.target.value as MotivoPendiente)}>
+          {MOTIVOS_PENDIENTE.map((m) => (
+            <option key={m} value={m}>
+              {ETIQUETA_MOTIVO[m]}
+            </option>
+          ))}
+        </Select>
+      </div>
 
       {tipo === 'VIDRIO' &&
         (ficha.vidrios.length > 0 ? (
