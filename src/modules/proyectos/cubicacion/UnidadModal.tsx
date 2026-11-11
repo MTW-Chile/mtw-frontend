@@ -12,6 +12,7 @@ import { vocabulario } from './vocabulario';
 import { Modal } from '../../../components/ui/Modal';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
+import { Aviso } from '../../../components/ui/Aviso';
 import { describirVentana } from '../obra/descripcionVentana';
 import { DibujoVentana } from '../obra/DibujoVentana';
 
@@ -159,7 +160,23 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
         <Input label="Ubicación" id="uni-ubicacion" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} maxLength={100} placeholder="DORM 1, ESTAR, BAÑO 1…" />
       </div>
 
-      {legacy ? (
+      {/* Conciliación con la planilla de control: sin fabricar, reposición o fuera de planilla. */}
+      {legacy && editando && !unidad!.documento && (
+        <Aviso tono="advertencia" titulo="Sin fabricar">
+          La planilla de control espera esta ventana y ningún documento de fabricación la trae todavía. Cuando se vincule su documento, toma sola su nombre, su medida y su dibujo.
+        </Aviso>
+      )}
+      {legacy && editando && unidad!.documento && unidad!.fabricacionesAnteriores.length > 0 && (
+        <Aviso tono="neutro" titulo={`Reposición: fabricada ${unidad!.fabricacionesAnteriores.length + 1} veces`}>
+          Vale la de <b>{unidad!.documento.nombre}</b> (la más nueva). Reemplazó a: {unidad!.fabricacionesAnteriores.map((f) => f.nombre).join(', ')}.
+        </Aviso>
+      )}
+      {legacy && editando && unidad!.documento && unidad!.fueraDePlanilla && (
+        <Aviso tono="advertencia" titulo="La planilla no la pide">
+          Ninguna fila de la planilla de control reconoce esta ventana. Revisa su nombre en el documento o corrige la planilla.
+        </Aviso>
+      )}
+      {legacy && editando && !unidad!.documento ? null : legacy ? (
         <p className="text-[11px] text-slate-500">
           {descripcionDoc && <>Descripción: <b className="text-slate-800">{descripcionDoc}</b> · </>}
           Medida final: <b className="font-mono text-slate-800">{unidad?.anchoFabricacionMm != null ? `${formatoMm(unidad.anchoFabricacionMm)} × ${formatoMm(unidad.altoFabricacionMm)} mm` : '—'}</b>

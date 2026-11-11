@@ -2027,6 +2027,10 @@ export interface ResumenCubicacion {
   ventanas: number;
   posicionadas: number;
   sinPosicion: number;
+  // Obra legacy (conciliación con la planilla de control): lugares que la planilla espera y nadie ha fabricado,
+  // y ventanas fabricadas más de una vez (reposiciones).
+  sinFabricar: number;
+  reposiciones: number;
   // Ventanas con nombre propio pero sin torre/piso/depto (cubicación única).
   cubicacionUnica: number;
   rectificadas: number;
@@ -2065,8 +2069,20 @@ export interface UnidadCubicacion {
   rectificadoEn: string | null;
   nomenclatura: string | null;
   posicionada: boolean;
-  // Documento de fabricación del que viene (obras legacy); null si no está vinculada.
+  // Documento de fabricación del que viene (obras legacy); null si no está vinculada. En una obra legacy, una
+  // ventana con lugar y sin documento es una «esperada, sin fabricar»: la planilla la pide y falta su documento.
   documento: { id: string; nombre: string } | null;
+  // Obra legacy: fabricada que ninguna fila de la planilla de control pide.
+  fueraDePlanilla: boolean;
+  // Reposiciones: documentos que fabricaron antes esta misma ventana, del más antiguo al más nuevo. La vigente es `documento`.
+  fabricacionesAnteriores: { id: string; nombre: string; reemplazadaEn: string | null }[];
+}
+
+// Lo que la conciliación de una obra legacy con su planilla de control dejó pendiente (se lee de la base).
+export interface ConciliacionCubicacion {
+  sinFabricar: { id: string; nombre: string; lugar: string; ubicacion: string | null }[];
+  fueraDePlanilla: { id: string; nombre: string; documento: string; lugar: string }[];
+  reposiciones: { id: string; nombre: string; lugar: string; vigente: string; anteriores: { documento: string; reemplazadaEn: string | null }[] }[];
 }
 
 // Lo que ya se sabe de la obra por su presupuesto de HETMO (null si no tiene lineas de ventana).
@@ -2106,12 +2122,27 @@ export interface ReportePlanillaControl {
   obra: string | null;
   ventanasPlanilla: number;
   tipos: { actualizados: number; renombrados: string[] };
-  ventanas: { yaEstaban: number; ubicadas: number; movidas: number; sobranEnPlanilla: number; fueraDePlanilla: number; repetidas: number };
+  ventanas: {
+    yaEstaban: number;
+    ubicadas: number;
+    movidas: number;
+    // Lugares nuevos «sin fabricar», los que ya estaban así y los que esta carga llenó con su ventana fabricada.
+    sinFabricar: number;
+    yaEsperadas: number;
+    conciliadas: number;
+    // Filas a las que no se les pudo dar lugar (sin depto o piso).
+    sobranEnPlanilla: number;
+    fueraDePlanilla: number;
+    repetidas: number;
+    reposiciones: number;
+  };
   estructura: { torres: number; pisos: number; unidades: number; quitadas: number };
   diferenciasPlanilla: string[];
   fueraDePlanilla: string[];
+  sinFabricar: string[];
+  sinFabricarPorPiso: string[];
   sobrantes: string[];
-  sobrantesPorPiso: string[];
+  esperadasSinFila: string[];
   repetidas: string[];
   medidas: string[];
   reposiciones: string[];

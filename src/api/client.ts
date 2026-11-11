@@ -94,6 +94,7 @@ import type {
   ExclusionFaseCubicacion,
   CandidatoVinculoCubicacion,
   CarpetaOneDrive,
+  ConciliacionCubicacion,
   AmbitoCarpeta,
   CarpetaOneDriveSugerida,
   ItemOneDrive,
@@ -1745,6 +1746,12 @@ export async function desconectarOneDrive(): Promise<void> {
 // ---- Cubicador ----
 // Toda obra tiene cubicador implicito (holgura/formato de nomenclatura viven en Proyecto): no hay
 // paso de "crear" la cubicacion, solo sincronizar desde el presupuesto o cargar tipos a mano.
+
+/** Conciliación de una obra legacy con su planilla de control: sin fabricar, fuera de planilla y reposiciones. */
+export async function getConciliacionCubicacion(proyectoId: string): Promise<ConciliacionCubicacion> {
+  const response = await apiClient.get<ConciliacionCubicacion>(`/proyectos/${proyectoId}/cubicacion/conciliacion`);
+  return response.data;
+}
 
 export async function getCubicacion(
   proyectoId: string

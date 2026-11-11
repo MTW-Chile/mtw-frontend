@@ -9,6 +9,16 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - **Parche** (2.0.0 → 2.0.1): ajustes y mejoras acotadas, cada despliegue.
 - **Corrección urgente** sobre un parche (2.0.4 → 2.0.4.1; en package.json, 2.0.4-1): la decide Alfredo.
 
+## Sin publicar — conciliación de la cubicación con la planilla de control (obras en ejecución)
+
+La planilla de control pasa a ser la lista de lo que la obra espera, y lo que queda pendiente ya no se pierde al cerrar el aviso.
+- **Sin fabricar**: una fila de la planilla sin ventana fabricada deja su **lugar en el cubicador** (borde punteado, «sin fabricar»), pendiente de conciliarse con un documento de fabricación nuevo. Cuando ese documento se vincula, el lugar se llena solo con el nombre, la medida y el dibujo del documento. Cada piso avisa cuántas le faltan.
+- **Reposiciones**: una ventana fabricada más de una vez es una sola ventana; **vale la del documento más nuevo** y las anteriores quedan registradas como reemplazadas (se ve en la ventana y en Conciliación). Ya no depende del orden en que se vinculen los documentos.
+- **Fabricadas que la planilla no pide**: siguen por ubicar, ahora marcadas «La planilla no la pide».
+- **Torre**: al calzar una fila con su ventana se compara también la torre («211O» es de la torre Oriente aunque la planilla la escriba completa); antes dos torres con el mismo número de depto podían cruzarse.
+- **Pestaña Conciliación** (Cubicación): sin fabricar, fabricadas que la planilla no pide y reposiciones, siempre disponibles y con buscador. El resumen muestra cuántas ventanas faltan fabricar.
+- Volver a subir la planilla de una obra ya cargada la pone al día con estas reglas (las repetidas que habían quedado «por ubicar» se registran como reposición).
+
 ## Sin publicar — direcciones en formato SII y tipos de proyecto
 
 - **Direcciones como las pide el SII** (facturas, guías de despacho, OC): dirección, **comuna** y **ciudad** por separado, con **Región** como desplegable que deja en «Comuna» solo las de esa región (16 regiones, 346 comunas). Aplica a Clientes (maestro y cliente nuevo del paso 1), Proveedores, la dirección de la obra y la dirección de entrega de los despachos. Lo que ya estaba escrito y coincide con una comuna se ordenó solo («Las Condes, Santiago» → comuna Las Condes, ciudad Santiago); lo demás queda como «(anterior)» hasta que se corrija.

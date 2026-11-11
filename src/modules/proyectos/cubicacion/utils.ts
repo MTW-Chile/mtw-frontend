@@ -80,10 +80,13 @@ export function lineasReporteImportacion(r: ReporteImportacionCubicacion): strin
   }
   const v = r.ventanas;
   const e = r.estructura;
+  const sinFabricar = v.sinFabricar + v.yaEsperadas;
   const lineas = [
-    `${r.ventanasPlanilla} ventana(s) en la hoja «${r.hoja}». La planilla ubica solo las que también están fabricadas: ${v.ubicadas} ubicada(s) ahora, ${v.movidas} corregida(s) de lugar y ${v.yaEstaban} ya estaban en su lugar.`,
-    `Sobran en la planilla (sin ventana fabricada): ${v.sobranEnPlanilla}. Fabricadas que no están en la planilla: ${v.fueraDePlanilla}. Repetidas (posibles reposiciones): ${v.repetidas}.`,
+    `${r.ventanasPlanilla} ventana(s) en la hoja «${r.hoja}». Fabricadas: ${v.ubicadas + v.conciliadas > 0 || v.movidas > 0 ? `${v.ubicadas} ubicada(s) ahora, ${v.movidas} corregida(s) de lugar y ` : ''}${v.yaEstaban} ya estaban en su lugar.`,
+    `Sin fabricar: ${sinFabricar} lugar(es) quedaron en el cubicador esperando su documento de fabricación${v.sinFabricar && v.yaEsperadas ? ` (${v.sinFabricar} nuevos)` : ''}${v.conciliadas ? `; ${v.conciliadas} que estaban así ya tienen su ventana` : ''}.`,
+    `Fabricadas que la planilla no pide: ${v.fueraDePlanilla} (quedaron por ubicar). Reposiciones registradas: ${v.reposiciones}${v.repetidas ? `. Repetidas por revisar a mano: ${v.repetidas}` : ''}.`,
   ];
+  if (v.sobranEnPlanilla) lineas.push(`${v.sobranEnPlanilla} fila(s) no traen depto o piso: no se les pudo dar lugar.`);
   if (e.torres || e.pisos || e.unidades || e.quitadas) {
     lineas.push(`Estructura: ${e.torres} torre(s), ${e.pisos} piso(s) y ${e.unidades} departamento(s) nuevos${e.quitadas ? `; ${e.quitadas} departamento(s) sin torre quedaron vacíos y se quitaron` : ''}.`);
   }
@@ -93,13 +96,15 @@ export function lineasReporteImportacion(r: ReporteImportacionCubicacion): strin
 // Secciones de diferencias de la planilla de control, en el orden en que conviene revisarlas.
 export function seccionesDiferenciasControl(r: Extract<ReporteImportacionCubicacion, { formato: 'control' }>): { titulo: string; items: string[] }[] {
   return [
-    { titulo: 'Fabricadas que no están en la planilla (quedaron por ubicar)', items: r.fueraDePlanilla },
-    { titulo: 'Repetidas: posibles reposiciones (quedaron por ubicar)', items: r.repetidas },
-    { titulo: 'Sobran en la planilla, por piso', items: r.sobrantesPorPiso },
-    { titulo: 'Sobran en la planilla, fila por fila (no se crearon)', items: r.sobrantes },
+    { titulo: 'Sin fabricar, por piso (su lugar quedó en el cubicador)', items: r.sinFabricarPorPiso },
+    { titulo: 'Sin fabricar, fila por fila', items: r.sinFabricar },
+    { titulo: 'Fabricadas que la planilla no pide (quedaron por ubicar)', items: r.fueraDePlanilla },
+    { titulo: 'Reposiciones: fabricadas más de una vez, quedó vigente la más nueva', items: r.reposiciones },
+    { titulo: 'Repetidas que hay que revisar a mano (quedaron por ubicar)', items: r.repetidas },
+    { titulo: 'Lugares sin fabricar que esta planilla ya no pide (no se borraron)', items: r.esperadasSinFila },
+    { titulo: 'Filas sin depto o piso (no se les pudo dar lugar)', items: r.sobrantes },
     { titulo: 'Diferencias dentro de la planilla (detalle contra hoja BASE)', items: r.diferenciasPlanilla },
     { titulo: 'Medidas fabricadas muy distintas a la planilla', items: r.medidas },
-    { titulo: 'Reposiciones en los documentos (no entraron a la cubicación)', items: r.reposiciones },
     { titulo: 'Otros avisos', items: r.advertencias },
   ].filter((s) => s.items.length > 0);
 }

@@ -68,25 +68,28 @@ describe('texto de los reportes', () => {
       obra: 'SAN PABLO',
       ventanasPlanilla: 1095,
       tipos: { actualizados: 30, renombrados: ['PV1 → PV01'] },
-      ventanas: { yaEstaban: 0, ubicadas: 328, movidas: 2, sobranEnPlanilla: 765, fueraDePlanilla: 29, repetidas: 3 },
+      ventanas: { yaEstaban: 0, ubicadas: 328, movidas: 2, sinFabricar: 765, yaEsperadas: 0, conciliadas: 0, sobranEnPlanilla: 0, fueraDePlanilla: 29, repetidas: 0, reposiciones: 3 },
       estructura: { torres: 3, pisos: 25, unidades: 305, quitadas: 0 },
       diferenciasPlanilla: ['V01: el detalle trae 77 ventana(s) y la hoja BASE 75 (+2).'],
       fueraDePlanilla: [],
-      sobrantes: ['Fila 8: V04 en torre A, piso 2, depto 201 (DORM. 1)'],
-      sobrantesPorPiso: [],
+      sinFabricar: ['Fila 8: V04 en torre A, piso 2, depto 201 (DORM. 1)'],
+      sinFabricarPorPiso: [],
+      sobrantes: [],
+      esperadasSinFila: [],
       repetidas: [],
       medidas: [],
-      reposiciones: ['SP R10B: 1023-V11.'],
+      reposiciones: ['1023-V11: fabricada en SP P10B y de nuevo en SP R10B; queda vigente la de SP R10B.'],
       advertencias: [],
     };
     const l = lineasReporteImportacion(r);
-    expect(l[0]).toBe('1095 ventana(s) en la hoja «SAN PABLO». La planilla ubica solo las que también están fabricadas: 328 ubicada(s) ahora, 2 corregida(s) de lugar y 0 ya estaban en su lugar.');
-    expect(l[1]).toBe('Sobran en la planilla (sin ventana fabricada): 765. Fabricadas que no están en la planilla: 29. Repetidas (posibles reposiciones): 3.');
+    expect(l[0]).toBe('1095 ventana(s) en la hoja «SAN PABLO». Fabricadas: 328 ubicada(s) ahora, 2 corregida(s) de lugar y 0 ya estaban en su lugar.');
+    expect(l[1]).toBe('Sin fabricar: 765 lugar(es) quedaron en el cubicador esperando su documento de fabricación.');
+    expect(l[2]).toBe('Fabricadas que la planilla no pide: 29 (quedaron por ubicar). Reposiciones registradas: 3.');
     expect(l.join(' ')).not.toMatch(/tipo/i);
     expect(seccionesDiferenciasControl(r).map((s) => s.titulo)).toEqual([
-      'Sobran en la planilla, fila por fila (no se crearon)',
+      'Sin fabricar, fila por fila',
+      'Reposiciones: fabricadas más de una vez, quedó vigente la más nueva',
       'Diferencias dentro de la planilla (detalle contra hoja BASE)',
-      'Reposiciones en los documentos (no entraron a la cubicación)',
     ]);
   });
   it('sincronización con el presupuesto', () => {

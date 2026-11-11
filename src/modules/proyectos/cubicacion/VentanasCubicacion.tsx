@@ -120,7 +120,17 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
       {legacy ? (
         <>
           <Td className="text-[11px] text-slate-500 max-w-[12rem] truncate" title={unidad.documento?.nombre}>
-            {unidad.documento?.nombre ?? <span className="text-slate-300">—</span>}
+            {unidad.documento ? (
+              <>
+                {unidad.documento.nombre}
+                {unidad.fabricacionesAnteriores.length > 0 && <span className="text-violet-700 font-bold"> · reposición</span>}
+                {unidad.fueraDePlanilla && <span className="text-rose-700 font-bold"> · fuera de planilla</span>}
+              </>
+            ) : unidad.unidadId ? (
+              <span className="font-bold text-amber-700">Sin fabricar</span>
+            ) : (
+              <span className="text-slate-300">—</span>
+            )}
           </Td>
           <Td className="text-xs font-mono font-bold text-slate-800 whitespace-nowrap">
             {unidad.anchoFabricacionMm != null ? `${formatoMm(unidad.anchoFabricacionMm)} × ${formatoMm(unidad.altoFabricacionMm)}` : `${formatoMm(unidad.anchoPlanoMm)} × ${formatoMm(unidad.altoPlanoMm)}`}
