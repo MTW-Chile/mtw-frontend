@@ -540,9 +540,10 @@ export const EspacioVentanas: React.FC<Props> = ({ proyecto, modo, onCerrar }) =
           ) : ficha.isError || !ficha.data ? (
             <ErrorCarga que="la ventana" onReintentar={ficha.refetch} />
           ) : (
-            <Seccion icono={Square} titulo={nombreVentana(unica)}>
-              <FichaVentana proyectoId={proyecto.id} ficha={ficha.data} conHistorial={esInstalacion} />
-            </Seccion>
+            /* La ventana en una tarjeta compacta, sin encabezado: en tablet deja el formulario a la vista sin bajar. */
+            <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-3 sm:p-4">
+              <FichaVentana proyectoId={proyecto.id} ficha={ficha.data} conHistorial={esInstalacion} titulo={nombreVentana(unica)} />
+            </div>
           )
         ) : (
           <Seccion
@@ -582,13 +583,13 @@ export const EspacioVentanas: React.FC<Props> = ({ proyecto, modo, onCerrar }) =
         {!puedeRegistrar ? (
           <Aviso tono="neutro">{esInstalacion ? 'Tu rol puede ver el avance, pero no certificar instalaciones.' : 'Tu rol no puede ingresar pendientes.'}</Aviso>
         ) : esInstalacion ? (
-          <Seccion titulo={unica ? 'Certificar instalación' : `Certificar ${seleccion.length} ventanas`} descripcion="Queda en el listado; se certifica al enviarlo.">
+          <Seccion titulo={unica ? 'Certificar instalación' : `Certificar ${seleccion.length} ventanas`}>
             <FormularioInstalacion key={elegidas.join('|')} proyectoId={proyecto.id} ventanas={seleccion} enListado={partesEnListado} onAgregar={agregarInstalaciones} />
           </Seccion>
         ) : (
           unica &&
           ficha.data && (
-            <Seccion titulo="Pendiente de esta ventana" descripcion="Queda en el listado; puedes agregar varios por ventana.">
+            <Seccion titulo="Pendiente de esta ventana">
               <FormularioPendiente key={unica.id} proyectoId={proyecto.id} ficha={ficha.data} onAgregar={agregarPendientes} />
             </Seccion>
           )

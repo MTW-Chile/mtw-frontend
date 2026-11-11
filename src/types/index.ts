@@ -1680,7 +1680,8 @@ export type DestinoPendiente = 'TECNICA' | 'FABRICA';
 export type OrigenPendiente = 'FABRICACION' | 'OBRA';
 // OTRO existe solo en pendientes antiguos: ya no se ingresa.
 export type TipoElementoPendiente = 'VENTANA' | 'MARCO' | 'HOJA' | 'MATERIAL' | 'VIDRIO' | 'OTRO';
-export type MotivoPendiente = 'FALLA' | 'DANO_OBRA' | 'DANO_INSTALACION' | 'NO_RECEPCION' | 'NO_FABRICADO' | 'CAMBIO_CLIENTE';
+// Se ingresan DANO_OBRA, NO_RECEPCION y ERROR_MEDIDAS; el resto existe solo en pendientes antiguos.
+export type MotivoPendiente = 'FALLA' | 'DANO_OBRA' | 'ERROR_MEDIDAS' | 'DANO_INSTALACION' | 'NO_RECEPCION' | 'NO_FABRICADO' | 'CAMBIO_CLIENTE';
 
 // A cargo de quien va un pendiente: cliente o instalador -> adicional (se les
 // cobra); nosotros -> reposicion contra la holgura.

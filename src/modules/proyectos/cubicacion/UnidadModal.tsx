@@ -12,6 +12,7 @@ import { vocabulario } from './vocabulario';
 import { Modal } from '../../../components/ui/Modal';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
+import { describirVentana } from '../obra/descripcionVentana';
 import { DibujoVentana } from '../obra/DibujoVentana';
 
 interface Props {
@@ -51,6 +52,9 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
   const deDocumento = legacy && editando && !!unidad!.documento;
   const ficha = useQuery({ queryKey: ['fichaVentana', proyectoId, unidad?.id], queryFn: () => getFichaVentana(proyectoId, unidad!.id), enabled: deDocumento, staleTime: 60_000, retry: false });
   const fv = ficha.data?.fabricacionVentana ?? null;
+  // Misma descripción que la ficha y el PDF: la apertura sale de la geometría; sin dibujo, queda el texto del documento.
+  const descrita = describirVentana(ficha.data?.dibujo);
+  const descripcionDoc = descrita ? [descrita.apertura, descrita.composicion].filter(Boolean).join(' · ') : fv?.descripcionCorta || unidad?.sistema;
   const pisoNum = entero(piso);
   const anchoNum = leerMilimetros(rasgoAncho);
   const altoNum = leerMilimetros(rasgoAlto);
@@ -157,7 +161,7 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
 
       {legacy ? (
         <p className="text-[11px] text-slate-500">
-          {(fv?.descripcionCorta || unidad?.sistema) && <>Descripción: <b className="text-slate-800">{fv?.descripcionCorta || unidad?.sistema}</b> · </>}
+          {descripcionDoc && <>Descripción: <b className="text-slate-800">{descripcionDoc}</b> · </>}
           Medida final: <b className="font-mono text-slate-800">{unidad?.anchoFabricacionMm != null ? `${formatoMm(unidad.anchoFabricacionMm)} × ${formatoMm(unidad.altoFabricacionMm)} mm` : '—'}</b>
           {unidad?.documento && <> · documento <b>{unidad.documento.nombre}</b></>}. Viene del documento de fabricación; un cambio de medida se pide como pendiente.
         </p>

@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
-import { getContenidoFotoInstalacion, getVentanaInstalacion } from '../../../api/client';
+import { getContenidoFotoInstalacion, getProyectoById, getVentanaInstalacion } from '../../../api/client';
 import { Badge } from '../../../components/ui/Badge';
 import { BotonColapsar } from '../../../components/ui/BotonColapsar';
 import { fecha, fechaHora } from '../../../lib/formato';
 import type { AdjuntoInstalacion, FichaVentanaObra } from '../../../types';
 import { formatoMm } from '../fabricacion/utils';
 import { esImagen } from '../pendientes/adjuntos/utils';
-import { ETIQUETA_MOTIVO, ETIQUETA_TIPO, codigoPendiente, etiquetaPieza, nombreCuadro } from '../pendientes/utils';
-import { DibujoVentana } from './DibujoVentana';
+import { ETIQUETA_MOTIVO, ETIQUETA_TIPO, codigoPendiente } from '../pendientes/utils';
+import { DibujoVentana, ventanaDeProyecto } from './DibujoVentana';
+import { describirVentana, describirVidrios } from './descripcionVentana';
 import { ETIQUETA_ESTADO_VENTANA, ETIQUETA_PARTE_CORTA, VARIANTE_ESTADO_VENTANA } from './estadoVentana';
 
 const aDataUrl = (blob: Blob) =>
@@ -37,11 +38,12 @@ const FotoInstalacion: React.FC<{ instalacionId: string; adjunto: AdjuntoInstala
   );
 };
 
+// Fila «etiqueta · valor» como en la tarjeta del PDF del presupuesto (Dimensiones, Composición, Apertura, Vidrios).
 const Dato: React.FC<{ k: string; children: React.ReactNode }> = ({ k, children }) => (
-  <div className="min-w-0">
-    <dt className="text-[11px] uppercase tracking-wider text-slate-500">{k}</dt>
-    <dd className="text-xs text-slate-800 break-words">{children}</dd>
-  </div>
+  <>
+    <dt className="text-[11px] text-slate-500 whitespace-nowrap">{k}</dt>
+    <dd className="text-xs text-slate-800 min-w-0 break-words">{children}</dd>
+  </>
 );
 
 // Instalaciones certificadas (con sus fotos) e historial de la ventana. Se lee solo al abrirlo.
@@ -103,26 +105,33 @@ const HistorialVentana: React.FC<{ ventanaId: string }> = ({ ventanaId }) => {
 };
 
 /**
- * Lo que sabemos de la ventana: dibujo, estado, dónde va, medidas, vidrios, y aparte (plegado) marcos, hojas y
- * materiales y el historial. El estado de la ventana es UNO solo: el estado del documento de fabricación o del
- * documento adjunto lo actualiza, no es un estado paralelo, así que no se muestra por separado.
+ * La ventana en pocas líneas, para reconocerla en terreno: dibujo chico, estado y los mismos datos que lleva su tarjeta
+ * en el PDF del presupuesto (dimensiones, composición, apertura, vidrios) más dónde va. La apertura la describe el motor
+ * de dibujo desde la geometría («Corredera 1 hoja derecha + fijo»), no el texto del documento de fabricación. No lleva
+ * materiales, marcos ni hojas (se eligen en el formulario del pendiente) ni la referencia al documento.
  *
- * El dibujo sale de la ficha (geometría del documento de venta del lote: obras manuales y cotizadas por igual) y,
- * si la ficha no lo trae, de la línea cotizada de la obra.
+ * El dibujo y la descripción salen de la ficha (geometría del documento de venta del lote: obras manuales y cotizadas
+ * por igual) y, si la ficha no la trae, de la línea cotizada de la obra.
  */
-export const FichaVentana: React.FC<{ proyectoId: string; ficha: FichaVentanaObra; conHistorial?: boolean }> = ({ proyectoId, ficha, conHistorial }) => {
+export const FichaVentana: React.FC<{ proyectoId: string; ficha: FichaVentanaObra; conHistorial?: boolean; /** Nombre de la ventana, como primera línea. */ titulo?: React.ReactNode }> = ({ proyectoId, ficha, conHistorial, titulo }) => {
   const v = ficha.ventana;
   const fv = ficha.fabricacionVentana;
   const abiertos = ficha.pendientes.filter((p) => p.estado !== 'RESUELTO');
-  const [tecnicoAbierto, setTecnicoAbierto] = useState(false);
   const [historialAbierto, setHistorialAbierto] = useState(false);
-  // @container: la ficha se acomoda al ancho real de su columna (en tablet es angosta), no al de la pantalla.
+  // Sin geometría en la ficha: la línea cotizada de la obra (misma consulta y caché que DibujoVentana).
+  const lineaMadre = v.ventanaId ? undefined : fv?.hetmoVentanaMadreId;
+  const { data: proyecto } = useQuery({ queryKey: ['proyectoDetail', proyectoId], queryFn: () => getProyectoById(proyectoId), enabled: !ficha.dibujo && (!!v.ventanaId || lineaMadre != null), staleTime: 1000 * 60 * 5 });
+  const descripcion = describirVentana(ficha.dibujo ?? ventanaDeProyecto(proyecto, v.ventanaId, lineaMadre));
+  const ancho = fv?.anchoMm ?? v.anchoFabricacionMm ?? v.anchoPlanoMm;
+  const alto = fv?.altoMm ?? v.altoFabricacionMm ?? v.altoPlanoMm;
+  const lugar = [v.torre ? `Torre ${v.torre}` : null, v.piso != null ? `Piso ${v.piso}` : null, v.nombreUnidad, v.ubicacion].filter(Boolean).join(' · ') || 'Sin posición';
   return (
-    <div className="space-y-2 @container">
-      <div className="grid grid-cols-1 @xl:grid-cols-[9.5rem_1fr] gap-3">
-        <DibujoVentana proyectoId={proyectoId} ventanaId={v.ventanaId} lineaHetmo={v.ventanaId ? undefined : fv?.hetmoVentanaMadreId} ventana={ficha.dibujo} className="h-32 @xl:h-full @xl:min-h-32" />
-        <dl className="grid grid-cols-2 @3xl:grid-cols-3 gap-x-4 gap-y-1.5 content-start">
-          <div className="col-span-2 @3xl:col-span-3 flex flex-wrap items-center gap-1.5">
+    <div className="space-y-2">
+      <div className="flex items-start gap-3">
+        <DibujoVentana proyectoId={proyectoId} ventanaId={v.ventanaId} lineaHetmo={lineaMadre} ventana={ficha.dibujo} className="w-24 h-24 sm:w-28 sm:h-28 shrink-0" />
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            {titulo && <h3 className="text-sm font-black font-mono text-slate-900">{titulo}</h3>}
             {v.separada ? (
               v.partes.map((p) => (
                 <Badge key={p.parte} size="sm" variant={VARIANTE_ESTADO_VENTANA[p.estado]}>
@@ -134,81 +143,19 @@ export const FichaVentana: React.FC<{ proyectoId: string; ficha: FichaVentanaObr
             )}
             {abiertos.length > 0 && <Badge size="sm" variant="warning">{abiertos.length} pendiente(s) abierto(s)</Badge>}
           </div>
-          <div className="col-span-2 @3xl:col-span-3">
-            <Dato k="Apertura">{fv?.descripcionCorta || v.sistema}</Dato>
-          </div>
-          <Dato k="Ubicación">
-            {[v.torre ? `Torre ${v.torre}` : null, v.piso != null ? `Piso ${v.piso}` : null, v.nombreUnidad, v.ubicacion].filter(Boolean).join(' · ') || 'Sin posición'}
-          </Dato>
-          <Dato k="Medida (mm)">
-            {fv ? `${formatoMm(fv.anchoMm)} × ${formatoMm(fv.altoMm)}` : v.anchoFabricacionMm != null ? `${formatoMm(v.anchoFabricacionMm)} × ${formatoMm(v.altoFabricacionMm)}` : `${formatoMm(v.anchoPlanoMm)} × ${formatoMm(v.altoPlanoMm)}`}
-          </Dato>
-          <Dato k="Documento">{ficha.documento ? `${ficha.documento.nombreMostrado} · pos ${fv?.orden}` : 'Sin vincular'}</Dato>
-          <div className="col-span-2 @3xl:col-span-3">
-            <Dato k={`Vidrios (${ficha.vidrios.reduce((n, g) => n + Number(g.UDS || 1), 0)})`}>
-              {ficha.vidrios.length === 0
-                ? ficha.hetmoError ?? 'Sin vidrios en la línea.'
-                : ficha.vidrios.map((g) => `${formatoMm(g.ANCHO)} × ${formatoMm(g.ALTO)} · ${g.codigo_articulo}${Number(g.UDS) > 1 ? ` · ${g.UDS} un` : ''}`).join('  |  ')}
-            </Dato>
-          </div>
-        </dl>
-      </div>
-
-      {/* Lo técnico (marcos, hojas y materiales) va aparte: se abre solo si hace falta. */}
-      <div className="rounded-xl border border-slate-200">
-        <BotonColapsar abierto={tecnicoAbierto} onClick={() => setTecnicoAbierto((x) => !x)} className="w-full px-3 py-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Marcos, hojas y materiales ({ficha.materiales.length})</span>
-        </BotonColapsar>
-        {tecnicoAbierto && (
-          <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-3 text-xs px-3 pb-3">
-            <div className="rounded-lg border border-slate-200 p-2.5 space-y-1 max-h-52 overflow-y-auto">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Marcos y hojas</p>
-              {ficha.cuadros.length === 0 ? (
-                <p className="text-slate-500">{fv ? 'El lote aún no trae los cuadros (se optimiza después).' : 'Sin documento de fabricación.'}</p>
-              ) : (
-                ficha.cuadros.map((c) => (
-                  <div key={c.id}>
-                    <p className="font-mono text-slate-700">
-                      {nombreCuadro(c)} · {formatoMm(c.anchoMm)} × {formatoMm(c.altoMm)}
-                    </p>
-                    {c.piezas.map((p) => (
-                      <p key={p.id} className="pl-3 text-[11px] text-slate-500 truncate" title={etiquetaPieza(p, true)}>
-                        {etiquetaPieza(p)}
-                      </p>
-                    ))}
-                  </div>
-                ))
-              )}
-              {ficha.piezasSueltas.length > 0 && (
-                <div>
-                  <p className="font-mono text-slate-700">Piezas sueltas</p>
-                  {ficha.piezasSueltas.map((p) => (
-                    <p key={p.id} className="pl-3 text-[11px] text-slate-500 truncate" title={etiquetaPieza(p, true)}>
-                      {etiquetaPieza(p)}
-                    </p>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="rounded-lg border border-slate-200 p-2.5 space-y-1 max-h-52 overflow-y-auto">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Materiales ({ficha.materiales.length})</p>
-              {ficha.materiales.length === 0 ? (
-                <p className="text-slate-500">{ficha.hetmoError ?? 'Sin materiales en la línea.'}</p>
-              ) : (
-                ficha.materiales.map((m, i) => (
-                  <p key={`${m.codigo_articulo}-${i}`} className="text-slate-700 truncate" title={`${m.descripcion_articulo} (${m.codigo_articulo})`}>
-                    {m.descripcion_articulo} <span className="text-slate-500 font-mono">{m.codigo_articulo}</span>
-                  </p>
-                ))
-              )}
-            </div>
-          </div>
-        )}
+          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 items-baseline">
+            <Dato k="Ubicación">{lugar}</Dato>
+            <Dato k="Dimensiones">{ancho != null && alto != null ? `${formatoMm(ancho)} × ${formatoMm(alto)} mm` : '—'}</Dato>
+            {descripcion?.composicion && <Dato k="Composición">{descripcion.composicion}</Dato>}
+            <Dato k="Apertura">{descripcion?.apertura ?? '—'}</Dato>
+            {ficha.vidrios.length > 0 && <Dato k="Vidrios">{describirVidrios(ficha.vidrios)}</Dato>}
+          </dl>
+        </div>
       </div>
 
       {conHistorial && (
         <div className="rounded-xl border border-slate-200">
-          <BotonColapsar abierto={historialAbierto} onClick={() => setHistorialAbierto((x) => !x)} className="w-full px-3 py-2">
+          <BotonColapsar abierto={historialAbierto} onClick={() => setHistorialAbierto((x) => !x)} className="w-full px-3 py-2 pointer-coarse:min-h-11">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Historial e instalación certificada</span>
           </BotonColapsar>
           {historialAbierto && <HistorialVentana ventanaId={v.id} />}

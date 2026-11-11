@@ -53,9 +53,9 @@ const CLAVE_ULTIMO = 'mtw-pendiente-ultimo';
 function leerUltimo(): { tipo: TipoElementoPendiente; motivo: MotivoPendiente } {
   try {
     const g = JSON.parse(localStorage.getItem(CLAVE_ULTIMO) ?? 'null') as { tipo?: TipoElementoPendiente; motivo?: MotivoPendiente } | null;
-    return { tipo: g?.tipo && TIPOS_PENDIENTE.includes(g.tipo) ? g.tipo : 'VIDRIO', motivo: g?.motivo && MOTIVOS_PENDIENTE.includes(g.motivo) ? g.motivo : 'FALLA' };
+    return { tipo: g?.tipo && TIPOS_PENDIENTE.includes(g.tipo) ? g.tipo : 'VIDRIO', motivo: g?.motivo && MOTIVOS_PENDIENTE.includes(g.motivo) ? g.motivo : 'DANO_OBRA' };
   } catch {
-    return { tipo: 'VIDRIO', motivo: 'FALLA' };
+    return { tipo: 'VIDRIO', motivo: 'DANO_OBRA' };
   }
 }
 function guardarUltimo(tipo: TipoElementoPendiente, motivo: MotivoPendiente) {

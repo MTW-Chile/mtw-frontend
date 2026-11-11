@@ -32,7 +32,8 @@ export const ETIQUETA_TIPO: Record<TipoElementoPendiente, string> = {
 };
 export const ETIQUETA_MOTIVO: Record<MotivoPendiente, string> = {
   FALLA: 'Falla',
-  DANO_OBRA: 'Daño por obra',
+  DANO_OBRA: 'Daño en obra',
+  ERROR_MEDIDAS: 'Error de medidas',
   DANO_INSTALACION: 'Daño por instalación',
   NO_RECEPCION: 'No recepción',
   NO_FABRICADO: 'No fabricado',
@@ -44,7 +45,8 @@ export const DESTINOS_PENDIENTE: DestinoPendiente[] = ['TECNICA', 'FABRICA'];
 export const ORIGENES_PENDIENTE: OrigenPendiente[] = ['OBRA', 'FABRICACION'];
 // Lo que se puede ingresar, en el orden en que se ofrece. OTRO queda solo para los pendientes antiguos.
 export const TIPOS_PENDIENTE: TipoElementoPendiente[] = ['MARCO', 'HOJA', 'VIDRIO', 'MATERIAL', 'VENTANA'];
-export const MOTIVOS_PENDIENTE: MotivoPendiente[] = ['FALLA', 'DANO_OBRA', 'DANO_INSTALACION', 'CAMBIO_CLIENTE', 'NO_RECEPCION', 'NO_FABRICADO'];
+// Motivos con los que se ingresa hoy. Los demás quedan solo para los pendientes antiguos.
+export const MOTIVOS_PENDIENTE: MotivoPendiente[] = ['DANO_OBRA', 'NO_RECEPCION', 'ERROR_MEDIDAS'];
 
 // ---- Reglas (espejo de mtw-api/src/pendientes-reglas.ts; el servidor es quien manda) ----
 
