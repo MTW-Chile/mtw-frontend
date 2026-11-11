@@ -1,3 +1,4 @@
+import type { AmbitoCarpeta, Proyecto } from '../../../../types';
 // Utilidades puras de los adjuntos de pendientes (sin red ni DOM, para poder probarlas).
 
 export const TAMANO_MAXIMO_ADJUNTO = 20 * 1024 * 1024;
@@ -86,4 +87,14 @@ export const TAMANO_MAXIMO_FOTO_ORIGINAL = 80 * 1024 * 1024;
 export function problemaAlElegir(nombre: string, mime: string, tamano: number): string | null {
   if (esImagenReducible(mime) && tamano > 0 && tamano <= TAMANO_MAXIMO_FOTO_ORIGINAL) return null;
   return problemaDeArchivo(nombre, mime, tamano);
+}
+
+/** La carpeta de OneDrive de la obra en ese ámbito (comercial o producción), tal como viene en el proyecto. */
+export function carpetaDeObra(
+  p: Pick<Proyecto, 'onedriveCarpetaId' | 'onedriveCarpetaNombre' | 'onedriveCarpetaProduccionId' | 'onedriveCarpetaProduccionNombre'>,
+  ambito: AmbitoCarpeta
+): { id: string | null; nombre: string | null } {
+  return ambito === 'produccion'
+    ? { id: p.onedriveCarpetaProduccionId ?? null, nombre: p.onedriveCarpetaProduccionNombre ?? null }
+    : { id: p.onedriveCarpetaId ?? null, nombre: p.onedriveCarpetaNombre ?? null };
 }

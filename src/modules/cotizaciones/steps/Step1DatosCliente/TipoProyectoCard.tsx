@@ -8,7 +8,7 @@ import type { Proyecto } from '../../../../types';
 import { Select } from '../../../../components/ui/Select';
 
 /**
- * Tipo del proyecto (Retail, Obra...): define sus plantillas de textos por
+ * Tipo del proyecto (Edificio, Condominio, Retail): define sus plantillas de textos por
  * defecto (Configuración › Comercial). Se guarda al elegirlo.
  */
 export const TipoProyectoCard: React.FC<{ proyecto: Proyecto; congelado: boolean }> = ({ proyecto, congelado }) => {

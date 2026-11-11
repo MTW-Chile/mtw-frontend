@@ -22,6 +22,9 @@ export interface NuevoClienteForm {
   rut: string;
   giro: string;
   direccion: string;
+  region: string;
+  comuna: string;
+  // La ciudad (el campo se llama así en el maestro de clientes).
   localidad: string;
   contacto: string;
   telefono: string;
@@ -33,6 +36,8 @@ const initialNuevoCliente: NuevoClienteForm = {
   rut: '',
   giro: '',
   direccion: '',
+  region: '',
+  comuna: '',
   localidad: '',
   contacto: '',
   telefono: '',
@@ -230,6 +235,8 @@ export function useCotizadorWorkspace(proyectoId: string, pasoInicial: 1 | 2 | 3
         rut: nuevoCliente.rut || null,
         giro: nuevoCliente.giro || null,
         direccion: nuevoCliente.direccion || null,
+        region: nuevoCliente.region || null,
+        comuna: nuevoCliente.comuna || null,
         localidad: nuevoCliente.localidad || null,
         contacto: nuevoCliente.contacto || null,
         telefono: nuevoCliente.telefono || null,

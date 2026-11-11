@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { direccionDeObra } from '../../lib/chile';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, Truck } from 'lucide-react';
 import { getObrasDespachos, getProyectoById } from '../../api/client';
@@ -101,7 +102,7 @@ export const DespachosPage: React.FC = () => {
                   </div>
                   <p className="text-xs text-slate-500 truncate">
                     {o.clienteNombreRaw}
-                    {o.clienteDireccionRaw ? ` · ${o.clienteDireccionRaw}` : ''}
+                    {direccionDeObra(o) ? ` · ${direccionDeObra(o)}` : ''}
                   </p>
                   <div className="flex items-center gap-2">
                     <span className="flex-1 max-w-xs h-1.5 rounded-full bg-slate-100 overflow-hidden">

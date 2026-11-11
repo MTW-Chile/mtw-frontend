@@ -149,7 +149,11 @@ export interface Cliente {
   nombre: string;
   razonSocial?: string | null;
   giro?: string | null;
+  // Dirección en el formato del SII: dirección, comuna y ciudad. `localidad` ES la
+  // ciudad (se llama así desde antes de separar la comuna). Región y comuna salen de lib/chile.ts.
   direccion?: string | null;
+  region?: string | null;
+  comuna?: string | null;
   localidad?: string | null;
   telefono?: string | null;
   email?: string | null;
@@ -182,6 +186,7 @@ export interface Proveedor {
   giroComercial: string | null;
   direccion: string | null;
   comuna: string | null;
+  ciudad: string | null;
   region: string | null;
   pais: string | null;
   telefono: string | null;
@@ -448,6 +453,8 @@ export interface ConfiguracionCobroObra extends ConfiguracionCobro {
 
 // Cómo se cubican las obras de un tipo: por torre/piso/departamento o por casa/piso/recinto.
 export type ModoCubicacion = 'EDIFICIO' | 'CASA';
+// En cuál de las dos carpetas raíz comerciales de OneDrive están las carpetas de las obras del tipo.
+export type RaizComercialOneDrive = 'OBRAS_MAYORES' | 'RETAIL';
 
 export interface TipoProyecto {
   id: string;
@@ -457,6 +464,7 @@ export interface TipoProyecto {
   activo: boolean;
   porDefecto: boolean;
   modoCubicacion: ModoCubicacion;
+  raizOneDrive: RaizComercialOneDrive;
   _count?: { proyectos: number };
 }
 
@@ -631,7 +639,7 @@ export interface ProyectoVersion {
 
 export interface Proyecto {
   id: string;
-  // Retail, Obra... (Configuracion > Comercial).
+  // Edificio, Condominio, Retail (Configuracion > Comercial).
   tipoProyectoId?: string;
   tipoProyecto?: Pick<TipoProyecto, 'id' | 'codigo' | 'nombre'>;
   // Llave de HETMO; null = proyecto manual (nunca se sincroniza).
@@ -643,12 +651,22 @@ export interface Proyecto {
   clienteRutRaw: string | null;
   clienteDireccionRaw: string | null;
   clienteLocalidadRaw: string | null;
+  // Dirección de la OBRA (donde se instala y se despacha), formato SII; null = sin indicar.
+  obraDireccion?: string | null;
+  obraRegion?: string | null;
+  obraComuna?: string | null;
+  obraCiudad?: string | null;
   clienteId: string | null;
   cliente?: Cliente | null;
-  // Carpeta de OneDrive de la obra (adjuntos de pendientes); null = sin vincular.
+  // Carpeta COMERCIAL de OneDrive de la obra (documentos comerciales, adjuntos de
+  // pendientes, fotos de instalación); null = sin vincular.
   onedriveCarpetaId?: string | null;
   onedriveCarpetaNombre?: string | null;
   onedriveCarpetaUrl?: string | null;
+  // Carpeta de PRODUCCIÓN de la obra: la que usa Taller › Fabricación.
+  onedriveCarpetaProduccionId?: string | null;
+  onedriveCarpetaProduccionNombre?: string | null;
+  onedriveCarpetaProduccionUrl?: string | null;
   // Version (ProyectoVersion.hetmoId) elegida para cotizar. null = nunca
   // se eligio y hay que caer de vuelta a la de versionNumero mas alto.
   versionActivaHetmoId: number | null;
@@ -1787,6 +1805,11 @@ export interface AdjuntoPendiente {
   puedeQuitar?: boolean;
 }
 
+// Cada obra tiene dos carpetas en OneDrive: la comercial (Comercial › Obras en
+// curso; también recibe los adjuntos de pendientes y las fotos de instalación) y
+// la de producción (Taller › Fabricación).
+export type AmbitoCarpeta = 'comercial' | 'produccion';
+
 export interface CarpetaOneDrive {
   id: string;
   nombre: string | null;
@@ -1822,6 +1845,8 @@ export interface OneDriveObra {
   // La conexion vencio: se siguen viendo los adjuntos ya subidos pero no se puede subir
   // hasta que un administrador reconecte la cuenta (Configuracion > OneDrive).
   requiereReconexion?: boolean;
+  // Falta indicar la carpeta de producción en Configuración › OneDrive (solo ámbito producción).
+  sinRaiz?: boolean;
   carpeta: CarpetaOneDrive | null;
   sugerencias: CarpetaOneDriveSugerida[];
   nombreSugeridoNueva?: string;
@@ -1876,15 +1901,20 @@ export interface OneDriveEstado {
   conectada: boolean;
   estado: 'CONECTADA' | 'REQUIERE_RECONEXION' | null;
   cuenta: { email: string; nombre: string | null } | null;
+  // Carpetas comerciales de las obras mayores ('' = raíz del OneDrive).
   carpetaRaiz: string;
+  // Carpetas comerciales de las obras retail ('' = las mismas de obras mayores).
+  carpetaRaizRetail: string;
+  // Carpetas de producción, para Fabricación ('' = sin configurar).
+  carpetaRaizProduccion: string;
   conectadoPorEmail: string | null;
   conectadoEn: string | null;
   ultimoError: string | null;
   redirectUri: string | null;
   puedeAdministrar: boolean;
-  // Solo con ?probar=1
+  // Solo con ?probar=1: cada carpeta raíz y si se pudo leer (ruta null = no tiene una propia).
   conexionOk?: boolean;
-  raizEnOneDrive?: { id: string; nombre: string };
+  raices?: { raiz: RaizComercialOneDrive | 'PRODUCCION'; ruta: string | null; existe: boolean; nombre: string | null }[];
   error?: string;
 }
 
@@ -2387,6 +2417,8 @@ export interface ObraInstalacion {
   clienteNombreRaw: string;
   clienteDireccionRaw: string | null;
   clienteLocalidadRaw: string | null;
+  obraDireccion: string | null;
+  obraComuna: string | null;
   origen: Proyecto['origen'];
   tipoProyecto: { nombre: string; modoCubicacion: ModoCubicacion };
   ventanas: number;
@@ -2406,6 +2438,8 @@ export interface ObraDespachos {
   clienteNombreRaw: string;
   clienteDireccionRaw: string | null;
   clienteLocalidadRaw: string | null;
+  obraDireccion: string | null;
+  obraComuna: string | null;
   origen: Proyecto['origen'];
   /** Ventanas con posicion en la cubicacion. */
   ventanas: number;

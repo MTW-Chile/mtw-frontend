@@ -6,6 +6,8 @@ import { Button } from '../../../../components/ui/Button';
 import { Input } from '../../../../components/ui/Input';
 import { Buscador } from '../../../../components/ui/Buscador';
 import { BotonFila } from '../../../../components/ui/Lista';
+import { CamposDireccion, aValorDireccion } from '../../../../components/ui/CamposDireccion';
+import { lineaDireccion } from '../../../../lib/chile';
 
 interface ClienteManagerProps {
   proyecto: Proyecto;
@@ -97,9 +99,9 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
               <strong className="text-slate-800">{currentClient.contacto || 'No especificado'}</strong>
             </div>
             <div>
-              <span className="text-slate-500 block">Dirección Fiscal / Comuna:</span>
+              <span className="text-slate-500 block">Dirección fiscal (dirección, comuna, ciudad):</span>
               <strong className="text-slate-800">
-                {currentClient.direccion || 'No especificada'} {currentClient.localidad ? `(${currentClient.localidad})` : ''}
+                {lineaDireccion({ direccion: currentClient.direccion, comuna: currentClient.comuna, ciudad: currentClient.localidad }) || 'No especificada'}
               </strong>
             </div>
             <div>
@@ -173,7 +175,7 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
                   <div>
                     <div className="font-bold text-xs text-slate-900 group-hover:text-brand-600 transition-colors">{c.nombre}</div>
                     <div className="text-[11px] text-slate-500 font-mono">
-                      {c.rut || 'Sin RUT'} {c.localidad ? `· ${c.localidad}` : ''}
+                      {c.rut || 'Sin RUT'} {c.comuna || c.localidad ? `· ${c.comuna || c.localidad}` : ''}
                     </div>
                   </div>
                   <span className="px-3 py-1 rounded-lg bg-slate-100 group-hover:bg-brand-600 group-hover:text-white text-slate-700 text-xs font-semibold transition-all">Asignar</span>
@@ -206,9 +208,20 @@ export const ClienteManager: React.FC<ClienteManagerProps> = ({
 
             <Input label="Contacto Principal" type="text" value={nuevoCliente.contacto} onChange={(e) => onUpdateNuevoCliente('contacto', e.target.value)} placeholder="Ej: Marcelo Morales" />
 
-            <Input label="Dirección Fiscal" type="text" value={nuevoCliente.direccion} onChange={(e) => onUpdateNuevoCliente('direccion', e.target.value)} placeholder="Ej: Av. Vitacura 5000, Of 301" />
-
-            <Input label="Comuna / Ciudad" type="text" value={nuevoCliente.localidad} onChange={(e) => onUpdateNuevoCliente('localidad', e.target.value)} placeholder="Ej: Las Condes, Santiago" />
+            {/* Formato del SII: dirección, comuna y ciudad (`localidad` es la ciudad). */}
+            <div className="sm:col-span-2">
+              <CamposDireccion
+                etiquetaDireccion="Dirección Fiscal"
+                placeholderDireccion="Ej: Av. Vitacura 5000, Of 301"
+                valor={aValorDireccion({ direccion: nuevoCliente.direccion, region: nuevoCliente.region, comuna: nuevoCliente.comuna, ciudad: nuevoCliente.localidad })}
+                onChange={(v) => {
+                  onUpdateNuevoCliente('direccion', v.direccion);
+                  onUpdateNuevoCliente('region', v.region);
+                  onUpdateNuevoCliente('comuna', v.comuna);
+                  onUpdateNuevoCliente('localidad', v.ciudad);
+                }}
+              />
+            </div>
 
             <Input label="Teléfono" type="text" value={nuevoCliente.telefono} onChange={(e) => onUpdateNuevoCliente('telefono', e.target.value)} placeholder="+56 9 9876 5432" />
 

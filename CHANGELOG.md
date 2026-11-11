@@ -9,6 +9,22 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - **Parche** (2.0.0 → 2.0.1): ajustes y mejoras acotadas, cada despliegue.
 - **Corrección urgente** sobre un parche (2.0.4 → 2.0.4.1; en package.json, 2.0.4-1): la decide Alfredo.
 
+## Sin publicar — direcciones en formato SII y tipos de proyecto
+
+- **Direcciones como las pide el SII** (facturas, guías de despacho, OC): dirección, **comuna** y **ciudad** por separado, con **Región** como desplegable que deja en «Comuna» solo las de esa región (16 regiones, 346 comunas). Aplica a Clientes (maestro y cliente nuevo del paso 1), Proveedores, la dirección de la obra y la dirección de entrega de los despachos. Lo que ya estaba escrito y coincide con una comuna se ordenó solo («Las Condes, Santiago» → comuna Las Condes, ciudad Santiago); lo demás queda como «(anterior)» hasta que se corrija.
+- **Dirección de la obra** en el paso 1 de la cotización (Identificación) y en la Información General de la obra (Comercial › Obras en curso), además de al crear una obra manual: es a dónde van los despachos y sale en su guía; aparece también en el PDF del presupuesto («Ubicación») y en las listas de Despachos e Instaladores. Sin dirección de obra, el despacho parte de la del cliente, como antes.
+- **Guía de despacho (Bsale)**: ahora lleva la comuna del cliente y la comuna y ciudad de la obra.
+- **Tipos de proyecto**: «Obra» pasa a llamarse **Edificio**. Edificio y Condominio son obras mayores; Retail es retail (define la carpeta de OneDrive). Condominio y Retail se siguen cubicando como casa.
+
+## Sin publicar — OneDrive: carpeta comercial y carpeta de producción
+
+Cada obra pasa a tener **dos carpetas** en OneDrive: la comercial (la de siempre) y la de producción, que es la que usa Fabricación.
+- **Configuración › OneDrive** pide tres carpetas: la que contiene las carpetas comerciales de **obras mayores** (el ajuste que ya existía), la de las comerciales de **obras retail** (están en otra raíz; vacío = la misma de obras mayores) y la **carpeta de producción** (exclusiva de Fabricación, igual para obras mayores y retail). «Probar conexión» revisa las tres.
+- **Configuración › Tipos de proyecto**: columna «OneDrive» para decir si las obras del tipo están en la carpeta de obras mayores (Edificio, Condominio) o en la de retail (Retail).
+- **Taller › Fabricación**: la lista muestra la carpeta de producción de cada obra (vincular, cambiar, quitar) y la Información General de la obra abre «Documentos de producción» sobre esa carpeta. Comercial › Obras en curso sigue con la carpeta comercial.
+- Los adjuntos de pendientes (fotos, órdenes de compra) y las fotos de instalación van a la carpeta comercial.
+- Permiso nuevo **Editar documentos de producción** (roles Producción / Taller y Departamento Técnico / Comercial): vincular la carpeta de producción, crear carpetas y subir archivos en ella.
+
 ## Sin publicar — flujo de los pendientes de obras legacy
 
 Los pendientes de las obras manuales (sus compras no se hicieron en el ERP) siguen pasos fijos por área, sin etapas configurables ni OC del sistema.

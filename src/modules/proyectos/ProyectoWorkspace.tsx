@@ -172,7 +172,7 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
             <div className="p-12 text-center text-slate-500 text-xs">Proyecto no encontrado.</div>
           ) : (
             <>
-              {seccion === 'general' && <InformacionGeneralTab proyecto={proyecto} activeVersion={activeVersion} />}
+              {seccion === 'general' && <InformacionGeneralTab proyecto={proyecto} activeVersion={activeVersion} modo={modo} />}
               {seccion === 'cubicacion' && <CubicacionTab proyecto={proyecto} activeVersion={activeVersion} />}
               {seccion === 'requisiciones' && <RequisicionesSection proyecto={proyecto} activeVersion={activeVersion} />}
               {seccion === 'abastecimiento' && <AbastecimientoObraTab proyectoId={proyectoId} proyectoLabel={proyecto.obra} />}

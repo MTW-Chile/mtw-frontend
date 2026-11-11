@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Cloud, Unplug } from 'lucide-react';
-import { desconectarOneDrive, getOneDriveEstado, guardarCarpetaRaizOneDrive, iniciarConexionOneDrive } from '../../api/client';
+import { desconectarOneDrive, getOneDriveEstado, guardarCarpetasRaizOneDrive, iniciarConexionOneDrive, type CarpetasRaizOneDrive } from '../../api/client';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -14,6 +14,31 @@ import { extraerErrorParaToast, mostrarToast } from '../../lib/toast';
 import { formatoFechaHora } from '../proyectos/fabricacion/utils';
 
 const VARIABLES = ['ONEDRIVE_CLIENT_ID', 'ONEDRIVE_TENANT_ID', 'ONEDRIVE_CLIENT_SECRET', 'ONEDRIVE_REDIRECT_URI', 'ONEDRIVE_TOKEN_KEY'];
+
+// Las tres carpetas del OneDrive que contienen carpetas de obra.
+const CARPETAS_RAIZ: { campo: keyof CarpetasRaizOneDrive; raiz: 'OBRAS_MAYORES' | 'RETAIL' | 'PRODUCCION'; label: string; placeholder: string; ayuda: string }[] = [
+  {
+    campo: 'carpetaRaiz',
+    raiz: 'OBRAS_MAYORES',
+    label: 'Carpeta que contiene las carpetas comerciales de obras mayores',
+    placeholder: 'Obras Mayores (vacío = raíz del OneDrive)',
+    ayuda: 'Ahí está la carpeta comercial de cada obra mayor. Para una subcarpeta usa la ruta completa, ej. Obras Adjudicadas/Obras Mayores.',
+  },
+  {
+    campo: 'carpetaRaizRetail',
+    raiz: 'RETAIL',
+    label: 'Carpeta que contiene las carpetas comerciales de obras retail',
+    placeholder: 'Vacío = la misma de obras mayores',
+    ayuda: 'Las obras retail están en otra carpeta. Qué tipo de proyecto es retail se define en Configuración › Tipos de proyecto.',
+  },
+  {
+    campo: 'carpetaRaizProduccion',
+    raiz: 'PRODUCCION',
+    label: 'Carpeta de producción',
+    placeholder: 'Producción',
+    ayuda: 'Contiene la carpeta de producción de cada obra. La usa solo Fabricación y es la misma para obras mayores y retail.',
+  },
+];
 
 const avisoError = (e: unknown) => {
   const { mensaje, detalle } = extraerErrorParaToast(e);
@@ -29,7 +54,8 @@ export const OneDrivePanel: React.FC = () => {
   const { confirmar } = useConfirmar();
   const [resultado, setResultado] = useUrlParam('onedrive');
   const [motivo, setMotivo] = useUrlParam('motivo');
-  const [raiz, setRaiz] = useState<string | null>(null);
+  // Lo que se está editando y aún no se guarda (por campo).
+  const [edicion, setEdicion] = useState<Partial<CarpetasRaizOneDrive>>({});
   const avisado = useRef(false);
 
   const { data: estado, isLoading, isError, refetch } = useQuery({ queryKey: ['onedriveEstado'], queryFn: () => getOneDriveEstado() });
@@ -59,12 +85,14 @@ export const OneDrivePanel: React.FC = () => {
     },
     onError: avisoError,
   });
-  const guardarRaiz = useMutation({
-    mutationFn: (valor: string) => guardarCarpetaRaizOneDrive(valor),
+  const guardarRaices = useMutation({
+    mutationFn: (carpetas: Partial<CarpetasRaizOneDrive>) => guardarCarpetasRaizOneDrive(carpetas),
     onSuccess: (r) => {
-      setRaiz(null);
+      setEdicion({});
       refrescar();
-      mostrarToast(r.existe ? 'Carpeta raíz guardada.' : 'Guardada, pero esa carpeta no existe en el OneDrive de la cuenta: créala o corrige el nombre.', r.existe ? { tipo: 'info' } : undefined);
+      const faltan = CARPETAS_RAIZ.filter((c) => r.noExisten.includes(c.raiz)).map((c) => `"${r[c.campo]}"`);
+      if (faltan.length) mostrarToast(`Guardado, pero no existe en el OneDrive de la cuenta: ${faltan.join(', ')}. Créala o corrige el nombre.`);
+      else mostrarToast('Carpetas guardadas.', { tipo: 'info' });
     },
     onError: avisoError,
   });
@@ -78,14 +106,14 @@ export const OneDrivePanel: React.FC = () => {
   if (isError || !estado) return <ErrorCarga que="el estado de OneDrive" onReintentar={refetch} />;
 
   const admin = estado.puedeAdministrar;
-  const raizActual = raiz ?? estado.carpetaRaiz;
+  const hayCambios = CARPETAS_RAIZ.some((c) => edicion[c.campo] !== undefined && edicion[c.campo] !== estado[c.campo]);
   const resultadoPrueba = prueba.data;
 
   return (
     <Seccion
       icono={Cloud}
       titulo="OneDrive"
-      descripcion="La cuenta de OneDrive de la empresa donde se guardan las fotos y documentos de los pendientes de obra. Se conecta una sola vez; nadie más necesita iniciar sesión en OneDrive. Cada obra se vincula a su carpeta desde su Control de pendientes."
+      descripcion="La cuenta de OneDrive de la empresa donde se guardan los documentos de las obras y las fotos de pendientes e instalación. Se conecta una sola vez; nadie más necesita iniciar sesión en OneDrive. Cada obra se vincula a sus carpetas desde las listas de Obras en curso y de Fabricación."
     >
 
       {!estado.appConfigurada ? (
@@ -166,30 +194,36 @@ export const OneDrivePanel: React.FC = () => {
           )}
 
           <div className="space-y-2 border-t border-slate-100 pt-3">
-            <div className="flex flex-wrap items-end gap-2">
-              <div className="flex-1 min-w-[12rem]">
+            <p className="text-xs text-slate-600">
+              Cada obra tiene dos carpetas: la <b>comercial</b> (la ve Comercial; ahí van también las fotos de pendientes e instalación) y la de <b>producción</b> (la
+              ve Fabricación). Indica dónde está cada grupo dentro del OneDrive de la cuenta.
+            </p>
+            <div className="space-y-3">
+              {CARPETAS_RAIZ.map((c) => (
                 <Input
-                  label="Carpeta que contiene las carpetas de obra"
-                  value={raizActual}
-                  onChange={(e) => setRaiz(e.target.value)}
-                  placeholder="Obras (vacío = raíz del OneDrive)"
+                  key={c.campo}
+                  label={c.label}
+                  value={edicion[c.campo] ?? estado[c.campo]}
+                  onChange={(e) => setEdicion((p) => ({ ...p, [c.campo]: e.target.value }))}
+                  placeholder={c.placeholder}
+                  helperText={c.ayuda}
                   maxLength={200}
                 />
-              </div>
-              <Button size="sm" variant="primary" isLoading={guardarRaiz.isPending} disabled={raiz === null || raiz === estado.carpetaRaiz} onClick={() => guardarRaiz.mutate(raizActual)}>
-                Guardar
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="primary" isLoading={guardarRaices.isPending} disabled={!hayCambios} onClick={() => guardarRaices.mutate(edicion)}>
+                Guardar carpetas
               </Button>
-              <Button size="sm" variant="outline" isLoading={prueba.isFetching} disabled={estado.estado !== 'CONECTADA'} onClick={() => prueba.refetch().then(() => queryClient.invalidateQueries({ queryKey: ['onedriveEstado'], exact: true }))}>
+              <Button size="sm" variant="outline" isLoading={prueba.isFetching} disabled={estado.estado !== 'CONECTADA' || hayCambios} onClick={() => prueba.refetch().then(() => queryClient.invalidateQueries({ queryKey: ['onedriveEstado'], exact: true }))}>
                 Probar conexión
               </Button>
             </div>
-            <p className="text-[11px] text-slate-500">
-              Es la carpeta dentro del OneDrive de la cuenta donde están las carpetas de cada obra (ej. <span className="font-mono">Obras</span>). Para una subcarpeta
-              usa <span className="font-mono">Obras/2026</span>.
-            </p>
             {resultadoPrueba && !prueba.isFetching && (
               <Aviso tono={resultadoPrueba.conexionOk ? 'exito' : 'peligro'}>
-                {resultadoPrueba.conexionOk ? `Conexión correcta: se leyó la carpeta "${resultadoPrueba.raizEnOneDrive?.nombre}".` : resultadoPrueba.error || 'No se pudo conectar.'}
+                {resultadoPrueba.conexionOk
+                  ? `Conexión correcta: se leyó ${(resultadoPrueba.raices ?? []).filter((r) => r.existe).map((r) => `"${r.nombre}"`).join(', ')}.`
+                  : resultadoPrueba.error || 'No se pudo conectar.'}
               </Aviso>
             )}
           </div>

@@ -7,6 +7,8 @@ import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
 import { Aviso } from '../../../components/ui/Aviso';
 import { Input } from '../../../components/ui/Input';
+import { CamposDireccion, aValorDireccion } from '../../../components/ui/CamposDireccion';
+import { regionDeComuna } from '../../../lib/chile';
 import { OpcionesTarjeta } from '../../../components/ui/Campos';
 import { Cargando, ErrorCarga } from '../../../components/ui/Estados';
 import { useConfirmar } from '../../../components/ui/Confirmar';
@@ -64,7 +66,8 @@ export const DespachoDetalleModal: React.FC<Props> = ({ despachoId, proyectoId, 
   const [numeroGuia, setNumeroGuia] = useState('');
   const [fechaDespacho, setFechaDespacho] = useState(hoyIso());
   // Entrega editable al emitir (la guía electrónica la exige): null = sin tocar, se usa lo del despacho.
-  const [entrega, setEntrega] = useState<{ direccionEntrega: string; comunaEntrega: string; ciudadEntrega: string; destinatario: string } | null>(null);
+  // regionEntrega solo ordena las comunas del formulario; no se guarda (la guía lleva dirección, comuna y ciudad).
+  const [entrega, setEntrega] = useState<{ direccionEntrega: string; regionEntrega: string; comunaEntrega: string; ciudadEntrega: string; destinatario: string } | null>(null);
 
   const { data: d, isLoading, isError, refetch } = useQuery({ queryKey: ['despacho', despachoId], queryFn: () => getDespacho(despachoId) });
   const { data: bsale } = useQuery({ queryKey: ['bsaleEstado'], queryFn: getEstadoBsale, staleTime: 1000 * 60 * 10, enabled: puedeDespachar });
@@ -242,14 +245,18 @@ export const DespachoDetalleModal: React.FC<Props> = ({ despachoId, proyectoId, 
                 <div className="space-y-2">
                   <p className="text-[11px] text-slate-600">La guía electrónica necesita la dirección de entrega y los datos tributarios del cliente (RUT y razón social, en Clientes).</p>
                   {(() => {
-                    const e = entrega ?? { direccionEntrega: d.direccionEntrega ?? '', comunaEntrega: d.comunaEntrega ?? '', ciudadEntrega: d.ciudadEntrega ?? '', destinatario: d.destinatario ?? '' };
+                    const e = entrega ?? { direccionEntrega: d.direccionEntrega ?? '', regionEntrega: regionDeComuna(d.comunaEntrega) ?? '', comunaEntrega: d.comunaEntrega ?? '', ciudadEntrega: d.ciudadEntrega ?? '', destinatario: d.destinatario ?? '' };
                     const set = (campo: keyof typeof e, v: string) => setEntrega({ ...e, [campo]: v });
                     return (
-                      <div className="grid sm:grid-cols-2 gap-3">
-                        <Input label="Dirección de entrega" required value={e.direccionEntrega} onChange={(ev) => set('direccionEntrega', ev.target.value)} maxLength={300} error={e.direccionEntrega.trim() ? undefined : 'Obligatoria para la guía'} />
+                      <div className="space-y-3">
+                        <CamposDireccion
+                          etiquetaDireccion="Dirección de entrega"
+                          direccionRequerida
+                          ayudaDireccion={e.direccionEntrega.trim() ? undefined : 'Obligatoria para la guía.'}
+                          valor={aValorDireccion({ direccion: e.direccionEntrega, region: e.regionEntrega, comuna: e.comunaEntrega, ciudad: e.ciudadEntrega })}
+                          onChange={(v) => setEntrega({ ...e, direccionEntrega: v.direccion, regionEntrega: v.region, comunaEntrega: v.comuna, ciudadEntrega: v.ciudad })}
+                        />
                         <Input label="Destinatario" value={e.destinatario} onChange={(ev) => set('destinatario', ev.target.value)} maxLength={200} placeholder="Quién recibe en obra" />
-                        <Input label="Comuna" value={e.comunaEntrega} onChange={(ev) => set('comunaEntrega', ev.target.value)} maxLength={100} />
-                        <Input label="Ciudad" value={e.ciudadEntrega} onChange={(ev) => set('ciudadEntrega', ev.target.value)} maxLength={100} />
                       </div>
                     );
                   })()}

@@ -4,7 +4,7 @@ import { Plus, Save, X } from 'lucide-react';
 import { createTipoProyecto, getTiposProyecto, updateTipoProyecto } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
-import type { ModoCubicacion, TipoProyecto } from '../../../types';
+import type { ModoCubicacion, RaizComercialOneDrive, TipoProyecto } from '../../../types';
 import { IconButton } from '../../../components/ui/IconButton';
 import { Seccion } from '../../../components/ui/Seccion';
 import { InputCompacto, Interruptor, SelectCompacto } from '../../../components/ui/Campos';
@@ -13,7 +13,7 @@ import { avisarError } from '../catalogo/comun';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../../components/ui/Tabla';
 
 /**
- * Tipos de proyecto (Retail, Obra, ...): definen la plantilla de textos por
+ * Tipos de proyecto (Edificio, Condominio, Retail): definen la plantilla de textos por
  * defecto y diferencian reglas comerciales. Uno es el por defecto (lo recibe
  * todo proyecto nuevo de HETMO); no se borran, se desactivan.
  */
@@ -49,7 +49,7 @@ export const TiposProyectoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
   return (
     <Seccion
       titulo="Tipos de proyecto"
-      descripcion="Cada proyecto tiene un tipo; define sus plantillas de textos por defecto y cómo se cubica: por edificio (torres, pisos y departamentos) o por casa (casas, pisos y recintos). El tipo por defecto lo recibe todo proyecto nuevo de HETMO."
+      descripcion="Cada proyecto tiene un tipo; define sus plantillas de textos por defecto, cómo se cubica (por edificio: torres, pisos y departamentos; o por casa: casas, pisos y recintos) y en cuál carpeta de OneDrive está su carpeta comercial (obras mayores o retail; las carpetas se indican en Configuración › OneDrive). El tipo por defecto lo recibe todo proyecto nuevo de HETMO."
       sinRelleno
       acciones={
         puedeEditar && !nuevo ? (
@@ -65,10 +65,11 @@ export const TiposProyectoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
             <Th>Código</Th>
             <Th>Nombre</Th>
             <Th>Cubica como</Th>
+            <Th title="En cuál carpeta de OneDrive está la carpeta comercial de sus obras: obras mayores o retail">OneDrive</Th>
             <Th alinear="derecha">Proyectos</Th>
             <Th alinear="centro">Por defecto</Th>
             <Th alinear="centro">Activo</Th>
-            {puedeEditar && <Th alinear="derecha">Acciones</Th>}
+            {puedeEditar && <Th />}
           </Tr>
         </Thead>
         <Tbody>
@@ -86,7 +87,7 @@ export const TiposProyectoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
                   <option value="CASA">Casa</option>
                 </SelectCompacto>
               </Td>
-              <Td colSpan={3} />
+              <Td colSpan={4} />
               <Td alinear="derecha" className="whitespace-nowrap">
                 <Button size="sm" onClick={() => crear.mutate(nuevo)} disabled={!nuevo.codigo.trim() || !nuevo.nombre.trim()} isLoading={crear.isPending}>
                   Crear
@@ -102,7 +103,7 @@ export const TiposProyectoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
                 <Td className="font-mono text-[11px] text-slate-500">{t.codigo}</Td>
                 <Td>
                   {puedeEditar ? (
-                    <InputCompacto aria-label="Nombre" value={nombreDe(t)} onChange={(e) => setNombres((p) => ({ ...p, [t.id]: e.target.value }))} className="w-full" />
+                    <InputCompacto aria-label="Nombre" value={nombreDe(t)} onChange={(e) => setNombres((p) => ({ ...p, [t.id]: e.target.value }))} className="w-full min-w-[7rem]" />
                   ) : (
                     t.nombre
                   )}
@@ -121,6 +122,22 @@ export const TiposProyectoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
                     'Casa'
                   ) : (
                     'Edificio'
+                  )}
+                </Td>
+                <Td>
+                  {puedeEditar ? (
+                    <SelectCompacto
+                      aria-label={`Carpeta en OneDrive (${t.nombre})`}
+                      value={t.raizOneDrive}
+                      onChange={(e) => guardar.mutate({ id: t.id, payload: { raizOneDrive: e.target.value as RaizComercialOneDrive } })}
+                    >
+                      <option value="OBRAS_MAYORES">Mayores</option>
+                      <option value="RETAIL">Retail</option>
+                    </SelectCompacto>
+                  ) : t.raizOneDrive === 'RETAIL' ? (
+                    'Retail'
+                  ) : (
+                    'Obras mayores'
                   )}
                 </Td>
                 <Td numero>{t._count?.proyectos ?? 0}</Td>
@@ -143,16 +160,14 @@ export const TiposProyectoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
                 </Td>
                 {puedeEditar && (
                   <Td alinear="derecha">
-                    <Button
-                     size="sm"
-                     variant="ghost"
-                     leftIcon={<Save className="w-3.5 h-3.5" />}
-                     isLoading={guardando}
-                     onClick={() => guardar.mutate({ id: t.id, payload: { nombre: nombreDe(t).trim() } })}
-                     disabled={nombreDe(t) === t.nombre || !nombreDe(t).trim()}
-                   >
-                     Guardar
-                   </Button>
+                    <IconButton
+                      icono={Save}
+                      etiqueta="Guardar nombre"
+                      tono="marca"
+                      cargando={guardando}
+                      onClick={() => guardar.mutate({ id: t.id, payload: { nombre: nombreDe(t).trim() } })}
+                      disabled={nombreDe(t) === t.nombre || !nombreDe(t).trim()}
+                    />
                   </Td>
                 )}
               </Tr>

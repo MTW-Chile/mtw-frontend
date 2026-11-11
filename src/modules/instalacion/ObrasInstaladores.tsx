@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { direccionDeObra } from '../../lib/chile';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, HardHat } from 'lucide-react';
 import { getObrasInstalacion } from '../../api/client';
@@ -53,7 +54,7 @@ export const ObrasInstaladores: React.FC<{ seccion: SeccionInstaladores; onElegi
                   </div>
                   <p className="text-xs text-slate-500 truncate">
                     {o.clienteNombreRaw}
-                    {o.clienteDireccionRaw ? ` · ${o.clienteDireccionRaw}` : ''}
+                    {direccionDeObra(o) ? ` · ${direccionDeObra(o)}` : ''}
                   </p>
                   {seccion === 'recepcion' && (
                     <div className="flex flex-wrap items-center gap-1.5">

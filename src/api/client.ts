@@ -94,6 +94,7 @@ import type {
   ExclusionFaseCubicacion,
   CandidatoVinculoCubicacion,
   CarpetaOneDrive,
+  AmbitoCarpeta,
   CarpetaOneDriveSugerida,
   ItemOneDrive,
   ContenidoCarpetaOneDrive,
@@ -202,10 +203,22 @@ export async function crearObraManual(payload: {
   clienteId: string;
   // Número de proyecto elegido: queda como numeroPresupuesto y código PRJ-año-número.
   numeroPresupuesto: number;
+  // Dirección de la obra, formato SII.
   direccion?: string;
+  region?: string;
+  comuna?: string;
+  ciudad?: string;
 }): Promise<{ proyecto: Proyecto }> {
   const response = await apiClient.post<{ proyecto: Proyecto }>('/obras/manual', payload);
   return response.data;
+}
+
+/** Dirección de la obra (formato SII: dirección, comuna, ciudad; la región ordena las comunas). */
+export async function updateDireccionObra(
+  proyectoId: string,
+  payload: { obraDireccion: string | null; obraRegion: string | null; obraComuna: string | null; obraCiudad: string | null }
+): Promise<void> {
+  await apiClient.patch(`/proyectos/${proyectoId}/direccion-obra`, payload);
 }
 
 // Sin número: solo el siguiente libre. Con número: si está libre y quién lo usa si no.
@@ -878,6 +891,7 @@ export interface ProveedorFacturacionPayload {
   giroComercial?: string | null;
   direccion?: string | null;
   comuna?: string | null;
+  ciudad?: string | null;
   region?: string | null;
   pais?: string | null;
   telefono?: string | null;
@@ -1625,27 +1639,29 @@ export async function editarEtapaPendiente(
 
 // ---- Adjuntos de pendientes (OneDrive) ----
 
-export async function getOneDriveObra(proyectoId: string): Promise<OneDriveObra> {
-  const response = await apiClient.get<OneDriveObra>(`/proyectos/${proyectoId}/onedrive`);
+// `ambito`: cuál de las dos carpetas de la obra (ver AmbitoCarpeta). Sin indicarlo, la comercial.
+export async function getOneDriveObra(proyectoId: string, ambito: AmbitoCarpeta = 'comercial'): Promise<OneDriveObra> {
+  const response = await apiClient.get<OneDriveObra>(`/proyectos/${proyectoId}/onedrive`, { params: { ambito } });
   return response.data;
 }
 
-export async function buscarCarpetasOneDrive(proyectoId: string, q: string): Promise<CarpetaOneDriveSugerida[]> {
-  const response = await apiClient.get<CarpetaOneDriveSugerida[]>(`/proyectos/${proyectoId}/onedrive/carpetas`, { params: q ? { q } : undefined });
+export async function buscarCarpetasOneDrive(proyectoId: string, q: string, ambito: AmbitoCarpeta = 'comercial'): Promise<CarpetaOneDriveSugerida[]> {
+  const response = await apiClient.get<CarpetaOneDriveSugerida[]>(`/proyectos/${proyectoId}/onedrive/carpetas`, { params: { ambito, ...(q ? { q } : {}) } });
   return response.data;
 }
 
 // Vincula la obra a una carpeta existente ({ carpetaId }) o crea una nueva ({ crear: true, nombre }).
 export async function vincularCarpetaOneDrive(
   proyectoId: string,
-  payload: { carpetaId: string } | { crear: true; nombre?: string }
+  payload: { carpetaId: string } | { crear: true; nombre?: string },
+  ambito: AmbitoCarpeta = 'comercial'
 ): Promise<CarpetaOneDrive> {
-  const response = await apiClient.post<{ carpeta: CarpetaOneDrive }>(`/proyectos/${proyectoId}/onedrive/carpeta`, payload);
+  const response = await apiClient.post<{ carpeta: CarpetaOneDrive }>(`/proyectos/${proyectoId}/onedrive/carpeta`, { ...payload, ambito });
   return response.data.carpeta;
 }
 
-export async function desvincularCarpetaOneDrive(proyectoId: string): Promise<void> {
-  await apiClient.post(`/proyectos/${proyectoId}/onedrive/desvincular`);
+export async function desvincularCarpetaOneDrive(proyectoId: string, ambito: AmbitoCarpeta = 'comercial'): Promise<void> {
+  await apiClient.post(`/proyectos/${proyectoId}/onedrive/desvincular`, { ambito });
 }
 
 // Sube el archivo tal cual en el cuerpo (sin multipart); el nombre va en la URL.
@@ -1670,31 +1686,31 @@ export async function quitarAdjuntoPendiente(pendienteId: string, adjuntoId: str
 
 // ---- Documentos de la obra (navegar la carpeta de OneDrive ya vinculada) ----
 
-export async function getDocumentosObra(proyectoId: string, carpetaId?: string): Promise<ContenidoCarpetaOneDrive> {
+export async function getDocumentosObra(proyectoId: string, carpetaId: string | undefined, ambito: AmbitoCarpeta): Promise<ContenidoCarpetaOneDrive> {
   const response = await apiClient.get<ContenidoCarpetaOneDrive>(`/proyectos/${proyectoId}/onedrive/documentos`, {
-    params: carpetaId ? { carpetaId } : undefined,
+    params: { ambito, ...(carpetaId ? { carpetaId } : {}) },
   });
   return response.data;
 }
 
-export async function crearCarpetaDocumento(proyectoId: string, carpetaId: string, nombre: string): Promise<ItemOneDrive> {
-  const response = await apiClient.post<{ item: ItemOneDrive }>(`/proyectos/${proyectoId}/onedrive/documentos/carpeta`, { carpetaId, nombre });
+export async function crearCarpetaDocumento(proyectoId: string, carpetaId: string, nombre: string, ambito: AmbitoCarpeta): Promise<ItemOneDrive> {
+  const response = await apiClient.post<{ item: ItemOneDrive }>(`/proyectos/${proyectoId}/onedrive/documentos/carpeta`, { carpetaId, nombre, ambito });
   return response.data.item;
 }
 
 // Sube el archivo tal cual en el cuerpo (sin multipart); carpetaId y nombre van en la URL.
-export async function subirDocumentoObra(proyectoId: string, carpetaId: string, archivo: Blob, nombre: string, mime: string): Promise<ItemOneDrive> {
+export async function subirDocumentoObra(proyectoId: string, carpetaId: string, archivo: Blob, nombre: string, mime: string, ambito: AmbitoCarpeta): Promise<ItemOneDrive> {
   const response = await apiClient.post<{ item: ItemOneDrive }>(`/proyectos/${proyectoId}/onedrive/documentos/archivo`, archivo, {
-    params: { carpetaId, nombre },
+    params: { carpetaId, nombre, ambito },
     headers: { 'Content-Type': mime },
     timeout: 120000,
   });
   return response.data.item;
 }
 
-export async function getContenidoDocumentoObra(proyectoId: string, itemId: string, nombre: string): Promise<Blob> {
+export async function getContenidoDocumentoObra(proyectoId: string, itemId: string, nombre: string, ambito: AmbitoCarpeta): Promise<Blob> {
   const response = await apiClient.get<Blob>(`/proyectos/${proyectoId}/onedrive/documentos/${itemId}/contenido`, {
-    params: { nombre },
+    params: { nombre, ambito },
     responseType: 'blob',
     timeout: 120000,
   });
@@ -1714,8 +1730,11 @@ export async function iniciarConexionOneDrive(): Promise<string> {
   return response.data.url;
 }
 
-export async function guardarCarpetaRaizOneDrive(carpetaRaiz: string): Promise<{ carpetaRaiz: string; existe: boolean }> {
-  const response = await apiClient.patch<{ carpetaRaiz: string; existe: boolean }>('/onedrive/configuracion', { carpetaRaiz });
+export type CarpetasRaizOneDrive = Pick<OneDriveEstado, 'carpetaRaiz' | 'carpetaRaizRetail' | 'carpetaRaizProduccion'>;
+
+/** Guarda las carpetas raíz indicadas; `noExisten` trae las que no se encontraron en el OneDrive de la cuenta. */
+export async function guardarCarpetasRaizOneDrive(carpetas: Partial<CarpetasRaizOneDrive>): Promise<CarpetasRaizOneDrive & { noExisten: NonNullable<OneDriveEstado['raices']>[number]['raiz'][] }> {
+  const response = await apiClient.patch('/onedrive/configuracion', carpetas);
   return response.data;
 }
 
@@ -1992,14 +2011,14 @@ export async function getTiposProyecto(): Promise<TipoProyecto[]> {
   return response.data.data;
 }
 
-export async function createTipoProyecto(payload: { codigo: string; nombre: string; orden?: number; modoCubicacion?: TipoProyecto['modoCubicacion'] }): Promise<TipoProyecto> {
+export async function createTipoProyecto(payload: { codigo: string; nombre: string; orden?: number; modoCubicacion?: TipoProyecto['modoCubicacion']; raizOneDrive?: TipoProyecto['raizOneDrive'] }): Promise<TipoProyecto> {
   const response = await apiClient.post<{ data: TipoProyecto }>('/tipos-proyecto', payload);
   return response.data.data;
 }
 
 export async function updateTipoProyecto(
   id: string,
-  payload: Partial<Pick<TipoProyecto, 'nombre' | 'orden' | 'activo' | 'porDefecto' | 'modoCubicacion'>>
+  payload: Partial<Pick<TipoProyecto, 'nombre' | 'orden' | 'activo' | 'porDefecto' | 'modoCubicacion' | 'raizOneDrive'>>
 ): Promise<TipoProyecto> {
   const response = await apiClient.patch<{ data: TipoProyecto }>(`/tipos-proyecto/${id}`, payload);
   return response.data.data;

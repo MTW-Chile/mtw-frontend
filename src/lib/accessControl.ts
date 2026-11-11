@@ -31,7 +31,7 @@ export const CONFIG_SECCIONES: SeccionConfig[] = [
   { grupo: 'Empresa', id: 'empresa', label: 'Configuración de Empresa', icon: Building, permisos: ['config.empresa'], descripcion: 'Datos de la empresa y logo de los documentos.' },
   { grupo: 'Empresa', id: 'anuncio', label: 'Anuncio', icon: Megaphone, permisos: ['config.empresa'], descripcion: 'Mensaje para todos los usuarios en la página de inicio.' },
   { grupo: 'Comercial', id: 'parametros', label: 'Parámetros', icon: SlidersHorizontal, permisos: ['config.comercial'], descripcion: 'IVA, tasas, Hoja de Fijación por defecto, aprobación de adicionales y conciliación.' },
-  { grupo: 'Comercial', id: 'tipos-proyecto', label: 'Tipos de proyecto', icon: FolderKanban, permisos: ['config.comercial'], descripcion: 'Obra, retail y otros: definen las plantillas de textos que usa cada documento.' },
+  { grupo: 'Comercial', id: 'tipos-proyecto', label: 'Tipos de proyecto', icon: FolderKanban, permisos: ['config.comercial'], descripcion: 'Edificio, condominio y retail: definen las plantillas de textos que usa cada documento.' },
   { grupo: 'Comercial', id: 'plantillas-textos', label: 'Plantillas de textos', icon: FileText, permisos: ['config.comercial'], descripcion: 'Presentación y condiciones comerciales de presupuestos y adicionales.' },
   { grupo: 'Catálogo', id: 'tipos-producto', label: 'Tipos de producto', icon: Boxes, permisos: ['config.catalogo'], descripcion: 'Cómo se calcula, valoriza y compra cada material.' },
   { grupo: 'Catálogo', id: 'partidas', label: 'Partidas', icon: Tags, permisos: ['config.catalogo'], descripcion: 'Partidas de presupuesto y su correlativo de Clay.' },
