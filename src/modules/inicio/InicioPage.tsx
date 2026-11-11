@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, Calendar, History, Search, TrendingUp, X, LayoutDashboard } from 'lucide-react';
+import { ArrowRight, Calendar, History, TrendingUp, LayoutDashboard } from 'lucide-react';
 import { getAnuncio, getInicio } from '../../api/client';
 import { usePermisos } from '../../lib/permisos';
 import { useRecientes } from '../../lib/recientes';
@@ -14,8 +14,6 @@ import { AnuncioBanner } from './AnuncioBanner';
 import { Button } from '../../components/ui/Button';
 import { useIndicadoresChile } from '../../lib/useIndicadoresChile';
 import { formatNumber } from '../../lib/utils';
-import { IconButton } from '../../components/ui/IconButton';
-import { Input } from '../../components/ui/Input';
 import { clp, uf } from '../../lib/formato';
 import type { InicioData } from '../../types';
 
@@ -46,20 +44,14 @@ const DESCRIPCION_SECCION: Record<string, string> = {
 
 /**
  * Página de inicio: una página de trabajo armada por módulos, según el rol
- * (Configuración › Roles) y los permisos de quien entra. El buscador global
- * y el anuncio van siempre arriba; el resto lo decide GET /api/inicio. Lo que
+ * (Configuración › Roles) y los permisos de quien entra. El anuncio va
+ * siempre arriba; el resto lo decide GET /api/inicio. Lo que
  * espera a la persona (aprobaciones) vive en la campana del Header y en el
  * Centro de Notificaciones, no aquí.
  */
 export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
-  const [searchQuery, setSearchQuery] = useState('');
   const { data: anuncio } = useQuery({ queryKey: ['anuncio'], queryFn: getAnuncio, staleTime: 60_000 });
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['inicio'], queryFn: getInicio });
-
-  const handleSearchSubmit = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (searchQuery.trim()) onNavigate('cotizaciones', searchQuery.trim());
-  };
 
   const modulo = (id: string, d: InicioData) => {
     switch (id) {
@@ -80,26 +72,6 @@ export const InicioPage: React.FC<InicioPageProps> = ({ onNavigate }) => {
     <>
       {anuncio && <AnuncioBanner texto={anuncio.texto} urgencia={anuncio.urgencia} />}
       <div className="w-full min-w-0 p-3 sm:p-5 md:p-6 xl:p-8 space-y-5 sm:space-y-6 max-w-7xl mx-auto animate-fade-in">
-        <form onSubmit={handleSearchSubmit} className="relative w-full">
-          <Input
-            aria-label="Buscar en el ERP"
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar obra, cliente, RUT o presupuesto HETMO…"
-            leftIcon={<Search className="w-4 h-4" />}
-            className="pr-24! py-3! sm:py-3.5! rounded-2xl! bg-white! text-xs sm:text-sm shadow-xs"
-          />
-          {searchQuery ? (
-            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-              <IconButton icono={X} etiqueta="Limpiar búsqueda" onClick={() => setSearchQuery('')} />
-              <Button size="sm" type="submit">Buscar</Button>
-            </div>
-          ) : (
-            <span className="hidden sm:block absolute right-4 top-1/2 -translate-y-1/2 text-[11px] font-mono text-slate-500">Presiona Enter ↵</span>
-          )}
-        </form>
-
         {isLoading ? <Cargando /> : isError || !data ? <ErrorCarga que="la página de inicio" onReintentar={refetch} /> : data.modulos.map((id) => modulo(id, data))}
       </div>
     </>

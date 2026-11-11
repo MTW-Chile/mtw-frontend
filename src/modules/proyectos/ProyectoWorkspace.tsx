@@ -15,7 +15,7 @@ import { PendientesTab } from './pendientes/PendientesTab';
 import { AdicionalesTab } from './adicionales/AdicionalesTab';
 import { EstadosPagoTab } from './estados-pago/EstadosPagoTab';
 import { ClayCentroCostoEditor } from './ClayCentroCostoEditor';
-import { PERMISO_SECCION, seccionDisponible, seccionEfectiva, seccionesDelModo, type ModoWorkspace, type SeccionObra } from './seccionesObra';
+import { PERMISO_SECCION, esObraRetail, seccionDisponible, seccionEfectiva, seccionesDelModo, type ModoWorkspace, type SeccionObra } from './seccionesObra';
 import { usePermisos } from '../../lib/permisos';
 import { BarraPestanas } from '../../components/ui/PageHeader';
 import { useMigas } from '../../lib/migas';
@@ -27,13 +27,15 @@ import { useMigas } from '../../lib/migas';
 // movimientos de la bodega de la obra: se miran en el modulo Bodega.
 type Seccion = SeccionObra;
 
-// Catalogo de pestañas; cuales se ven en cada modo lo dice seccionesDelModo().
+// Catalogo de pestañas, en el orden en que se muestran (Fases antes que
+// Requisiciones: una requisicion nace de una fase); cuales se ven en cada modo
+// lo dice seccionesDelModo().
 const SECCIONES: { id: Seccion; label: string; hint: string; icon: React.ElementType }[] = [
   { id: 'general', label: 'Información General', hint: 'Métricas, control de presupuesto por partida y documentos', icon: LayoutDashboard },
   { id: 'cubicacion', label: 'Cubicación', hint: 'Reparto por piso y departamento, rectificación y nomenclatura (opcional)', icon: Ruler },
-  { id: 'requisiciones', label: 'Requisiciones', hint: 'Solicitudes de material a bodega por fase', icon: PackageOpen },
   { id: 'fabricacion', label: 'Fases', hint: 'Fases de la obra y documentos de fabricación de HETMO', icon: Factory },
-  { id: 'abastecimiento', label: 'Abastecimiento', hint: 'Reserva de materiales de la obra y compras', icon: ShoppingCart },
+  { id: 'requisiciones', label: 'Requisiciones', hint: 'Solicitudes de material a bodega por fase', icon: PackageOpen },
+  { id: 'abastecimiento', label: 'Abastecimiento', hint: 'Reserva de materiales de la obra (no en retail) y compras', icon: ShoppingCart },
   { id: 'pendientes', label: 'Pendientes', hint: 'Lo que falta o falló en esta obra', icon: ClipboardList },
   { id: 'adicionales', label: 'Adicionales', hint: 'Ventas o cargos fuera del presupuesto aceptado', icon: FilePlus2 },
   { id: 'estados-pago', label: 'Estados de pago', hint: 'Cobros parciales al cliente por hitos de cada ventana', icon: Receipt },
@@ -80,10 +82,12 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
   // Una obra manual nunca se cotizo: las secciones que dependen del
   // presupuesto se ven en gris (ver seccionesObra.ts) y un enlace a una de
   // ellas cae a Información General. Mientras carga la obra no se sabe su origen.
-  const seccion: Seccion = seccionEfectiva(seccionInicial, proyecto?.origen, modo);
+  // Obra retail: sin Cubicación (rectifica desde Fases) ni reserva de materiales.
+  const retail = esObraRetail(proyecto);
+  const seccion: Seccion = seccionEfectiva(seccionInicial, proyecto?.origen, modo, retail);
   // Las pestañas dependen del modo y del origen (una obra manual en Comercial
   // solo tiene Información General); mientras carga la obra no se muestran.
-  const seccionesVisibles = proyecto ? seccionesDelModo(modo, proyecto.origen) : [];
+  const seccionesVisibles = proyecto ? seccionesDelModo(modo, proyecto.origen, retail) : [];
   const pestanas = SECCIONES.filter((s) => seccionesVisibles.includes(s.id))
     // Pestañas con permiso propio (ver PERMISO_SECCION); la API exige lo mismo.
     .filter((s) => !PERMISO_SECCION[s.id] || tiene(PERMISO_SECCION[s.id]!))
@@ -108,11 +112,11 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
   const { data: resumenReservas } = useQuery({
     queryKey: ['reservasResumen', proyectoId],
     queryFn: () => getResumenReservasObra(proyectoId),
-    enabled: modo === 'obra' && veAbastecimiento,
+    enabled: modo === 'obra' && veAbastecimiento && !retail,
     meta: { silencioso: true },
   });
   const [vistaAbastecimiento] = useUrlParam('vista');
-  const faltaReservar = modo === 'obra' && veAbastecimiento && resumenReservas?.aceptada && resumenReservas.generadas === 0;
+  const faltaReservar = modo === 'obra' && veAbastecimiento && !retail && resumenReservas?.aceptada && resumenReservas.generadas === 0;
 
   return (
     <div className="flex flex-col h-full">
@@ -175,8 +179,8 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
               {seccion === 'general' && <InformacionGeneralTab proyecto={proyecto} activeVersion={activeVersion} modo={modo} />}
               {seccion === 'cubicacion' && <CubicacionTab proyecto={proyecto} activeVersion={activeVersion} />}
               {seccion === 'requisiciones' && <RequisicionesSection proyecto={proyecto} activeVersion={activeVersion} />}
-              {seccion === 'abastecimiento' && <AbastecimientoObraTab proyectoId={proyectoId} proyectoLabel={proyecto.obra} />}
-              {seccion === 'fabricacion' && <FabricacionTab proyecto={proyecto} activeVersion={activeVersion} />}
+              {seccion === 'abastecimiento' && <AbastecimientoObraTab proyectoId={proyectoId} proyectoLabel={proyecto.obra} sinReserva={retail} />}
+              {seccion === 'fabricacion' && <FabricacionTab proyecto={proyecto} activeVersion={activeVersion} retail={retail} />}
               {seccion === 'estados-pago' && <EstadosPagoTab proyecto={proyecto} />}
               {seccion === 'pendientes' && <PendientesTab proyecto={proyecto} />}
               {seccion === 'adicionales' && <AdicionalesTab proyecto={proyecto} />}

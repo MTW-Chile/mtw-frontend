@@ -641,7 +641,7 @@ export interface Proyecto {
   id: string;
   // Edificio, Condominio, Retail (Configuracion > Comercial).
   tipoProyectoId?: string;
-  tipoProyecto?: Pick<TipoProyecto, 'id' | 'codigo' | 'nombre'>;
+  tipoProyecto?: Pick<TipoProyecto, 'id' | 'codigo' | 'nombre'> & Partial<Pick<TipoProyecto, 'raizOneDrive'>>;
   // Llave de HETMO; null = proyecto manual (nunca se sincroniza).
   hetmoSinVersion: number | null;
   numeroPresupuesto: number;

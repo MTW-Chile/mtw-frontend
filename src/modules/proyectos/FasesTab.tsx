@@ -1,11 +1,22 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Layers, Plus, Pencil, Trash2, AlertCircle, X as XIcon, ShoppingCart, Package, FileSpreadsheet, PackageOpen } from 'lucide-react';
+import { Loader2, Layers, Plus, Pencil, Trash2, AlertCircle, X as XIcon, ShoppingCart, Package, FileSpreadsheet, PackageOpen, Ruler } from 'lucide-react';
 import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { StatCard } from '../../components/ui/StatCard';
-import { createFase, updateFase, deleteFase, descargarInformeHetmoFase, getBodegaProyecto, getOrdenesCompra, getSolicitudesMaterial } from '../../api/client';
+import {
+  createFase,
+  crearCubicacionUnica,
+  updateFase,
+  deleteFase,
+  descargarInformeHetmoFase,
+  getBodegaProyecto,
+  getCubicacion,
+  getEstructuraCubicacion,
+  getOrdenesCompra,
+  getSolicitudesMaterial,
+} from '../../api/client';
 import { usePermisos } from '../../lib/permisos';
 import { actualizarParams } from '../../lib/navigation';
 import { estadoPartida } from './estadoSolicitudPartida';
@@ -13,6 +24,8 @@ import { extraerErrorParaToast, mostrarToast } from '../../lib/toast';
 import { useRequerimientosFases } from '../cotizaciones/lib/useAnalitica';
 import { SolicitudMaterialesModal } from '../abastecimiento/solicitud/SolicitudMaterialesModal';
 import { SelectorFaseDesdeCubicacion } from './cubicacion/SelectorFaseDesdeCubicacion';
+import { VentanasCubicacion, type FiltroVentanas } from './cubicacion/VentanasCubicacion';
+import { Seccion } from '../../components/ui/Seccion';
 import { descargarBlob } from './cubicacion/utils';
 import type { Fase, Proyecto, ProyectoVersion, SeleccionFaseCubicacion } from '../../types';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
@@ -52,7 +65,13 @@ interface FilaVentana {
 // referencia -- acá se planifican las fases de verdad, cuya suma por
 // ventana nunca puede superar el total de esa linea (el backend lo valida
 // igual, esto es feedback antes de mandar el request).
-export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVersion }> = ({ proyecto, activeVersion }) => {
+//
+// Obra retail (prop retail): no tiene pestaña Cubicación. Por debajo las fases
+// se siguen armando desde la "cubicación única" (V01, V01-1...), que se crea
+// sola al usar cualquiera de las tres acciones: Rectificar medidas (la lista
+// de ventanas de la cubicación, para escribir el rasgo medido en obra), Crear
+// fase única (todas las ventanas en una fase) y Nueva fase (elegir ventanas).
+export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVersion; retail?: boolean }> = ({ proyecto, activeVersion, retail = false }) => {
   const { tiene } = usePermisos();
   const { confirmar } = useConfirmar();
   // Quien puede emitir OC genera la OC completa; si no, la solicita a Compras.
@@ -241,6 +260,58 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
     },
   });
 
+  // ---- Obra retail: cubicación única implícita ----
+  // Al abrirla, la cubicación lee el presupuesto la primera vez (crea las ventanas a rectificar).
+  const cubicacionRetail = useQuery({ queryKey: ['cubicacion', proyecto.id], queryFn: () => getCubicacion(proyecto.id), enabled: retail });
+  const [rectificando, setRectificando] = useState(false);
+  const [filtroVentanas, setFiltroVentanas] = useState<FiltroVentanas>({ pisoId: '', torreId: '' });
+  const [preparando, setPreparando] = useState<'rectificar' | 'unica' | 'nueva' | null>(null);
+  const puedeCubicar = tiene('obras.cubicacion.editar');
+
+  const refrescarCubicacion = () => {
+    for (const key of ['cubicacion', 'cubicacionEstructura', 'cubicacionUnidades', 'cubicacionUbicaciones']) queryClient.invalidateQueries({ queryKey: [key, proyecto.id] });
+  };
+  // Nombra (cubicación única) las ventanas que aún no tienen nomenclatura: sin eso no se pueden rectificar ni entrar a una fase.
+  const asegurarCubicacionUnica = async () => {
+    const datos = cubicacionRetail.data ?? (await queryClient.fetchQuery({ queryKey: ['cubicacion', proyecto.id], queryFn: () => getCubicacion(proyecto.id) }));
+    if (datos && datos.resumen.sinPosicion > 0) {
+      await crearCubicacionUnica(proyecto.id);
+      refrescarCubicacion();
+    }
+  };
+  const preparar = async (accion: 'rectificar' | 'unica' | 'nueva', continuar: () => void | Promise<void>) => {
+    setPreparando(accion);
+    try {
+      await asegurarCubicacionUnica();
+      await continuar();
+    } catch (e) {
+      const { mensaje, detalle } = extraerErrorParaToast(e);
+      mostrarToast(mensaje, { detalle });
+    } finally {
+      setPreparando(null);
+    }
+  };
+  const crearFaseUnica = async () => {
+    const ok = await confirmar({
+      titulo: '¿Crear una fase única?',
+      mensaje: 'Todas las ventanas de la obra que aún no están en una fase entran a una sola fase («Fase única»).',
+      confirmar: 'Crear fase única',
+    });
+    if (!ok || !activeVersion) return;
+    await preparar('unica', async () => {
+      const estructura = await getEstructuraCubicacion(proyecto.id);
+      const ids = estructura.unica.map((v) => v.id);
+      if (ids.length === 0) {
+        mostrarToast('No hay ventanas disponibles para la fase única.', { tipo: 'info' });
+        return;
+      }
+      const r = await createFase(activeVersion.id, { nombre: 'Fase única', seleccionCubicacion: { ventanaIndividualizadaIds: ids } });
+      queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyecto.id] });
+      refrescarCubicacion();
+      mostrarToast(r.avisos?.length ? `Fase única creada. ${r.avisos.length} ventana(s) ya estaban en otra fase.` : 'Fase única creada.', { tipo: 'info' });
+    });
+  };
+
   if (!activeVersion) {
     return <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">Sin versión activa.</div>;
   }
@@ -258,8 +329,40 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
           </p>
         </div>
         {!formAbierto && (
-          <div className="flex items-center gap-2">
-            <Button size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={abrirNueva}>
+          <div className="flex flex-wrap items-center gap-2">
+            {retail && puedeCubicar && (
+              <Button
+                size="sm"
+                variant="outline"
+                leftIcon={<Ruler className="w-3.5 h-3.5" />}
+                isLoading={preparando === 'rectificar'}
+                disabled={!!preparando}
+                onClick={() => (rectificando ? setRectificando(false) : preparar('rectificar', () => setRectificando(true)))}
+                title="Escribe el rasgo medido en obra de cada ventana; la medida de fabricación se calcula restando la holgura"
+              >
+                {rectificando ? 'Cerrar rectificación' : 'Rectificar medidas'}
+              </Button>
+            )}
+            {retail && (
+              <Button
+                size="sm"
+                variant="outline"
+                leftIcon={<Layers className="w-3.5 h-3.5" />}
+                isLoading={preparando === 'unica'}
+                disabled={!!preparando || resumen.sinPlanificar <= 0}
+                onClick={crearFaseUnica}
+                title="Todas las ventanas que aún no están en una fase, en una sola fase"
+              >
+                Crear fase única
+              </Button>
+            )}
+            <Button
+              size="sm"
+              leftIcon={<Plus className="w-3.5 h-3.5" />}
+              isLoading={preparando === 'nueva'}
+              disabled={!!preparando}
+              onClick={() => (retail ? preparar('nueva', abrirNueva) : abrirNueva())}
+            >
               Nueva fase
             </Button>
           </div>
@@ -295,6 +398,24 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
           iconBgColor={resumen.sinPlanificar > 0 ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'}
         />
       </div>
+
+      {retail && rectificando && cubicacionRetail.data && (
+        <Seccion
+          icono={Ruler}
+          titulo="Rectificar medidas"
+          descripcion={`Escribe el rasgo medido en obra (ancho × alto). La medida de fabricación resta la holgura de ${cubicacionRetail.data.cubicacion.holguraMm} mm.`}
+          acciones={<IconButton icono={XIcon} etiqueta="Cerrar la rectificación" onClick={() => setRectificando(false)} />}
+        >
+          <VentanasCubicacion
+            proyectoId={proyecto.id}
+            cubicacion={cubicacionRetail.data.cubicacion}
+            moneda={cubicacionRetail.data.resumen.moneda}
+            tipos={cubicacionRetail.data.resumen.porTipo}
+            filtro={filtroVentanas}
+            onFiltro={setFiltroVentanas}
+          />
+        </Seccion>
+      )}
 
       {formAbierto && (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PERMISO_SECCION, seccionDisponible, seccionEfectiva, seccionesDelModo, SECCIONES_FABRICACION, SECCIONES_OBRA, SECCIONES_QUE_REQUIEREN_PRESUPUESTO } from './seccionesObra';
+import { PERMISO_SECCION, esObraRetail, seccionDisponible, seccionEfectiva, seccionesDelModo, SECCIONES_FABRICACION, SECCIONES_OBRA, SECCIONES_QUE_REQUIEREN_PRESUPUESTO } from './seccionesObra';
 
 describe('seccionDisponible', () => {
   it('una obra manual solo tiene disponible lo que no requiere presupuesto', () => {
@@ -70,5 +70,22 @@ describe('seccionEfectiva', () => {
     expect(seccionEfectiva(undefined, 'MANUAL_OBRA', 'fabricacion')).toBe('general');
     expect(seccionEfectiva('inexistente', 'MANUAL_PRESUPUESTO')).toBe('general');
     expect(seccionEfectiva('requisiciones', 'MANUAL_OBRA', 'fabricacion')).toBe('general');
+  });
+});
+
+describe('obra retail', () => {
+  it('se reconoce por la carpeta de OneDrive de su tipo de proyecto', () => {
+    expect(esObraRetail({ tipoProyecto: { id: '1', codigo: 'RET', nombre: 'Retail', raizOneDrive: 'RETAIL' } })).toBe(true);
+    expect(esObraRetail({ tipoProyecto: { id: '1', codigo: 'EDI', nombre: 'Edificio', raizOneDrive: 'OBRAS_MAYORES' } })).toBe(false);
+    expect(esObraRetail({ tipoProyecto: undefined })).toBe(false);
+    expect(esObraRetail(undefined)).toBe(false);
+  });
+  it('en el taller no tiene Cubicación (rectifica desde Fases); Fases sigue antes de Requisiciones', () => {
+    expect(seccionesDelModo('fabricacion', 'HETMO', true)).toEqual(['general', 'fabricacion', 'requisiciones', 'pendientes']);
+    expect(seccionEfectiva('cubicacion', 'HETMO', 'fabricacion', true)).toBe('general');
+    expect(seccionEfectiva('fabricacion', 'HETMO', 'fabricacion', true)).toBe('fabricacion');
+  });
+  it('en Comercial conserva sus pestañas (la reserva se oculta dentro de Abastecimiento)', () => {
+    expect(seccionesDelModo('obra', 'HETMO', true)).toEqual(SECCIONES_OBRA);
   });
 });

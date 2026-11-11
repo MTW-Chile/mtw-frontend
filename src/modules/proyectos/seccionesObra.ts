@@ -23,8 +23,18 @@ export type ModoWorkspace = 'obra' | 'fabricacion';
 // OneDrive. Lo que se vende y se cobra sale del presupuesto, que no tiene.
 export const SECCIONES_OBRA_MANUAL: SeccionObra[] = ['general'];
 
-export function seccionesDelModo(modo: ModoWorkspace, origen?: Proyecto['origen']): SeccionObra[] {
-  if (modo === 'fabricacion') return SECCIONES_FABRICACION;
+// Obra retail (tipo de proyecto con raizOneDrive = RETAIL): se fabrica de una
+// "tirada", sin cubicación (no se reparte por torres ni pisos) ni reserva de
+// materiales. Lo único que puede necesitar es rectificar medidas, y eso se hace
+// desde Fases (ver FasesRetail en FasesTab.tsx).
+export const SECCIONES_FABRICACION_RETAIL: SeccionObra[] = SECCIONES_FABRICACION.filter((s) => s !== 'cubicacion');
+
+export function esObraRetail(proyecto?: Pick<Proyecto, 'tipoProyecto'> | null): boolean {
+  return proyecto?.tipoProyecto?.raizOneDrive === 'RETAIL';
+}
+
+export function seccionesDelModo(modo: ModoWorkspace, origen?: Proyecto['origen'], retail = false): SeccionObra[] {
+  if (modo === 'fabricacion') return retail ? SECCIONES_FABRICACION_RETAIL : SECCIONES_FABRICACION;
   return origen === 'MANUAL_OBRA' ? SECCIONES_OBRA_MANUAL : SECCIONES_OBRA;
 }
 
@@ -54,8 +64,8 @@ export function seccionDisponible(seccion: SeccionObra, origen: Proyecto['origen
 
 // Seccion a mostrar: la pedida (ej. desde la URL) si existe en este modo y esta
 // disponible para esta obra; si no, Información General.
-export function seccionEfectiva(solicitada: string | undefined, origen: Proyecto['origen'], modo: ModoWorkspace = 'obra'): SeccionObra {
-  const permitidas = seccionesDelModo(modo, origen);
+export function seccionEfectiva(solicitada: string | undefined, origen: Proyecto['origen'], modo: ModoWorkspace = 'obra', retail = false): SeccionObra {
+  const permitidas = seccionesDelModo(modo, origen, retail);
   const candidata = solicitada ? (ALIAS[solicitada] ?? solicitada) : undefined;
   const valida = permitidas.find((s) => s === candidata);
   if (valida && seccionDisponible(valida, origen)) return valida;
