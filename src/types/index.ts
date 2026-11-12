@@ -2605,6 +2605,9 @@ export interface FichaVentanaObra {
   // Copia guardada del documento (vidrios y materiales de esta ventana).
   vidrios: VidrioFabricacion[];
   materiales: MaterialFabricacion[];
+  // Las cantidades de `materiales` salen del documento de fabricación (total de su línea: dividido por sus unidades
+  // da lo de una ventana) o, en una obra cotizada, del presupuesto (total de la línea cotizada).
+  materialesDelDocumento?: boolean;
   hetmoError: string | null;
   pendientes: VentanaInstalacionDetalle['pendientes'];
   eventos: VentanaEvento[];

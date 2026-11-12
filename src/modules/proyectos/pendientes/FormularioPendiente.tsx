@@ -43,7 +43,8 @@ const topePorVentana = (cantidadLinea: number | string | null | undefined, venta
  * ventana y se baja si faltan menos. Compras pide esa cantidad.
  */
 const CuantasSeNecesitan: React.FC<{
-  filas: { clave: string; nombre: string; tope: number }[];
+  /** tope null: no se sabe cuánto lleva una ventana (cantidades del presupuesto): parte en 1 y no se limita. */
+  filas: { clave: string; nombre: string; tope: number | null }[];
   cantidades: Record<string, number>;
   onChange: (c: Record<string, number>) => void;
 }> = ({ filas, cantidades, onChange }) =>
@@ -55,8 +56,15 @@ const CuantasSeNecesitan: React.FC<{
           <li key={f.clave} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-3 py-2">
             <span className="text-xs font-bold text-slate-800 min-w-0 flex-1 basis-40 break-words">{f.nombre}</span>
             <span className="flex items-center gap-2 shrink-0">
-              <ContadorTactil valor={Math.min(cantidades[f.clave] ?? f.tope, f.tope)} onChange={(n) => onChange({ ...cantidades, [f.clave]: n })} min={1} max={f.tope} enteros aria-label={`Cuántas se necesitan de ${f.nombre}`} />
-              <span className="text-xs text-slate-500 whitespace-nowrap">de {f.tope}</span>
+              <ContadorTactil
+                valor={f.tope === null ? (cantidades[f.clave] ?? 1) : Math.min(cantidades[f.clave] ?? f.tope, f.tope)}
+                onChange={(n) => onChange({ ...cantidades, [f.clave]: n })}
+                min={1}
+                max={f.tope ?? 9999}
+                enteros
+                aria-label={`Cuántas se necesitan de ${f.nombre}`}
+              />
+              {f.tope !== null && <span className="text-xs text-slate-500 whitespace-nowrap">de {f.tope}</span>}
             </span>
           </li>
         ))}
@@ -171,7 +179,10 @@ export const FormularioPendiente: React.FC<Props> = ({ proyectoId, ficha, onAgre
   // cantidad: cuántas se necesitan, hasta lo que lleva esa línea de la ventana (solo material y vidrio).
   type Objetivo = { datos: DatosSugerencia; cuadroId?: string; materialId?: string | null; cantidad?: number };
   const topeDe = (cantidadLinea: number | string | null | undefined) => topePorVentana(cantidadLinea, ficha.fabricacionVentana?.unidades ?? 1);
-  const cantidadDe = (clave: string, tope: number) => Math.min(Math.max(1, cantidades[clave] ?? tope), tope);
+  // En una obra cotizada los materiales vienen del presupuesto (total de la línea cotizada): no se sabe cuánto lleva
+  // una ventana, así que el contador parte en 1 y no tiene tope.
+  const topeMaterial = (cantidadLinea: number | string | null | undefined) => (ficha.materialesDelDocumento === false ? null : topeDe(cantidadLinea));
+  const cantidadDe = (clave: string, tope: number | null) => (tope === null ? Math.max(1, cantidades[clave] ?? 1) : Math.min(Math.max(1, cantidades[clave] ?? tope), tope));
   const objetivos: Objetivo[] = (() => {
     if (vidriosElegidos.length > 0)
       return vidriosSel
@@ -183,7 +194,7 @@ export const FormularioPendiente: React.FC<Props> = ({ proyectoId, ficha, onAgre
     if (hojasElegidas.length > 0) return hojasElegidas.map((h) => ({ datos: { ...base, hoja: { numero: h.numeroCuadro, ancho: h.anchoMm, alto: h.altoMm } }, cuadroId: h.id }));
     if (marcosElegidos.length > 0) return marcosElegidos.map((m) => ({ datos: { ...base, marco: { numero: m.numeroCuadro, ancho: m.anchoMm, alto: m.altoMm } }, cuadroId: m.id }));
     if (materialesElegidos.length > 0)
-      return materialesElegidos.map(({ m, clave }) => ({ datos: { ...base, material: { codigo: m.codigo_articulo, descripcion: m.descripcion_articulo } }, materialId: m.materialId, cantidad: cantidadDe(`m:${clave}`, topeDe(m.cantidad)) }));
+      return materialesElegidos.map(({ m, clave }) => ({ datos: { ...base, material: { codigo: m.codigo_articulo, descripcion: m.descripcion_articulo } }, materialId: m.materialId, cantidad: cantidadDe(`m:${clave}`, topeMaterial(m.cantidad)) }));
     return [{ datos: { ...base } }];
   })();
 
@@ -265,7 +276,15 @@ export const FormularioPendiente: React.FC<Props> = ({ proyectoId, ficha, onAgre
               opciones={ficha.vidrios.map((g, i) => ({ value: String(i), label: `Vidrio ${i + 1} · ${formatoMm(g.ANCHO)} × ${formatoMm(g.ALTO)} mm`, ayuda: `${g.codigo_articulo} · ${topeDe(g.UDS)} un` }))}
             />
             {ficha.vidrios.length > 1 && (
-              <Button type="button" variant="link" size="sm" onClick={() => setVidriosSel(vidriosSel.length === ficha.vidrios.length ? [] : ficha.vidrios.map((_, i) => String(i)))}>
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                onClick={() => {
+                  setVidriosSel(vidriosSel.length === ficha.vidrios.length ? [] : ficha.vidrios.map((_, i) => String(i)));
+                  cerrarRectificacion();
+                }}
+              >
                 {vidriosSel.length === ficha.vidrios.length ? 'Quitar todos' : 'Marcar todos'}
               </Button>
             )}
@@ -332,14 +351,14 @@ export const FormularioPendiente: React.FC<Props> = ({ proyectoId, ficha, onAgre
               columnas={2}
               valor={materialesSel}
               onChange={setMaterialesSel}
-              opciones={reponibles.map(({ m, clave }) => ({ value: clave, label: m.descripcion_articulo, ayuda: [m.codigo_articulo, m.familia, `${topeDe(m.cantidad)} un`].filter(Boolean).join(' · ') }))}
+              opciones={reponibles.map(({ m, clave }) => ({ value: clave, label: m.descripcion_articulo, ayuda: [m.codigo_articulo, m.familia, topeMaterial(m.cantidad) !== null ? `${topeMaterial(m.cantidad)} un` : null].filter(Boolean).join(' · ') }))}
             />
             {materialesSel.length > 0 && (
               <Button type="button" variant="link" size="sm" onClick={() => setMaterialesSel([])}>
                 Quitar selección ({materialesSel.length})
               </Button>
             )}
-            <CuantasSeNecesitan filas={materialesElegidos.map(({ m, clave }) => ({ clave: `m:${clave}`, nombre: m.descripcion_articulo, tope: topeDe(m.cantidad) }))} cantidades={cantidades} onChange={setCantidades} />
+            <CuantasSeNecesitan filas={materialesElegidos.map(({ m, clave }) => ({ clave: `m:${clave}`, nombre: m.descripcion_articulo, tope: topeMaterial(m.cantidad) }))} cantidades={cantidades} onChange={setCantidades} />
           </div>
         ) : (
           <Aviso tono="neutro" sinIcono>

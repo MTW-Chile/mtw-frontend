@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Factory, FileUp, PackageCheck, X } from 'lucide-react';
 import { abrirPendiente, avanzarPendiente, subirAdjuntoPendiente } from '../../../api/client';
@@ -39,6 +39,12 @@ interface Props {
 export const PendientesLote: React.FC<Props> = ({ area, seleccion, onLimpiar, onHechos }) => {
   const queryClient = useQueryClient();
   const [accion, setAccion] = useState<AccionLote | null>(null);
+  // Los pendientes sobre los que trabaja el modal: una copia tomada al abrirlo. La lista de la página se refresca
+  // (y los que cambian de paso salen de la selección) sin que el modal pierda lo que está mostrando.
+  const [lote, setLote] = useState<ObraPendiente[]>([]);
+  // A cuáles ya se les subió la OC en este modal: al reintentar tras un fallo no se adjunta dos veces.
+  const conOC = useRef(new Set<string>());
+  const enCurso = useRef(false);
   const [archivo, setArchivo] = useState<File | null>(null);
   const [fechaEstimada, setFechaEstimada] = useState('');
   const [comentario, setComentario] = useState('');
@@ -47,11 +53,17 @@ export const PendientesLote: React.FC<Props> = ({ area, seleccion, onLimpiar, on
   const [fallos, setFallos] = useState<string[]>([]);
 
   const acciones = accionesDeLote(area, seleccion);
-  const obras = new Set(seleccion.map((p) => p.proyectoId)).size;
+  const obras = new Set(lote.map((p) => p.proyectoId)).size;
   const cantidadDe = (p: ObraPendiente) => llegaron[p.id] ?? p.cantidad ?? 1;
 
+  const abrir = (a: AccionLote) => {
+    conOC.current = new Set();
+    setLote([...seleccion]);
+    setAccion(a);
+  };
   const cerrar = () => {
     setAccion(null);
+    setLote([]);
     setArchivo(null);
     setFechaEstimada('');
     setComentario('');
@@ -60,18 +72,23 @@ export const PendientesLote: React.FC<Props> = ({ area, seleccion, onLimpiar, on
   };
 
   const ejecutar = async () => {
-    if (!accion) return;
-    const lista = [...seleccion];
+    // El candado va antes de cualquier espera: preparar una foto de la OC tarda, y un segundo clic no debe repetir el lote.
+    if (!accion || enCurso.current) return;
+    enCurso.current = true;
+    const lista = [...lote];
+    setFallos([]);
+    setAvance({ hechos: 0, total: lista.length });
     const oc = accion === 'OC' && archivo ? await prepararArchivo(archivo) : null;
     const hechos: string[] = [];
     const errores: string[] = [];
-    setFallos([]);
-    setAvance({ hechos: 0, total: lista.length });
     for (const [i, p] of lista.entries()) {
       try {
         // Igual que al abrirlo de a uno: queda recibido por quien lo gestiona.
         if (p.paso === 'INGRESADO') await abrirPendiente(p.id);
-        if (oc) await subirAdjuntoPendiente(p.id, oc.blob, oc.nombre, oc.mime, 'OC');
+        if (oc && !conOC.current.has(p.id)) {
+          await subirAdjuntoPendiente(p.id, oc.blob, oc.nombre, oc.mime, 'OC');
+          conOC.current.add(p.id);
+        }
         await avanzarPendiente(p.id, {
           paso: accion === 'OC' ? 'EN_PROCESO_COMPRA' : accion === 'PRODUCCION' ? 'EN_PRODUCCION' : 'LISTO_DESPACHO',
           fechaEstimada: accion === 'PRODUCCION' ? fechaEstimada : undefined,
@@ -85,6 +102,9 @@ export const PendientesLote: React.FC<Props> = ({ area, seleccion, onLimpiar, on
       setAvance({ hechos: i + 1, total: lista.length });
     }
     setAvance(null);
+    enCurso.current = false;
+    // En el modal quedan solo los que no avanzaron, para reintentar.
+    setLote(lista.filter((p) => !hechos.includes(p.id)));
     for (const k of [['pendientes'], ['pendiente'], ['pendientesListos'], ['despachosObras']]) queryClient.invalidateQueries({ queryKey: k });
     onHechos(hechos);
     if (errores.length === 0) {
@@ -95,12 +115,13 @@ export const PendientesLote: React.FC<Props> = ({ area, seleccion, onLimpiar, on
     }
   };
 
-  if (seleccion.length === 0) return null;
+  if (seleccion.length === 0 && !accion) return null;
   const ocupado = avance !== null;
   const falta = accion === 'OC' ? !archivo : accion === 'PRODUCCION' ? !fechaEstimada : false;
 
   return (
     <>
+      {seleccion.length > 0 && (
       <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-brand-200 bg-white px-4 py-3 shadow-lg" role="region" aria-label="Pendientes seleccionados">
         <p className="text-xs text-slate-700 mr-auto">
           <b className="text-slate-900">{seleccion.length}</b> {seleccion.length === 1 ? 'seleccionado' : 'seleccionados'}
@@ -112,7 +133,7 @@ export const PendientesLote: React.FC<Props> = ({ area, seleccion, onLimpiar, on
             size="sm"
             variant={a === 'PRODUCCION' ? 'outline' : 'primary'}
             leftIcon={a === 'OC' ? <FileUp className="w-3.5 h-3.5" /> : a === 'PRODUCCION' ? <Factory className="w-3.5 h-3.5" /> : <PackageCheck className="w-3.5 h-3.5" />}
-            onClick={() => setAccion(a)}
+            onClick={() => abrir(a)}
           >
             {TEXTO_ACCION[a].boton(seleccion.length)}
           </Button>
@@ -121,12 +142,13 @@ export const PendientesLote: React.FC<Props> = ({ area, seleccion, onLimpiar, on
           Quitar selección
         </Button>
       </div>
+      )}
 
       {accion && (
         <Modal
           ancho="md"
           titulo={TEXTO_ACCION[accion].titulo}
-          subtitulo={`${seleccion.length} ${seleccion.length === 1 ? 'pendiente' : 'pendientes'}${obras > 1 ? ` de ${obras} obras` : ''}`}
+          subtitulo={`${lote.length} ${lote.length === 1 ? 'pendiente' : 'pendientes'}${obras > 1 ? ` de ${obras} obras` : ''}`}
           onClose={cerrar}
           cerrable={!ocupado}
           pie={
@@ -134,8 +156,8 @@ export const PendientesLote: React.FC<Props> = ({ area, seleccion, onLimpiar, on
               <Button variant="outline" disabled={ocupado} onClick={cerrar}>
                 {fallos.length > 0 ? 'Cerrar' : 'Cancelar'}
               </Button>
-              <Button variant="primary" disabled={falta || seleccion.length === 0} isLoading={ocupado} onClick={ejecutar}>
-                {ocupado ? `${avance.hechos} de ${avance.total}…` : accion === 'OC' ? `Subir y pasar a «${ETIQUETA_PASO.EN_PROCESO_COMPRA}»` : accion === 'RECIBIR' ? 'Marcar recibidos' : accion === 'PRODUCCION' ? 'Pasar a producción' : 'Dejar listos para despacho'}
+              <Button variant="primary" disabled={falta || lote.length === 0} isLoading={ocupado} onClick={ejecutar}>
+                {ocupado ? `${avance.hechos} de ${avance.total}…` : fallos.length > 0 ? 'Reintentar los que fallaron' : accion === 'OC' ? `Subir y pasar a «${ETIQUETA_PASO.EN_PROCESO_COMPRA}»` : accion === 'RECIBIR' ? 'Marcar recibidos' : accion === 'PRODUCCION' ? 'Pasar a producción' : 'Dejar listos para despacho'}
               </Button>
             </Modal.Pie>
           }
@@ -183,7 +205,7 @@ export const PendientesLote: React.FC<Props> = ({ area, seleccion, onLimpiar, on
             {accion === 'LISTO' && <p className="text-xs text-slate-600">Quedan «{ETIQUETA_PASO.LISTO_DESPACHO}»: se despachan desde Despachos, en su obra.</p>}
 
             <ul className="rounded-xl border border-slate-200 divide-y divide-slate-100 max-h-64 overflow-y-auto">
-              {seleccion.map((p) => (
+              {lote.map((p) => (
                 <li key={p.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2">
                   <div className="min-w-0 flex-1 basis-48">
                     <p className="text-xs text-slate-900 break-words">

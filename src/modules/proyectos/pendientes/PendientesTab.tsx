@@ -133,7 +133,7 @@ export const PendientesTab: React.FC<Props> = ({ proyecto, area, obraFija }) => 
   }, [visibles, agrupar]);
   // Solo se marcan los que el área todavía puede mover; la selección sigue a lo que se ve.
   const marcable = (p: ObraPendiente) => !!area && esGestionableEnLote(area, p);
-  const seleccion = useMemo(() => visibles.filter((p) => seleccionIds.has(p.id) && !!area && esGestionableEnLote(area, p)), [visibles, seleccionIds, area]);
+  const seleccion = useMemo(() => (isDesktop ? visibles.filter((p) => seleccionIds.has(p.id) && !!area && esGestionableEnLote(area, p)) : []), [visibles, seleccionIds, area, isDesktop]);
   const marcar = (ps: ObraPendiente[], si: boolean) =>
     setSeleccionIds((actual) => {
       const nueva = new Set(actual);
@@ -210,7 +210,8 @@ export const PendientesTab: React.FC<Props> = ({ proyecto, area, obraFija }) => 
             ))}
           </SelectCompacto>
         )}
-        {area && (
+        {/* Agrupar y marcar varios es de la tabla (escritorio); las tarjetas de celular van de a uno. */}
+        {area && isDesktop && (
           <SelectCompacto value={agrupar} onChange={(e) => cambiarAgrupar(e.target.value as Agrupar)} aria-label="Agrupar la lista">
             <option value="">Sin agrupar</option>
             {AGRUPAR_DE_AREA[area].map((g) => (
@@ -364,6 +365,7 @@ export const PendientesTab: React.FC<Props> = ({ proyecto, area, obraFija }) => 
                 </div>
                 <p className="text-sm font-bold text-slate-900 break-words">
                   {p.descripcion}
+                  {!!p.cantidad && (p.tipo === 'MATERIAL' || p.cantidad > 1) && <span className="ml-1.5 text-slate-600 font-semibold">× {p.cantidad}</span>}
                   {!!p._count?.adjuntos && (
                     <span className="ml-1.5 inline-flex items-center gap-0.5 text-[11px] font-bold text-slate-500 align-middle">
                       <Paperclip className="w-3 h-3" />

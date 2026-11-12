@@ -42,7 +42,11 @@ export const ObrasPendientesArea: React.FC<{ area: AreaPendiente; onElegir: (obr
       </div>
       <Buscador valor={busqueda} onChange={setBusqueda} placeholder="Buscar obra…" etiqueta="Buscar obra" />
       {obras.length === 0 ? (
-        <EstadoVacio icono={HardHat} titulo="No hay obras en curso" descripcion="Una obra aparece aquí cuando su presupuesto está aceptado por el cliente." />
+        (data ?? []).length > 0 ? (
+          <EstadoVacio icono={HardHat} titulo="Ninguna obra coincide" descripcion="Revisa lo escrito en el buscador." />
+        ) : (
+          <EstadoVacio icono={HardHat} titulo="No hay obras en curso" descripcion="Una obra aparece aquí cuando su presupuesto está aceptado por el cliente." />
+        )
       ) : (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm divide-y divide-slate-100 overflow-hidden">
           {obras.map((o) => (

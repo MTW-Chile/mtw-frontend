@@ -1614,12 +1614,13 @@ export async function eliminarPendiente(id: string): Promise<void> {
 
 // ---- Flujo de los pendientes de obras legacy ----
 
-/** Alguien del área abrió el pendiente: si estaba Ingresado, queda Recibido con su nombre. */
+/** Obras en curso con lo que el área tiene por gestionar en cada una (con ellas parten Taller y Abastecimiento › Pendientes). */
 export async function getObrasPendientes(area: 'FABRICA' | 'COMPRAS'): Promise<ObraConPendientes[]> {
   const response = await apiClient.get<ObraConPendientes[]>('/pendientes-obras', { params: { area } });
   return response.data;
 }
 
+/** Alguien del área abrió el pendiente: si estaba Ingresado, queda Recibido con su nombre. */
 export async function abrirPendiente(id: string): Promise<{ paso: PasoPendiente; cambio: boolean }> {
   const response = await apiClient.post(`/pendientes/${id}/abrir`);
   return response.data;

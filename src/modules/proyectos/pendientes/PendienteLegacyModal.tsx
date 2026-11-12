@@ -58,8 +58,10 @@ const QueComprar: React.FC<{ c: DetalleCompraPendiente; titulo: string }> = ({ c
         <div className="min-w-0 flex-1 basis-56">
           <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Qué hay que comprar</h4>
           <p className="text-sm font-bold text-slate-900 mt-0.5 break-words">{c.descripcion ?? titulo}</p>
+          {/* Lo que escribió o eligió quien lo ingresó, si dice algo más que el nombre del artículo. */}
+          {c.descripcion && !titulo.includes(c.descripcion) && !c.descripcion.includes(titulo) && <p className="text-xs text-slate-600 mt-0.5 break-words">{titulo}</p>}
         </div>
-        <div className="text-right shrink-0">
+        <div className="sm:text-right shrink-0">
           <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Se necesitan</p>
           <p className="text-base font-bold text-brand-800 leading-tight">{cuantas !== null ? `${numero(cuantas)} ${unidad}` : 'Sin indicar'}</p>
           {c.cantidadVentana !== null && <p className="text-[11px] text-slate-500">la ventana lleva {numero(c.cantidadVentana)}</p>}
@@ -90,7 +92,7 @@ const QueComprar: React.FC<{ c: DetalleCompraPendiente; titulo: string }> = ({ c
         {c.referencia && <Dato etiqueta="Referencia">{c.referencia}</Dato>}
         {c.acabado && <Dato etiqueta="Acabado">{c.acabado}</Dato>}
       </dl>
-      {cuantas === null && <p className="text-[11px] text-slate-500">Este pendiente se ingresó antes de que se preguntara la cantidad: si las notas no lo dicen, consúltalo con quien lo ingresó.</p>}
+      {cuantas === null && <p className="text-[11px] text-slate-500">No se indicó cuántas se necesitan: si las notas no lo dicen, consúltalo con quien lo ingresó.</p>}
     </section>
   );
 };
@@ -379,7 +381,15 @@ export const PendienteLegacyModal: React.FC<Props> = ({ proyectoId, pendienteId,
               </>
             )}
             {vista === 'COMPRAS' ? (
-              <Dato etiqueta="Ventana">{[p.ventanaRef, p.ventanaIndividualizada?.ubicacion].filter(Boolean).join(' · ') || '—'}</Dato>
+              <>
+                {/* Sin artículo de catálogo no hay tarjeta «Qué hay que comprar»: lo pedido va aquí, completo. */}
+                {!p.compra && (
+                  <div className="col-span-2 sm:col-span-3">
+                    <Dato etiqueta="Qué falta o falló">{p.descripcion.startsWith(ETIQUETA_TIPO[p.tipo]) ? p.descripcion : `${ETIQUETA_TIPO[p.tipo]} · ${p.descripcion}`}</Dato>
+                  </div>
+                )}
+                <Dato etiqueta="Ventana">{[p.ventanaRef, p.ventanaIndividualizada?.ubicacion].filter(Boolean).join(' · ') || '—'}</Dato>
+              </>
             ) : (
               <Dato etiqueta="Qué falta o falló">{p.descripcion.startsWith(ETIQUETA_TIPO[p.tipo]) ? p.descripcion : `${ETIQUETA_TIPO[p.tipo]} · ${p.descripcion}`}</Dato>
             )}
