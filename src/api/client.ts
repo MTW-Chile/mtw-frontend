@@ -2043,7 +2043,7 @@ export async function createTipoProyecto(payload: { codigo: string; nombre: stri
 
 export async function updateTipoProyecto(
   id: string,
-  payload: Partial<Pick<TipoProyecto, 'nombre' | 'orden' | 'activo' | 'porDefecto' | 'modoCubicacion' | 'raizOneDrive'>>
+  payload: Partial<Pick<TipoProyecto, 'nombre' | 'orden' | 'activo' | 'porDefecto' | 'modoCubicacion' | 'raizOneDrive' | 'usaReservaMateriales' | 'usaCubicacion'>>
 ): Promise<TipoProyecto> {
   const response = await apiClient.patch<{ data: TipoProyecto }>(`/tipos-proyecto/${id}`, payload);
   return response.data.data;

@@ -11,7 +11,8 @@ export type VistaAbastecimiento = 'reserva' | 'compras';
  * Obras en curso > Abastecimiento: la reserva de materiales de toda la obra
  * (precios cotizados comprometidos) y las compras que se van haciendo. La
  * vista vive en la URL (?vista=compras) para que Atrás y los enlaces la respeten.
- * Una obra retail (sinReserva) se fabrica de una tirada: no reserva, solo compras.
+ * Si su tipo de proyecto no usa reserva (sinReserva; retail, que se fabrica de
+ * una tirada), solo compras.
  */
 export const AbastecimientoObraTab: React.FC<{ proyectoId: string; proyectoLabel: string; sinReserva?: boolean }> = ({ proyectoId, proyectoLabel, sinReserva = false }) => {
   const [vistaUrl, setVista] = useUrlParam('vista');

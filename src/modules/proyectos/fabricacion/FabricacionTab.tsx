@@ -25,8 +25,8 @@ import { useMigas } from '../../../lib/migas';
 interface Props {
   proyecto: Proyecto;
   activeVersion?: ProyectoVersion;
-  /** Obra retail: Fases ofrece rectificar medidas y la fase única (no hay pestaña Cubicación). */
-  retail?: boolean;
+  /** Tipo de proyecto sin cubicación (retail): Fases ofrece rectificar medidas y la fase única. */
+  sinCubicacion?: boolean;
 }
 
 type SubTab = 'fases' | 'documentos';
@@ -36,7 +36,7 @@ type SubTab = 'fases' | 'documentos';
 // HETMO en si, con sub-pestañas -- Fases primero (es el flujo principal).
 // Una obra manual no tiene presupuesto ni Fase posibles: carga directo los
 // documentos, sin el switcher de sub-pestañas.
-export const FabricacionTab: React.FC<Props> = ({ proyecto, activeVersion, retail = false }) => {
+export const FabricacionTab: React.FC<Props> = ({ proyecto, activeVersion, sinCubicacion = false }) => {
   const [subTab, setSubTab] = useState<SubTab>('fases');
   const conSubpestanas = proyecto.origen !== 'MANUAL_OBRA' && !!activeVersion;
   useMigas(2, [conSubpestanas && { label: subTab === 'fases' ? 'Fases de Producción' : 'Documentos de fabricación' }]);
@@ -56,7 +56,7 @@ export const FabricacionTab: React.FC<Props> = ({ proyecto, activeVersion, retai
         onChange={setSubTab}
       />
       {subTab === 'fases' ? (
-        <FasesTab proyecto={proyecto} activeVersion={activeVersion} retail={retail} />
+        <FasesTab proyecto={proyecto} activeVersion={activeVersion} sinCubicacion={sinCubicacion} />
       ) : (
         <DocumentosFabricacionSubTab proyecto={proyecto} />
       )}

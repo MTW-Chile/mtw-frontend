@@ -66,12 +66,12 @@ interface FilaVentana {
 // ventana nunca puede superar el total de esa linea (el backend lo valida
 // igual, esto es feedback antes de mandar el request).
 //
-// Obra retail (prop retail): no tiene pestaña Cubicación. Por debajo las fases
+// Tipo de proyecto sin cubicación (prop sinCubicacion; ej. retail): no tiene pestaña Cubicación. Por debajo las fases
 // se siguen armando desde la "cubicación única" (V01, V01-1...), que se crea
 // sola al usar cualquiera de las tres acciones: Rectificar medidas (la lista
 // de ventanas de la cubicación, para escribir el rasgo medido en obra), Crear
 // fase única (todas las ventanas en una fase) y Nueva fase (elegir ventanas).
-export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVersion; retail?: boolean }> = ({ proyecto, activeVersion, retail = false }) => {
+export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVersion; sinCubicacion?: boolean }> = ({ proyecto, activeVersion, sinCubicacion = false }) => {
   const { tiene } = usePermisos();
   const { confirmar } = useConfirmar();
   // Quien puede emitir OC genera la OC completa; si no, la solicita a Compras.
@@ -260,9 +260,9 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
     },
   });
 
-  // ---- Obra retail: cubicación única implícita ----
+  // ---- Sin cubicación (ej. retail): cubicación única implícita ----
   // Al abrirla, la cubicación lee el presupuesto la primera vez (crea las ventanas a rectificar).
-  const cubicacionRetail = useQuery({ queryKey: ['cubicacion', proyecto.id], queryFn: () => getCubicacion(proyecto.id), enabled: retail });
+  const cubicacionUnicaQ = useQuery({ queryKey: ['cubicacion', proyecto.id], queryFn: () => getCubicacion(proyecto.id), enabled: sinCubicacion });
   const [rectificando, setRectificando] = useState(false);
   const [filtroVentanas, setFiltroVentanas] = useState<FiltroVentanas>({ pisoId: '', torreId: '' });
   const [preparando, setPreparando] = useState<'rectificar' | 'unica' | 'nueva' | null>(null);
@@ -273,7 +273,7 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
   };
   // Nombra (cubicación única) las ventanas que aún no tienen nomenclatura: sin eso no se pueden rectificar ni entrar a una fase.
   const asegurarCubicacionUnica = async () => {
-    const datos = cubicacionRetail.data ?? (await queryClient.fetchQuery({ queryKey: ['cubicacion', proyecto.id], queryFn: () => getCubicacion(proyecto.id) }));
+    const datos = cubicacionUnicaQ.data ?? (await queryClient.fetchQuery({ queryKey: ['cubicacion', proyecto.id], queryFn: () => getCubicacion(proyecto.id) }));
     if (datos && datos.resumen.sinPosicion > 0) {
       await crearCubicacionUnica(proyecto.id);
       refrescarCubicacion();
@@ -330,7 +330,7 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
         </div>
         {!formAbierto && (
           <div className="flex flex-wrap items-center gap-2">
-            {retail && puedeCubicar && (
+            {sinCubicacion && puedeCubicar && (
               <Button
                 size="sm"
                 variant="outline"
@@ -343,7 +343,7 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
                 {rectificando ? 'Cerrar rectificación' : 'Rectificar medidas'}
               </Button>
             )}
-            {retail && (
+            {sinCubicacion && (
               <Button
                 size="sm"
                 variant="outline"
@@ -361,7 +361,7 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
               leftIcon={<Plus className="w-3.5 h-3.5" />}
               isLoading={preparando === 'nueva'}
               disabled={!!preparando}
-              onClick={() => (retail ? preparar('nueva', abrirNueva) : abrirNueva())}
+              onClick={() => (sinCubicacion ? preparar('nueva', abrirNueva) : abrirNueva())}
             >
               Nueva fase
             </Button>
@@ -399,18 +399,18 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
         />
       </div>
 
-      {retail && rectificando && cubicacionRetail.data && (
+      {sinCubicacion && rectificando && cubicacionUnicaQ.data && (
         <Seccion
           icono={Ruler}
           titulo="Rectificar medidas"
-          descripcion={`Escribe el rasgo medido en obra (ancho × alto). La medida de fabricación resta la holgura de ${cubicacionRetail.data.cubicacion.holguraMm} mm.`}
+          descripcion={`Escribe el rasgo medido en obra (ancho × alto). La medida de fabricación resta la holgura de ${cubicacionUnicaQ.data.cubicacion.holguraMm} mm.`}
           acciones={<IconButton icono={XIcon} etiqueta="Cerrar la rectificación" onClick={() => setRectificando(false)} />}
         >
           <VentanasCubicacion
             proyectoId={proyecto.id}
-            cubicacion={cubicacionRetail.data.cubicacion}
-            moneda={cubicacionRetail.data.resumen.moneda}
-            tipos={cubicacionRetail.data.resumen.porTipo}
+            cubicacion={cubicacionUnicaQ.data.cubicacion}
+            moneda={cubicacionUnicaQ.data.resumen.moneda}
+            tipos={cubicacionUnicaQ.data.resumen.porTipo}
             filtro={filtroVentanas}
             onFiltro={setFiltroVentanas}
           />

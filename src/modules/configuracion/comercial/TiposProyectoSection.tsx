@@ -49,7 +49,7 @@ export const TiposProyectoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
   return (
     <Seccion
       titulo="Tipos de proyecto"
-      descripcion="Cada proyecto tiene un tipo; define sus plantillas de textos por defecto, cómo se cubica (por edificio: torres, pisos y departamentos; o por casa: casas, pisos y recintos) y en cuál carpeta de OneDrive está su carpeta comercial (obras mayores o retail; las carpetas se indican en Configuración › OneDrive). El tipo por defecto lo recibe todo proyecto nuevo de HETMO."
+      descripcion="Cada proyecto tiene un tipo; define sus plantillas de textos por defecto, cómo se cubica (por edificio: torres, pisos y departamentos; o por casa: casas, pisos y recintos) en cuál carpeta de OneDrive está su carpeta comercial (obras mayores o retail; las carpetas se indican en Configuración › OneDrive) y si sus obras usan reserva de materiales y cubicación (retail no: se fabrica de una tirada y solo rectifica medidas, desde Fases). El tipo por defecto lo recibe todo proyecto nuevo de HETMO."
       sinRelleno
       acciones={
         puedeEditar && !nuevo ? (
@@ -66,6 +66,8 @@ export const TiposProyectoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
             <Th>Nombre</Th>
             <Th>Cubica como</Th>
             <Th title="En cuál carpeta de OneDrive está la carpeta comercial de sus obras: obras mayores o retail">OneDrive</Th>
+            <Th alinear="centro" title="Si sus obras reservan los materiales al aceptarse (Abastecimiento › Reserva de materiales). Retail no: se fabrica de una tirada y se compra directo.">Reserva</Th>
+            <Th alinear="centro" title="Si sus obras tienen pestaña Cubicación. Sin ella, las fases se arman desde Fases (Rectificar medidas, Crear fase única, Nueva fase).">Cubicación</Th>
             <Th alinear="derecha">Proyectos</Th>
             <Th alinear="centro">Por defecto</Th>
             <Th alinear="centro">Activo</Th>
@@ -87,7 +89,7 @@ export const TiposProyectoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
                   <option value="CASA">Casa</option>
                 </SelectCompacto>
               </Td>
-              <Td colSpan={4} />
+              <Td colSpan={6} />
               <Td alinear="derecha" className="whitespace-nowrap">
                 <Button size="sm" onClick={() => crear.mutate(nuevo)} disabled={!nuevo.codigo.trim() || !nuevo.nombre.trim()} isLoading={crear.isPending}>
                   Crear
@@ -139,6 +141,22 @@ export const TiposProyectoSection: React.FC<{ puedeEditar: boolean }> = ({ puede
                   ) : (
                     'Obras mayores'
                   )}
+                </Td>
+                <Td alinear="centro">
+                  <Interruptor
+                    valor={t.usaReservaMateriales}
+                    disabled={!puedeEditar}
+                    etiqueta={t.usaReservaMateriales ? 'Sus obras usan reserva de materiales: clic para quitarla' : 'Sus obras no usan reserva de materiales: clic para activarla'}
+                    onChange={(usaReservaMateriales) => guardar.mutate({ id: t.id, payload: { usaReservaMateriales } })}
+                  />
+                </Td>
+                <Td alinear="centro">
+                  <Interruptor
+                    valor={t.usaCubicacion}
+                    disabled={!puedeEditar}
+                    etiqueta={t.usaCubicacion ? 'Sus obras usan cubicación: clic para quitarla' : 'Sus obras no usan cubicación: clic para activarla'}
+                    onChange={(usaCubicacion) => guardar.mutate({ id: t.id, payload: { usaCubicacion } })}
+                  />
                 </Td>
                 <Td numero>{t._count?.proyectos ?? 0}</Td>
                 <Td alinear="centro">

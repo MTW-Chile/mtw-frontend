@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PERMISO_SECCION, esObraRetail, seccionDisponible, seccionEfectiva, seccionesDelModo, SECCIONES_FABRICACION, SECCIONES_OBRA, SECCIONES_QUE_REQUIEREN_PRESUPUESTO } from './seccionesObra';
+import { PERMISO_SECCION, seccionDisponible, seccionEfectiva, seccionesDelModo, SECCIONES_FABRICACION, SECCIONES_OBRA, SECCIONES_QUE_REQUIEREN_PRESUPUESTO, usaCubicacion, usaReservaMateriales } from './seccionesObra';
 
 describe('seccionDisponible', () => {
   it('una obra manual solo tiene disponible lo que no requiere presupuesto', () => {
@@ -73,19 +73,21 @@ describe('seccionEfectiva', () => {
   });
 });
 
-describe('obra retail', () => {
-  it('se reconoce por la carpeta de OneDrive de su tipo de proyecto', () => {
-    expect(esObraRetail({ tipoProyecto: { id: '1', codigo: 'RET', nombre: 'Retail', raizOneDrive: 'RETAIL' } })).toBe(true);
-    expect(esObraRetail({ tipoProyecto: { id: '1', codigo: 'EDI', nombre: 'Edificio', raizOneDrive: 'OBRAS_MAYORES' } })).toBe(false);
-    expect(esObraRetail({ tipoProyecto: undefined })).toBe(false);
-    expect(esObraRetail(undefined)).toBe(false);
+describe('tipo de proyecto sin cubicación ni reserva (retail)', () => {
+  const retail = { tipoProyecto: { id: '1', codigo: 'RETAIL', nombre: 'Retail', usaCubicacion: false, usaReservaMateriales: false } };
+  it('lo dice el tipo de proyecto; sin el dato, como hasta ahora (sí usa)', () => {
+    expect(usaCubicacion(retail)).toBe(false);
+    expect(usaReservaMateriales(retail)).toBe(false);
+    expect(usaCubicacion({ tipoProyecto: { id: '2', codigo: 'EDIFICIO', nombre: 'Edificio', usaCubicacion: true, usaReservaMateriales: true } })).toBe(true);
+    expect(usaCubicacion({ tipoProyecto: { id: '2', codigo: 'EDIFICIO', nombre: 'Edificio' } })).toBe(true);
+    expect(usaReservaMateriales(undefined)).toBe(true);
   });
   it('en el taller no tiene Cubicación (rectifica desde Fases); Fases sigue antes de Requisiciones', () => {
-    expect(seccionesDelModo('fabricacion', 'HETMO', true)).toEqual(['general', 'fabricacion', 'requisiciones', 'pendientes']);
-    expect(seccionEfectiva('cubicacion', 'HETMO', 'fabricacion', true)).toBe('general');
-    expect(seccionEfectiva('fabricacion', 'HETMO', 'fabricacion', true)).toBe('fabricacion');
+    expect(seccionesDelModo('fabricacion', 'HETMO', false)).toEqual(['general', 'fabricacion', 'requisiciones', 'pendientes']);
+    expect(seccionEfectiva('cubicacion', 'HETMO', 'fabricacion', false)).toBe('general');
+    expect(seccionEfectiva('fabricacion', 'HETMO', 'fabricacion', false)).toBe('fabricacion');
   });
   it('en Comercial conserva sus pestañas (la reserva se oculta dentro de Abastecimiento)', () => {
-    expect(seccionesDelModo('obra', 'HETMO', true)).toEqual(SECCIONES_OBRA);
+    expect(seccionesDelModo('obra', 'HETMO', false)).toEqual(SECCIONES_OBRA);
   });
 });

@@ -465,6 +465,9 @@ export interface TipoProyecto {
   porDefecto: boolean;
   modoCubicacion: ModoCubicacion;
   raizOneDrive: RaizComercialOneDrive;
+  // Si sus obras usan reserva de materiales y cubicación (retail: ninguna de las dos).
+  usaReservaMateriales: boolean;
+  usaCubicacion: boolean;
   _count?: { proyectos: number };
 }
 
@@ -641,7 +644,7 @@ export interface Proyecto {
   id: string;
   // Edificio, Condominio, Retail (Configuracion > Comercial).
   tipoProyectoId?: string;
-  tipoProyecto?: Pick<TipoProyecto, 'id' | 'codigo' | 'nombre'> & Partial<Pick<TipoProyecto, 'raizOneDrive'>>;
+  tipoProyecto?: Pick<TipoProyecto, 'id' | 'codigo' | 'nombre'> & Partial<Pick<TipoProyecto, 'usaReservaMateriales' | 'usaCubicacion'>>;
   // Llave de HETMO; null = proyecto manual (nunca se sincroniza).
   hetmoSinVersion: number | null;
   numeroPresupuesto: number;
