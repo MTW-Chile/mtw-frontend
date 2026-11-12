@@ -451,12 +451,20 @@ export async function setVersionActiva(
 export async function updateEstadoAprobacion(
   versionId: string,
   estado: 'EN_COTIZACION' | 'ESPERANDO_APROBACION_COMERCIAL' | 'APROBADO_GERENCIA' | 'ACEPTADO_CLIENTE'
-): Promise<{ success: boolean; version: ProyectoVersion }> {
-  const response = await apiClient.patch<{ success: boolean; version: ProyectoVersion }>(
-    `/versiones/${versionId}/estado-aprobacion`,
-    { estado }
-  );
+): Promise<ResultadoEstadoAprobacion> {
+  // Al aceptar, la API acepta tambien el documento en HETMO: puede tardar.
+  const response = await apiClient.patch<ResultadoEstadoAprobacion>(`/versiones/${versionId}/estado-aprobacion`, { estado }, { timeout: 90_000 });
   return response.data;
+}
+
+// hetmoAceptacion: resultado de aceptar el documento en HETMO (solo al pasar a
+// ACEPTADO_CLIENTE y con la escritura habilitada). avisoHetmo: al revertir.
+export interface ResultadoEstadoAprobacion {
+  success: boolean;
+  version: ProyectoVersion;
+  preciosCongelados?: boolean;
+  hetmoAceptacion?: { estado: 'ACEPTADO' | 'ERROR'; numeroPedido: number | null; mensaje: string | null };
+  avisoHetmo?: string;
 }
 
 export async function createFase(
@@ -1826,6 +1834,8 @@ export type FabricacionUnica =
       lineas: LineaConciliacionFabricacion[];
       fueraDelPresupuesto: { modelo: string; lineaHetmo: number; unidades: number }[];
       avisos: string[];
+      // Unidades de ventanas de la obra que no estan en ninguna fase.
+      ventanasSinFase?: number;
     };
 export async function prepararFabricacionUnica(proyectoId: string): Promise<FabricacionUnica> {
   const response = await apiClient.post<FabricacionUnica>(`/proyectos/${proyectoId}/fabricacion-unica`, undefined, { timeout: 180000 });
@@ -2427,5 +2437,16 @@ export async function cambiarEstadoEstadoPago(
   payload: { estado: EstadoEstadoPago; comentario?: string | null; numeroFactura?: string | null; valorUf?: number | null; fecha?: string | null }
 ): Promise<{ estadoPago: EstadoPagoDetalle }> {
   const response = await apiClient.patch(`/estados-pago/${id}/estado`, payload);
+  return response.data;
+}
+
+// «Pasar a producción» de una obra sin cubicación (retail): crea la fase única con
+// todas las ventanas, en el ERP y en HETMO. Con ventanas sin rectificar la API
+// responde 409 con la lista (sinRectificar), salvo que se pida pasarlas igual.
+export async function crearFaseUnica(
+  proyectoId: string,
+  opciones: { sinRectificar?: boolean } = {}
+): Promise<{ estado: 'CREADA'; faseId: string; avisoHetmo: string | null; hetmoNumeroFase: number | null }> {
+  const response = await apiClient.post(`/proyectos/${proyectoId}/fase-unica`, opciones, { timeout: 200_000 });
   return response.data;
 }

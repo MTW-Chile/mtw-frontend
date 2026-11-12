@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, Loader2, Ruler } from 'lucide-react';
-import { prepararFabricacionUnica, type FabricacionUnica as DatosFabricacionUnica } from '../../../api/client';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { CheckCircle2, Factory, Loader2, Ruler } from 'lucide-react';
+import { crearFaseUnica, prepararFabricacionUnica, type FabricacionUnica as DatosFabricacionUnica } from '../../../api/client';
+import { useConfirmar } from '../../../components/ui/Confirmar';
+import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import { Aviso } from '../../../components/ui/Aviso';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
@@ -13,18 +15,56 @@ import { FasesTab } from '../FasesTab';
 import { RectificarMedidas } from './RectificarMedidas';
 
 /**
- * Fabricación de una obra sin cubicación (retail): se fabrica de una vez, así
- * que su documento de fabricación ES la fase. Al abrir, la API (POST
- * /proyectos/:id/fabricacion-unica) arma la fase única con todas las ventanas y
- * las concilia con las del documento por línea del presupuesto. Sin documento
- * detectado se avisa y se ofrece rectificar medidas (lo que se hace antes de
- * fabricar).
+ * Fabricación de una obra sin cubicación (retail): se fabrica de una vez, en
+ * una fase única con todas las ventanas.
+ *  - Antes de producción: se rectifican las medidas y se «pasa a producción»
+ *    (POST /proyectos/:id/fase-unica), que crea la fase única en el ERP y en
+ *    HETMO, con la medida rectificada de cada ventana. Las que no se rectificaron
+ *    pueden pasar igual, con la medida del presupuesto (a veces ya vienen rectificadas).
+ *  - Después: la fase con sus materiales (pedido), y, cuando HETMO crea el
+ *    documento de fabricación de esa fase, su conciliación.
+ * Una obra cuyo documento se hizo en HETMO directo desde el presupuesto también
+ * aparece aquí: la API arma la fase única desde el documento (POST
+ * /proyectos/:id/fabricacion-unica, al abrir).
  */
 export const FabricacionUnica: React.FC<{ proyecto: Proyecto; activeVersion: ProyectoVersion }> = ({ proyecto, activeVersion }) => {
   const queryClient = useQueryClient();
   const { tiene } = usePermisos();
   const [rectificando, setRectificando] = useState(false);
+  const { confirmar } = useConfirmar();
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['fabricacionUnica', proyecto.id], queryFn: () => prepararFabricacionUnica(proyecto.id) });
+
+  const pasar = useMutation({
+    mutationFn: (sinRectificar: boolean) => crearFaseUnica(proyecto.id, { sinRectificar }),
+    onSuccess: (r) => {
+      if (r.avisoHetmo) mostrarToast('Pasó a producción en el ERP, pero falta confirmarla en HETMO.', { detalle: r.avisoHetmo, duracionMs: 0 });
+      else mostrarToast(`Pasó a producción${r.hetmoNumeroFase ? `: fase ${r.hetmoNumeroFase} en HETMO` : ''}.`, { tipo: 'info' });
+      for (const key of ['fabricacionUnica', 'proyectoDetail', 'cubicacion', 'cubicacionEstructura']) queryClient.invalidateQueries({ queryKey: [key, proyecto.id] });
+    },
+    onError: async (e: any) => {
+      const sinRectificar: string[] | undefined = e?.response?.data?.sinRectificar;
+      if (sinRectificar?.length) {
+        const n = sinRectificar.length;
+        const ok = await confirmar({
+          titulo: n === 1 ? '¿Pasar a producción con 1 ventana sin rectificar?' : `¿Pasar a producción con ${n} ventanas sin rectificar?`,
+          mensaje: (
+            <>
+              <p>
+                {n === 1 ? 'Esta ventana no tiene' : 'Estas ventanas no tienen'} la medida rectificada y {n === 1 ? 'se fabricará' : 'se fabricarán'} con la medida
+                del presupuesto: <span className="font-mono">{sinRectificar.slice(0, 12).join(', ')}{n > 12 ? '…' : ''}</span>.
+              </p>
+              <p className="mt-2">Después no se pueden cambiar desde el ERP.</p>
+            </>
+          ),
+          confirmar: 'Pasar a producción',
+        });
+        if (ok) pasar.mutate(true);
+        return;
+      }
+      const { mensaje, detalle } = extraerErrorParaToast(e);
+      mostrarToast(mensaje, { detalle });
+    },
+  });
 
   // La fase pudo haberse creado recién: la ficha de la obra la necesita para mostrarla.
   const faseId = data?.estado === 'OK' ? data.faseId : null;
@@ -55,14 +95,56 @@ export const FabricacionUnica: React.FC<{ proyecto: Proyecto; activeVersion: Pro
     </Button>
   );
 
+  // Antes de producción: rectificar y pasar a producción.
   if (data.estado === 'SIN_DOCUMENTO') {
+    const aceptada = activeVersion.estadoAprobacion === 'ACEPTADO_CLIENTE';
+    const puedePasar = aceptada && tiene('obras.fases.editar');
     return (
       <div className="space-y-4">
-        <Aviso tono="advertencia" titulo="No se ha detectado documento de fabricación" accion={botonRectificar || undefined}>
-          Cuando el presupuesto se convierta en documento de fabricación en HETMO, aparecerá aquí solo como la fase única de la obra, con todas sus
-          ventanas. Mientras tanto puedes rectificar las medidas.
+        {activeVersion.hetmoAceptacionError && (
+          <Aviso tono="advertencia" titulo="El presupuesto no quedó aceptado en HETMO">
+            {activeVersion.hetmoAceptacionError} Se vuelve a intentar al pasar a producción.
+          </Aviso>
+        )}
+        <Aviso
+          tono="info"
+          titulo="Rectifica las medidas y pasa la obra a producción"
+          accion={
+            puedePasar ? (
+              <Button size="sm" leftIcon={<Factory className="w-3.5 h-3.5" />} isLoading={pasar.isPending} onClick={() => pasar.mutate(false)}>
+                Pasar a producción
+              </Button>
+            ) : undefined
+          }
+        >
+          {aceptada
+            ? 'Al pasar a producción se crea la fase única con todas las ventanas, aquí y en HETMO, cada una con su medida rectificada. Si alguna no está rectificada, se te preguntará si pasa con la medida del presupuesto.'
+            : 'El presupuesto todavía no está aceptado por el cliente: puedes rectificar, pero no pasar a producción.'}
         </Aviso>
-        {rectificando && <RectificarMedidas proyectoId={proyecto.id} onCerrar={() => setRectificando(false)} />}
+        {pasar.isPending && <p className="text-[11px] text-slate-500">Creando la fase única en el ERP y en HETMO. Puede tardar un par de minutos.</p>}
+        <RectificarMedidas proyectoId={proyecto.id} onCerrar={() => undefined} fija />
+      </div>
+    );
+  }
+
+  // Ya en producción, esperando que HETMO cree el documento de fabricación de la fase.
+  if (data.documentos.length === 0) {
+    return (
+      <div className="space-y-5">
+        {data.avisos.map((a) => (
+          <Aviso key={a} tono="advertencia">{a}</Aviso>
+        ))}
+        <Aviso tono="info" titulo="En producción: esperando el documento de fabricación">
+          La fase única ya está en HETMO. Cuando allí se acepte a producción y se cree su documento de fabricación, aparecerá aquí solo y se
+          vinculará con las ventanas. Mientras tanto ya puedes pedir sus materiales.
+        </Aviso>
+        {faseVisible ? (
+          <FasesTab proyecto={proyecto} activeVersion={activeVersion} sinCubicacion />
+        ) : (
+          <div className="p-6 flex justify-center text-slate-500">
+            <Loader2 className="w-4 h-4 animate-spin" />
+          </div>
+        )}
       </div>
     );
   }

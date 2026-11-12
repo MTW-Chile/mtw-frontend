@@ -9,6 +9,12 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - **Parche** (2.0.0 → 2.0.1): ajustes y mejoras acotadas, cada despliegue.
 - **Corrección urgente** sobre un parche (2.0.4 → 2.0.4.1; en package.json, 2.0.4-1): la decide Alfredo.
 
+## Sin publicar — aceptación en HETMO y «pasar a producción» retail
+
+- **Aceptado por el cliente** también deja el documento de HETMO **aceptado comercialmente** y con **«Permitir fases»**, como en Efficient (autoriza antes si estaba cerrado). Si HETMO no responde, la aceptación en el ERP sigue, se avisa y se reintenta al crear la primera fase. Revertir la aceptación en el ERP no toca HETMO (se avisa).
+- **Retail › Fabricación**: antes de producción muestra la rectificación de medidas y **«Pasar a producción»**, que crea la fase única con todas las ventanas en el ERP y en HETMO, cada una con su medida rectificada. Si alguna no está rectificada, pregunta si pasa con la medida del presupuesto. Después muestra la fase con sus materiales para el pedido y, cuando HETMO crea el documento de fabricación, su conciliación.
+- Un documento de fabricación hecho desde **otra versión** del presupuesto ya no se vincula solo a la obra: se buscan solo los de la versión aceptada.
+
 ## Sin publicar — fases creadas en HETMO
 
 **Obras en curso › Fases**, en obras cotizadas en HETMO (se activa con `HETMO_FASES_ESCRITURA` en la API y la escritura del agente).

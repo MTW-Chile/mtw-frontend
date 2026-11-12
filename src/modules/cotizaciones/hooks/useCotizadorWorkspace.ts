@@ -279,7 +279,20 @@ export function useCotizadorWorkspace(proyectoId: string, pasoInicial: 1 | 2 | 3
       if (!activeVersion) return;
       return updateEstadoAprobacion(activeVersion.id, estado);
     },
-    onSuccess: () => {
+    onSuccess: (resultado) => {
+      // Al aceptar, el documento se acepta tambien en HETMO (aceptacion comercial y «Permitir fases»).
+      if (resultado?.hetmoAceptacion?.estado === 'ACEPTADO') {
+        mostrarToast(
+          `Aceptado también en HETMO${resultado.hetmoAceptacion.numeroPedido ? ` (pedido ${resultado.hetmoAceptacion.numeroPedido})` : ''}: queda listo para crear fases.`,
+          { tipo: 'info' }
+        );
+      } else if (resultado?.hetmoAceptacion?.estado === 'ERROR') {
+        mostrarToast('El presupuesto quedó aceptado en el ERP, pero no en HETMO.', {
+          detalle: `${resultado.hetmoAceptacion.mensaje ?? ''} Se volverá a intentar al crear la primera fase.`,
+          duracionMs: 0,
+        });
+      }
+      if (resultado?.avisoHetmo) mostrarToast(resultado.avisoHetmo, { tipo: 'info', duracionMs: 0 });
       queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyectoId] });
       // Esta transicion puede crear o resolver un pendiente de aprobacion
       // gerencial (ESPERANDO_APROBACION_COMERCIAL) -- se invalida para que

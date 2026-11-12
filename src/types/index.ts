@@ -628,6 +628,10 @@ export interface ProyectoVersion {
     | 'APROBADO_GERENCIA'
     | 'ACEPTADO_CLIENTE';
   esCongelado: boolean;
+  // Aceptacion del documento en HETMO al aceptar el cliente (null = no se hizo o fallo).
+  hetmoAceptadoEn?: string | null;
+  hetmoNumeroPedido?: number | null;
+  hetmoAceptacionError?: string | null;
   // Precio real en UF fijado al aceptar el presupuesto (ver congelarPreciosVenta en mtw-api); null hasta aceptar.
   ventaTotalUFCongelada?: number | string | null;
   costoTotalCLPCongelado?: number | string | null;

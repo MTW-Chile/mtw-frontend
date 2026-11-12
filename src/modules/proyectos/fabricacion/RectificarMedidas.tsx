@@ -11,7 +11,8 @@ import { VentanasCubicacion, type FiltroVentanas } from '../cubicacion/VentanasC
  * ventanas de la cubicación única, para escribir el rasgo medido en obra. Al
  * abrirla nombra las ventanas que aún no tienen nombre (cubicación única).
  */
-export const RectificarMedidas: React.FC<{ proyectoId: string; onCerrar: () => void }> = ({ proyectoId, onCerrar }) => {
+// fija: sin botón de cerrar (la pantalla de antes de producción la muestra siempre).
+export const RectificarMedidas: React.FC<{ proyectoId: string; onCerrar: () => void; fija?: boolean }> = ({ proyectoId, onCerrar, fija }) => {
   const queryClient = useQueryClient();
   const [filtro, setFiltro] = useState<FiltroVentanas>({ pisoId: '', torreId: '' });
   const { data, isLoading, isError } = useQuery({
@@ -30,7 +31,7 @@ export const RectificarMedidas: React.FC<{ proyectoId: string; onCerrar: () => v
       icono={Ruler}
       titulo="Rectificar medidas"
       descripcion={data ? `Escribe el rasgo medido en obra (ancho × alto). La medida de fabricación resta la holgura de ${data.cubicacion.holguraMm} mm.` : undefined}
-      acciones={<IconButton icono={X} etiqueta="Cerrar la rectificación" onClick={onCerrar} />}
+      acciones={fija ? undefined : <IconButton icono={X} etiqueta="Cerrar la rectificación" onClick={onCerrar} />}
     >
       {isLoading ? (
         <div className="p-6 flex justify-center text-slate-500">
