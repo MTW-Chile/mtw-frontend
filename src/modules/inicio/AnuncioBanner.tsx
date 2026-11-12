@@ -10,7 +10,7 @@ export const ESTILO_URGENCIA: Record<UrgenciaAnuncio, { label: string; caja: str
 
 /**
  * Anuncio para todos los usuarios (Configuración › Anuncio): franja de color
- * pegada al encabezado, sobre el buscador de Inicio.
+ * pegada al encabezado, arriba de Inicio.
  */
 export const AnuncioBanner: React.FC<{ texto: string; urgencia: UrgenciaAnuncio; className?: string; accion?: React.ReactNode }> = ({ texto, urgencia, className = '', accion }) => {
   const { caja, Icono } = ESTILO_URGENCIA[urgencia];

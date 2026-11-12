@@ -23,8 +23,23 @@ export type ModoWorkspace = 'obra' | 'fabricacion';
 // OneDrive. Lo que se vende y se cobra sale del presupuesto, que no tiene.
 export const SECCIONES_OBRA_MANUAL: SeccionObra[] = ['general'];
 
-export function seccionesDelModo(modo: ModoWorkspace, origen?: Proyecto['origen']): SeccionObra[] {
-  if (modo === 'fabricacion') return SECCIONES_FABRICACION;
+// Tipo de proyecto sin cubicación (TipoProyecto.usaCubicacion = false; retail,
+// que se fabrica de una "tirada"): Fabricación no tiene pestaña Cubicación. Lo
+// único que puede necesitar es rectificar medidas, y eso se hace desde Fases
+// (ver FasesTab, prop sinCubicacion).
+export const SECCIONES_FABRICACION_SIN_CUBICACION: SeccionObra[] = SECCIONES_FABRICACION.filter((s) => s !== 'cubicacion');
+
+// Lo que define el tipo de proyecto de la obra (Configuración › Tipos de
+// proyecto). Sin el dato (API anterior), como hasta ahora: si usa.
+export function usaCubicacion(proyecto?: Pick<Proyecto, 'tipoProyecto'> | null): boolean {
+  return proyecto?.tipoProyecto?.usaCubicacion ?? true;
+}
+export function usaReservaMateriales(proyecto?: Pick<Proyecto, 'tipoProyecto'> | null): boolean {
+  return proyecto?.tipoProyecto?.usaReservaMateriales ?? true;
+}
+
+export function seccionesDelModo(modo: ModoWorkspace, origen?: Proyecto['origen'], conCubicacion = true): SeccionObra[] {
+  if (modo === 'fabricacion') return conCubicacion ? SECCIONES_FABRICACION : SECCIONES_FABRICACION_SIN_CUBICACION;
   return origen === 'MANUAL_OBRA' ? SECCIONES_OBRA_MANUAL : SECCIONES_OBRA;
 }
 
@@ -54,8 +69,8 @@ export function seccionDisponible(seccion: SeccionObra, origen: Proyecto['origen
 
 // Seccion a mostrar: la pedida (ej. desde la URL) si existe en este modo y esta
 // disponible para esta obra; si no, Información General.
-export function seccionEfectiva(solicitada: string | undefined, origen: Proyecto['origen'], modo: ModoWorkspace = 'obra'): SeccionObra {
-  const permitidas = seccionesDelModo(modo, origen);
+export function seccionEfectiva(solicitada: string | undefined, origen: Proyecto['origen'], modo: ModoWorkspace = 'obra', conCubicacion = true): SeccionObra {
+  const permitidas = seccionesDelModo(modo, origen, conCubicacion);
   const candidata = solicitada ? (ALIAS[solicitada] ?? solicitada) : undefined;
   const valida = permitidas.find((s) => s === candidata);
   if (valida && seccionDisponible(valida, origen)) return valida;

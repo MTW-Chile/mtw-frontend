@@ -7,6 +7,7 @@
 // real de varios rounds de bugs de paginación que no se detectaron a tiempo).
 import type { MaterialVentana, Proyecto, Ventana } from '../../../../types';
 import { formatNumber } from '../../../../lib/utils';
+import { lineaDireccion } from '../../../../lib/chile';
 import { toWindowLine } from '../../components/drawing/ventanaAdapter';
 import { buildWindow } from '../../components/drawing/windowGeometryBuilder';
 import { buildProtexDoorSvg } from '../../components/drawing/protexDoorSvg';
@@ -576,7 +577,11 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
   const clienteRut = proyecto.cliente?.rut || proyecto.clienteRutRaw;
   const clienteGiro = proyecto.cliente?.giro || null;
   const clienteDireccion = proyecto.cliente?.direccion || proyecto.clienteDireccionRaw;
-  const clienteComuna = proyecto.cliente?.localidad || proyecto.clienteLocalidadRaw;
+  // Formato del SII: comuna y ciudad por separado. Un cliente sin comuna cargada (o sin vincular) muestra
+  // lo que haya como antes, en «Comuna».
+  const clienteComuna = proyecto.cliente?.comuna || proyecto.cliente?.localidad || proyecto.clienteLocalidadRaw;
+  const clienteCiudad = proyecto.cliente?.comuna && proyecto.cliente.localidad && proyecto.cliente.localidad !== proyecto.cliente.comuna ? proyecto.cliente.localidad : null;
+  const obraDireccion = lineaDireccion({ direccion: proyecto.obraDireccion, comuna: proyecto.obraComuna, ciudad: proyecto.obraCiudad }) || null;
   const clienteContacto = proyecto.cliente?.contacto || null;
 
   const logoImg = logoDataUrl ? `<img src="${logoDataUrl}" style="max-width:101px;max-height:46px;width:auto;height:auto;object-fit:contain;display:block;margin-bottom:12px;" />` : '';
@@ -607,8 +612,11 @@ export function buildDocumentoHtml(params: DocumentoHtmlParams): string {
     ['Giro', clienteGiro],
     ['Dirección', clienteDireccion],
     ['Comuna', clienteComuna],
+    ['Ciudad', clienteCiudad],
     ['Contacto', clienteContacto],
     ['Obra', proyecto.obra],
+    // Dirección de la obra (paso 1): «Ubicación» cabe en la columna de etiquetas.
+    ['Ubicación', obraDireccion],
   ];
   const filasClientePresentes = filasClienteData.filter(([, valor]) => Boolean(valor));
   const datosClienteHtml = `

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, ChevronsDownUp, ChevronsUpDown, Copy, Home, Layers, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Building2, ChevronsDownUp, ChevronsUpDown, Copy, Home, Layers, Loader2, Pencil, Plus, Trash2, X, Repeat } from 'lucide-react';
 import { asignarVentanasCubicacion, eliminarLugarCubicacion, eliminarUbicacionCubicacion, getEstructuraCubicacion, getFabricacionesProyecto, moverVentanaCubicacion, quitarPosicionVentanaCubicacion } from '../../../api/client';
 import { Badge } from '../../../components/ui/Badge';
 import { BotonColapsar } from '../../../components/ui/BotonColapsar';
@@ -110,15 +110,28 @@ const TarjetaUnidad: React.FC<{
       data-testid="ventana-chip"
       title={
         legacy
-          ? `${v.nomenclatura ?? ''} · ${v.sistema} · ${formatoMm(v.anchoFabricacionMm ?? v.anchoPlanoMm)} × ${formatoMm(v.altoFabricacionMm ?? v.altoPlanoMm)}${v.documento ? ` · ${v.documento.nombre}` : ''}`
+          ? !v.documento
+            ? `${v.nomenclatura ?? ''} · ${v.sistema} · Sin fabricar: la planilla la espera y ningún documento de fabricación la trae todavía`
+            : `${v.nomenclatura ?? ''} · ${v.sistema} · ${formatoMm(v.anchoFabricacionMm ?? v.anchoPlanoMm)} × ${formatoMm(v.altoFabricacionMm ?? v.altoPlanoMm)} · ${v.documento.nombre}${
+                v.fabricacionesAnteriores.length ? ` · Reposición: reemplazó a ${v.fabricacionesAnteriores.map((f) => f.nombre).join(', ')}` : ''
+              }${v.fueraDePlanilla ? ' · La planilla no la pide' : ''}`
           : `${v.nomenclatura ?? ''} · ${v.sistema}${v.rectificada ? ` · fabricación ${formatoMm(v.anchoFabricacionMm)} × ${formatoMm(v.altoFabricacionMm)}` : ' · sin rectificar'}`
       }
       className={`group inline-flex items-center gap-1 rounded-lg border pl-1.5 pr-0.5 py-0.5 text-[11px] cursor-grab active:cursor-grabbing select-none ${
-        seleccion?.has(v.id) ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-300 text-brand-900' : !legacy && v.rectificada ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-slate-200 bg-white text-slate-700'
+        seleccion?.has(v.id)
+          ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-300 text-brand-900'
+          : legacy && !v.documento
+            ? 'border-dashed border-amber-400 bg-amber-50/60 text-amber-900'
+            : !legacy && v.rectificada
+              ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
+              : 'border-slate-200 bg-white text-slate-700'
       }`}
+      data-sin-fabricar={legacy && !v.documento ? 'true' : undefined}
     >
       <ActivadorEdicion onClick={() => onEditarVentana(v)} etiqueta={`Editar ${v.nomenclatura ?? v.codigo}`} className="items-baseline!">
         <b className="font-mono">{v.nomenclatura ?? v.codigo}</b>
+        {legacy && v.fabricacionesAnteriores.length > 0 && <Repeat className="w-3 h-3 ml-1 text-violet-600 shrink-0 self-center" aria-label="Con reposición" />}
+        {legacy && v.documento && v.fueraDePlanilla && <span className="ml-1 text-[10px] font-bold text-rose-700 self-center" aria-label="La planilla no la pide">✕ planilla</span>}
         {mostrarUbicacion && v.ubicacion && <span className="text-slate-500 max-w-[5.5rem] truncate ml-1">{v.ubicacion}</span>}
       </ActivadorEdicion>
       <IconButton icono={X} etiqueta={`Sacar ${v.nomenclatura ?? v.codigo}`} tono="peligro" onClick={() => onQuitarVentana(v.id)} />
@@ -529,6 +542,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                     {v.sistema}
                     {v.documento && !documentoId ? ` · ${v.documento.nombre}` : ''}
                   </p>
+                  {v.fueraDePlanilla && <p className="text-[11px] font-bold text-rose-700">La planilla no la pide</p>}
                 </div>
               ))}
             {!legacy && visibles.length === 0 && <p className="text-xs text-slate-500 py-3 text-center">{documentoId ? 'No quedan ventanas por ubicar de este documento.' : 'No hay tipos.'}</p>}
@@ -641,6 +655,8 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                         const cerrado = pisosCerrados.has(piso.id);
                         const nVentanas = piso.deptos.reduce((x, d) => x + d.ventanas.length, 0);
                         const vacios = piso.deptos.filter((d) => d.ventanas.length === 0).length;
+                        // Obra legacy: lugares que la planilla espera y ningún documento ha fabricado.
+                        const sinFabricar = legacy ? piso.deptos.reduce((x, d) => x + d.ventanas.filter((v) => !v.documento).length, 0) : 0;
                         return (
                         <div key={piso.id} className="px-4 py-3 space-y-2" data-testid={`piso-${torre.nombre || 'sin'}-${piso.numero}`}>
                           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
@@ -651,7 +667,8 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
                                 {piso.deptos.length} {voc.unidadCorta === 'depto' ? (piso.deptos.length === 1 ? 'depto' : 'deptos') : piso.deptos.length === 1 ? 'recinto' : 'recintos'} · {nVentanas} ventana(s)
                               </span>
                               {vacios > 0 && <Badge size="sm" variant="warning">{vacios} sin ventanas</Badge>}
-                              {piso.deptos.length > 0 && vacios === 0 && <Badge size="sm" variant="success">completo</Badge>}
+                              {sinFabricar > 0 && <Badge size="sm" variant="warning">{sinFabricar} sin fabricar</Badge>}
+                              {piso.deptos.length > 0 && vacios === 0 && sinFabricar === 0 && <Badge size="sm" variant="success">completo</Badge>}
                             </BotonColapsar>
                             <div className="flex flex-wrap gap-x-2 text-[11px]">
                               <Button
@@ -741,7 +758,7 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
             })
           )}
           <p className="text-[11px] text-slate-500">
-            {legacy ? 'Toca una ventana para editar su ubicación y tipo; su medida es la del documento de fabricación.' : 'Verde = ventana ya rectificada (con rasgo medido). Toca una ventana para editar su ubicación, tipo y rasgo.'}
+            {legacy ? 'Toca una ventana para ver su dibujo y editar su ubicación; su medida y descripción son las del documento de fabricación. Borde punteado = sin fabricar (la planilla la espera y falta su documento); ↻ = con reposición.' : 'Verde = ventana ya rectificada (con rasgo medido). Toca una ventana para editar su ubicación, tipo y rasgo.'}
           </p>
         </div>
       </div>

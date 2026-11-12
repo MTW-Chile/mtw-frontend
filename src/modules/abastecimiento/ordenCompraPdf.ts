@@ -11,6 +11,7 @@
 // sienta el mismo tipo de documento que el Presupuesto y el Catálogo
 // Técnico, no uno aparte con otro estilo.
 import { HEX, escapeHtml } from '../cotizaciones/steps/Step5Consolidacion/presupuestoPdf';
+import { lineaDireccion } from '../../lib/chile';
 import type { OrdenCompra } from '../../types';
 
 
@@ -111,7 +112,7 @@ export function buildOrdenCompraHtml(oc: OrdenCompra, logoDataUrl: string | null
             <div style="font-size:10.5px;font-weight:bold;color:${HEX.navy};margin-bottom:3px;">${escapeHtml(proveedor?.nombre || '—')}</div>
             <table style="border-collapse:collapse;">
               ${filaDato('R.U.T.', proveedor?.rut)}
-              ${filaDato('Dirección', [proveedor?.direccion, proveedor?.comuna].filter(Boolean).join(', ') || null)}
+              ${filaDato('Dirección', lineaDireccion({ direccion: proveedor?.direccion, comuna: proveedor?.comuna, ciudad: proveedor?.ciudad }) || null)}
               ${filaDato('Teléfono', proveedor?.telefono)}
               ${filaDato('Correo', proveedor?.emailPedidos || proveedor?.email)}
             </table>

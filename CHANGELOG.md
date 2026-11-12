@@ -19,6 +19,54 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - Una fase solo se puede crear con ventanas ya rectificadas (en cualquier obra). El selector marca las que faltan; si la selección trae alguna, la fase no se crea y se listan.
 - El documento de fabricación de una fase creada así se vincula solo a la fase y a sus ventanas cubicadas.
 
+## Sin publicar — conciliación de la cubicación con la planilla de control (obras en ejecución)
+
+La planilla de control pasa a ser la lista de lo que la obra espera, y lo que queda pendiente ya no se pierde al cerrar el aviso.
+- **Sin fabricar**: una fila de la planilla sin ventana fabricada deja su **lugar en el cubicador** (borde punteado, «sin fabricar»), pendiente de conciliarse con un documento de fabricación nuevo. Cuando ese documento se vincula, el lugar se llena solo con el nombre, la medida y el dibujo del documento. Cada piso avisa cuántas le faltan.
+- **Reposiciones**: una ventana fabricada más de una vez es una sola ventana; **vale la del documento más nuevo** y las anteriores quedan registradas como reemplazadas (se ve en la ventana y en Conciliación). Ya no depende del orden en que se vinculen los documentos.
+- **Fabricadas que la planilla no pide**: siguen por ubicar, ahora marcadas «La planilla no la pide».
+- **Torre**: al calzar una fila con su ventana se compara también la torre («211O» es de la torre Oriente aunque la planilla la escriba completa); antes dos torres con el mismo número de depto podían cruzarse.
+- **Pestaña Conciliación** (Cubicación): sin fabricar, fabricadas que la planilla no pide y reposiciones, siempre disponibles y con buscador. El resumen muestra cuántas ventanas faltan fabricar.
+- Volver a subir la planilla de una obra ya cargada la pone al día con estas reglas (las repetidas que habían quedado «por ubicar» se registran como reposición).
+
+## Sin publicar — direcciones en formato SII y tipos de proyecto
+
+- **Direcciones como las pide el SII** (facturas, guías de despacho, OC): dirección, **comuna** y **ciudad** por separado, con **Región** como desplegable que deja en «Comuna» solo las de esa región (16 regiones, 346 comunas). Aplica a Clientes (maestro y cliente nuevo del paso 1), Proveedores, la dirección de la obra y la dirección de entrega de los despachos. Lo que ya estaba escrito y coincide con una comuna se ordenó solo («Las Condes, Santiago» → comuna Las Condes, ciudad Santiago); lo demás queda como «(anterior)» hasta que se corrija.
+- **Dirección de la obra** en el paso 1 de la cotización (Identificación) y en la Información General de la obra (Comercial › Obras en curso), además de al crear una obra manual: es a dónde van los despachos y sale en su guía; aparece también en el PDF del presupuesto («Ubicación») y en las listas de Despachos e Instaladores. Sin dirección de obra, el despacho parte de la del cliente, como antes.
+- **Guía de despacho (Bsale)**: ahora lleva la comuna del cliente y la comuna y ciudad de la obra.
+- **Tipos de proyecto**: «Obra» pasa a llamarse **Edificio**. Edificio y Condominio son obras mayores; Retail es retail (define la carpeta de OneDrive). Condominio y Retail se siguen cubicando como casa.
+
+## Sin publicar — OneDrive: carpeta comercial y carpeta de producción
+
+Cada obra pasa a tener **dos carpetas** en OneDrive: la comercial (la de siempre) y la de producción, que es la que usa Fabricación.
+- **Configuración › OneDrive** pide tres carpetas: la que contiene las carpetas comerciales de **obras mayores** (el ajuste que ya existía), la de las comerciales de **obras retail** (están en otra raíz; vacío = la misma de obras mayores) y la **carpeta de producción** (exclusiva de Fabricación, igual para obras mayores y retail). «Probar conexión» revisa las tres.
+- **Configuración › Tipos de proyecto**: columna «OneDrive» para decir si las obras del tipo están en la carpeta de obras mayores (Edificio, Condominio) o en la de retail (Retail).
+- **Taller › Fabricación**: la lista muestra la carpeta de producción de cada obra (vincular, cambiar, quitar) y la Información General de la obra abre «Documentos de producción» sobre esa carpeta. Comercial › Obras en curso sigue con la carpeta comercial.
+- Los adjuntos de pendientes (fotos, órdenes de compra) y las fotos de instalación van a la carpeta comercial.
+- Permiso nuevo **Editar documentos de producción** (roles Producción / Taller y Departamento Técnico / Comercial): vincular la carpeta de producción, crear carpetas y subir archivos en ella.
+
+## Sin publicar — flujo de los pendientes de obras legacy
+
+Los pendientes de las obras manuales (sus compras no se hicieron en el ERP) siguen pasos fijos por área, sin etapas configurables ni OC del sistema.
+- **A quién va**: marco, hoja y ventana completa van a **Fábrica**; vidrio y material, a **Compras**. Al ingresarlos, cada área recibe un correo con el detalle y el enlace para abrir cada pendiente.
+- **Visores separados**: Comercial › Pendientes muestra todos; Taller › Pendientes, los de fábrica; Abastecimiento › Pendientes, los de compras. Son secciones distintas (el menú marca solo la que está abierta).
+- **Pasos**: Ingresado (quién) → Recibido (quién del área lo abrió) → *Compras:* En proceso de compra (subiendo la OC, que queda en la carpeta de OneDrive de la obra) → Listo para despacho (al marcarlo recibido: entra a la bodega de la obra, que se crea sola) · *Fábrica:* En producción (con fecha estimada y comentarios; se salta si ya está en fábrica) → Listo para despacho → Despachado.
+- **Despacho**: en Despachos › obra aparecen los «Pendientes listos para despacho»; se arma un despacho con ellos, se emite con su guía y quedan Despachado (lo que estaba en la bodega de la obra sale). La obra lo recibe en Instaladores › Recepción.
+- **Ingreso**: «Qué falta o falló» y «Motivo» vuelven a ser desplegables, lado a lado.
+- **Permisos nuevos**: «Gestionar pendientes de fábrica» (rol Producción / Taller) y «Gestionar pendientes de compras» (rol Compras).
+- Los pendientes de obras cotizadas conservan su detalle de siempre; su gestión por pasos está en construcción.
+
+## Sin publicar — Instaladores (recepción, instalación y pendientes en tablet)
+
+«Instalación» pasa a ser el grupo **Instaladores** del menú, con tres secciones que parten de la lista de obras en curso:
+- **Recepción**: despachos por recibir y ya recibidos de la obra; el acuse de recibo es una página (antes una ventana emergente), con el lugar de cada ventana y las recepciones anteriores.
+- **Instalación**: se marcan una o varias ventanas (o un departamento o un piso entero con «Todo») y se certifican juntas, cada una con su propia foto.
+- **Pendientes**: ingreso de lo que falta o falló. Lo que se puede pedir: **Marco, Hoja, Vidrio, Material y Ventana completa** («Otro» queda solo en los pendientes antiguos). En *Material* se ofrecen solo accesorios y herrajes (los tipos de producto marcados «Se repone en obra» en Configuración › Tipos de producto).
+- Motivos de un pendiente: **Daño en obra, No recepción y Error de medidas** (los anteriores quedan solo en los pendientes antiguos).
+- La ventana elegida se muestra en una ficha compacta: dibujo chico, estado y los datos de su tarjeta en el PDF del presupuesto (ubicación, dimensiones, composición, apertura descrita por el dibujo y vidrios). Ya no lleva materiales, marcos y hojas ni la referencia al documento de fabricación. La misma descripción se usa al editar una ventana en el cubicador.
+- Pensado para tablet: desde 840 px de ancho útil, plano y detalle lado a lado; bajo eso, una columna con «Volver al plano». Tipo y motivo se eligen tocando tarjetas (ya no listas desplegables) y el formulario recuerda lo último elegido. El listado («carrito») se revisa en la página y la acción principal queda fija abajo a la derecha.
+- Permisos: Recepción e Instalación se ven con «Ver instalación» (actuar exige «Recibir en obra» / «Certificar instalación»); Pendientes, con «Crear pendientes».
+
 ## Sin publicar — reserva de materiales
 
 **Obras en curso › Abastecimiento** se separa en *Reserva de materiales* y *Compras*.

@@ -15,7 +15,7 @@ import { PendientesTab } from './pendientes/PendientesTab';
 import { AdicionalesTab } from './adicionales/AdicionalesTab';
 import { EstadosPagoTab } from './estados-pago/EstadosPagoTab';
 import { ClayCentroCostoEditor } from './ClayCentroCostoEditor';
-import { PERMISO_SECCION, seccionDisponible, seccionEfectiva, seccionesDelModo, type ModoWorkspace, type SeccionObra } from './seccionesObra';
+import { PERMISO_SECCION, seccionDisponible, seccionEfectiva, seccionesDelModo, usaCubicacion, usaReservaMateriales, type ModoWorkspace, type SeccionObra } from './seccionesObra';
 import { usePermisos } from '../../lib/permisos';
 import { BarraPestanas } from '../../components/ui/PageHeader';
 import { useMigas } from '../../lib/migas';
@@ -27,13 +27,15 @@ import { useMigas } from '../../lib/migas';
 // movimientos de la bodega de la obra: se miran en el modulo Bodega.
 type Seccion = SeccionObra;
 
-// Catalogo de pestañas; cuales se ven en cada modo lo dice seccionesDelModo().
+// Catalogo de pestañas, en el orden en que se muestran (Fases antes que
+// Requisiciones: una requisicion nace de una fase); cuales se ven en cada modo
+// lo dice seccionesDelModo().
 const SECCIONES: { id: Seccion; label: string; hint: string; icon: React.ElementType }[] = [
   { id: 'general', label: 'Información General', hint: 'Métricas, control de presupuesto por partida y documentos', icon: LayoutDashboard },
   { id: 'cubicacion', label: 'Cubicación', hint: 'Reparto por piso y departamento, rectificación y nomenclatura (opcional)', icon: Ruler },
-  { id: 'requisiciones', label: 'Requisiciones', hint: 'Solicitudes de material a bodega por fase', icon: PackageOpen },
   { id: 'fabricacion', label: 'Fases', hint: 'Fases de la obra y documentos de fabricación de HETMO', icon: Factory },
-  { id: 'abastecimiento', label: 'Abastecimiento', hint: 'Reserva de materiales de la obra y compras', icon: ShoppingCart },
+  { id: 'requisiciones', label: 'Requisiciones', hint: 'Solicitudes de material a bodega por fase', icon: PackageOpen },
+  { id: 'abastecimiento', label: 'Abastecimiento', hint: 'Reserva de materiales de la obra (si su tipo la usa) y compras', icon: ShoppingCart },
   { id: 'pendientes', label: 'Pendientes', hint: 'Lo que falta o falló en esta obra', icon: ClipboardList },
   { id: 'adicionales', label: 'Adicionales', hint: 'Ventas o cargos fuera del presupuesto aceptado', icon: FilePlus2 },
   { id: 'estados-pago', label: 'Estados de pago', hint: 'Cobros parciales al cliente por hitos de cada ventana', icon: Receipt },
@@ -80,19 +82,24 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
   // Una obra manual nunca se cotizo: las secciones que dependen del
   // presupuesto se ven en gris (ver seccionesObra.ts) y un enlace a una de
   // ellas cae a Información General. Mientras carga la obra no se sabe su origen.
-  const seccion: Seccion = seccionEfectiva(seccionInicial, proyecto?.origen, modo);
+  // Lo define el tipo de proyecto (retail: ni cubicación, que se rectifica desde Fases, ni reserva).
+  const conCubicacion = usaCubicacion(proyecto);
+  const conReserva = usaReservaMateriales(proyecto);
+  const seccion: Seccion = seccionEfectiva(seccionInicial, proyecto?.origen, modo, conCubicacion);
   // Las pestañas dependen del modo y del origen (una obra manual en Comercial
   // solo tiene Información General); mientras carga la obra no se muestran.
-  const seccionesVisibles = proyecto ? seccionesDelModo(modo, proyecto.origen) : [];
+  const seccionesVisibles = proyecto ? seccionesDelModo(modo, proyecto.origen, conCubicacion) : [];
   const pestanas = SECCIONES.filter((s) => seccionesVisibles.includes(s.id))
     // Pestañas con permiso propio (ver PERMISO_SECCION); la API exige lo mismo.
     .filter((s) => !PERMISO_SECCION[s.id] || tiene(PERMISO_SECCION[s.id]!))
     .map((s) => {
       const disponible = seccionDisponible(s.id, proyecto?.origen);
-      return { id: s.id, label: s.label, icon: s.icon, disabled: !disponible, title: disponible ? s.hint : 'No disponible: esta obra se creó a mano y no fue cotizada' };
+      // Sin cubicación (retail) no hay fases que planificar: el documento de fabricación es la fase única.
+      const label = s.id === 'fabricacion' && !conCubicacion ? 'Fabricación' : s.label;
+      return { id: s.id, label, icon: s.icon, disabled: !disponible, title: disponible ? s.hint : 'No disponible: esta obra se creó a mano y no fue cotizada' };
     });
   // Volver a la sección cierra lo abierto dentro de ella (ej. un adicional).
-  useMigas(1, [{ label: SECCIONES.find((x) => x.id === seccion)?.label ?? '', alHacerClic: () => actualizarParams({ seccion, adicional: null }) }]);
+  useMigas(1, [{ label: pestanas.find((x) => x.id === seccion)?.label ?? SECCIONES.find((x) => x.id === seccion)?.label ?? '', alHacerClic: () => actualizarParams({ seccion, adicional: null }) }]);
 
   // La ejecucion real de la obra sigue la version activa (la misma que
   // define versionActivaHetmoId en Cotizaciones), no siempre la de
@@ -108,11 +115,11 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
   const { data: resumenReservas } = useQuery({
     queryKey: ['reservasResumen', proyectoId],
     queryFn: () => getResumenReservasObra(proyectoId),
-    enabled: modo === 'obra' && veAbastecimiento,
+    enabled: modo === 'obra' && veAbastecimiento && conReserva,
     meta: { silencioso: true },
   });
   const [vistaAbastecimiento] = useUrlParam('vista');
-  const faltaReservar = modo === 'obra' && veAbastecimiento && resumenReservas?.aceptada && resumenReservas.generadas === 0;
+  const faltaReservar = modo === 'obra' && veAbastecimiento && conReserva && resumenReservas?.aceptada && resumenReservas.generadas === 0;
 
   return (
     <div className="flex flex-col h-full">
@@ -172,11 +179,11 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
             <div className="p-12 text-center text-slate-500 text-xs">Proyecto no encontrado.</div>
           ) : (
             <>
-              {seccion === 'general' && <InformacionGeneralTab proyecto={proyecto} activeVersion={activeVersion} />}
+              {seccion === 'general' && <InformacionGeneralTab proyecto={proyecto} activeVersion={activeVersion} modo={modo} />}
               {seccion === 'cubicacion' && <CubicacionTab proyecto={proyecto} activeVersion={activeVersion} />}
               {seccion === 'requisiciones' && <RequisicionesSection proyecto={proyecto} activeVersion={activeVersion} />}
-              {seccion === 'abastecimiento' && <AbastecimientoObraTab proyectoId={proyectoId} proyectoLabel={proyecto.obra} />}
-              {seccion === 'fabricacion' && <FabricacionTab proyecto={proyecto} activeVersion={activeVersion} />}
+              {seccion === 'abastecimiento' && <AbastecimientoObraTab proyectoId={proyectoId} proyectoLabel={proyecto.obra} sinReserva={!conReserva} />}
+              {seccion === 'fabricacion' && <FabricacionTab proyecto={proyecto} activeVersion={activeVersion} sinCubicacion={!conCubicacion} />}
               {seccion === 'estados-pago' && <EstadosPagoTab proyecto={proyecto} />}
               {seccion === 'pendientes' && <PendientesTab proyecto={proyecto} />}
               {seccion === 'adicionales' && <AdicionalesTab proyecto={proyecto} />}

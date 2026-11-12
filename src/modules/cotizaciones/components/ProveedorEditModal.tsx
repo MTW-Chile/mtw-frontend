@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Building2 } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
+import { CamposDireccion, aValorDireccion } from '../../../components/ui/CamposDireccion';
 import { Select } from '../../../components/ui/Select';
 import { useMonedas, resolverMoneda } from '../../../lib/monedas';
 import { createProveedor, updateProveedor, type ProveedorFacturacionPayload } from '../../../api/client';
@@ -39,6 +40,7 @@ export const ProveedorEditModal: React.FC<ProveedorEditModalProps> = ({ proveedo
     giroComercial: proveedor?.giroComercial || '',
     direccion: proveedor?.direccion || '',
     comuna: proveedor?.comuna || '',
+    ciudad: proveedor?.ciudad || '',
     region: proveedor?.region || '',
     pais: proveedor?.pais || '',
     telefono: proveedor?.telefono || '',
@@ -131,11 +133,14 @@ export const ProveedorEditModal: React.FC<ProveedorEditModalProps> = ({ proveedo
         <Input label="Nombre de Fantasía" value={formData.nombreFantasia || ''} onChange={set('nombreFantasia')} />
         <Input label="Giro Comercial" value={formData.giroComercial || ''} onChange={set('giroComercial')} />
       </div>
-      <Input label="Dirección Fiscal / Casa Matriz" value={formData.direccion || ''} onChange={set('direccion')} />
+      {/* Formato del SII (va en la OC): dirección, comuna y ciudad. */}
+      <CamposDireccion
+        etiquetaDireccion="Dirección Fiscal / Casa Matriz"
+        valor={aValorDireccion({ direccion: formData.direccion, region: formData.region, comuna: formData.comuna, ciudad: formData.ciudad })}
+        onChange={(v) => setFormData((prev) => ({ ...prev, direccion: v.direccion, region: v.region, comuna: v.comuna, ciudad: v.ciudad }))}
+      />
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-        <Input label="Comuna" value={formData.comuna || ''} onChange={set('comuna')} />
-        <Input label="Región" value={formData.region || ''} onChange={set('region')} />
-        <Input label="País" value={formData.pais || ''} onChange={set('pais')} />
+        <Input label="País" value={formData.pais || ''} onChange={set('pais')} helperText="Solo para proveedores extranjeros." />
       </div>
 
       <SectionTitle>Contacto y Comunicación</SectionTitle>

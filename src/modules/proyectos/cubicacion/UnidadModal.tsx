@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { crearUnidadCubicacion, editarUnidadCubicacion } from '../../../api/client';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { crearUnidadCubicacion, editarUnidadCubicacion, getFichaVentana } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import type { ConfigCubicacion, TipoCubicacion, UnidadCubicacion, Proyecto } from '../../../types';
@@ -12,6 +12,8 @@ import { vocabulario } from './vocabulario';
 import { Modal } from '../../../components/ui/Modal';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
+import { Aviso } from '../../../components/ui/Aviso';
+import { describirVentana } from '../obra/descripcionVentana';
 import { DibujoVentana } from '../obra/DibujoVentana';
 
 interface Props {
@@ -46,6 +48,14 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
   const [rasgoAlto, setRasgoAlto] = useState(mmATexto(unidad?.rasgoAltoMm));
 
   const tipo = tiposVentana.find((t) => t.id === tipoId);
+  // Ventana que vino de un documento de fabricación (obra legacy): su dibujo y su descripción salen de ese documento,
+  // con la misma ficha que usa Instalación (misma clave de caché).
+  const deDocumento = legacy && editando && !!unidad!.documento;
+  const ficha = useQuery({ queryKey: ['fichaVentana', proyectoId, unidad?.id], queryFn: () => getFichaVentana(proyectoId, unidad!.id), enabled: deDocumento, staleTime: 60_000, retry: false });
+  const fv = ficha.data?.fabricacionVentana ?? null;
+  // Misma descripción que la ficha y el PDF: la apertura sale de la geometría; sin dibujo, queda el texto del documento.
+  const descrita = describirVentana(ficha.data?.dibujo);
+  const descripcionDoc = descrita ? [descrita.apertura, descrita.composicion].filter(Boolean).join(' · ') : fv?.descripcionCorta || unidad?.sistema;
   const pisoNum = entero(piso);
   const anchoNum = leerMilimetros(rasgoAncho);
   const altoNum = leerMilimetros(rasgoAlto);
@@ -108,9 +118,14 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
     >
       {/* Dibujo a la izquierda en pantallas anchas; arriba, a lo ancho, en el celular. */}
       <div className="grid gap-4 md:grid-cols-[15rem_1fr]">
-      <DibujoVentana proyectoId={proyectoId} ventanaId={tipo?.ventanaId} lineaHetmo={tipo?.lineaHetmo} className="h-44 md:h-full md:min-h-72" etiqueta={tipo ? `Dibujo del tipo ${tipo.codigo}` : 'Dibujo de la ventana'} />
+      {deDocumento ? (
+        <DibujoVentana proyectoId={proyectoId} ventana={ficha.data?.dibujo ?? null} lineaHetmo={ficha.data && !ficha.data.dibujo ? fv?.hetmoVentanaMadreId : undefined} className="h-44 md:h-full md:min-h-72" etiqueta={`Dibujo de ${unidad!.nomenclatura ?? unidad!.codigo}`} />
+      ) : (
+        <DibujoVentana proyectoId={proyectoId} ventanaId={tipo?.ventanaId} lineaHetmo={tipo?.lineaHetmo} className="h-44 md:h-full md:min-h-72" etiqueta={tipo ? `Dibujo del tipo ${tipo.codigo}` : 'Dibujo de la ventana'} />
+      )}
       <div className="space-y-4 min-w-0">
-      <div>
+      {/* Obra legacy: no hay tipos, solo ventanas; la ventana es la que vino de su documento de fabricación. */}
+      {!legacy && <div>
         <Select label="Tipo" id="uni-tipo" value={tipoId} onChange={(e) => setTipoId(e.target.value)} className={campo}>
           <option value="">— elegir tipo —</option>
           {tiposVentana.map((t) => (
@@ -120,7 +135,7 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
             </option>
           ))}
         </Select>
-      </div>
+      </div>}
 
       <div className="grid grid-cols-3 gap-3">
         <div>
@@ -133,20 +148,38 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
           <Input label={casa ? 'Recinto' : 'Depto'} id="uni-dpto" value={nombreUnidad} onChange={(e) => setNombreUnidad(e.target.value)} maxLength={40} placeholder={casa ? 'DORM 1' : '204'} />
         </div>
       </div>
-      <p className="text-[11px] text-slate-500 -mt-2">
+      {/* En la obra legacy no se asigna nomenclatura: la ventana conserva el nombre de su documento de fabricación. */}
+      {!legacy && <p className="text-[11px] text-slate-500 -mt-2">
         Nomenclatura:{' '}
         <b className="font-mono text-slate-800" data-testid="nomenclatura-vista">
           {nomenclatura ?? (tipo ? `${tipo.codigo} (sin posición: falta el ${voc.unidadCorta})` : '—')}
         </b>
-      </p>
+      </p>}
 
       <div>
         <Input label="Ubicación" id="uni-ubicacion" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} maxLength={100} placeholder="DORM 1, ESTAR, BAÑO 1…" />
       </div>
 
-      {legacy ? (
+      {/* Conciliación con la planilla de control: sin fabricar, reposición o fuera de planilla. */}
+      {legacy && editando && !unidad!.documento && (
+        <Aviso tono="advertencia" titulo="Sin fabricar">
+          La planilla de control espera esta ventana y ningún documento de fabricación la trae todavía. Cuando se vincule su documento, toma sola su nombre, su medida y su dibujo.
+        </Aviso>
+      )}
+      {legacy && editando && unidad!.documento && unidad!.fabricacionesAnteriores.length > 0 && (
+        <Aviso tono="neutro" titulo={`Reposición: fabricada ${unidad!.fabricacionesAnteriores.length + 1} veces`}>
+          Vale la de <b>{unidad!.documento.nombre}</b> (la más nueva). Reemplazó a: {unidad!.fabricacionesAnteriores.map((f) => f.nombre).join(', ')}.
+        </Aviso>
+      )}
+      {legacy && editando && unidad!.documento && unidad!.fueraDePlanilla && (
+        <Aviso tono="advertencia" titulo="La planilla no la pide">
+          Ninguna fila de la planilla de control reconoce esta ventana. Revisa su nombre en el documento o corrige la planilla.
+        </Aviso>
+      )}
+      {legacy && editando && !unidad!.documento ? null : legacy ? (
         <p className="text-[11px] text-slate-500">
-          Medida final: <b className="font-mono text-slate-800">{unidad?.anchoFabricacionMm != null ? `${formatoMm(unidad.anchoFabricacionMm)} × ${formatoMm(unidad.altoFabricacionMm)} mm` : tipo?.anchoPlanoMm != null ? `${formatoMm(tipo.anchoPlanoMm)} × ${formatoMm(tipo.altoPlanoMm)} mm (del tipo)` : '—'}</b>
+          {descripcionDoc && <>Descripción: <b className="text-slate-800">{descripcionDoc}</b> · </>}
+          Medida final: <b className="font-mono text-slate-800">{unidad?.anchoFabricacionMm != null ? `${formatoMm(unidad.anchoFabricacionMm)} × ${formatoMm(unidad.altoFabricacionMm)} mm` : '—'}</b>
           {unidad?.documento && <> · documento <b>{unidad.documento.nombre}</b></>}. Viene del documento de fabricación; un cambio de medida se pide como pendiente.
         </p>
       ) : (

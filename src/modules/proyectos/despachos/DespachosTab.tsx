@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { ChevronRight, FileText, Plus, Truck } from 'lucide-react';
-import { getDespachosProyecto } from '../../../api/client';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AlertTriangle, ChevronRight, FileText, Plus, Truck } from 'lucide-react';
+import { crearDespachoDePendientes, getDespachosProyecto, getPendientesListosDespacho } from '../../../api/client';
 import { Seccion } from '../../../components/ui/Seccion';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
@@ -11,6 +11,9 @@ import { Segmentado } from '../../../components/ui/Segmentado';
 import { usePermisos } from '../../../lib/permisos';
 import { useMigas } from '../../../lib/migas';
 import { fecha } from '../../../lib/formato';
+import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
+import { Casilla } from '../../../components/ui/Campos';
+import { ETIQUETA_DESTINO, ETIQUETA_TIPO } from '../pendientes/utils';
 import type { EstadoDespacho, Proyecto } from '../../../types';
 import { ETIQUETA_ESTADO_DESPACHO, ETIQUETA_TIPO_GUIA, VARIANTE_ESTADO_DESPACHO } from '../obra/estadoVentana';
 import { NuevoDespachoModal } from './NuevoDespachoModal';
@@ -35,8 +38,75 @@ export const DespachosTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }) => 
   const despachos = (data ?? []).filter((d) => filtro === 'TODOS' || ABIERTOS.includes(d.estado));
   const porRecibir = (data ?? []).filter((d) => d.estado === 'EMITIDO' || d.estado === 'RECIBIDO_PARCIAL').length;
 
+  // Pendientes que Fábrica o Compras dejaron «listos para despacho»: salen en un despacho propio, con su guía.
+  const queryClient = useQueryClient();
+  const listos = useQuery({ queryKey: ['pendientesListos', proyecto.id], queryFn: () => getPendientesListosDespacho(proyecto.id) });
+  const [marcados, setMarcados] = useState<string[] | null>(null);
+  // Por defecto van todos: lo normal es despachar lo que esté listo.
+  const elegidos = (marcados ?? (listos.data ?? []).map((x) => x.id)).filter((id) => listos.data?.some((x) => x.id === id));
+  const armar = useMutation({
+    mutationFn: () => crearDespachoDePendientes(proyecto.id, elegidos),
+    onSuccess: ({ despacho }) => {
+      setMarcados(null);
+      for (const k of [['pendientesListos', proyecto.id], ['despachos', proyecto.id], ['despachosObras'], ['pendientes']]) queryClient.invalidateQueries({ queryKey: k });
+      setAbierto(despacho.id);
+    },
+    onError: (e) => {
+      const { mensaje, detalle } = extraerErrorParaToast(e);
+      mostrarToast(mensaje, { detalle });
+      listos.refetch();
+    },
+  });
+
   return (
     <div className="space-y-4">
+      {!!listos.data?.length && (
+        <Seccion
+          icono={AlertTriangle}
+          titulo={`Pendientes listos para despacho (${listos.data.length})`}
+          descripcion="Reposiciones que Fábrica o Compras dejaron listas. Arma un despacho con ellas y emítelo con su guía: quedan «Despachado» y la obra las recibe en Recepción."
+          sinRelleno
+          acciones={
+            tiene('obras.despachar') && (
+              <Button size="sm" variant="primary" leftIcon={<Truck className="w-3.5 h-3.5" />} disabled={elegidos.length === 0} isLoading={armar.isPending} onClick={() => armar.mutate()}>
+                Armar despacho con {elegidos.length}
+              </Button>
+            )
+          }
+        >
+          <Lista>
+            {listos.data.map((x) => (
+              <FilaLista
+                key={x.id}
+                inicio={
+                  tiene('obras.despachar') ? (
+                    <Casilla checked={elegidos.includes(x.id)} onChange={(v) => setMarcados(v ? [...elegidos, x.id] : elegidos.filter((id) => id !== x.id))} aria-label={`Incluir ${x.codigo} en el despacho`} />
+                  ) : undefined
+                }
+                titulo={<span className="font-mono">{x.codigo}</span>}
+                insignias={
+                  <>
+                    <Badge size="sm" variant="outline">
+                      {ETIQUETA_TIPO[x.tipo]}
+                    </Badge>
+                    <Badge size="sm" variant="subtle">
+                      {ETIQUETA_DESTINO[x.destino]}
+                    </Badge>
+                  </>
+                }
+              >
+                <p>
+                  {x.descripcion}
+                  {x.ventanaRef ? ` · ventana ${x.ventanaRef}` : ''}
+                  {x.cantidadRecibida && x.cantidadRecibida > 1 ? ` · ${x.cantidadRecibida} un` : ''}
+                  {x.fechaRequerida ? ` · se necesita para el ${fecha(x.fechaRequerida)}` : ''}
+                </p>
+              </FilaLista>
+            ))}
+          </Lista>
+        </Seccion>
+      )}
+
       <Seccion
         icono={Truck}
         titulo="Despachos a obra"

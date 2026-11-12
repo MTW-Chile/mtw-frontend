@@ -6,6 +6,7 @@ import { ClientePicker } from '../clientes/ClientePicker';
 import type { Cliente, Proyecto } from '../../types';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
+import { CamposDireccion, DIRECCION_VACIA, type ValorDireccion } from '../../components/ui/CamposDireccion';
 import { extraerErrorParaToast } from '../../lib/toast';
 
 interface Props {
@@ -30,7 +31,8 @@ export const NuevaObraManualModal: React.FC<Props> = ({ onClose, onCreada }) => 
   // null = la persona no ha escrito: se muestra el siguiente numero libre.
   const [numeroEscrito, setNumeroEscrito] = useState<string | null>(null);
   const [cliente, setCliente] = useState<Cliente | null>(null);
-  const [direccion, setDireccion] = useState('');
+  // Dirección de la obra en el formato del SII (dirección, comuna, ciudad).
+  const [direccion, setDireccion] = useState<ValorDireccion>(DIRECCION_VACIA);
 
   // Siguiente numero libre, como sugerencia inicial (se puede cambiar).
   const siguiente = useQuery({ queryKey: ['obraManual', 'siguienteNumero'], queryFn: () => getNumeroObraManual(), staleTime: 0 });
@@ -70,7 +72,10 @@ export const NuevaObraManualModal: React.FC<Props> = ({ onClose, onCreada }) => 
         obra: obra.trim(),
         clienteId: cliente!.id,
         numeroPresupuesto: numeroValido!,
-        direccion: direccion.trim() || undefined,
+        direccion: direccion.direccion.trim() || undefined,
+        region: direccion.region || undefined,
+        comuna: direccion.comuna || undefined,
+        ciudad: direccion.ciudad.trim() || undefined,
       }),
     onSuccess: ({ proyecto }) => {
       queryClient.invalidateQueries({ queryKey: ['proyectos'] });
@@ -90,7 +95,7 @@ export const NuevaObraManualModal: React.FC<Props> = ({ onClose, onCreada }) => 
   return (
     <Modal
       titulo="Nueva obra manual"
-      ancho="sm"
+      ancho="md"
       onClose={onClose}
       pie={
         <Modal.Pie>
@@ -129,17 +134,12 @@ export const NuevaObraManualModal: React.FC<Props> = ({ onClose, onCreada }) => 
         </div>
         {!errorNumero && <p className="text-[11px] text-slate-500 -mt-1">{ayudaNumero}</p>}
         <ClientePicker value={cliente} onChange={setCliente} />
-        <div>
-          <Input
-            label="Dirección de la obra (opcional)"
-            id="obra-manual-direccion"
-            value={direccion}
-            onChange={(e) => setDireccion(e.target.value)}
-            onKeyDown={alEnter}
-            placeholder="Si se deja vacía, se usa la del cliente"
-            maxLength={300}
-          />
-        </div>
+        <CamposDireccion
+          valor={direccion}
+          onChange={setDireccion}
+          etiquetaDireccion="Dirección de la obra (opcional)"
+          ayudaDireccion="A dónde van los despachos. Si se deja vacía, la guía usa la del cliente."
+        />
         {errorCrear && (
           <p className="text-xs text-rose-700 rounded-xl bg-rose-50 border border-rose-200 px-3 py-2" role="alert">
             {errorCrear}

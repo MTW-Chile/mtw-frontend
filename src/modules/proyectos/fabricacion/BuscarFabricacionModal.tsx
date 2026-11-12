@@ -72,6 +72,8 @@ export const BuscarFabricacionModal: React.FC<Props> = ({ proyectoId, onClose })
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['fabricaciones', proyectoId] });
       queryClient.invalidateQueries({ queryKey: ['hetmoFabricaciones'] });
+      queryClient.invalidateQueries({ queryKey: ['cubicacion', proyectoId] });
+      queryClient.invalidateQueries({ queryKey: ['cubicacionEstructura', proyectoId] });
     },
     onSuccess: ({ resultados, fallidos }) => {
       if (resultados.length === 1 && fallidos.length === 0) {

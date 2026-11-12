@@ -147,6 +147,7 @@ export function OpcionesTarjeta<T extends string>({
   valor,
   onChange,
   columnas = 3,
+  columnasMovil = 1,
   disabled,
 }: {
   legend?: React.ReactNode;
@@ -154,20 +155,22 @@ export function OpcionesTarjeta<T extends string>({
   valor: T | null | undefined;
   onChange: (v: T) => void;
   columnas?: 2 | 3 | 4;
+  /** Opciones cortas (una o dos palabras): de a dos también en el celular, para no alargar el formulario. */
+  columnasMovil?: 1 | 2;
   disabled?: boolean;
 }) {
   const nombre = useId();
-  const cols = { 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-2 lg:grid-cols-4' }[columnas];
+  const cols = `${columnasMovil === 2 ? 'grid-cols-2' : 'grid-cols-1'} ${{ 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-2 lg:grid-cols-4' }[columnas]}`;
   return (
     <fieldset className="space-y-2" disabled={disabled}>
       {legend && <legend className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">{legend}</legend>}
-      <div className={`grid grid-cols-1 ${cols} gap-2`}>
+      <div className={`grid ${cols} gap-2`}>
         {opciones.map((o) => {
           const sel = o.value === valor;
           return (
             <label
               key={o.value}
-              className={`p-3 rounded-xl border text-xs transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-600/30 ${
+              className={`p-3 rounded-xl border text-xs transition-colors pointer-coarse:min-h-12 pointer-coarse:flex pointer-coarse:flex-col pointer-coarse:justify-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-600/30 ${
                 disabled ? 'opacity-60' : 'cursor-pointer'
               } ${sel ? 'border-brand-600 bg-brand-50/50' : 'border-slate-200 hover:border-slate-300'}`}
             >
@@ -212,7 +215,7 @@ export function OpcionesTarjetaMultiple<T extends string>({
           return (
             <label
               key={o.value}
-              className={`px-3 py-2 rounded-xl border text-xs transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-600/30 ${
+              className={`px-3 py-2 rounded-xl border text-xs transition-colors pointer-coarse:min-h-12 pointer-coarse:flex pointer-coarse:flex-col pointer-coarse:justify-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-600/30 ${
                 disabled ? 'opacity-60' : 'cursor-pointer'
               } ${sel ? 'border-brand-600 bg-brand-50/50' : 'border-slate-200 hover:border-slate-300'}`}
             >

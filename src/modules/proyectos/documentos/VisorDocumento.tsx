@@ -3,7 +3,7 @@ import { ExternalLink, FileText, Loader2 } from 'lucide-react';
 import { getContenidoDocumentoObra } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import { Modal } from '../../../components/ui/Modal';
-import type { ItemOneDrive } from '../../../types';
+import type { AmbitoCarpeta, ItemOneDrive } from '../../../types';
 
 export type TipoVista = 'pdf' | 'imagen' | 'texto';
 
@@ -22,7 +22,7 @@ export function tipoDeVista(item: Pick<ItemOneDrive, 'nombre' | 'mime'>): TipoVi
 
 // Lector de documentos de la obra: el archivo lo sirve la API (nadie necesita sesión de
 // OneDrive) y se muestra aquí mismo, sin salir de la obra ni descargarlo.
-export const VisorDocumento: React.FC<{ proyectoId: string; item: ItemOneDrive; tipo: TipoVista; onClose: () => void }> = ({ proyectoId, item, tipo, onClose }) => {
+export const VisorDocumento: React.FC<{ proyectoId: string; ambito: AmbitoCarpeta; item: ItemOneDrive; tipo: TipoVista; onClose: () => void }> = ({ proyectoId, ambito, item, tipo, onClose }) => {
   const [url, setUrl] = useState<string | null>(null);
   const [texto, setTexto] = useState<string | null>(null);
   const [error, setError] = useState(false);
@@ -30,7 +30,7 @@ export const VisorDocumento: React.FC<{ proyectoId: string; item: ItemOneDrive; 
   useEffect(() => {
     let cancelado = false;
     let objeto: string | null = null;
-    getContenidoDocumentoObra(proyectoId, item.id, item.nombre)
+    getContenidoDocumentoObra(proyectoId, item.id, item.nombre, ambito)
       .then(async (blob) => {
         if (cancelado) return;
         if (tipo === 'texto') {
@@ -46,7 +46,7 @@ export const VisorDocumento: React.FC<{ proyectoId: string; item: ItemOneDrive; 
       cancelado = true;
       if (objeto) URL.revokeObjectURL(objeto);
     };
-  }, [proyectoId, item.id, item.nombre, tipo]);
+  }, [proyectoId, ambito, item.id, item.nombre, tipo]);
 
   return (
     <Modal

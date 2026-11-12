@@ -8,6 +8,7 @@ import type { Cliente } from '../../types';
 import { SubTabs } from '../../components/ui/PageHeader';
 import { Modal } from '../../components/ui/Modal';
 import { Aviso } from '../../components/ui/Aviso';
+import { CamposDireccion, aValorDireccion } from '../../components/ui/CamposDireccion';
 
 interface ClienteFormModalProps {
   // null = crear uno nuevo; un Cliente = editar ese.
@@ -24,6 +25,8 @@ type FormData = {
   rut: string;
   giro: string;
   direccion: string;
+  region: string;
+  comuna: string;
   localidad: string;
   telefono: string;
   email: string;
@@ -53,6 +56,8 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({ cliente, onC
     rut: cliente?.rut || '',
     giro: cliente?.giro || '',
     direccion: cliente?.direccion || '',
+    region: cliente?.region || '',
+    comuna: cliente?.comuna || '',
     localidad: cliente?.localidad || '',
     telefono: cliente?.telefono || '',
     email: cliente?.email || '',
@@ -69,6 +74,8 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({ cliente, onC
         rut: formData.rut.trim() || null,
         giro: formData.giro.trim() || null,
         direccion: formData.direccion.trim() || null,
+        region: formData.region || null,
+        comuna: formData.comuna || null,
         localidad: formData.localidad.trim() || null,
         telefono: formData.telefono.trim() || null,
         email: formData.email.trim() || null,
@@ -132,8 +139,12 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({ cliente, onC
             <Input label="Nombre de Fantasía" value={formData.razonSocial} onChange={set('razonSocial')} />
             <Input label="Giro Comercial" value={formData.giro} onChange={set('giro')} />
           </div>
-          <Input label="Dirección" value={formData.direccion} onChange={set('direccion')} />
-          <Input label="Comuna / Ciudad" value={formData.localidad} onChange={set('localidad')} />
+          {/* Formato del SII (facturas, guías): dirección, comuna y ciudad. `localidad` es la ciudad. */}
+          <CamposDireccion
+            valor={aValorDireccion({ direccion: formData.direccion, region: formData.region, comuna: formData.comuna, ciudad: formData.localidad })}
+            onChange={(v) => setFormData((prev) => ({ ...prev, direccion: v.direccion, region: v.region, comuna: v.comuna, localidad: v.ciudad }))}
+            ayudaDireccion="Como debe salir en facturas y guías de despacho."
+          />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <Input label="Contacto Principal" value={formData.contacto} onChange={set('contacto')} />
             <Input label="Teléfono" value={formData.telefono} onChange={set('telefono')} />

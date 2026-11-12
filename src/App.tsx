@@ -16,6 +16,8 @@ import { MaestroMaterialesPage } from './modules/abastecimiento/MaestroMateriale
 import { PendientesPage } from './modules/proyectos/pendientes/PendientesPage';
 import { EnConstruccionPage } from './modules/en-construccion/EnConstruccionPage';
 import { InstalacionPage } from './modules/instalacion/InstalacionPage';
+import { RecepcionObraPage } from './modules/instalacion/RecepcionObraPage';
+import { IngresoPendientesPage } from './modules/instalacion/IngresoPendientesPage';
 import { DespachosPage } from './modules/despachos/DespachosPage';
 import { useCloudflareAccessSession, SessionContext } from './lib/useCloudflareAccessSession';
 import { SECCIONES_FRONTEND, entradaVisible } from './lib/accessControl';
@@ -108,7 +110,7 @@ import { ConfirmarProvider } from './components/ui/Confirmar';
 // Generado desde SECCIONES_FRONTEND (lib/accessControl.ts) -- una seccion
 // nueva agrega su titulo de pestaña del navegador sola, sin tocar este archivo.
 const MODULE_TITLES: Record<string, string> = {
-  ...Object.fromEntries(SECCIONES_FRONTEND.map((s) => [s.id, s.label])),
+  ...Object.fromEntries(SECCIONES_FRONTEND.map((s) => [s.id, s.titulo ?? s.label])),
   [TAB_CENTRO_NOTIFICACIONES]: 'Centro de Notificaciones',
   [TAB_MI_CONFIGURACION]: 'Mi configuración',
 };
@@ -262,7 +264,9 @@ const AppContent: React.FC = () => {
 
           {activeTab === 'despachos' && <DespachosPage />}
 
+          {activeTab === 'recepcion-obra' && <RecepcionObraPage />}
           {activeTab === 'instalacion' && <InstalacionPage />}
+          {activeTab === 'ingreso-pendientes' && <IngresoPendientesPage />}
 
           {activeTab === 'compras' && <ComprasPage />}
 
@@ -273,6 +277,8 @@ const AppContent: React.FC = () => {
           {activeTab === 'maestro' && <MaestroMaterialesPage />}
 
           {activeTab === 'pendientes' && <PendientesPage />}
+          {activeTab === 'pendientes-taller' && <PendientesPage area="FABRICA" />}
+          {activeTab === 'pendientes-compras' && <PendientesPage area="COMPRAS" />}
 
           {(activeTab === 'contabilidad' || activeTab === 'reportes') && <EnConstruccionPage seccion={activeTab} titulo={MODULE_TITLES[activeTab]} />}
 

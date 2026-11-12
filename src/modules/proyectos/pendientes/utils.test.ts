@@ -98,22 +98,14 @@ describe('referenciaPendiente', () => {
 });
 
 describe('areaDelPendiente', () => {
-  it('ventana y hoja van a Fábrica', () => {
-    expect(areaDelPendiente('VENTANA', 'FALLA')).toBe('FABRICA');
+  it('marco, hoja y ventana completa van a fábrica', () => {
+    expect(areaDelPendiente('VENTANA', 'DANO_OBRA')).toBe('FABRICA');
     expect(areaDelPendiente('HOJA', 'DANO_OBRA')).toBe('FABRICA');
+    expect(areaDelPendiente('MARCO', 'ERROR_MEDIDAS')).toBe('FABRICA');
   });
-  it('vidrio, material y otro van al área técnica', () => {
-    expect(areaDelPendiente('VIDRIO', 'FALLA')).toBe('TECNICA');
-    expect(areaDelPendiente('MATERIAL', 'DANO_INSTALACION')).toBe('TECNICA');
-    expect(areaDelPendiente('OTRO', 'FALLA')).toBe('TECNICA');
-  });
-  it('no fabricado y no recepción mandan: Fábrica', () => {
-    expect(areaDelPendiente('VIDRIO', 'NO_FABRICADO')).toBe('FABRICA');
-    expect(areaDelPendiente('MATERIAL', 'NO_RECEPCION')).toBe('FABRICA');
-  });
-  it('rectificar solo ventana y vidrio', () => {
-    expect(admiteRectificacion('VENTANA') && admiteRectificacion('VIDRIO')).toBe(true);
-    expect(admiteRectificacion('HOJA') || admiteRectificacion('MATERIAL') || admiteRectificacion('OTRO')).toBe(false);
+  it('vidrio y material van a compras, sea cual sea el motivo', () => {
+    expect(areaDelPendiente('VIDRIO', 'DANO_OBRA')).toBe('COMPRAS');
+    expect(areaDelPendiente('MATERIAL', 'NO_RECEPCION')).toBe('COMPRAS');
   });
 });
 

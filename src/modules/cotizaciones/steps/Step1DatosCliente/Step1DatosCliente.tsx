@@ -4,6 +4,7 @@ import type { NuevoClienteForm } from '../../hooks/useCotizadorWorkspace';
 import { IndicadoresMetricos } from './IndicadoresMetricos';
 import { ClienteManager } from './ClienteManager';
 import { TipoProyectoCard } from './TipoProyectoCard';
+import { DireccionObraCard } from './DireccionObraCard';
 import { VersionActivaCard } from './VersionActivaCard';
 
 interface Step1DatosClienteProps {
@@ -73,6 +74,9 @@ export const Step1DatosCliente: React.FC<Step1DatosClienteProps> = ({
 
       {/* Tipo de proyecto: define las plantillas de textos por defecto */}
       <TipoProyectoCard proyecto={proyecto} congelado={(activeVersion?.estadoAprobacion ?? 'EN_COTIZACION') === 'ACEPTADO_CLIENTE'} />
+
+      {/* Dirección de la obra (formato SII): la usan los despachos y su guía */}
+      <DireccionObraCard proyecto={proyecto} />
 
       {/* 2. Cliente: vinculado, a vincular o a crear */}
       <ClienteManager

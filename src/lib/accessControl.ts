@@ -1,10 +1,13 @@
 import type { ElementType } from 'react';
-import { LayoutDashboard, Building, Building2, FolderKanban, Settings, FileText, DoorClosed, ShieldCheck, Warehouse, ShoppingCart, Users, ListChecks, Cloud, Boxes, SlidersHorizontal, Tags, Calculator, Ruler, Workflow, AlertTriangle, Factory, Briefcase, Hammer, Truck, Forklift, Megaphone, HardHat, BarChart3, TrendingUp, Receipt } from 'lucide-react';
+import { LayoutDashboard, Building, Building2, FolderKanban, Settings, FileText, DoorClosed, ShieldCheck, Warehouse, ShoppingCart, Users, ListChecks, Cloud, Boxes, SlidersHorizontal, Tags, Calculator, Ruler, Workflow, AlertTriangle, Factory, Briefcase, Hammer, Truck, Forklift, Megaphone, HardHat, PackageCheck, ClipboardPlus, BarChart3, TrendingUp, Receipt } from 'lucide-react';
 import type { Permiso } from '../types';
 
 export interface EntradaAcceso {
   id: string;
   label: string;
+  // Nombre fuera del menú (encabezado, pestaña del navegador, Accesos del Inicio) cuando el del menú se
+  // entiende solo dentro de su grupo: «Pendientes» en Instaladores es «Ingreso de pendientes».
+  titulo?: string;
   icon: ElementType;
   // Se muestra si el usuario tiene AL MENOS UNO de estos permisos (catalogo de
   // mtw-api). La API exige lo mismo en sus rutas: ocultar aca es solo UX.
@@ -28,7 +31,7 @@ export const CONFIG_SECCIONES: SeccionConfig[] = [
   { grupo: 'Empresa', id: 'empresa', label: 'Configuración de Empresa', icon: Building, permisos: ['config.empresa'], descripcion: 'Datos de la empresa y logo de los documentos.' },
   { grupo: 'Empresa', id: 'anuncio', label: 'Anuncio', icon: Megaphone, permisos: ['config.empresa'], descripcion: 'Mensaje para todos los usuarios en la página de inicio.' },
   { grupo: 'Comercial', id: 'parametros', label: 'Parámetros', icon: SlidersHorizontal, permisos: ['config.comercial'], descripcion: 'IVA, tasas, Hoja de Fijación por defecto, aprobación de adicionales y conciliación.' },
-  { grupo: 'Comercial', id: 'tipos-proyecto', label: 'Tipos de proyecto', icon: FolderKanban, permisos: ['config.comercial'], descripcion: 'Obra, retail y otros: definen las plantillas de textos que usa cada documento.' },
+  { grupo: 'Comercial', id: 'tipos-proyecto', label: 'Tipos de proyecto', icon: FolderKanban, permisos: ['config.comercial'], descripcion: 'Edificio, condominio y retail: definen las plantillas de textos que usa cada documento.' },
   { grupo: 'Comercial', id: 'plantillas-textos', label: 'Plantillas de textos', icon: FileText, permisos: ['config.comercial'], descripcion: 'Presentación y condiciones comerciales de presupuestos y adicionales.' },
   { grupo: 'Catálogo', id: 'tipos-producto', label: 'Tipos de producto', icon: Boxes, permisos: ['config.catalogo'], descripcion: 'Cómo se calcula, valoriza y compra cada material.' },
   { grupo: 'Catálogo', id: 'partidas', label: 'Partidas', icon: Tags, permisos: ['config.catalogo'], descripcion: 'Partidas de presupuesto y su correlativo de Clay.' },
@@ -70,8 +73,12 @@ export const SECCIONES_FRONTEND: EntradaAcceso[] = [
   { id: 'cotizaciones', label: 'Presupuestos', icon: Building2, permisos: ['presupuestos.ver'] },
   // Igual: el id sigue siendo 'proyectos'.
   { id: 'proyectos', label: 'Obras en curso', icon: FolderKanban, permisos: ['obras.ver'] },
-  // Visor global de los pendientes de todas las obras: lo que falta o falló (de ahí el icono de alerta).
+  // Visor de los pendientes de todas las obras: lo que falta o falló (de ahí el icono de alerta). Son tres
+  // secciones distintas, una por menú, para que cada área vea los suyos y el menú marque solo donde se está:
+  // Comercial ve todos; Taller, los de fábrica (marco, hoja, ventana); Abastecimiento, los de compras (vidrio, material).
   { id: 'pendientes', label: 'Pendientes', icon: AlertTriangle, permisos: ['pendientes.ver'] },
+  { id: 'pendientes-taller', label: 'Pendientes', titulo: 'Pendientes de fábrica', icon: AlertTriangle, permisos: ['pendientes.fabrica'] },
+  { id: 'pendientes-compras', label: 'Pendientes', titulo: 'Pendientes de compras', icon: AlertTriangle, permisos: ['pendientes.compras'] },
   // Fabricación: las obras en curso vistas desde el taller (cubicación,
   // fases, requisiciones a bodega y pendientes; ver modules/proyectos/seccionesObra.ts).
   { id: 'fabricacion', label: 'Fabricación', icon: Factory, permisos: ['obras.ver'] },
@@ -79,8 +86,12 @@ export const SECCIONES_FRONTEND: EntradaAcceso[] = [
   // propia (antes era una pestaña de Fabricación): la ve quien ve las obras;
   // emitir exige obras.despachar (lo controla la pantalla).
   { id: 'despachos', label: 'Despachos', icon: Truck, permisos: ['obras.ver'] },
-  // Instalación: el Supervisor de Instalación recibe despachos y certifica la instalación.
+  // Instaladores (grupo del menú): tres secciones que parten de la lista de obras en curso. Recepción e
+  // Instalación se ven con instalacion.ver (actuar exige instalacion.recibir / instalacion.certificar, lo
+  // controla cada pantalla); el ingreso de pendientes, con pendientes.crear.
+  { id: 'recepcion-obra', label: 'Recepción', titulo: 'Recepción en obra', icon: PackageCheck, permisos: ['instalacion.ver'] },
   { id: 'instalacion', label: 'Instalación', icon: HardHat, permisos: ['instalacion.ver'] },
+  { id: 'ingreso-pendientes', label: 'Pendientes', titulo: 'Ingreso de pendientes', icon: ClipboardPlus, permisos: ['pendientes.crear'] },
   { id: 'compras', label: 'Compras', icon: ShoppingCart, permisos: ['compras.ver'] },
   // Bodega: modulo propio (resumen, bodegas, recepciones de OC y requisiciones de las obras).
   { id: 'bodega', label: 'Bodega', icon: Warehouse, permisos: ['bodega.ver'] },
@@ -91,11 +102,12 @@ export const SECCIONES_FRONTEND: EntradaAcceso[] = [
 ];
 
 /**
- * Menú lateral: entradas sueltas y grupos que se despliegan. Una sección puede
- * estar en más de un grupo (Pendientes en Comercial, Taller y Abastecimiento).
- * Despachos, Instalación y Bodega van sueltas, debajo del grupo con el que
- * trabajan (Taller y Abastecimiento), en el orden del flujo: se fabrica, se
- * despacha, se instala. Configuración va siempre fijada abajo, fuera
+ * Menú lateral: entradas sueltas y grupos que se despliegan. Cada sección va en
+ * un solo grupo (los pendientes tienen una sección por área: ver arriba).
+ * Despachos y Bodega van sueltas, debajo del grupo con el que trabajan
+ * (Taller y Abastecimiento), en el orden del flujo: se fabrica, se despacha,
+ * se instala. Instaladores agrupa lo que se hace en la obra: recibir,
+ * certificar la instalación e ingresar pendientes. Configuración va siempre fijada abajo, fuera
  * de esta lista.
  */
 export type EntradaMenu = { tipo: 'seccion'; id: string } | { tipo: 'grupo'; id: string; titulo: string; icon: ElementType; secciones: string[] };
@@ -103,10 +115,10 @@ export type EntradaMenu = { tipo: 'seccion'; id: string } | { tipo: 'grupo'; id:
 export const MENU_LATERAL: EntradaMenu[] = [
   { tipo: 'seccion', id: 'inicio' },
   { tipo: 'grupo', id: 'comercial', titulo: 'Comercial', icon: Briefcase, secciones: ['clientes', 'proveedores', 'cotizaciones', 'proyectos', 'pendientes'] },
-  { tipo: 'grupo', id: 'taller', titulo: 'Taller', icon: Hammer, secciones: ['fabricacion', 'pendientes'] },
+  { tipo: 'grupo', id: 'taller', titulo: 'Taller', icon: Hammer, secciones: ['fabricacion', 'pendientes-taller'] },
   { tipo: 'seccion', id: 'despachos' },
-  { tipo: 'seccion', id: 'instalacion' },
-  { tipo: 'grupo', id: 'abastecimiento', titulo: 'Abastecimiento', icon: Forklift, secciones: ['compras', 'maestro', 'pendientes'] },
+  { tipo: 'grupo', id: 'instaladores', titulo: 'Instaladores', icon: HardHat, secciones: ['recepcion-obra', 'instalacion', 'ingreso-pendientes'] },
+  { tipo: 'grupo', id: 'abastecimiento', titulo: 'Abastecimiento', icon: Forklift, secciones: ['compras', 'maestro', 'pendientes-compras'] },
   { tipo: 'seccion', id: 'bodega' },
   { tipo: 'seccion', id: 'contabilidad' },
   { tipo: 'seccion', id: 'reportes' },

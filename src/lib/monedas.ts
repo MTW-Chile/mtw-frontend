@@ -79,7 +79,9 @@ export function resolverMoneda(
     return {
       iso,
       nombre: entrada.descripcion?.trim() || (iso ? NOMBRES[iso] : crudo),
-      simbolo: entrada.simbolo?.trim() || (iso ? SIMBOLOS[iso] : ''),
+      // Con la divisa reconocida manda el símbolo propio: HETMO usa "$" también
+      // para el dólar, y así un precio en dólares se veía como si fuera en pesos.
+      simbolo: iso ? SIMBOLOS[iso] : entrada.simbolo?.trim() || '',
     };
   }
 

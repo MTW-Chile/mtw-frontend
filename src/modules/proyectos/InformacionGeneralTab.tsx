@@ -10,7 +10,10 @@ import { usePermisos } from '../../lib/permisos';
 import type { Proyecto, ProyectoVersion } from '../../types';
 import { ControlPresupuestoTab } from './ControlPresupuestoTab';
 import { DocumentosObraTab } from './documentos/DocumentosObraTab';
+import { DireccionObraCard } from '../cotizaciones/steps/Step1DatosCliente/DireccionObraCard';
+import type { ModoWorkspace } from './seccionesObra';
 import { ClayCentroCostoEditor } from './ClayCentroCostoEditor';
+import { ClienteObraManualCard } from './ClienteObraManualCard';
 
 const clp = (v: number) => v.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
@@ -21,8 +24,10 @@ const clp = (v: number) => v.toLocaleString('es-CL', { style: 'currency', curren
  * métricas salen de las ventanas de los documentos de fabricación que se le
  * vincularon y de su avance en obra (cubicadas, despachadas, instaladas).
  */
-export const InformacionGeneralTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVersion }> = ({ proyecto, activeVersion }) => {
+export const InformacionGeneralTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVersion; modo?: ModoWorkspace }> = ({ proyecto, activeVersion, modo = 'obra' }) => {
   const cotizada = proyecto.origen !== 'MANUAL_OBRA';
+  // Fabricación trabaja con la carpeta de producción de la obra; Comercial, con la comercial.
+  const produccion = modo === 'fabricacion';
   return (
     <div className="space-y-5">
       {/* En pantallas angostas el centro de costo no cabe en el header: va aquí. */}
@@ -31,8 +36,12 @@ export const InformacionGeneralTab: React.FC<{ proyecto: Proyecto; activeVersion
       </div>
       {cotizada ? <MetricasObra proyecto={proyecto} activeVersion={activeVersion} cotizada /> : <MetricasObraManual proyecto={proyecto} />}
       {cotizada && <ControlPresupuestoTab proyecto={proyecto} activeVersion={activeVersion} />}
-      <Seccion icono={FolderOpen} titulo="Documentos" descripcion="Carpeta de OneDrive de la obra.">
-        <DocumentosObraTab proyecto={proyecto} />
+      {/* La misma tarjeta del paso 1 de la cotización: una obra manual no pasa por ahí. */}
+      {/* Una obra manual elige su cliente al crearla; aquí se corrige si se eligió mal. */}
+      {!cotizada && !produccion && <ClienteObraManualCard proyecto={proyecto} />}
+      {!produccion && <DireccionObraCard proyecto={proyecto} />}
+      <Seccion icono={FolderOpen} titulo={produccion ? 'Documentos de producción' : 'Documentos'} descripcion={produccion ? 'Carpeta de producción de la obra en OneDrive.' : 'Carpeta comercial de la obra en OneDrive.'}>
+        <DocumentosObraTab proyecto={proyecto} ambito={produccion ? 'produccion' : 'comercial'} />
       </Seccion>
     </div>
   );

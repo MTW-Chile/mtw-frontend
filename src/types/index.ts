@@ -149,7 +149,11 @@ export interface Cliente {
   nombre: string;
   razonSocial?: string | null;
   giro?: string | null;
+  // Dirección en el formato del SII: dirección, comuna y ciudad. `localidad` ES la
+  // ciudad (se llama así desde antes de separar la comuna). Región y comuna salen de lib/chile.ts.
   direccion?: string | null;
+  region?: string | null;
+  comuna?: string | null;
   localidad?: string | null;
   telefono?: string | null;
   email?: string | null;
@@ -182,6 +186,7 @@ export interface Proveedor {
   giroComercial: string | null;
   direccion: string | null;
   comuna: string | null;
+  ciudad: string | null;
   region: string | null;
   pais: string | null;
   telefono: string | null;
@@ -457,6 +462,8 @@ export interface ConfiguracionCobroObra extends ConfiguracionCobro {
 
 // Cómo se cubican las obras de un tipo: por torre/piso/departamento o por casa/piso/recinto.
 export type ModoCubicacion = 'EDIFICIO' | 'CASA';
+// En cuál de las dos carpetas raíz comerciales de OneDrive están las carpetas de las obras del tipo.
+export type RaizComercialOneDrive = 'OBRAS_MAYORES' | 'RETAIL';
 
 export interface TipoProyecto {
   id: string;
@@ -466,6 +473,10 @@ export interface TipoProyecto {
   activo: boolean;
   porDefecto: boolean;
   modoCubicacion: ModoCubicacion;
+  raizOneDrive: RaizComercialOneDrive;
+  // Si sus obras usan reserva de materiales y cubicación (retail: ninguna de las dos).
+  usaReservaMateriales: boolean;
+  usaCubicacion: boolean;
   _count?: { proyectos: number };
 }
 
@@ -640,9 +651,9 @@ export interface ProyectoVersion {
 
 export interface Proyecto {
   id: string;
-  // Retail, Obra... (Configuracion > Comercial).
+  // Edificio, Condominio, Retail (Configuracion > Comercial).
   tipoProyectoId?: string;
-  tipoProyecto?: Pick<TipoProyecto, 'id' | 'codigo' | 'nombre'>;
+  tipoProyecto?: Pick<TipoProyecto, 'id' | 'codigo' | 'nombre'> & Partial<Pick<TipoProyecto, 'usaReservaMateriales' | 'usaCubicacion'>>;
   // Llave de HETMO; null = proyecto manual (nunca se sincroniza).
   hetmoSinVersion: number | null;
   numeroPresupuesto: number;
@@ -652,12 +663,22 @@ export interface Proyecto {
   clienteRutRaw: string | null;
   clienteDireccionRaw: string | null;
   clienteLocalidadRaw: string | null;
+  // Dirección de la OBRA (donde se instala y se despacha), formato SII; null = sin indicar.
+  obraDireccion?: string | null;
+  obraRegion?: string | null;
+  obraComuna?: string | null;
+  obraCiudad?: string | null;
   clienteId: string | null;
   cliente?: Cliente | null;
-  // Carpeta de OneDrive de la obra (adjuntos de pendientes); null = sin vincular.
+  // Carpeta COMERCIAL de OneDrive de la obra (documentos comerciales, adjuntos de
+  // pendientes, fotos de instalación); null = sin vincular.
   onedriveCarpetaId?: string | null;
   onedriveCarpetaNombre?: string | null;
   onedriveCarpetaUrl?: string | null;
+  // Carpeta de PRODUCCIÓN de la obra: la que usa Taller › Fabricación.
+  onedriveCarpetaProduccionId?: string | null;
+  onedriveCarpetaProduccionNombre?: string | null;
+  onedriveCarpetaProduccionUrl?: string | null;
   // Version (ProyectoVersion.hetmoId) elegida para cotizar. null = nunca
   // se eligio y hay que caer de vuelta a la de versionNumero mas alto.
   versionActivaHetmoId: number | null;
@@ -786,6 +807,8 @@ export interface TipoProducto {
   compraDesdeResumenHetmo: boolean;
   // Se compra y se recibe por pieza a medida (ej. vidrios).
   compraPorPieza: boolean;
+  // Se ofrece al ingresar un pendiente de «Material» (accesorios, herrajes).
+  reponibleEnObra: boolean;
   moneda: string;
   monedaFija: boolean;
   individualizado: boolean;
@@ -1615,6 +1638,8 @@ export interface ReporteVinculacionCubicacion {
   sinMatch: { fabricacionVentanaId: string; modelo: string }[];
   faseInferida: { id: string; nombre: string } | null;
   faseConflicto: boolean;
+  // Obra legacy: ventanas del documento que entraron solas a la cubicación (null en una obra cotizada).
+  cubicacion?: { creadas: number; porUbicar: number; vinculadas: number; reposiciones: number; avisos: string[] } | null;
 }
 
 export interface ResultadoVinculoFabricacion {
@@ -1643,6 +1668,8 @@ export interface VidrioFabricacion {
   ANCHO: number;
   ALTO: number;
   m2: number;
+  /** Material de catálogo (ficha de ventana): con él, lo recibido por un pendiente entra a la bodega de la obra. */
+  materialId?: string | null;
 }
 
 export interface MaterialFabricacion {
@@ -1653,6 +1680,9 @@ export interface MaterialFabricacion {
   cantidad: number;
   longitud_total_mm?: number | null;
   piezas?: number | null;
+  materialId?: string | null;
+  /** Ficha de ventana: su tipo de producto se repone suelto en la obra (accesorios, herrajes). */
+  reponibleEnObra?: boolean;
 }
 
 export interface MaterialesFabricacion {
@@ -1679,10 +1709,15 @@ export interface MaterialesFabricacion {
 // ==========================================
 export type EstadoPendiente = 'INGRESADO' | 'EN_CURSO' | 'RESUELTO';
 // Area a la que va el pendiente; la asigna el servidor segun tipo y motivo.
-export type DestinoPendiente = 'TECNICA' | 'FABRICA';
+// Hoy: marco, hoja y ventana completa van a FABRICA (taller); vidrio y material, a COMPRAS. TECNICA queda en los antiguos.
+export type DestinoPendiente = 'TECNICA' | 'FABRICA' | 'COMPRAS';
+// Pasos de un pendiente de obra legacy (obra manual). null en los de obras cotizadas (su gestión está en construcción).
+export type PasoPendiente = 'INGRESADO' | 'RECIBIDO' | 'EN_PROCESO_COMPRA' | 'EN_PRODUCCION' | 'LISTO_DESPACHO' | 'DESPACHADO';
 export type OrigenPendiente = 'FABRICACION' | 'OBRA';
-export type TipoElementoPendiente = 'VENTANA' | 'HOJA' | 'MATERIAL' | 'VIDRIO' | 'OTRO';
-export type MotivoPendiente = 'FALLA' | 'DANO_OBRA' | 'DANO_INSTALACION' | 'NO_RECEPCION' | 'NO_FABRICADO' | 'CAMBIO_CLIENTE';
+// OTRO existe solo en pendientes antiguos: ya no se ingresa.
+export type TipoElementoPendiente = 'VENTANA' | 'MARCO' | 'HOJA' | 'MATERIAL' | 'VIDRIO' | 'OTRO';
+// Se ingresan DANO_OBRA, NO_RECEPCION y ERROR_MEDIDAS; el resto existe solo en pendientes antiguos.
+export type MotivoPendiente = 'FALLA' | 'DANO_OBRA' | 'ERROR_MEDIDAS' | 'DANO_INSTALACION' | 'NO_RECEPCION' | 'NO_FABRICADO' | 'CAMBIO_CLIENTE';
 
 // A cargo de quien va un pendiente: cliente o instalador -> adicional (se les
 // cobra); nosotros -> reposicion contra la holgura.
@@ -1719,12 +1754,18 @@ export interface ObraPendiente {
   numero: number;
   proyectoId: string;
   // Solo en el visor central (GET /pendientes).
-  proyecto?: { id: string; obra: string; codigoInterno: string | null; numeroPresupuesto: number };
+  proyecto?: { id: string; obra: string; codigoInterno: string | null; numeroPresupuesto: number; origen?: Proyecto['origen'] };
   origen: OrigenPendiente;
   destino: DestinoPendiente;
   tipo: TipoElementoPendiente;
   motivo: MotivoPendiente;
   estado: EstadoPendiente;
+  // Flujo legacy: en qué paso va, quién del área lo abrió, la fecha estimada de fábrica y lo que recibió compras.
+  paso: PasoPendiente | null;
+  recibidoPor?: { id: string; nombre: string } | null;
+  fechaRecibido: string | null;
+  fechaEstimada: string | null;
+  cantidadRecibida: number | null;
   etapaId: string | null;
   etapa: { id: string; nombre: string } | null;
   // Titulo armado por el sistema; lo que escribe la persona va en `notas`.
@@ -1769,10 +1810,17 @@ export interface AdjuntoPendiente {
   mime: string;
   tamano: number;
   webUrl: string | null;
+  // 'OC': la orden de compra que subió Compras; null: foto o documento.
+  categoria?: string | null;
   subidoPor?: { id: string; nombre: string } | null;
   creadoEn: string;
   puedeQuitar?: boolean;
 }
+
+// Cada obra tiene dos carpetas en OneDrive: la comercial (Comercial › Obras en
+// curso; también recibe los adjuntos de pendientes y las fotos de instalación) y
+// la de producción (Taller › Fabricación).
+export type AmbitoCarpeta = 'comercial' | 'produccion';
 
 export interface CarpetaOneDrive {
   id: string;
@@ -1809,6 +1857,8 @@ export interface OneDriveObra {
   // La conexion vencio: se siguen viendo los adjuntos ya subidos pero no se puede subir
   // hasta que un administrador reconecte la cuenta (Configuracion > OneDrive).
   requiereReconexion?: boolean;
+  // Falta indicar la carpeta de producción en Configuración › OneDrive (solo ámbito producción).
+  sinRaiz?: boolean;
   carpeta: CarpetaOneDrive | null;
   sugerencias: CarpetaOneDriveSugerida[];
   nombreSugeridoNueva?: string;
@@ -1827,6 +1877,9 @@ export interface ObraPendienteDetalle extends Omit<ObraPendiente, 'material'> {
   // Quien creo el pendiente (o un administrador): el unico que puede
   // resolverlo, reabrirlo, editarlo o eliminarlo.
   puedeResolver: boolean;
+  // Flujo legacy: quien consulta es del área que lo gestiona; y el despacho que lo lleva o lo llevó.
+  puedeGestionarArea: boolean;
+  despacho: { id: string; numero: number; codigo: string; estado: EstadoDespacho; fechaDespacho: string | null; numeroGuia: string | null } | null;
 }
 
 export interface NuevoPendientePayload {
@@ -1860,15 +1913,20 @@ export interface OneDriveEstado {
   conectada: boolean;
   estado: 'CONECTADA' | 'REQUIERE_RECONEXION' | null;
   cuenta: { email: string; nombre: string | null } | null;
+  // Carpetas comerciales de las obras mayores ('' = raíz del OneDrive).
   carpetaRaiz: string;
+  // Carpetas comerciales de las obras retail ('' = las mismas de obras mayores).
+  carpetaRaizRetail: string;
+  // Carpetas de producción, para Fabricación ('' = sin configurar).
+  carpetaRaizProduccion: string;
   conectadoPorEmail: string | null;
   conectadoEn: string | null;
   ultimoError: string | null;
   redirectUri: string | null;
   puedeAdministrar: boolean;
-  // Solo con ?probar=1
+  // Solo con ?probar=1: cada carpeta raíz y si se pudo leer (ruta null = no tiene una propia).
   conexionOk?: boolean;
-  raizEnOneDrive?: { id: string; nombre: string };
+  raices?: { raiz: RaizComercialOneDrive | 'PRODUCCION'; ruta: string | null; existe: boolean; nombre: string | null }[];
   error?: string;
 }
 
@@ -1981,6 +2039,10 @@ export interface ResumenCubicacion {
   ventanas: number;
   posicionadas: number;
   sinPosicion: number;
+  // Obra legacy (conciliación con la planilla de control): lugares que la planilla espera y nadie ha fabricado,
+  // y ventanas fabricadas más de una vez (reposiciones).
+  sinFabricar: number;
+  reposiciones: number;
   // Ventanas con nombre propio pero sin torre/piso/depto (cubicación única).
   cubicacionUnica: number;
   rectificadas: number;
@@ -2019,8 +2081,20 @@ export interface UnidadCubicacion {
   rectificadoEn: string | null;
   nomenclatura: string | null;
   posicionada: boolean;
-  // Documento de fabricación del que viene (obras legacy); null si no está vinculada.
+  // Documento de fabricación del que viene (obras legacy); null si no está vinculada. En una obra legacy, una
+  // ventana con lugar y sin documento es una «esperada, sin fabricar»: la planilla la pide y falta su documento.
   documento: { id: string; nombre: string } | null;
+  // Obra legacy: fabricada que ninguna fila de la planilla de control pide.
+  fueraDePlanilla: boolean;
+  // Reposiciones: documentos que fabricaron antes esta misma ventana, del más antiguo al más nuevo. La vigente es `documento`.
+  fabricacionesAnteriores: { id: string; nombre: string; reemplazadaEn: string | null }[];
+}
+
+// Lo que la conciliación de una obra legacy con su planilla de control dejó pendiente (se lee de la base).
+export interface ConciliacionCubicacion {
+  sinFabricar: { id: string; nombre: string; lugar: string; ubicacion: string | null }[];
+  fueraDePlanilla: { id: string; nombre: string; documento: string; lugar: string }[];
+  reposiciones: { id: string; nombre: string; lugar: string; vigente: string; anteriores: { documento: string; reemplazadaEn: string | null }[] }[];
 }
 
 // Lo que ya se sabe de la obra por su presupuesto de HETMO (null si no tiene lineas de ventana).
@@ -2039,7 +2113,8 @@ export interface ReporteSincronizacionCubicacion {
   avisos: string[];
 }
 
-// Resultado de subir una planilla: la que descarga el sistema ('plantilla') o la HR de siempre ('hr').
+// Resultado de subir una planilla: la que descarga el sistema ('plantilla', obra cotizada) o la planilla de
+// control de una obra legacy ('control'), de la que se arma su cubicación.
 export type ReporteImportacionCubicacion =
   | {
       formato: 'plantilla';
@@ -2050,85 +2125,47 @@ export type ReporteImportacionCubicacion =
       rectificadasAhora: number;
       advertencias: string[];
     }
-  | {
-      formato: 'hr';
-      tipos: { nuevos: number; actualizados: number };
-      unidades: { nuevas: number; asignadas: number; existentes: number; rectificadasAhora: number; areasComunes: number };
-      advertencias: string[];
-    };
+  | ReportePlanillaControl;
 
-// ---- Cubicar desde los documentos de fabricacion (obras legacy sin presupuesto) ----
-// Ver mtw-api/src/dominio/obras/propuesta-cubicacion.ts: el sistema interpreta el
-// modelo de cada ventana del lote ("2115 V02") y el nombre del documento ("EX_P21").
-export type ConfianzaPropuesta = 'ALTA' | 'MEDIA' | 'BAJA';
-
-export interface VentanaPropuestaCubicacion {
-  fabricacionVentanaId: string;
-  fabricacionId: string;
-  orden: number;
-  modelo: string;
-  descripcionCorta: string | null;
-  anchoMm: number;
-  altoMm: number;
-  unidades: number;
-  hojas: number | null;
-  codigo: string;
-  torre: string;
-  piso: number | null;
-  unidad: string | null;
-  especial: boolean;
-  ubicacion: string | null;
-  confianza: ConfianzaPropuesta;
-  avisos: string[];
-  nomenclaturaPropuesta: string | null;
+// Ver mtw-api/src/modulos/obras/cubicacion-fabricacion.ts (importarPlanillaControl).
+export interface ReportePlanillaControl {
+  formato: 'control';
+  hoja: string;
+  obra: string | null;
+  ventanasPlanilla: number;
+  tipos: { actualizados: number; renombrados: string[] };
+  ventanas: {
+    yaEstaban: number;
+    ubicadas: number;
+    movidas: number;
+    // Lugares nuevos «sin fabricar», los que ya estaban así y los que esta carga llenó con su ventana fabricada.
+    sinFabricar: number;
+    yaEsperadas: number;
+    conciliadas: number;
+    // Filas a las que no se les pudo dar lugar (sin depto o piso).
+    sobranEnPlanilla: number;
+    fueraDePlanilla: number;
+    repetidas: number;
+    reposiciones: number;
+  };
+  estructura: { torres: number; pisos: number; unidades: number; quitadas: number };
+  diferenciasPlanilla: string[];
+  fueraDePlanilla: string[];
+  sinFabricar: string[];
+  sinFabricarPorPiso: string[];
+  sobrantes: string[];
+  esperadasSinFila: string[];
+  repetidas: string[];
+  medidas: string[];
+  reposiciones: string[];
+  advertencias: string[];
 }
 
-export interface DocumentoPropuestaCubicacion {
-  fabricacionId: string;
-  hetmoId: number;
-  numero: number | null;
-  descripcion: string | null;
-  nombre: string | null;
-  estadoHetmo: number;
-  estadoGlosa: string | null;
-  pistas: { torre: string | null; piso: number | null };
-  ventanas: VentanaPropuestaCubicacion[];
-}
-
-export interface TipoPropuestoCubicacion {
-  codigo: string;
-  sistema: string;
-  anchoMm: number | null;
-  altoMm: number | null;
-  cuadros: number | null;
-  ventanas: number;
-  existente: boolean;
-}
-
-export interface PropuestaCubicacionFabricacion {
-  documentos: DocumentoPropuestaCubicacion[];
-  tipos: TipoPropuestoCubicacion[];
-  resumen: { ventanas: number; conPosicion: number; sinPosicion: number; porRevisar: number };
-  formatoNomenclatura: string;
-  modo: ModoCubicacion;
-}
-
-// Una fila ya revisada por la persona, lista para aplicar.
-export interface FilaPropuestaCubicacion {
-  fabricacionVentanaId: string;
-  codigo: string;
-  torre: string;
-  piso: number | null;
-  unidad: string | null;
-  especial: boolean;
-  ubicacion: string | null;
-}
-
-export interface ReporteAplicacionPropuesta {
-  tipos: { nuevos: number; existentes: number };
-  ventanas: { creadas: number; conPosicion: number; sinPosicion: number };
-  estructura: { torres: number; pisos: number; unidades: number };
-  avisos: string[];
+// Ventanas que la obra legacy trajo sola de sus documentos de fabricación al abrir la cubicación.
+export interface CubicacionAlAbrir {
+  creadas: number;
+  porUbicar: number;
+  vinculadas: number;
 }
 
 // Avance masivo del estado de las ventanas de una obra en ejecucion (legacy).
@@ -2332,7 +2369,23 @@ export interface DespachoObraItem {
   cantidad: number;
   cantidadRecibida: number;
   descripcion: string;
-  ventana: VentanaObra;
+  // Una línea es una ventana de la cubicación o un pendiente listo para despacho: una de las dos.
+  ventana: VentanaObra | null;
+  pendiente: { id: string; numero: number; codigo: string; tipo: TipoElementoPendiente; descripcion: string; ventanaRef: string | null } | null;
+}
+
+/** Pendiente listo para despacho que todavía no va en ningún despacho. */
+export interface PendienteListoDespacho {
+  id: string;
+  numero: number;
+  codigo: string;
+  tipo: TipoElementoPendiente;
+  motivo: MotivoPendiente;
+  destino: DestinoPendiente;
+  descripcion: string;
+  ventanaRef: string | null;
+  cantidadRecibida: number | null;
+  fechaRequerida: string | null;
 }
 
 export interface RecepcionObra {
@@ -2407,11 +2460,15 @@ export interface ObraInstalacion {
   clienteNombreRaw: string;
   clienteDireccionRaw: string | null;
   clienteLocalidadRaw: string | null;
+  obraDireccion: string | null;
+  obraComuna: string | null;
   origen: Proyecto['origen'];
   tipoProyecto: { nombre: string; modoCubicacion: ModoCubicacion };
   ventanas: number;
   instaladas: number;
   despachosPorRecibir: number;
+  /** Despachos ya recibidos completos. */
+  despachosRecibidos: number;
   pendientesAbiertos: number;
 }
 
@@ -2424,11 +2481,15 @@ export interface ObraDespachos {
   clienteNombreRaw: string;
   clienteDireccionRaw: string | null;
   clienteLocalidadRaw: string | null;
+  obraDireccion: string | null;
+  obraComuna: string | null;
   origen: Proyecto['origen'];
   /** Ventanas con posicion en la cubicacion. */
   ventanas: number;
   /** Ventanas distintas en algun despacho emitido o recibido. */
   despachadas: number;
+  /** Pendientes listos para despacho que aún no van en un despacho. */
+  pendientesPorDespachar: number;
   borradores: number;
   /** Despachos emitidos o recibidos en parte, que la obra todavia debe acusar. */
   porRecibir: number;

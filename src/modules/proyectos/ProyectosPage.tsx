@@ -155,10 +155,8 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
     );
   }
 
-  // Ambas vistas parten en Información General. Una obra manual no tiene
-  // presupuesto ni fases planificadas: en el taller entra directo a
-  // Fabricacion, que es donde se le vinculan sus documentos.
-  const abrir = (p: Proyecto) => actualizarParams({ proyecto: p.id, seccion: esFabricacion && p.origen === 'MANUAL_OBRA' ? 'fabricacion' : null });
+  // Toda obra parte en Información General, también la obra legacy (manual) en el taller.
+  const abrir = (p: Proyecto) => actualizarParams({ proyecto: p.id, seccion: null });
 
 
   const filaFases = (p: Proyecto) => {
@@ -220,6 +218,7 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
                     <Th className="font-bold">Despachadas</Th>
                     <Th className="font-bold">Instaladas</Th>
                     <Th className="font-bold">Pendientes</Th>
+                    <Th className="font-bold" title="Carpeta de producción de la obra en OneDrive">Carpeta</Th>
                   </>
                 ) : (
                   <>
@@ -239,7 +238,7 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
                 <Th>
                   <ColumnFilterHeader columna={columnas[1]} valor={valores.cliente || ''} onChange={(v) => setValor('cliente', v)} />
                 </Th>
-                <Th colSpan={esFabricacion ? 7 : 6} />
+                <Th colSpan={esFabricacion ? 8 : 6} />
               </Tr>
             </Thead>
             <Tbody>
@@ -278,6 +277,9 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
                         <Avance valor={ro(p)?.ventanas.instaladas ?? 0} total={ro(p)?.ventanas.cubicadas ?? 0} color="bg-emerald-500" titulo="Ventanas certificadas como instaladas, de las cubicadas" />
                       </Td>
                       <Td>{pendientes(p)}</Td>
+                      <Td className="whitespace-nowrap">
+                        <CarpetaObraBoton proyecto={p} ambito="produccion" soloIcono />
+                      </Td>
                     </>
                   ) : (
                     <>
@@ -349,7 +351,7 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
               <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
             </BotonFila>
             <div className="flex items-center justify-between gap-2">
-              {!esFabricacion ? <CarpetaObraBoton proyecto={p} /> : <span />}
+              <CarpetaObraBoton proyecto={p} ambito={esFabricacion ? 'produccion' : 'comercial'} />
               {botonEliminar(p)}
             </div>
             </div>

@@ -5,6 +5,7 @@ import { crearDespacho, getVentanasParaDespacho } from '../../../api/client';
 import { Modal } from '../../../components/ui/Modal';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
+import { CamposDireccion, aValorDireccion } from '../../../components/ui/CamposDireccion';
 import { Select } from '../../../components/ui/Select';
 import { Badge } from '../../../components/ui/Badge';
 import { Aviso } from '../../../components/ui/Aviso';
@@ -38,9 +39,10 @@ export const NuevoDespachoModal: React.FC<Props> = ({ proyecto, faseInicial, onC
   const [forzar, setForzar] = useState(false);
   const [datos, setDatos] = useState({
     fechaDespacho: hoyIso(),
-    direccionEntrega: proyecto.clienteDireccionRaw ?? '',
-    comunaEntrega: '',
-    ciudadEntrega: proyecto.clienteLocalidadRaw ?? '',
+    // La entrega es en la obra: su dirección (paso 1 de la cotización) y, si no se indicó, la del cliente.
+    direccionEntrega: proyecto.obraDireccion ?? proyecto.clienteDireccionRaw ?? '',
+    comunaEntrega: proyecto.obraDireccion ? (proyecto.obraComuna ?? '') : '',
+    ciudadEntrega: proyecto.obraDireccion ? (proyecto.obraCiudad ?? '') : (proyecto.clienteLocalidadRaw ?? ''),
     destinatario: '',
     transportista: '',
     patente: '',
@@ -104,6 +106,8 @@ export const NuevoDespachoModal: React.FC<Props> = ({ proyecto, faseInicial, onC
   });
 
   const set = (k: keyof typeof datos, v: string) => setDatos((d) => ({ ...d, [k]: v }));
+  // La región solo ordena las comunas del formulario: la guía lleva dirección, comuna y ciudad.
+  const [regionEntrega, setRegionEntrega] = useState(proyecto.obraDireccion ? (proyecto.obraRegion ?? '') : '');
 
   return (
     <Modal
@@ -198,10 +202,18 @@ export const NuevoDespachoModal: React.FC<Props> = ({ proyecto, faseInicial, onC
         </div>
 
         <div className="grid sm:grid-cols-2 gap-3">
-          <Input label="Dirección de entrega" value={datos.direccionEntrega} onChange={(e) => set('direccionEntrega', e.target.value)} maxLength={300} helperText="Va en la guía de despacho." />
+          <div className="sm:col-span-2">
+            <CamposDireccion
+              etiquetaDireccion="Dirección de entrega"
+              ayudaDireccion="Va en la guía de despacho."
+              valor={aValorDireccion({ direccion: datos.direccionEntrega, region: regionEntrega, comuna: datos.comunaEntrega, ciudad: datos.ciudadEntrega })}
+              onChange={(v) => {
+                setRegionEntrega(v.region);
+                setDatos((d) => ({ ...d, direccionEntrega: v.direccion, comunaEntrega: v.comuna, ciudadEntrega: v.ciudad }));
+              }}
+            />
+          </div>
           <Input label="Destinatario (recibe en obra)" value={datos.destinatario} onChange={(e) => set('destinatario', e.target.value)} maxLength={200} />
-          <Input label="Comuna" value={datos.comunaEntrega} onChange={(e) => set('comunaEntrega', e.target.value)} maxLength={100} />
-          <Input label="Ciudad" value={datos.ciudadEntrega} onChange={(e) => set('ciudadEntrega', e.target.value)} maxLength={100} />
           <Input label="Transportista" value={datos.transportista} onChange={(e) => set('transportista', e.target.value)} maxLength={200} />
           <Input label="Patente" value={datos.patente} onChange={(e) => set('patente', e.target.value)} maxLength={20} />
         </div>

@@ -120,7 +120,17 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
       {legacy ? (
         <>
           <Td className="text-[11px] text-slate-500 max-w-[12rem] truncate" title={unidad.documento?.nombre}>
-            {unidad.documento?.nombre ?? <span className="text-slate-300">—</span>}
+            {unidad.documento ? (
+              <>
+                {unidad.documento.nombre}
+                {unidad.fabricacionesAnteriores.length > 0 && <span className="text-violet-700 font-bold"> · reposición</span>}
+                {unidad.fueraDePlanilla && <span className="text-rose-700 font-bold"> · fuera de planilla</span>}
+              </>
+            ) : unidad.unidadId ? (
+              <span className="font-bold text-amber-700">Sin fabricar</span>
+            ) : (
+              <span className="text-slate-300">—</span>
+            )}
           </Td>
           <Td className="text-xs font-mono font-bold text-slate-800 whitespace-nowrap">
             {unidad.anchoFabricacionMm != null ? `${formatoMm(unidad.anchoFabricacionMm)} × ${formatoMm(unidad.altoFabricacionMm)}` : `${formatoMm(unidad.anchoPlanoMm)} × ${formatoMm(unidad.altoPlanoMm)}`}
@@ -215,7 +225,7 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
             </option>
           ))}
         </SelectCompacto>
-        <SelectCompacto value={tipoId} onChange={(e) => setTipoId(e.target.value)} aria-label="Filtrar por tipo">
+        {!legacy && <SelectCompacto value={tipoId} onChange={(e) => setTipoId(e.target.value)} aria-label="Filtrar por tipo">
           <option value="">Todos los tipos</option>
           {tipos
             .filter((t) => !t.esAreaComun)
@@ -224,16 +234,17 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
                 {t.codigo}
               </option>
             ))}
-        </SelectCompacto>
+        </SelectCompacto>}
         <SelectCompacto value={estado} onChange={(e) => setEstado(e.target.value as '' | 'sinPosicion' | 'posicionadas')} aria-label="Filtrar por posición">
           <option value="">Con y sin posición</option>
           <option value="sinPosicion">Sin posición</option>
           <option value="posicionadas">Con posición</option>
         </SelectCompacto>
         {!legacy && <Casilla checked={sinRectificar} onChange={setSinRectificar} label="Solo sin rectificar" />}
-        <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setModal({})}>
+        {/* Obra legacy: las ventanas llegan solas de sus documentos de fabricación; no se crean a mano. */}
+        {!legacy && <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setModal({})}>
           Nueva ventana
-        </Button>
+        </Button>}
       </div>
 
       {isLoading ? (
@@ -246,7 +257,7 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
         <div className="p-10 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">
           {data?.total === 0 && !texto && !tipoId && !filtro.pisoId && !filtro.torreId && !sinRectificar && !estado
             ? legacy
-              ? 'Todavía no hay ventanas. Cubica desde los documentos de fabricación o usa "Nueva ventana".'
+              ? 'Todavía no hay ventanas: aparecen solas al vincular los documentos de fabricación de la obra.'
               : 'Todavía no hay ventanas. Crea la cubicación desde el presupuesto, sube una planilla o usa "Nueva ventana".'
             : 'Ninguna ventana coincide con los filtros.'}
         </div>
@@ -255,9 +266,9 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
           <Tabla>
             <Thead>
               <Tr className="border-b border-slate-100 bg-slate-50/70 text-left text-slate-500 uppercase tracking-wider text-[11px]">
-                <Th className="font-bold">Nomenclatura</Th>
+                <Th className="font-bold">{legacy ? 'Ventana' : 'Nomenclatura'}</Th>
                 <Th className="font-bold">Ubicación</Th>
-                <Th className="font-bold">Apertura</Th>
+                <Th className="font-bold">{legacy ? 'Descripción' : 'Apertura'}</Th>
                 {legacy ? (
                   <>
                     <Th className="font-bold">Documento</Th>

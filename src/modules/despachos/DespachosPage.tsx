@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { direccionDeObra } from '../../lib/chile';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, Truck } from 'lucide-react';
 import { getObrasDespachos, getProyectoById } from '../../api/client';
@@ -83,6 +84,11 @@ export const DespachosPage: React.FC = () => {
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-sm font-bold text-slate-900 truncate">{o.obra}</h3>
                     <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 font-mono font-bold shrink-0">{o.codigoInterno || `PRJ-${o.numeroPresupuesto}`}</span>
+                    {o.pendientesPorDespachar > 0 && (
+                      <Badge size="sm" variant="info">
+                        {o.pendientesPorDespachar} pendiente(s) listo(s)
+                      </Badge>
+                    )}
                     {o.borradores > 0 && (
                       <Badge size="sm" variant="warning">
                         {o.borradores} borrador(es)
@@ -96,7 +102,7 @@ export const DespachosPage: React.FC = () => {
                   </div>
                   <p className="text-xs text-slate-500 truncate">
                     {o.clienteNombreRaw}
-                    {o.clienteDireccionRaw ? ` · ${o.clienteDireccionRaw}` : ''}
+                    {direccionDeObra(o) ? ` · ${direccionDeObra(o)}` : ''}
                   </p>
                   <div className="flex items-center gap-2">
                     <span className="flex-1 max-w-xs h-1.5 rounded-full bg-slate-100 overflow-hidden">

@@ -4,7 +4,8 @@ import { ExternalLink, Folder, Loader2 } from 'lucide-react';
 import { buscarCarpetasOneDrive, desvincularCarpetaOneDrive, getOneDriveObra, vincularCarpetaOneDrive } from '../../../../api/client';
 import { Button } from '../../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../../lib/toast';
-import type { CarpetaOneDriveSugerida } from '../../../../types';
+import type { AmbitoCarpeta, CarpetaOneDriveSugerida } from '../../../../types';
+import { Aviso } from '../../../../components/ui/Aviso';
 import { useConfirmar } from '../../../../components/ui/Confirmar';
 import { Modal } from '../../../../components/ui/Modal';
 import { InputCompacto } from '../../../../components/ui/Campos';
@@ -12,6 +13,8 @@ import { Buscador } from '../../../../components/ui/Buscador';
 
 interface Props {
   proyectoId: string;
+  /** Cuál de las dos carpetas de la obra se vincula; por defecto la comercial. */
+  ambito?: AmbitoCarpeta;
   onClose: () => void;
 }
 
@@ -20,7 +23,8 @@ interface Props {
 // los pendientes). Se propone la carpeta que parece ser de la obra (por el
 // numero de proyecto) pero NADA se vincula ni se crea sin que una persona lo
 // confirme: una carpeta equivocada mezclaria archivos de dos obras.
-export const VincularCarpetaModal: React.FC<Props> = ({ proyectoId, onClose }) => {
+export const VincularCarpetaModal: React.FC<Props> = ({ proyectoId, ambito = 'comercial', onClose }) => {
+  const produccion = ambito === 'produccion';
   const { confirmar } = useConfirmar();
   const queryClient = useQueryClient();
   const [busqueda, setBusqueda] = useState('');
@@ -28,10 +32,10 @@ export const VincularCarpetaModal: React.FC<Props> = ({ proyectoId, onClose }) =
   const [confirmarNueva, setConfirmarNueva] = useState(false);
   const [nombreNueva, setNombreNueva] = useState<string | null>(null);
 
-  const { data: estado, isLoading } = useQuery({ queryKey: ['onedrive', proyectoId], queryFn: () => getOneDriveObra(proyectoId) });
+  const { data: estado, isLoading } = useQuery({ queryKey: ['onedrive', proyectoId, ambito], queryFn: () => getOneDriveObra(proyectoId, ambito) });
   const encontradas = useQuery({
-    queryKey: ['onedriveCarpetas', proyectoId, consulta],
-    queryFn: () => buscarCarpetasOneDrive(proyectoId, consulta),
+    queryKey: ['onedriveCarpetas', proyectoId, ambito, consulta],
+    queryFn: () => buscarCarpetasOneDrive(proyectoId, consulta, ambito),
     enabled: consulta.length > 0,
   });
 
@@ -47,7 +51,7 @@ export const VincularCarpetaModal: React.FC<Props> = ({ proyectoId, onClose }) =
     mostrarToast(mensaje, { detalle });
   };
   const vincular = useMutation({
-    mutationFn: (payload: { carpetaId: string } | { crear: true; nombre?: string }) => vincularCarpetaOneDrive(proyectoId, payload),
+    mutationFn: (payload: { carpetaId: string } | { crear: true; nombre?: string }) => vincularCarpetaOneDrive(proyectoId, payload, ambito),
     onSuccess: () => {
       refrescar();
       onClose();
@@ -55,7 +59,7 @@ export const VincularCarpetaModal: React.FC<Props> = ({ proyectoId, onClose }) =
     onError: avisoError,
   });
   const desvincular = useMutation({
-    mutationFn: () => desvincularCarpetaOneDrive(proyectoId),
+    mutationFn: () => desvincularCarpetaOneDrive(proyectoId, ambito),
     onSuccess: () => {
       refrescar();
       onClose();
@@ -83,15 +87,25 @@ export const VincularCarpetaModal: React.FC<Props> = ({ proyectoId, onClose }) =
 
   return (
     <Modal
-      titulo="Carpeta de OneDrive de la obra"
-      subtitulo={<>Es la carpeta de toda la obra. Por ahora ahí van las fotos y documentos de los pendientes (<span className="font-mono">Pendientes/PEN-…</span>). Confirma que
-              sea la correcta.</>}
+      titulo={produccion ? 'Carpeta de producción de la obra' : 'Carpeta de OneDrive de la obra'}
+      subtitulo={
+        produccion ? (
+          <>Es la carpeta de la obra que usa Fabricación, distinta de la comercial. Confirma que sea la correcta.</>
+        ) : (
+          <>Es la carpeta comercial de la obra. Ahí van también las fotos y documentos de los pendientes (<span className="font-mono">Pendientes/PEN-…</span>). Confirma que
+              sea la correcta.</>
+        )
+      }
       onClose={onClose}
     >
       {isLoading ? (
         <div className="p-8 flex justify-center text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
+      ) : estado?.sinRaiz ? (
+        <Aviso tono="advertencia" titulo="Falta indicar la carpeta de producción.">
+          Un administrador debe indicarla en Configuración › OneDrive para poder vincular la carpeta de cada obra.
+        </Aviso>
       ) : (
         <>
           {estado?.carpeta && (

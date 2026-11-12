@@ -51,7 +51,7 @@ export const NuevoPendienteModal: React.FC<Props> = ({ proyecto, onClose, onCrea
   const queryClient = useQueryClient();
 
   const [tipo, setTipo] = useState<TipoElementoPendiente>(ventanaCubicada ? 'VENTANA' : 'VIDRIO');
-  const [motivo, setMotivo] = useState<MotivoPendiente>(ventanaCubicada ? 'DANO_INSTALACION' : 'FALLA');
+  const [motivo, setMotivo] = useState<MotivoPendiente>('DANO_OBRA');
   const [fabElegida, setFabElegida] = useState(ventanaCubicada?.lote?.fabricacionId ?? '');
   const [filtroVentana, setFiltroVentana] = useState('');
   const [ventanaId, setVentanaId] = useState(ventanaCubicada?.lote?.fabricacionVentanaId ?? '');

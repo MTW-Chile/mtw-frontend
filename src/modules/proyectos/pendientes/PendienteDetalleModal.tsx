@@ -4,6 +4,7 @@ import { CheckCircle2, RotateCcw, ShoppingCart, Trash2 } from 'lucide-react';
 import { cambiarEstadoPendiente, eliminarPendiente, getEtapasPendiente, getFichaVentana, getPendiente } from '../../../api/client';
 import { NuevoAdicionalModal } from '../adicionales/NuevoAdicionalModal';
 import { actualizarParams } from '../../../lib/navigation';
+import { Aviso } from '../../../components/ui/Aviso';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { formatoFechaHora } from '../fabricacion/utils';
@@ -124,6 +125,9 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
           <Cargando />
         ) : (
           <>
+            <Aviso tono="info" sinIcono>
+              La gestión por pasos de los pendientes de obras cotizadas está en construcción. Por ahora este pendiente sigue con sus etapas de siempre.
+            </Aviso>
 
             {(p.ventanaIndividualizada || p.fabricacionVentana) && (
               <div className="flex gap-3 items-center">

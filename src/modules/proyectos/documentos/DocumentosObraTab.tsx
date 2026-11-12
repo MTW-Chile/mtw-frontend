@@ -4,10 +4,10 @@ import { ChevronRight, ExternalLink, File, FileText, Folder, FolderPlus, Home, L
 import { crearCarpetaDocumento, getContenidoDocumentoObra, getDocumentosObra, getOneDriveEstado, subirDocumentoObra } from '../../../api/client';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
-import type { ItemOneDrive, Proyecto } from '../../../types';
+import type { AmbitoCarpeta, ItemOneDrive, Proyecto } from '../../../types';
 import { formatoFechaHora } from '../fabricacion/utils';
 import { BotonesAdjuntar } from '../pendientes/adjuntos/BotonesAdjuntar';
-import { formatoTamano, mimeDeArchivo } from '../pendientes/adjuntos/utils';
+import { carpetaDeObra, formatoTamano, mimeDeArchivo } from '../pendientes/adjuntos/utils';
 import { InputCompacto } from '../../../components/ui/Campos';
 import { BotonFila } from '../../../components/ui/Lista';
 import { CarpetaObraBoton } from '../pendientes/adjuntos/CarpetaObraBoton';
@@ -24,9 +24,9 @@ const avisoError = (e: unknown) => {
 };
 
 // Abre el archivo en una pestaña nueva (la API lo sirve: nadie necesita sesion de OneDrive).
-async function abrirArchivo(proyectoId: string, item: ItemOneDrive) {
+async function abrirArchivo(proyectoId: string, ambito: AmbitoCarpeta, item: ItemOneDrive) {
   try {
-    const blob = await getContenidoDocumentoObra(proyectoId, item.id, item.nombre);
+    const blob = await getContenidoDocumentoObra(proyectoId, item.id, item.nombre, ambito);
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank', 'noopener');
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
@@ -35,11 +35,13 @@ async function abrirArchivo(proyectoId: string, item: ItemOneDrive) {
   }
 }
 
-// "Documentos" de la obra: navega la MISMA carpeta de OneDrive ya vinculada
+// "Documentos" de la obra: navega la carpeta de OneDrive ya vinculada
 // (ver CarpetaObraBoton/VincularCarpetaModal), para ver y administrar todo lo
 // que hay ahi (no solo los adjuntos de pendientes). Sin base de datos propia:
 // es una ventana directa al contenido real de OneDrive.
-export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }) => {
+// `ambito`: Comercial ve la carpeta comercial; Fabricación, la de producción.
+export const DocumentosObraTab: React.FC<{ proyecto: Proyecto; ambito: AmbitoCarpeta }> = ({ proyecto, ambito }) => {
+  const carpetaObra = carpetaDeObra(proyecto, ambito);
   const queryClient = useQueryClient();
   const [migas, setMigas] = useState<Miga[]>([]);
   const [creandoCarpeta, setCreandoCarpeta] = useState(false);
@@ -48,18 +50,18 @@ export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }
   const [subiendo, setSubiendo] = useState<{ hechos: number; total: number } | null>(null);
 
   const { data: estado } = useQuery({ queryKey: ['onedriveEstado'], queryFn: () => getOneDriveEstado(), staleTime: 1000 * 60 });
-  const carpetaActual = migas.length ? migas[migas.length - 1].id : (proyecto.onedriveCarpetaId ?? undefined);
+  const carpetaActual = migas.length ? migas[migas.length - 1].id : (carpetaObra.id ?? undefined);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['documentosObra', proyecto.id, carpetaActual],
-    queryFn: () => getDocumentosObra(proyecto.id, carpetaActual),
-    enabled: !!proyecto.onedriveCarpetaId,
+    queryKey: ['documentosObra', proyecto.id, ambito, carpetaActual],
+    queryFn: () => getDocumentosObra(proyecto.id, carpetaActual, ambito),
+    enabled: !!carpetaObra.id,
   });
 
-  const refrescar = () => queryClient.invalidateQueries({ queryKey: ['documentosObra', proyecto.id, carpetaActual] });
+  const refrescar = () => queryClient.invalidateQueries({ queryKey: ['documentosObra', proyecto.id, ambito, carpetaActual] });
 
   const crearCarpeta = useMutation({
-    mutationFn: (nombre: string) => crearCarpetaDocumento(proyecto.id, carpetaActual!, nombre),
+    mutationFn: (nombre: string) => crearCarpetaDocumento(proyecto.id, carpetaActual!, nombre, ambito),
     onSuccess: () => {
       setCreandoCarpeta(false);
       setNombreCarpeta('');
@@ -76,7 +78,7 @@ export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }
       setSubiendo({ hechos: i, total: archivos.length });
       const f = archivos[i];
       try {
-        await subirDocumentoObra(proyecto.id, carpetaActual, f, f.name, mimeDeArchivo(f.name, f.type));
+        await subirDocumentoObra(proyecto.id, carpetaActual, f, f.name, mimeDeArchivo(f.name, f.type), ambito);
       } catch (e) {
         fallidos.push(`${f.name}: ${extraerErrorParaToast(e).mensaje}`);
       }
@@ -86,15 +88,15 @@ export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }
     if (fallidos.length) mostrarToast(`No se pudo subir: ${fallidos.join(' · ')}`);
   };
 
-  if (!proyecto.onedriveCarpetaId) {
+  if (!carpetaObra.id) {
     return (
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900 flex flex-wrap items-center justify-between gap-3">
         <span>
           {estado?.conectada
-            ? 'Esta obra no tiene carpeta de OneDrive vinculada. Vincúlala para ver y subir documentos desde aquí.'
+            ? `Esta obra no tiene ${ambito === 'produccion' ? 'carpeta de producción' : 'carpeta de OneDrive'} vinculada. Vincúlala para ver y subir documentos desde aquí.`
             : 'OneDrive no está conectado: un administrador debe conectarlo en Configuración > OneDrive.'}
         </span>
-        <CarpetaObraBoton proyecto={proyecto} />
+        <CarpetaObraBoton proyecto={proyecto} ambito={ambito} />
       </div>
     );
   }
@@ -103,7 +105,7 @@ export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <nav className="flex items-center gap-1 text-xs font-bold text-slate-500 flex-wrap" aria-label="Ruta de carpetas">
-          <Button variant="ghost" size="sm" leftIcon={<Home className="w-3.5 h-3.5" />} onClick={() => setMigas([])}>{proyecto.onedriveCarpetaNombre || 'Carpeta de la obra'}</Button>
+          <Button variant="ghost" size="sm" leftIcon={<Home className="w-3.5 h-3.5" />} onClick={() => setMigas([])}>{carpetaObra.nombre || 'Carpeta de la obra'}</Button>
           {migas.map((m, i) => (
             <React.Fragment key={m.id}>
               <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />
@@ -112,7 +114,7 @@ export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }
           ))}
         </nav>
         <div className="flex flex-wrap items-center gap-2">
-          <CarpetaObraBoton proyecto={proyecto} />
+          <CarpetaObraBoton proyecto={proyecto} ambito={ambito} corto />
           <Button size="sm" variant="outline" leftIcon={<FolderPlus className="w-3.5 h-3.5" />} onClick={() => setCreandoCarpeta(true)}>
             Nueva carpeta
           </Button>
@@ -155,7 +157,7 @@ export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }
             <li key={item.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
               <BotonFila
                 sinRelleno
-                onClick={() => (item.tipo === 'carpeta' ? setMigas([...migas, { id: item.id, nombre: item.nombre }]) : tipoDeVista(item) ? setViendo(item) : abrirArchivo(proyecto.id, item))}
+                onClick={() => (item.tipo === 'carpeta' ? setMigas([...migas, { id: item.id, nombre: item.nombre }]) : tipoDeVista(item) ? setViendo(item) : abrirArchivo(proyecto.id, ambito, item))}
                 className="flex-1 min-w-0 flex items-center gap-3"
               >
                 {item.tipo === 'carpeta' ? (
@@ -187,7 +189,7 @@ export const DocumentosObraTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }
           ))}
         </ul>
       )}
-      {viendo && tipoDeVista(viendo) && <VisorDocumento proyectoId={proyecto.id} item={viendo} tipo={tipoDeVista(viendo)!} onClose={() => setViendo(null)} />}
+      {viendo && tipoDeVista(viendo) && <VisorDocumento proyectoId={proyecto.id} ambito={ambito} item={viendo} tipo={tipoDeVista(viendo)!} onClose={() => setViendo(null)} />}
     </div>
   );
 };
