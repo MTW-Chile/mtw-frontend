@@ -9,6 +9,15 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - **Parche** (2.0.0 → 2.0.1): ajustes y mejoras acotadas, cada despliegue.
 - **Corrección urgente** sobre un parche (2.0.4 → 2.0.4.1; en package.json, 2.0.4-1): la decide Alfredo.
 
+## Sin publicar — la página se corría al marcar opciones; avisos que tapaban botones
+
+- **Corregido**: en Instaladores › Pendientes (y en cualquier formulario con opciones en tarjetas más alto que la ventana), al marcar una opción la página entera se corría hacia arriba: desaparecía el encabezado, quedaba un hueco abajo y no había forma de volver sin recargar. Las casillas ocultas de esas tarjetas quedaban ancladas a la página en vez de a su tarjeta.
+- **Avisos**: las confirmaciones y errores ahora salen arriba a la derecha, bajo el encabezado (en celular, a lo ancho). Antes salían abajo a la derecha y tapaban «Revisar y enviar» y «Agregar al listado». Las confirmaciones duran 4 segundos; los errores, 10.
+
+## Sin publicar — filtros en celular
+
+- **Los filtros de los listados ya no se apilan en el celular** (Instalación, Pendientes, Presupuestos, Compras, Maestro y los demás): quedan en una sola fila que se desliza hacia el lado, con el borde difuminado donde hay más opciones y la opción elegida siempre a la vista. En Presupuestos y Compras el filtro usa su propia fila y el botón de acción baja a la siguiente.
+
 ## Sin publicar — pendientes de obras en ejecución: cada área ve lo suyo
 
 - **Cantidad al ingresar**: al marcar un material (o un vidrio que va más de una vez en la ventana) se pregunta **cuántas se necesitan**. Parte en todo lo que lleva **una** ventana de esa línea y se baja si faltan menos. Compras pide esa cantidad y al recibir parte en ella.

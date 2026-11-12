@@ -126,8 +126,11 @@ Montos, fechas y unidades se formatean **siempre** con `src/lib/formato.ts`
 - **Formularios:** etiqueta arriba, ayuda debajo, error en `rose`. Guardado
   explícito con un botón, o al salir del campo (`NumeroInput`) cuando la
   tabla es editable en línea; nunca en cada tecla.
-- **Filtros de un listado:** siempre `Segmentado`, en una sola fila que se
-  envuelve si no cabe, con "Todos" primero y el conteo de cada opción. Es la
+- **Filtros de un listado:** siempre `Segmentado`, en una sola fila, con
+  "Todos" primero y el conteo de cada opción. Si no cabe (celular), la fila se
+  desliza hacia el lado con el borde difuminado; nunca se apila en varias
+  líneas. Junto a un botón, en celular el filtro va en su propia fila
+  (`basis-full sm:basis-0`). Es la
   misma pieza en Pendientes, Compras, Presupuestos, Maestro e Instalación:
   el usuario la reconoce de una pantalla a otra.
 - **Estados "por revisar"** (sin asignar, por clasificar, sin medidas): ámbar,

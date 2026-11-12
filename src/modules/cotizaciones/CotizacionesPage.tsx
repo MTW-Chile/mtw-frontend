@@ -242,9 +242,10 @@ export const CotizacionesPage: React.FC<{
               />
             </div>
 
-            {/* FILA INFERIOR: filtros de estado a la izquierda, acción principal a la derecha */}
-            <div className="flex items-center justify-between gap-3 pt-1">
-              <div className="min-w-0 flex-1">
+            {/* FILA INFERIOR: filtros de estado a la izquierda, acción principal a la derecha. En celular los filtros
+                ocupan su propia fila (deslizable) y la acción baja a la siguiente. */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+              <div className="min-w-0 flex-1 basis-full sm:basis-0">
                 <Segmentado etiqueta="Filtrar por estado" opciones={ESTADOS_FILTRO.map((e) => ({ value: e.id, label: e.label }))} valor={statusFilter} onChange={setStatusFilter} />
               </div>
 

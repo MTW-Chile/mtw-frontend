@@ -456,7 +456,8 @@ export const OrdenesCompraList: React.FC<OrdenesCompraListProps> = ({ proyectoId
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="min-w-0 flex-1">
+        {/* En celular los filtros ocupan su propia fila (deslizable) y el botón baja a la siguiente. */}
+        <div className="min-w-0 flex-1 basis-full sm:basis-0">
           <Segmentado
             etiqueta="Filtrar por estado"
             valor={filtroEstado}
