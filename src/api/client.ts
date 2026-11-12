@@ -1798,6 +1798,32 @@ export async function avanzarEstadoVentanas(
 }
 
 // Cubicación única: nombra todas las ventanas sin repartirlas por torre/piso/depto (y lee el presupuesto si hace falta).
+// Obra sin cubicación (retail): su documento de fabricación es la fase única.
+// Idempotente: al abrir Fabricación deja la fase única armada y conciliada.
+export interface LineaConciliacionFabricacion {
+  lineaHetmo: number;
+  modelo: string;
+  descripcion: string | null;
+  erp: number;
+  documento: number;
+  vinculadas: number;
+}
+export type FabricacionUnica =
+  | { estado: 'SIN_DOCUMENTO' }
+  | {
+      estado: 'OK';
+      faseId: string | null;
+      faseNombre: string | null;
+      documentos: { id: string; nombre: string; estadoHetmo: number; estadoGlosa: string | null }[];
+      lineas: LineaConciliacionFabricacion[];
+      fueraDelPresupuesto: { modelo: string; lineaHetmo: number; unidades: number }[];
+      avisos: string[];
+    };
+export async function prepararFabricacionUnica(proyectoId: string): Promise<FabricacionUnica> {
+  const response = await apiClient.post<FabricacionUnica>(`/proyectos/${proyectoId}/fabricacion-unica`, undefined, { timeout: 180000 });
+  return response.data;
+}
+
 export async function crearCubicacionUnica(proyectoId: string) {
   const response = await apiClient.post<{ reporte: ReporteCubicacionUnica; cubicacion: ConfigCubicacion; resumen: ResumenCubicacion }>(
     `/proyectos/${proyectoId}/cubicacion/unica`

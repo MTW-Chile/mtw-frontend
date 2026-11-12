@@ -94,10 +94,12 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
     .filter((s) => !PERMISO_SECCION[s.id] || tiene(PERMISO_SECCION[s.id]!))
     .map((s) => {
       const disponible = seccionDisponible(s.id, proyecto?.origen);
-      return { id: s.id, label: s.label, icon: s.icon, disabled: !disponible, title: disponible ? s.hint : 'No disponible: esta obra se creó a mano y no fue cotizada' };
+      // Sin cubicación (retail) no hay fases que planificar: el documento de fabricación es la fase única.
+      const label = s.id === 'fabricacion' && !conCubicacion ? 'Fabricación' : s.label;
+      return { id: s.id, label, icon: s.icon, disabled: !disponible, title: disponible ? s.hint : 'No disponible: esta obra se creó a mano y no fue cotizada' };
     });
   // Volver a la sección cierra lo abierto dentro de ella (ej. un adicional).
-  useMigas(1, [{ label: SECCIONES.find((x) => x.id === seccion)?.label ?? '', alHacerClic: () => actualizarParams({ seccion, adicional: null }) }]);
+  useMigas(1, [{ label: pestanas.find((x) => x.id === seccion)?.label ?? SECCIONES.find((x) => x.id === seccion)?.label ?? '', alHacerClic: () => actualizarParams({ seccion, adicional: null }) }]);
 
   // La ejecucion real de la obra sigue la version activa (la misma que
   // define versionActivaHetmoId en Cotizaciones), no siempre la de
