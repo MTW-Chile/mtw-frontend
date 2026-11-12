@@ -134,3 +134,22 @@ describe('cubicador visual', () => {
     expect(m).toContain('3 V02');
   });
 });
+
+describe('avance de estado con la planilla de control', () => {
+  const base = { aplicado: false, hoja: 'LA CASTELLANA', obra: 'LA CASTELLANA', ventanasPlanilla: 400, conAvance: 372, avanzan: { total: 360, instaladas: 180, instaladasParcial: 149, despachadas: 20, despachadasParcial: 11 }, yaEstaban: 0, despachos: 27, lineasDespacho: 690, instalaciones: 329, sinFechaDespacho: 51, faltaDocumento: ['801 VA-01'], sinVentana: [], avisos: [] };
+
+  it('la vista previa dice cuántas avanzan, cómo quedan y qué se genera', async () => {
+    const { lineasAvancePlanilla } = await import('./utils');
+    const l = lineasAvancePlanilla(base);
+    expect(l[0]).toBe('360 ventanas avanzan: 180 instaladas, 149 con una parte instalada (marco u hoja), 20 recibidas en obra, 11 con una parte recibida en obra.');
+    expect(l[1]).toBe('Se generan 27 despachos de regularización sin guía (uno por fecha de despacho, ya recibidos en obra; 690 líneas) y 329 instalaciones sin foto.');
+    expect(l[3]).toBe('1 ventana no se avanza porque le falta su documento de fabricación.');
+  });
+
+  it('volver a subir la misma planilla: nada que avanzar, y cuenta las que ya estaban', async () => {
+    const { lineasAvancePlanilla } = await import('./utils');
+    const l = lineasAvancePlanilla({ ...base, aplicado: true, avanzan: { total: 0, instaladas: 0, instaladasParcial: 0, despachadas: 0, despachadasParcial: 0 }, yaEstaban: 360, despachos: 0, lineasDespacho: 0, instalaciones: 0, faltaDocumento: [] });
+    expect(l[0]).toMatch(/No se generó nada/);
+    expect(l[1]).toMatch(/360 ya estaban así en el ERP/);
+  });
+});

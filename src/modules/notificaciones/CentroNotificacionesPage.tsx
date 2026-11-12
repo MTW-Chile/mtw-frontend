@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Bell, Landmark, ShoppingCart, Loader2, ChevronRight } from 'lucide-react';
+import { Bell, ClipboardList, Landmark, ShoppingCart, Loader2, ChevronRight } from 'lucide-react';
 import { getMisAprobacionesPendientes } from '../../api/client';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { BotonFila } from '../../components/ui/Lista';
@@ -16,7 +16,11 @@ interface CentroNotificacionesPageProps {
   onAbrirCotizacion?: (proyectoId: string) => void;
   onAbrirCompras?: () => void;
   onAbrirAdicional?: (proyectoId: string, adicionalId: string) => void;
+  /** Pendientes de una obra, en el visor del área (Taller o Abastecimiento). */
+  onAbrirPendientesObra?: (area: 'FABRICA' | 'COMPRAS', proyectoId: string) => void;
 }
+
+const fechaCorta = (iso: string) => new Date(iso).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' });
 
 /**
  * Destino estable del menú de notificaciones y de los correos de aprobacion
@@ -24,12 +28,14 @@ interface CentroNotificacionesPageProps {
  * deep-link a un item puntual, esto no queda "roto" si ese item ya se
  * resolvio para cuando alguien lo abre. Lista todo lo gerencial pendiente
  * (Cotizaciones + OC) y cada item lleva directo a la pagina donde ya vive
- * la accion de aprobar/rechazar.
+ * la accion de aprobar/rechazar. Y los pendientes de obra que el area de la
+ * persona (Fabrica o Compras) todavia no recibe, una linea por obra.
  */
 export const CentroNotificacionesPage: React.FC<CentroNotificacionesPageProps> = ({
   onAbrirCotizacion,
   onAbrirCompras,
   onAbrirAdicional,
+  onAbrirPendientesObra,
 }) => {
   const { data: pendientes, isLoading } = useQuery({
     queryKey: ['misAprobacionesPendientes'],
@@ -37,6 +43,7 @@ export const CentroNotificacionesPage: React.FC<CentroNotificacionesPageProps> =
   });
 
   const gerencial = pendientes?.gerencial || [];
+  const pendientesObra = pendientes?.pendientesObra || [];
 
   return (
     <div className="w-full min-w-0 p-3 sm:p-5 md:p-6 xl:p-8 max-w-3xl mx-auto space-y-6 animate-fade-in">
@@ -50,12 +57,30 @@ export const CentroNotificacionesPage: React.FC<CentroNotificacionesPageProps> =
         <div className="p-12 flex items-center justify-center text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
-      ) : gerencial.length === 0 ? (
+      ) : gerencial.length === 0 && pendientesObra.length === 0 ? (
         <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">
           Sin pendientes por ahora.
         </div>
       ) : (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm divide-y divide-slate-50">
+          {pendientesObra.map((item) => (
+            <BotonFila key={`pen-${item.proyectoId}-${item.area}`} onClick={() => onAbrirPendientesObra?.(item.area, item.proyectoId)} className="flex items-center justify-between gap-3 px-5! py-4!">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
+                  <ClipboardList className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-slate-900 truncate">
+                    {item.cantidad === 1 ? '1 pendiente de obra por recibir' : `${item.cantidad} pendientes de obra por recibir`}
+                  </h3>
+                  <p className="text-xs text-slate-500 truncate">
+                    {item.obra} · {item.area === 'FABRICA' ? 'Fábrica' : 'Compras'} · {item.cantidad === 1 ? 'ingresado' : 'desde'} el {fechaCorta(item.desde)}
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
+            </BotonFila>
+          ))}
           {gerencial.map((item) => (
             <BotonFila
               key={item.tipo === 'orden_compra' ? `oc-${item.ordenCompraId}` : item.tipo === 'adicional' ? `adi-${item.adicionalId}` : `cot-${item.versionId}`}

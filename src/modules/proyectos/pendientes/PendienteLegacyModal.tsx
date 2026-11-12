@@ -160,7 +160,7 @@ export const PendienteLegacyModal: React.FC<Props> = ({ proyectoId, pendienteId,
   const [archivoOC, setArchivoOC] = useState<File | null>(null);
 
   const refrescar = () => {
-    for (const k of [['pendiente', pendienteId], ['pendientes'], ['pendientesListos', proyectoId], ['despachosObras']]) queryClient.invalidateQueries({ queryKey: k });
+    for (const k of [['pendiente', pendienteId], ['pendientes'], ['pendientesListos', proyectoId], ['despachosObras'], ['misAprobacionesPendientes']]) queryClient.invalidateQueries({ queryKey: k });
   };
   const avisar = (e: unknown) => {
     const { mensaje, detalle } = extraerErrorParaToast(e);
@@ -414,7 +414,9 @@ export const PendienteLegacyModal: React.FC<Props> = ({ proyectoId, pendienteId,
             </div>
           )}
 
-          <AdjuntosDetalle proyectoId={proyectoId} pendienteId={pendienteId} adjuntos={fotos} puedeAgregar={p.paso !== 'DESPACHADO'} />
+          {/* Fotos y documentos los agrega quien ingresa el pendiente (Instaladores). Taller y Abastecimiento solo los ven:
+              Compras sube la orden de compra en «Qué sigue» (subida aquí como documento no dejaba avanzar el pendiente). */}
+          <AdjuntosDetalle proyectoId={proyectoId} pendienteId={pendienteId} adjuntos={fotos} puedeAgregar={!desdeArea && tiene('pendientes.crear') && p.paso !== 'DESPACHADO'} />
           {ocs.length > 0 && <AdjuntosDetalle proyectoId={proyectoId} pendienteId={pendienteId} adjuntos={ocs} puedeAgregar={false} titulo="Orden de compra" />}
 
           <div className="rounded-xl border border-slate-200 p-3 space-y-3">

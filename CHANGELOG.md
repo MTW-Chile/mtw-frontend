@@ -9,6 +9,14 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - **Parche** (2.0.0 → 2.0.1): ajustes y mejoras acotadas, cada despliegue.
 - **Corrección urgente** sobre un parche (2.0.4 → 2.0.4.1; en package.json, 2.0.4-1): la decide Alfredo.
 
+## Sin publicar — obras en ejecución: estado con la planilla de control, avisos de pendientes y adjuntos
+
+- **Avanzar estado con la planilla** (Cubicación de una obra en ejecución; reemplaza a «Avanzar estado…», que se quitó): se sube la planilla de control vigente y el sistema deja despachado, recibido en obra e instalado lo que la planilla ya anota, **por marco y hoja**. Antes de aplicar muestra el resumen: cuántas ventanas avanzan y cómo quedan, y qué se genera (un despacho de regularización sin guía por cada fecha de despacho de la planilla, ya recibido en obra, e instalaciones sin foto). Volver a subir una planilla más nueva solo agrega lo que avanzó. No genera guías, estados de pago ni movimientos de bodega.
+  - **Si falta el documento de fabricación** de una ventana que la planilla da por despachada o instalada, no se avanza: queda en la lista «Falta su documento de fabricación» para buscarlo, vincularlo y volver a subir la planilla.
+  - La planilla no anota cuándo se instaló cada ventana: las instalaciones (y los despachos de lo que figura instalado sin fecha de despacho) quedan con la fecha que se indica al aplicar, hoy por defecto.
+- **Centro de Notificaciones**: quien gestiona pendientes de Fábrica o de Compras ve ahí (y en el contador del menú de usuario) los pendientes de obra que su área todavía no recibe, una línea por obra. Al abrirla va a los pendientes de esa obra; la línea se va sola cuando alguien del área los abre.
+- **Fotos y documentos de un pendiente**: solo los adjunta quien ingresa pendientes (Instaladores). En Taller y Abastecimiento ya no aparece «Adjuntar»: Compras sube la orden de compra en «Qué sigue», que es lo que deja avanzar el pendiente (subida como documento suelto, no avanzaba).
+
 ## Sin publicar — la página se corría al marcar opciones; avisos que tapaban botones
 
 - **Corregido**: en Instaladores › Pendientes (y en cualquier formulario con opciones en tarjetas más alto que la ventana), al marcar una opción la página entera se corría hacia arriba: desaparecía el encabezado, quedaba un hueco abajo y no había forma de volver sin recargar. Las casillas ocultas de esas tarjetas quedaban ancladas a la página en vez de a su tarjeta.

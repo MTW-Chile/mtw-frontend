@@ -85,8 +85,7 @@ import type {
   ReporteCubicacionUnica,
   InfoPresupuestoCubicacion,
   FiltroUnidadesCubicacion,
-  EstadoDestinoAvance,
-  ReporteAvanceVentanas,
+  ReporteAvancePlanilla,
   EstructuraCubicacion,
   TorreConPisos,
   ResultadoAsignacionCubicacion,
@@ -1794,13 +1793,14 @@ export async function sincronizarCubicacion(proyectoId: string) {
   return response.data;
 }
 
-// Avanza en bloque el estado de las ventanas elegidas (torres, pisos, deptos o ventanas) hasta despachadas,
-// recibidas o instaladas, generando lo que falte de cada paso sin guía ni foto.
-export async function avanzarEstadoVentanas(
-  proyectoId: string,
-  payload: { seleccion: SeleccionFaseCubicacion; hasta: EstadoDestinoAvance; fecha?: string; notas?: string }
-) {
-  const response = await apiClient.post<{ reporte: ReporteAvanceVentanas }>(`/proyectos/${proyectoId}/ventanas/avanzar-estado`, payload, { timeout: 180000 });
+// Avanza el estado de las ventanas de una obra legacy con su planilla de control (.xlsx tal cual en el cuerpo). Sin
+// `aplicar` devuelve solo la vista previa; con él genera los despachos de regularización y las instalaciones que falten.
+export async function avanzarEstadoConPlanilla(proyectoId: string, archivo: Blob, opciones: { aplicar: boolean; fecha?: string }) {
+  const response = await apiClient.post<{ reporte: ReporteAvancePlanilla }>(`/proyectos/${proyectoId}/ventanas/avance-planilla`, archivo, {
+    headers: { 'Content-Type': 'application/octet-stream' },
+    params: opciones.aplicar ? { aplicar: 1, fecha: opciones.fecha } : undefined,
+    timeout: 360000,
+  });
   return response.data;
 }
 

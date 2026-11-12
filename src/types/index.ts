@@ -138,8 +138,22 @@ export interface AprobacionPendienteAdicional {
   codigoInterno: string | null;
 }
 
+// Pendientes de obra recién ingresados que el área de la persona (Fábrica o Compras) todavía no recibe:
+// una línea por obra y área. Se va sola cuando alguien del área los abre.
+export interface PendientesObraPorRecibir {
+  tipo: 'pendientes_obra';
+  area: 'FABRICA' | 'COMPRAS';
+  proyectoId: string;
+  obra: string;
+  codigoInterno: string | null;
+  cantidad: number;
+  /** Cuándo se ingresó el más antiguo. */
+  desde: string;
+}
+
 export interface AprobacionesPendientes {
   gerencial: (AprobacionPendienteCotizacion | AprobacionPendienteOC | AprobacionPendienteAdicional)[];
+  pendientesObra: PendientesObraPorRecibir[];
   total: number;
 }
 
@@ -2204,17 +2218,26 @@ export interface CubicacionAlAbrir {
   vinculadas: number;
 }
 
-// Avance masivo del estado de las ventanas de una obra en ejecucion (legacy).
-export type EstadoDestinoAvance = 'DESPACHADA' | 'RECIBIDA' | 'INSTALADA';
-
-export interface ReporteAvanceVentanas {
-  ventanas: number;
-  despachadas: number;
-  recibidas: number;
-  instaladas: number;
+// Avance del estado de las ventanas de una obra en ejecución (legacy) desde su planilla de control: lo que se
+// genera (o se generaría, en la vista previa) y lo que no se pudo avanzar.
+export interface ReporteAvancePlanilla {
+  aplicado: boolean;
+  hoja: string;
+  obra: string | null;
+  ventanasPlanilla: number;
+  conAvance: number;
+  /** Ventanas a las que se les genera algo, según cómo quedan. */
+  avanzan: { total: number; instaladas: number; instaladasParcial: number; despachadas: number; despachadasParcial: number };
   yaEstaban: number;
-  despachoId: string | null;
-  omitidas: { nombre: string; motivo: string }[];
+  despachos: number;
+  lineasDespacho: number;
+  instalaciones: number;
+  sinFechaDespacho: number;
+  /** Con avance en la planilla y sin documento de fabricación en el ERP: no se avanzan. */
+  faltaDocumento: string[];
+  /** Filas con avance que no tienen ventana en la cubicación. */
+  sinVentana: string[];
+  avisos: string[];
 }
 
 export interface FiltroUnidadesCubicacion {

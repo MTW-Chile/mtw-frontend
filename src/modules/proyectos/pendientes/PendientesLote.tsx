@@ -105,7 +105,7 @@ export const PendientesLote: React.FC<Props> = ({ area, seleccion, onLimpiar, on
     enCurso.current = false;
     // En el modal quedan solo los que no avanzaron, para reintentar.
     setLote(lista.filter((p) => !hechos.includes(p.id)));
-    for (const k of [['pendientes'], ['pendiente'], ['pendientesListos'], ['despachosObras']]) queryClient.invalidateQueries({ queryKey: k });
+    for (const k of [['pendientes'], ['pendiente'], ['pendientesListos'], ['despachosObras'], ['misAprobacionesPendientes']]) queryClient.invalidateQueries({ queryKey: k });
     onHechos(hechos);
     if (errores.length === 0) {
       mostrarToast(hechos.length === 1 ? 'Pendiente actualizado.' : `${hechos.length} pendientes actualizados.`, { tipo: 'info' });

@@ -1,4 +1,4 @@
-import type { ReporteImportacionCubicacion, ReporteSincronizacionCubicacion } from '../../../types';
+import type { ReporteAvancePlanilla, ReporteImportacionCubicacion, ReporteSincronizacionCubicacion } from '../../../types';
 
 // Utilidades puras del cubicador (sin red ni DOM). La nomenclatura y las medidas se
 // calculan en el servidor (mtw-api/src/cubicador-reglas.ts); aca solo se replica la
@@ -70,6 +70,34 @@ export function descargarBlob(blob: Blob, nombre: string) {
 
 /** "2200,5" para mostrar un numero de mm en un campo de texto (coma decimal, sin separador de miles). */
 export const mmATexto = (n: number | null | undefined): string => (n === null || n === undefined ? '' : String(n).replace('.', ','));
+
+// Resumen del avance de estado con la planilla de control: la vista previa (`aplicado` false, en futuro) y el
+// resultado (en pasado) dicen lo mismo. La primera línea es la que importa: cuántas ventanas cambian y cómo quedan.
+export function lineasAvancePlanilla(r: ReporteAvancePlanilla): string[] {
+  const n = (x: number) => x.toLocaleString('es-CL');
+  const s = (x: number, uno: string, varios: string) => `${n(x)} ${x === 1 ? uno : varios}`;
+  const a = r.avanzan;
+  const lineas: string[] = [];
+  if (a.total === 0) {
+    lineas.push(r.conAvance === 0 ? 'La planilla no trae nada despachado ni instalado.' : r.aplicado ? 'No se generó nada: la planilla no trae avance nuevo para esta obra.' : 'No hay nada que avanzar: la planilla no trae avance nuevo para esta obra.');
+  } else {
+    const quedan = [
+      a.instaladas ? s(a.instaladas, 'instalada', 'instaladas') : null,
+      a.instaladasParcial ? `${n(a.instaladasParcial)} con una parte instalada (marco u hoja)` : null,
+      a.despachadas ? s(a.despachadas, 'recibida en obra', 'recibidas en obra') : null,
+      a.despachadasParcial ? `${n(a.despachadasParcial)} con una parte recibida en obra` : null,
+    ].filter(Boolean);
+    lineas.push(`${s(a.total, r.aplicado ? 'ventana avanzó' : 'ventana avanza', r.aplicado ? 'ventanas avanzaron' : 'ventanas avanzan')}: ${quedan.join(', ')}.`);
+    const documentos = [
+      r.despachos ? `${s(r.despachos, 'despacho de regularización sin guía', 'despachos de regularización sin guía')} (uno por fecha de despacho, ya recibidos en obra; ${s(r.lineasDespacho, 'línea', 'líneas')})` : null,
+      r.instalaciones ? s(r.instalaciones, 'instalación sin foto', 'instalaciones sin foto') : null,
+    ].filter(Boolean);
+    lineas.push(`${r.aplicado ? 'Se generaron' : 'Se generan'} ${documentos.join(' y ')}.`);
+  }
+  lineas.push(`La hoja «${r.hoja}» trae ${s(r.ventanasPlanilla, 'ventana', 'ventanas')}, ${n(r.conAvance)} con algo despachado o instalado${r.yaEstaban ? `; ${n(r.yaEstaban)} ya estaban así en el ERP` : ''}.`);
+  if (r.faltaDocumento.length) lineas.push(`${s(r.faltaDocumento.length, 'ventana no se avanza porque le falta', 'ventanas no se avanzan porque les falta')} su documento de fabricación.`);
+  return lineas;
+}
 
 // Lineas de texto para mostrar el resultado de subir una planilla.
 export function lineasReporteImportacion(r: ReporteImportacionCubicacion): string[] {

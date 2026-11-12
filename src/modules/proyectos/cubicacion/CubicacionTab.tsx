@@ -5,18 +5,18 @@ import { crearCubicacionUnica, descargarPlantillaCubicacion, getCubicacion, getF
 import { SubTabs } from '../../../components/ui/PageHeader';
 import { Button } from '../../../components/ui/Button';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
-import type { CubicacionAlAbrir, Proyecto, ProyectoVersion, ReporteAvanceVentanas, ReporteImportacionCubicacion, ReporteSincronizacionCubicacion, ResumenCubicacion } from '../../../types';
+import type { CubicacionAlAbrir, Proyecto, ProyectoVersion, ReporteAvancePlanilla, ReporteImportacionCubicacion, ReporteSincronizacionCubicacion, ResumenCubicacion } from '../../../types';
 import { ConfigCubicacionModal } from './ConfigCubicacionModal';
 import { EstructuraVisual } from './EstructuraVisual';
 import { TiposCubicacion } from './TiposCubicacion';
 import { VentanasCubicacion, type FiltroVentanas } from './VentanasCubicacion';
 import { ConciliacionCubicacion } from './ConciliacionCubicacion';
-import { descargarBlob, formatoMonto, lineaReporteSincronizacion, lineasReporteImportacion, seccionesDiferenciasControl } from './utils';
+import { descargarBlob, formatoMonto, lineaReporteSincronizacion, lineasAvancePlanilla, lineasReporteImportacion, seccionesDiferenciasControl } from './utils';
 import { IconButton } from '../../../components/ui/IconButton';
 import { InputArchivo } from '../../../components/ui/InputArchivo';
 import { useMigas } from '../../../lib/migas';
 import { usePermisos } from '../../../lib/permisos';
-import { AvanzarEstadoModal } from './AvanzarEstadoModal';
+import { AvancePlanillaModal } from './AvancePlanillaModal';
 
 interface Props {
   proyecto: Proyecto;
@@ -72,13 +72,14 @@ const panelAlAbrir = (r: CubicacionAlAbrir): ResultadoPanel => ({
   ],
   advertencias: [],
 });
-const panelDeAvance = (r: ReporteAvanceVentanas): ResultadoPanel => ({
-  titulo: 'Estado de las ventanas avanzado',
-  lineas: [
-    `${r.ventanas} ventana(s) avanzada(s): ${r.despachadas} despachada(s), ${r.recibidas} recibida(s), ${r.instaladas} instalada(s)${r.yaEstaban ? `; ${r.yaEstaban} ya estaban en ese estado o más adelante` : ''}.`,
-    r.despachoId ? 'Se generó un despacho de regularización sin guía (ver Despachos).' : 'No hizo falta generar un despacho nuevo.',
+const panelDeAvance = (r: ReporteAvancePlanilla): ResultadoPanel => ({
+  titulo: r.avanzan.total > 0 ? 'Estado de las ventanas avanzado con la planilla de control' : 'La planilla no trae avance nuevo',
+  lineas: lineasAvancePlanilla(r),
+  advertencias: r.avisos,
+  secciones: [
+    ...(r.faltaDocumento.length ? [{ titulo: 'Falta su documento de fabricación: búscalo, vincúlalo y vuelve a subir la planilla', items: r.faltaDocumento }] : []),
+    ...(r.sinVentana.length ? [{ titulo: 'Filas con avance sin ventana en la cubicación', items: r.sinVentana }] : []),
   ],
-  advertencias: r.omitidas.map((o) => `${o.nombre}: ${o.motivo}.`),
 });
 
 // Cubicacion de la obra: paso previo de las fases (toda fase se arma desde aqui, asi cada ventana tiene
@@ -121,7 +122,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
     queryClient.invalidateQueries({ queryKey: ['cubicacionUbicaciones', proyecto.id] });
     queryClient.invalidateQueries({ queryKey: ['cubicacionConciliacion', proyecto.id] });
   };
-  const alAvanzar = (r: ReporteAvanceVentanas) => {
+  const alAvanzar = (r: ReporteAvancePlanilla) => {
     setAvanzando(false);
     setPanel(panelDeAvance(r));
     refrescar();
@@ -142,7 +143,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
         titulo: 'Cubicación única creada',
         lineas: [
           `${r.reporte.nombradas} ventana(s) con nomenclatura nueva${r.reporte.yaTenian ? `; ${r.reporte.yaTenian} ya tenían la suya` : ''}.`,
-          legacy ? 'Ya puedes verlas en la pestaña Ventanas y avanzar su estado.' : 'Ya puedes rectificar sus medidas en la pestaña Ventanas y armar fases con ellas.',
+          legacy ? 'Ya puedes verlas en la pestaña Ventanas.' : 'Ya puedes rectificar sus medidas en la pestaña Ventanas y armar fases con ellas.',
         ],
         advertencias: [],
       });
@@ -233,8 +234,8 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
           <div className="flex flex-wrap items-center gap-2">
             {botonPlanillaControl('outline')}
             {legacy && tiene('obras.regularizar') && resumen.posicionadas > 0 && (
-              <Button variant="outline" size="sm" leftIcon={<FastForward className="w-3.5 h-3.5" />} onClick={() => setAvanzando(true)} title="Obra que ya estaba en ejecución: deja despachadas, recibidas o instaladas las ventanas de una torre, un piso o un departamento de una vez">
-                Avanzar estado…
+              <Button variant="outline" size="sm" leftIcon={<FastForward className="w-3.5 h-3.5" />} onClick={() => setAvanzando(true)} title="Obra que ya estaba en ejecución: deja despachado, recibido e instalado lo que su planilla de control ya anota, por marco y hoja">
+                Avanzar estado con la planilla
               </Button>
             )}
             {!legacy && (
@@ -373,7 +374,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
       )}
 
       {config && <ConfigCubicacionModal proyectoId={proyecto.id} cubicacion={cubicacion} legacy={legacy} onClose={() => setConfig(false)} />}
-      {avanzando && <AvanzarEstadoModal proyectoId={proyecto.id} onClose={() => setAvanzando(false)} onAvanzado={alAvanzar} />}
+      {avanzando && <AvancePlanillaModal proyectoId={proyecto.id} onClose={() => setAvanzando(false)} onAvanzado={alAvanzar} />}
     </div>
   );
 };

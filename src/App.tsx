@@ -293,7 +293,12 @@ const AppContent: React.FC = () => {
           {activeTab === TAB_MI_CONFIGURACION && <MiConfiguracionPage />}
 
           {activeTab === TAB_CENTRO_NOTIFICACIONES && (
-            <CentroNotificacionesPage onAbrirCompras={() => handleNavigate('compras')} onAbrirCotizacion={abrirCotizacion} onAbrirAdicional={abrirAdicional} />
+            <CentroNotificacionesPage
+              onAbrirCompras={() => handleNavigate('compras')}
+              onAbrirCotizacion={abrirCotizacion}
+              onAbrirAdicional={abrirAdicional}
+              onAbrirPendientesObra={(area, proyectoId) => navegar(area === 'FABRICA' ? '/pendientes-taller' : '/pendientes-compras', { obra: proyectoId })}
+            />
           )}
         </main>
       </div>

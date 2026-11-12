@@ -208,7 +208,7 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
               </div>
             )}
 
-            <AdjuntosDetalle proyectoId={proyectoId} pendienteId={pendienteId} adjuntos={p.adjuntos ?? []} puedeAgregar={p.estado !== 'RESUELTO'} />
+            <AdjuntosDetalle proyectoId={proyectoId} pendienteId={pendienteId} adjuntos={p.adjuntos ?? []} puedeAgregar={p.estado !== 'RESUELTO' && tiene('pendientes.crear')} />
 
             {/* Acciones */}
             <div className="rounded-xl border border-slate-200 p-3 space-y-3">
