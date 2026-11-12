@@ -218,3 +218,62 @@ export function contarPorEstado(pendientes: Pick<ObraPendiente, 'estado'>[]): Re
   for (const p of pendientes) r[p.estado]++;
   return r;
 }
+
+// ---------- Perfiles de un cuadro (qué hay que fabricar) ----------
+
+export interface FilaPerfil {
+  clave: string;
+  codigo: string;
+  descripcion: string;
+  acabado: string | null;
+  largo: number;
+  corte: string;
+  posiciones: string[];
+  cantidad: number;
+}
+
+const grados = (v: number | string | null) => (v === null || v === '' || !Number.isFinite(Number(v)) ? null : `${Number(v)}°`);
+
+/**
+ * Los perfiles de UN cuadro, juntando los iguales (mismo perfil, acabado, largo y corte) con su cantidad. Si el
+ * documento trae la línea para varias ventanas iguales, se toma una sola (la primera unidad).
+ */
+export function perfilesDeCuadro(piezas: FabricacionPieza[]): FilaPerfil[] {
+  const unidades = piezas.map((z) => z.unidad).filter((u): u is number => u !== null);
+  const unidad = unidades.length ? Math.min(...unidades) : null;
+  const filas = new Map<string, FilaPerfil>();
+  for (const z of piezas) {
+    if (unidad !== null && z.unidad !== null && z.unidad !== unidad) continue;
+    const corte = [grados(z.anguloInicio), grados(z.anguloFin)].filter(Boolean).join(' / ');
+    const clave = [z.codigoArticulo, z.acabadoCodigo ?? '', Number(z.longitudMm), corte].join('|');
+    const fila = filas.get(clave) ?? { clave, codigo: z.codigoArticulo, descripcion: z.descripcion, acabado: z.acabadoDescripcion, largo: Number(z.longitudMm), corte, posiciones: [], cantidad: 0 };
+    fila.cantidad += 1;
+    const posicion = nombrePosicionPieza(z.posicion);
+    if (posicion && !fila.posiciones.includes(posicion)) fila.posiciones.push(posicion);
+    filas.set(clave, fila);
+  }
+  return [...filas.values()];
+}
+
+// ---------- Gestión de varios pendientes a la vez ----------
+
+export type AccionLote = 'OC' | 'RECIBIR' | 'PRODUCCION' | 'LISTO';
+
+/**
+ * Qué se puede hacer con varios pendientes a la vez: solo lo que vale para todos, así que tienen que ir en el mismo
+ * tramo del flujo. Compras: subir una OC para los que aún no la tienen, o marcar recibidos los que están en compra.
+ * Fábrica: pasarlos a producción con una fecha o dejarlos listos para despacho.
+ */
+export function accionesDeLote(area: AreaPendiente, seleccion: Pick<ObraPendiente, 'paso'>[]): AccionLote[] {
+  if (seleccion.length === 0) return [];
+  const todos = (...pasos: string[]) => seleccion.every((p) => !!p.paso && pasos.includes(p.paso));
+  if (area === 'COMPRAS') {
+    if (todos('INGRESADO', 'RECIBIDO')) return ['OC'];
+    if (todos('EN_PROCESO_COMPRA')) return ['RECIBIR'];
+    return [];
+  }
+  return todos('INGRESADO', 'RECIBIDO', 'EN_PRODUCCION') ? ['PRODUCCION', 'LISTO'] : [];
+}
+
+/** Se pueden gestionar en lote los que el área todavía puede mover a mano. */
+export const esGestionableEnLote = (area: AreaPendiente, p: Pick<ObraPendiente, 'paso'>): boolean => accionesDeLote(area, [p]).length > 0;

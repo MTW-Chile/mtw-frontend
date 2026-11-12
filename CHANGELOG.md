@@ -9,6 +9,25 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - **Parche** (2.0.0 → 2.0.1): ajustes y mejoras acotadas, cada despliegue.
 - **Corrección urgente** sobre un parche (2.0.4 → 2.0.4.1; en package.json, 2.0.4-1): la decide Alfredo.
 
+## Sin publicar — pendientes de obras en ejecución: cada área ve lo suyo
+
+- **Cantidad al ingresar**: al marcar un material (o un vidrio que va más de una vez en la ventana) se pregunta **cuántas se necesitan**. Parte en todo lo que lleva **una** ventana de esa línea y se baja si faltan menos. Compras pide esa cantidad y al recibir parte en ella.
+- **El pendiente muestra lo que le sirve a quien lo abre**, con menos que bajar:
+  - **Abastecimiento › Pendientes**: primero **qué hay que comprar** (artículo, cuántas se necesitan y cuántas lleva la ventana, código, proveedor con que se fabricó, referencia; en un vidrio, la medida a pedir y la anterior si se rectificó) y los **datos comerciales de la obra** (obra, cliente y RUT, centro de costo, dirección). Sin la ficha de la ventana.
+  - **Taller › Pendientes**: la ficha de la ventana y **qué hay que fabricar**: la hoja o el marco pedido con su medida y sus perfiles (cantidad, código, acabado, largo, corte y posición); en una ventana completa, todos sus cuadros y vidrios. Sin datos comerciales.
+  - **Comercial › Pendientes**: todo.
+  - El historial queda plegado en los visores de las áreas.
+- **Instaladores › Pendientes**: la lista de obras muestra, en las que tienen pendientes abiertos, cuántos hay en cada paso (ingresados, recibidos, en proceso de compra, en producción, listos para despacho), cuántos son de Fábrica y de Compras, desde cuándo espera el más antiguo y cuántos ya se despacharon. Las obras con pendientes abiertos van primero.
+- **Abastecimiento y Taller parten eligiendo la obra**: al entrar a Pendientes ven la lista de obras en curso, con cuántos pendientes tiene cada una por recibir, en gestión y listos para despacho; las que tienen pendientes van primero. Al elegir una se ven solo sus pendientes. Comercial sigue viendo todos los de todas las obras en una lista. El enlace del correo abre el pendiente dentro de su obra.
+- **Varios pendientes a la vez** (Abastecimiento y Taller, en computador): dentro de la obra, la lista se puede **agrupar** por proveedor, partida o paso (en Taller, por qué falta o por paso), y cada pendiente o grupo se marca con una casilla. Con varios marcados en el mismo paso, Abastecimiento sube **una orden de compra para todos** o los **marca recibidos** (cada uno con su cantidad), y Taller los pasa a producción con una fecha o los deja listos para despacho. Si alguno no avanza, los demás siguen y se dice cuál falló.
+- **Lo recibido no pasa por bodega**: al marcar recibido un vidrio o material, queda «en espera de despacho» solo como estado del pendiente. No entra a la bodega de la obra, no mueve stock ni kardex y no crea centro de costo: no afecta el conteo ni la contabilidad. (Antes entraba a la bodega de la obra y salía al despachar.)
+- **El correo a Compras** dice cuántas se necesitan, el código, el proveedor y la medida del vidrio, en una línea por pendiente.
+
+## Sin publicar — correos de aviso
+
+- **El logo ya se ve en los correos**: va incrustado en el mensaje. Antes se enlazaba al sitio, que pide iniciar sesión, y los programas de correo no podían mostrarlo (afectaba también a los avisos de aprobación).
+- **Aviso de pendientes nuevos** (obras en ejecución): título más corto, el pie dice «pendientes de obra» y no repite la ventana cuando ya está en el nombre del pendiente.
+
 ## Sin publicar — conciliación de la cubicación con la planilla de control (obras en ejecución)
 
 La planilla de control pasa a ser la lista de lo que la obra espera, y lo que queda pendiente ya no se pierde al cerrar el aviso.

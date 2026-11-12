@@ -1656,7 +1656,7 @@ export interface VidrioFabricacion {
   ANCHO: number;
   ALTO: number;
   m2: number;
-  /** Material de catálogo (ficha de ventana): con él, lo recibido por un pendiente entra a la bodega de la obra. */
+  /** Material de catálogo (ficha de ventana): identifica el artículo de un pendiente (código, proveedor, partida). */
   materialId?: string | null;
 }
 
@@ -1753,6 +1753,10 @@ export interface ObraPendiente {
   recibidoPor?: { id: string; nombre: string } | null;
   fechaRecibido: string | null;
   fechaEstimada: string | null;
+  // Material o vidrio: cuantas se necesitan (null en los anteriores a esa pregunta y en marco, hoja o ventana).
+  cantidad?: number | null;
+  // Vidrio o material (solo en los listados): proveedor y partida de compra, para agruparlos en Abastecimiento.
+  agrupacion?: { proveedor: string | null; partida: string | null } | null;
   cantidadRecibida: number | null;
   etapaId: string | null;
   etapa: { id: string; nombre: string } | null;
@@ -1852,9 +1856,48 @@ export interface OneDriveObra {
   nombreSugeridoNueva?: string;
 }
 
+// Obra en curso con lo que un area (Taller o Abastecimiento) tiene por gestionar en ella (GET /pendientes-obras).
+export interface ObraConPendientes {
+  id: string;
+  obra: string;
+  codigoInterno: string | null;
+  numeroPresupuesto: number;
+  cliente: string | null;
+  direccion: string | null;
+  // Ingresados que el area aun no abre; recibidos que esta gestionando; listos esperando despacho; ya despachados.
+  porRecibir: number;
+  enGestion: number;
+  listos: number;
+  cerrados: number;
+  abiertos: number;
+}
+
+// Lo que Compras tiene que comprar por un pendiente de vidrio o material: el articulo (catalogo) y lo que dice de el
+// el documento de fabricacion de la ventana.
+export interface DetalleCompraPendiente {
+  clase: 'VIDRIO' | 'MATERIAL';
+  codigo: string | null;
+  descripcion: string | null;
+  familia: string | null;
+  acabado: string | null;
+  proveedor: string | null;
+  referencia: string | null;
+  unidad: string | null;
+  // Cuantas se necesitan (lo indica quien ingresa); null en los pendientes anteriores a esa pregunta.
+  cantidad: number | null;
+  // Material: cuantas unidades lleva la ventana.
+  cantidadVentana: number | null;
+  // Vidrio: la medida a pedir y, si se rectifico, la original.
+  vidrio: { anchoMm: number; altoMm: number; m2: number; original: { anchoMm: number; altoMm: number } | null } | null;
+}
+
 export interface ObraPendienteDetalle extends Omit<ObraPendiente, 'material'> {
   eventos: ObraPendienteEvento[];
   adjuntos: AdjuntoPendiente[];
+  // Solo vidrio y material.
+  compra?: DetalleCompraPendiente | null;
+  // Datos comerciales de la obra (lo que Compras necesita para pedir y cargar la compra).
+  obra?: { id: string; nombre: string; codigo: string | null; numeroPresupuesto: number; cliente: string | null; clienteRut: string | null; direccion: string | null; centroCosto: string | null };
   material?: { id: string; skuInterno: string; descripcion: string; tipoProducto?: { compraPorPieza: boolean } } | null;
   // A cargo de quien va (el indicado o el que sugiere el motivo; null: sin cargo
   // aparte) y que cubriria una compra por el.
@@ -1892,6 +1935,8 @@ export interface NuevoPendientePayload {
   // Pendiente levantado desde Instalacion sobre una ventana cubicada.
   ventanaIndividualizadaId?: string;
   fechaRequerida?: string;
+  // Material o vidrio: cuantas se necesitan (sin indicar, 1).
+  cantidad?: number;
 }
 
 // Estado de la conexion con OneDrive (Configuracion > OneDrive). Los datos de la
@@ -2458,6 +2503,8 @@ export interface ObraInstalacion {
   /** Despachos ya recibidos completos. */
   despachosRecibidos: number;
   pendientesAbiertos: number;
+  /** Los pendientes de la obra: cuántos van en cada paso (en orden), de qué área, cuántos ya se despacharon y desde cuándo espera el más antiguo. */
+  pendientesDetalle?: { pasos: { paso: PasoPendiente | 'EN_CURSO'; cantidad: number }[]; fabrica: number; compras: number; despachados: number; masAntiguo: string | null };
 }
 
 /** Fila de Despachos (seccion del menu): una obra en curso con su avance de despacho. */

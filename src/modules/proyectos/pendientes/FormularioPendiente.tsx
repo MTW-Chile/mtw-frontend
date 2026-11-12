@@ -5,6 +5,7 @@ import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
 import { Textarea, OpcionesTarjetaMultiple } from '../../../components/ui/Campos';
 import { Aviso } from '../../../components/ui/Aviso';
+import { ContadorTactil } from '../../../components/ui/ContadorTactil';
 import type { FabricacionPieza, FichaVentanaObra, MotivoPendiente, NuevoPendientePayload, TipoElementoPendiente } from '../../../types';
 import { formatoMm } from '../fabricacion/utils';
 import { nombreVentana } from '../obra/estadoVentana';
@@ -30,6 +31,38 @@ function resumenHoja(piezas: FabricacionPieza[]): string {
   const principal = piezas[0];
   return [principal.codigoArticulo, principal.acabadoDescripcion].filter(Boolean).join(' ') + ` · ${piezas.length} perfiles`;
 }
+
+/**
+ * Lo más que se puede pedir de una línea: lo que lleva UNA ventana (al menos 1). El documento trae el total de la
+ * línea, que puede ser de varias ventanas iguales: se divide por esas unidades.
+ */
+const topePorVentana = (cantidadLinea: number | string | null | undefined, ventanasDeLaLinea: number) => Math.max(1, Math.ceil((Number(cantidadLinea) || 1) / Math.max(1, ventanasDeLaLinea)));
+
+/**
+ * Cuántas se necesitan de cada material (o vidrio con más de una unidad) marcado: parte en todo lo que lleva la
+ * ventana y se baja si faltan menos. Compras pide esa cantidad.
+ */
+const CuantasSeNecesitan: React.FC<{
+  filas: { clave: string; nombre: string; tope: number }[];
+  cantidades: Record<string, number>;
+  onChange: (c: Record<string, number>) => void;
+}> = ({ filas, cantidades, onChange }) =>
+  filas.length === 0 ? null : (
+    <fieldset className="rounded-xl border border-slate-200 bg-white" data-testid="cuantas-se-necesitan">
+      <legend className="ml-2 px-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">¿Cuántas se necesitan?</legend>
+      <ul className="divide-y divide-slate-100">
+        {filas.map((f) => (
+          <li key={f.clave} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-3 py-2">
+            <span className="text-xs font-bold text-slate-800 min-w-0 flex-1 basis-40 break-words">{f.nombre}</span>
+            <span className="flex items-center gap-2 shrink-0">
+              <ContadorTactil valor={Math.min(cantidades[f.clave] ?? f.tope, f.tope)} onChange={(n) => onChange({ ...cantidades, [f.clave]: n })} min={1} max={f.tope} enteros aria-label={`Cuántas se necesitan de ${f.nombre}`} />
+              <span className="text-xs text-slate-500 whitespace-nowrap">de {f.tope}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </fieldset>
+  );
 
 export interface PendientePreparado {
   payload: NuevoPendientePayload;
@@ -81,6 +114,8 @@ export const FormularioPendiente: React.FC<Props> = ({ proyectoId, ficha, onAgre
   const [vidriosSel, setVidriosSel] = useState<string[]>([]);
   const [hojasSel, setHojasSel] = useState<string[]>([]);
   const [marcosSel, setMarcosSel] = useState<string[]>([]);
+  // Cuántas se necesitan de cada material o vidrio marcado (clave: «m:posición» o «v:posición»); sin tocar, todo lo que lleva la ventana.
+  const [cantidades, setCantidades] = useState<Record<string, number>>({});
   const [notas, setNotas] = useState('');
   const [archivos, setArchivos] = useState<File[]>([]);
   const [rectificando, setRectificando] = useState(false);
@@ -122,6 +157,7 @@ export const FormularioPendiente: React.FC<Props> = ({ proyectoId, ficha, onAgre
 
   const cambiarTipo = (t: TipoElementoPendiente) => {
     setTipo(t);
+    setCantidades({});
     setMaterialesSel([]);
     setVidriosSel([]);
     setHojasSel([]);
@@ -131,13 +167,23 @@ export const FormularioPendiente: React.FC<Props> = ({ proyectoId, ficha, onAgre
 
   const base: DatosSugerencia = { tipo, ventanaModelo: nombreVentana(v) };
   // Un objetivo por cada elemento marcado; sin ninguno sale un solo pendiente del tipo elegido.
-  // materialId: el material de catálogo del vidrio o accesorio; con él, lo que Compras reciba entra a la bodega de la obra.
-  type Objetivo = { datos: DatosSugerencia; cuadroId?: string; materialId?: string | null };
+  // materialId: el material de catálogo del vidrio o accesorio; con él, Compras ve su código, proveedor y partida.
+  // cantidad: cuántas se necesitan, hasta lo que lleva esa línea de la ventana (solo material y vidrio).
+  type Objetivo = { datos: DatosSugerencia; cuadroId?: string; materialId?: string | null; cantidad?: number };
+  const topeDe = (cantidadLinea: number | string | null | undefined) => topePorVentana(cantidadLinea, ficha.fabricacionVentana?.unidades ?? 1);
+  const cantidadDe = (clave: string, tope: number) => Math.min(Math.max(1, cantidades[clave] ?? tope), tope);
   const objetivos: Objetivo[] = (() => {
-    if (vidriosElegidos.length > 0) return vidriosElegidos.map((g) => ({ datos: { ...base, vidrio: { codigo: g.codigo_articulo, ancho: g.ANCHO, alto: g.ALTO } }, materialId: g.materialId }));
+    if (vidriosElegidos.length > 0)
+      return vidriosSel
+        .filter((i) => ficha.vidrios[Number(i)])
+        .map((i) => {
+          const g = ficha.vidrios[Number(i)];
+          return { datos: { ...base, vidrio: { codigo: g.codigo_articulo, ancho: g.ANCHO, alto: g.ALTO } }, materialId: g.materialId, cantidad: cantidadDe(`v:${i}`, topeDe(g.UDS)) };
+        });
     if (hojasElegidas.length > 0) return hojasElegidas.map((h) => ({ datos: { ...base, hoja: { numero: h.numeroCuadro, ancho: h.anchoMm, alto: h.altoMm } }, cuadroId: h.id }));
     if (marcosElegidos.length > 0) return marcosElegidos.map((m) => ({ datos: { ...base, marco: { numero: m.numeroCuadro, ancho: m.anchoMm, alto: m.altoMm } }, cuadroId: m.id }));
-    if (materialesElegidos.length > 0) return materialesElegidos.map(({ m }) => ({ datos: { ...base, material: { codigo: m.codigo_articulo, descripcion: m.descripcion_articulo } }, materialId: m.materialId }));
+    if (materialesElegidos.length > 0)
+      return materialesElegidos.map(({ m, clave }) => ({ datos: { ...base, material: { codigo: m.codigo_articulo, descripcion: m.descripcion_articulo } }, materialId: m.materialId, cantidad: cantidadDe(`m:${clave}`, topeDe(m.cantidad)) }));
     return [{ datos: { ...base } }];
   })();
 
@@ -166,13 +212,16 @@ export const FormularioPendiente: React.FC<Props> = ({ proyectoId, ficha, onAgre
         fabricacionVentanaId: ficha.fabricacionVentana?.id,
         fabricacionCuadroId: o.cuadroId,
         materialId: o.materialId ?? undefined,
+        cantidad: o.cantidad,
         fechaRequerida: fechaRequerida || undefined,
       };
       // Con varios elementos marcados las fotos se adjuntan al primero (no se repiten en cada pendiente).
-      return { payload, resumen: titulo, archivos: i === 0 ? archivos : [] };
+      const cuantas = o.cantidad && (tipo === 'MATERIAL' || o.cantidad > 1) ? ` · ${o.cantidad} un` : '';
+      return { payload, resumen: `${titulo}${cuantas}`, archivos: i === 0 ? archivos : [] };
     });
     onAgregar(preparados);
     guardarUltimo(tipo, motivo);
+    setCantidades({});
     setMaterialesSel([]);
     setVidriosSel([]);
     setHojasSel([]);
@@ -213,13 +262,20 @@ export const FormularioPendiente: React.FC<Props> = ({ proyectoId, ficha, onAgre
                 setVidriosSel(ids);
                 cerrarRectificacion();
               }}
-              opciones={ficha.vidrios.map((g, i) => ({ value: String(i), label: `Vidrio ${i + 1} · ${formatoMm(g.ANCHO)} × ${formatoMm(g.ALTO)} mm`, ayuda: `${g.codigo_articulo} · ${g.UDS} un` }))}
+              opciones={ficha.vidrios.map((g, i) => ({ value: String(i), label: `Vidrio ${i + 1} · ${formatoMm(g.ANCHO)} × ${formatoMm(g.ALTO)} mm`, ayuda: `${g.codigo_articulo} · ${topeDe(g.UDS)} un` }))}
             />
             {ficha.vidrios.length > 1 && (
               <Button type="button" variant="link" size="sm" onClick={() => setVidriosSel(vidriosSel.length === ficha.vidrios.length ? [] : ficha.vidrios.map((_, i) => String(i)))}>
                 {vidriosSel.length === ficha.vidrios.length ? 'Quitar todos' : 'Marcar todos'}
               </Button>
             )}
+            <CuantasSeNecesitan
+              filas={vidriosSel
+                .filter((i) => ficha.vidrios[Number(i)] && topeDe(ficha.vidrios[Number(i)].UDS) > 1)
+                .map((i) => ({ clave: `v:${i}`, nombre: `Vidrio ${Number(i) + 1} · ${formatoMm(ficha.vidrios[Number(i)].ANCHO)} × ${formatoMm(ficha.vidrios[Number(i)].ALTO)} mm`, tope: topeDe(ficha.vidrios[Number(i)].UDS) }))}
+              cantidades={cantidades}
+              onChange={setCantidades}
+            />
           </div>
         ) : (
           <Aviso tono="neutro" sinIcono>
@@ -276,13 +332,14 @@ export const FormularioPendiente: React.FC<Props> = ({ proyectoId, ficha, onAgre
               columnas={2}
               valor={materialesSel}
               onChange={setMaterialesSel}
-              opciones={reponibles.map(({ m, clave }) => ({ value: clave, label: m.descripcion_articulo, ayuda: [m.codigo_articulo, m.familia, `${m.cantidad} un`].filter(Boolean).join(' · ') }))}
+              opciones={reponibles.map(({ m, clave }) => ({ value: clave, label: m.descripcion_articulo, ayuda: [m.codigo_articulo, m.familia, `${topeDe(m.cantidad)} un`].filter(Boolean).join(' · ') }))}
             />
             {materialesSel.length > 0 && (
               <Button type="button" variant="link" size="sm" onClick={() => setMaterialesSel([])}>
                 Quitar selección ({materialesSel.length})
               </Button>
             )}
+            <CuantasSeNecesitan filas={materialesElegidos.map(({ m, clave }) => ({ clave: `m:${clave}`, nombre: m.descripcion_articulo, tope: topeDe(m.cantidad) }))} cantidades={cantidades} onChange={setCantidades} />
           </div>
         ) : (
           <Aviso tono="neutro" sinIcono>

@@ -71,6 +71,7 @@ import type {
   EtapaPendiente,
   ObraPendiente,
   ObraPendienteDetalle,
+  ObraConPendientes,
   AdjuntoPendiente,
   OneDriveObra,
   OneDriveEstado,
@@ -1596,6 +1597,11 @@ export async function eliminarPendiente(id: string): Promise<void> {
 // ---- Flujo de los pendientes de obras legacy ----
 
 /** Alguien del área abrió el pendiente: si estaba Ingresado, queda Recibido con su nombre. */
+export async function getObrasPendientes(area: 'FABRICA' | 'COMPRAS'): Promise<ObraConPendientes[]> {
+  const response = await apiClient.get<ObraConPendientes[]>('/pendientes-obras', { params: { area } });
+  return response.data;
+}
+
 export async function abrirPendiente(id: string): Promise<{ paso: PasoPendiente; cambio: boolean }> {
   const response = await apiClient.post(`/pendientes/${id}/abrir`);
   return response.data;
@@ -1604,7 +1610,7 @@ export async function abrirPendiente(id: string): Promise<{ paso: PasoPendiente;
 export async function avanzarPendiente(
   id: string,
   payload: { paso: 'EN_PROCESO_COMPRA' | 'EN_PRODUCCION' | 'LISTO_DESPACHO'; fechaEstimada?: string | null; comentario?: string | null; cantidad?: number | null }
-): Promise<{ paso: PasoPendiente; enBodega: boolean }> {
+): Promise<{ paso: PasoPendiente }> {
   const response = await apiClient.post(`/pendientes/${id}/avanzar`, payload);
   return response.data;
 }
