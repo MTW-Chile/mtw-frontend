@@ -170,7 +170,10 @@ export function OpcionesTarjeta<T extends string>({
           return (
             <label
               key={o.value}
-              className={`p-3 rounded-xl border text-xs transition-colors pointer-coarse:min-h-12 pointer-coarse:flex pointer-coarse:flex-col pointer-coarse:justify-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-600/30 ${
+              // relative: el input oculto (sr-only, position:absolute) queda anclado a su tarjeta. Sin esto se ancla a la
+              // página: no baja con el scroll del formulario, cae fuera de la pantalla y, al marcarlo, el navegador
+              // desplaza la página entera para «mostrarlo» (el encabezado desaparece y queda un hueco abajo).
+              className={`relative p-3 rounded-xl border text-xs transition-colors pointer-coarse:min-h-12 pointer-coarse:flex pointer-coarse:flex-col pointer-coarse:justify-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-600/30 ${
                 disabled ? 'opacity-60' : 'cursor-pointer'
               } ${sel ? 'border-brand-600 bg-brand-50/50' : 'border-slate-200 hover:border-slate-300'}`}
             >
@@ -215,7 +218,8 @@ export function OpcionesTarjetaMultiple<T extends string>({
           return (
             <label
               key={o.value}
-              className={`px-3 py-2 rounded-xl border text-xs transition-colors pointer-coarse:min-h-12 pointer-coarse:flex pointer-coarse:flex-col pointer-coarse:justify-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-600/30 ${
+              // relative: ver OpcionesTarjeta (el input oculto queda dentro de su tarjeta).
+              className={`relative px-3 py-2 rounded-xl border text-xs transition-colors pointer-coarse:min-h-12 pointer-coarse:flex pointer-coarse:flex-col pointer-coarse:justify-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-600/30 ${
                 disabled ? 'opacity-60' : 'cursor-pointer'
               } ${sel ? 'border-brand-600 bg-brand-50/50' : 'border-slate-200 hover:border-slate-300'}`}
             >

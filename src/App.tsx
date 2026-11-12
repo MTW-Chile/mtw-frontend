@@ -227,7 +227,7 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <div className="h-dvh overflow-hidden flex bg-slate-50 text-slate-900 font-sans">
+    <div className="h-dvh overflow-clip flex bg-slate-50 text-slate-900 font-sans">
       <Sidebar
         activeTab={activeTab}
         setActiveTab={handleNavigate}
@@ -236,14 +236,18 @@ const AppContent: React.FC = () => {
         seccionesPermitidas={seccionesPermitidas}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+      {/* overflow-clip (no hidden) aquí y en la raíz: un contenedor «hidden» igual se puede desplazar por programa
+          (foco, scrollIntoView) y dejaría el encabezado fuera de la vista; «clip» no es desplazable. */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-clip">
         <Header
           onOpenSidebar={() => setIsSidebarOpen(true)}
           moduleTitle={MODULE_TITLES[activeTab] || 'Inicio'}
           onNavigate={handleNavigate}
         />
 
-        <main className="flex-1 overflow-y-auto overscroll-contain flex flex-col min-h-0">
+        {/* relative: todo lo posicionado dentro de una página (inputs ocultos, etiquetas sr-only) se ancla a esta área
+            y se mueve con su scroll, en vez de anclarse a la página y alargar el documento. */}
+        <main className="relative flex-1 overflow-y-auto overscroll-contain flex flex-col min-h-0">
           {activeTab === 'inicio' && (
             <InicioPage onNavigate={handleNavigate} />
           )}

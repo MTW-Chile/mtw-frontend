@@ -2,7 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import { suscribirToasts, quitarToast, type ToastItem } from '../../lib/toast';
 
-// Notificaciones de error en la esquina inferior derecha -- pensado como
+// Avisos en la esquina superior derecha, bajo el encabezado (en celular, a lo ancho). Antes iban abajo a la
+// derecha, justo donde están los botones de acción de las pantallas de terreno («Revisar y enviar», «Agregar al
+// listado»): cada confirmación los tapaba por varios segundos.
+// Notificaciones de error -- pensado como
 // herramienta de debug (pedido explicito): cualquier query/mutation que
 // falle en CUALQUIER parte de la app (ver queryCache/mutationCache en
 // App.tsx) termina mostrandose aca, ademas del manejo de error puntual que
@@ -17,7 +20,7 @@ export const ToastContainer: React.FC = () => {
   if (items.length === 0) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2 w-[min(92vw,380px)] pointer-events-none">
+    <div className="fixed top-[4rem] sm:top-[4.75rem] inset-x-3 sm:left-auto sm:right-4 z-[9999] flex flex-col gap-2 sm:w-[380px] pointer-events-none" role="status" aria-live="polite">
       {items.map((item) => {
         // 'info' (confirmaciones, ej. "documento vinculado") no debe verse
         // como un error: mismo contenedor, otro color e icono. Los errores
