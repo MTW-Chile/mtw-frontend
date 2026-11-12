@@ -223,6 +223,11 @@ export async function updateDireccionObra(
   await apiClient.patch(`/proyectos/${proyectoId}/direccion-obra`, payload);
 }
 
+/** Cambia el cliente (del maestro) de una obra manual. */
+export async function updateClienteObraManual(proyectoId: string, clienteId: string): Promise<void> {
+  await apiClient.patch(`/obras/${proyectoId}/cliente`, { clienteId });
+}
+
 // Sin número: solo el siguiente libre. Con número: si está libre y quién lo usa si no.
 export async function getNumeroObraManual(numero?: number): Promise<DisponibilidadNumeroProyecto> {
   const response = await apiClient.get<DisponibilidadNumeroProyecto>('/obras/manual/numero', { params: numero ? { numero } : undefined });
@@ -1376,6 +1381,19 @@ export async function reemplazarVentanaMaterial(
 // Reemplazo del mismo material en TODAS las líneas de la versión que lo
 // contengan -- desde la Analítica de materiales (Paso 3). Ver comentario junto
 // al endpoint homónimo en mtw-api/src/index.ts.
+// Deshace el reemplazo que dejó a este material en la versión (el que se ve
+// como "Reemplazado" en la Analítica): vuelve al material anterior en cada línea.
+export async function deshacerReemplazoMaterialEnVersion(
+  versionId: string,
+  materialId: string
+): Promise<{ success: boolean; lineasAfectadas: number }> {
+  const response = await apiClient.post<{ success: boolean; lineasAfectadas: number }>(
+    `/versiones/${versionId}/materiales/deshacer-reemplazo`,
+    { materialId }
+  );
+  return response.data;
+}
+
 export async function reemplazarMaterialEnVersion(
   versionId: string,
   payload: { materialIdOriginal: string; materialIdNuevo: string }
@@ -1786,6 +1804,32 @@ export async function avanzarEstadoVentanas(
 }
 
 // Cubicación única: nombra todas las ventanas sin repartirlas por torre/piso/depto (y lee el presupuesto si hace falta).
+// Obra sin cubicación (retail): su documento de fabricación es la fase única.
+// Idempotente: al abrir Fabricación deja la fase única armada y conciliada.
+export interface LineaConciliacionFabricacion {
+  lineaHetmo: number;
+  modelo: string;
+  descripcion: string | null;
+  erp: number;
+  documento: number;
+  vinculadas: number;
+}
+export type FabricacionUnica =
+  | { estado: 'SIN_DOCUMENTO' }
+  | {
+      estado: 'OK';
+      faseId: string | null;
+      faseNombre: string | null;
+      documentos: { id: string; nombre: string; estadoHetmo: number; estadoGlosa: string | null }[];
+      lineas: LineaConciliacionFabricacion[];
+      fueraDelPresupuesto: { modelo: string; lineaHetmo: number; unidades: number }[];
+      avisos: string[];
+    };
+export async function prepararFabricacionUnica(proyectoId: string): Promise<FabricacionUnica> {
+  const response = await apiClient.post<FabricacionUnica>(`/proyectos/${proyectoId}/fabricacion-unica`, undefined, { timeout: 180000 });
+  return response.data;
+}
+
 export async function crearCubicacionUnica(proyectoId: string) {
   const response = await apiClient.post<{ reporte: ReporteCubicacionUnica; cubicacion: ConfigCubicacion; resumen: ResumenCubicacion }>(
     `/proyectos/${proyectoId}/cubicacion/unica`
@@ -2031,7 +2075,7 @@ export async function createTipoProyecto(payload: { codigo: string; nombre: stri
 
 export async function updateTipoProyecto(
   id: string,
-  payload: Partial<Pick<TipoProyecto, 'nombre' | 'orden' | 'activo' | 'porDefecto' | 'modoCubicacion' | 'raizOneDrive'>>
+  payload: Partial<Pick<TipoProyecto, 'nombre' | 'orden' | 'activo' | 'porDefecto' | 'modoCubicacion' | 'raizOneDrive' | 'usaReservaMateriales' | 'usaCubicacion'>>
 ): Promise<TipoProyecto> {
   const response = await apiClient.patch<{ data: TipoProyecto }>(`/tipos-proyecto/${id}`, payload);
   return response.data.data;

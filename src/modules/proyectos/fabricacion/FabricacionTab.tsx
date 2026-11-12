@@ -16,6 +16,7 @@ import type { FabricacionHetmo, Proyecto, ProyectoVersion } from '../../../types
 import { FasesTab } from '../FasesTab';
 import { BuscarFabricacionModal } from './BuscarFabricacionModal';
 import { FabricacionDetalle } from './FabricacionDetalle';
+import { FabricacionUnica } from './FabricacionUnica';
 import { formatoFechaHora, nombreDocumento, textoEstadoFabricacion, textoVinculacionCubicacion, varianteEstadoFabricacion } from './utils';
 import { useConfirmar } from '../../../components/ui/Confirmar';
 import { BotonColapsar } from '../../../components/ui/BotonColapsar';
@@ -25,6 +26,8 @@ import { useMigas } from '../../../lib/migas';
 interface Props {
   proyecto: Proyecto;
   activeVersion?: ProyectoVersion;
+  /** Tipo de proyecto sin cubicación (retail): Fases ofrece rectificar medidas y la fase única. */
+  sinCubicacion?: boolean;
 }
 
 type SubTab = 'fases' | 'documentos';
@@ -34,10 +37,12 @@ type SubTab = 'fases' | 'documentos';
 // HETMO en si, con sub-pestañas -- Fases primero (es el flujo principal).
 // Una obra manual no tiene presupuesto ni Fase posibles: carga directo los
 // documentos, sin el switcher de sub-pestañas.
-export const FabricacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
+export const FabricacionTab: React.FC<Props> = ({ proyecto, activeVersion, sinCubicacion = false }) => {
   const [subTab, setSubTab] = useState<SubTab>('fases');
   const conSubpestanas = proyecto.origen !== 'MANUAL_OBRA' && !!activeVersion;
-  useMigas(2, [conSubpestanas && { label: subTab === 'fases' ? 'Fases de Producción' : 'Documentos de fabricación' }]);
+  // Sin cubicación (retail) el documento de fabricación es la fase única: la sub-pestaña principal es "Fabricación".
+  const etiquetaPrincipal = sinCubicacion ? 'Fabricación' : 'Fases de Producción';
+  useMigas(2, [conSubpestanas && { label: subTab === 'fases' ? etiquetaPrincipal : 'Documentos de fabricación' }]);
 
   if (proyecto.origen === 'MANUAL_OBRA' || !activeVersion) {
     return <DocumentosFabricacionSubTab proyecto={proyecto} />;
@@ -47,14 +52,18 @@ export const FabricacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => 
     <div className="space-y-4">
       <SubTabs
         tabs={[
-          { id: 'fases', label: 'Fases de Producción' },
+          { id: 'fases', label: etiquetaPrincipal },
           { id: 'documentos', label: 'Documentos de fabricación' },
         ]}
         active={subTab}
         onChange={setSubTab}
       />
       {subTab === 'fases' ? (
-        <FasesTab proyecto={proyecto} activeVersion={activeVersion} />
+        sinCubicacion ? (
+          <FabricacionUnica proyecto={proyecto} activeVersion={activeVersion} />
+        ) : (
+          <FasesTab proyecto={proyecto} activeVersion={activeVersion} />
+        )
       ) : (
         <DocumentosFabricacionSubTab proyecto={proyecto} />
       )}

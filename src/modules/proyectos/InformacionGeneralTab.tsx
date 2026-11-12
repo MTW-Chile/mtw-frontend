@@ -13,6 +13,7 @@ import { DocumentosObraTab } from './documentos/DocumentosObraTab';
 import { DireccionObraCard } from '../cotizaciones/steps/Step1DatosCliente/DireccionObraCard';
 import type { ModoWorkspace } from './seccionesObra';
 import { ClayCentroCostoEditor } from './ClayCentroCostoEditor';
+import { ClienteObraManualCard } from './ClienteObraManualCard';
 
 const clp = (v: number) => v.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
@@ -36,6 +37,8 @@ export const InformacionGeneralTab: React.FC<{ proyecto: Proyecto; activeVersion
       {cotizada ? <MetricasObra proyecto={proyecto} activeVersion={activeVersion} cotizada /> : <MetricasObraManual proyecto={proyecto} />}
       {cotizada && <ControlPresupuestoTab proyecto={proyecto} activeVersion={activeVersion} />}
       {/* La misma tarjeta del paso 1 de la cotización: una obra manual no pasa por ahí. */}
+      {/* Una obra manual elige su cliente al crearla; aquí se corrige si se eligió mal. */}
+      {!cotizada && !produccion && <ClienteObraManualCard proyecto={proyecto} />}
       {!produccion && <DireccionObraCard proyecto={proyecto} />}
       <Seccion icono={FolderOpen} titulo={produccion ? 'Documentos de producción' : 'Documentos'} descripcion={produccion ? 'Carpeta de producción de la obra en OneDrive.' : 'Carpeta comercial de la obra en OneDrive.'}>
         <DocumentosObraTab proyecto={proyecto} ambito={produccion ? 'produccion' : 'comercial'} />

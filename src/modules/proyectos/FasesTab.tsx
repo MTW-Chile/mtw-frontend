@@ -5,7 +5,15 @@ import { Badge, type BadgeVariant } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { StatCard } from '../../components/ui/StatCard';
-import { createFase, updateFase, deleteFase, descargarInformeHetmoFase, getBodegaProyecto, getOrdenesCompra, getSolicitudesMaterial } from '../../api/client';
+import {
+  createFase,
+  updateFase,
+  deleteFase,
+  descargarInformeHetmoFase,
+  getBodegaProyecto,
+  getOrdenesCompra,
+  getSolicitudesMaterial,
+} from '../../api/client';
 import { usePermisos } from '../../lib/permisos';
 import { actualizarParams } from '../../lib/navigation';
 import { estadoPartida } from './estadoSolicitudPartida';
@@ -52,7 +60,11 @@ interface FilaVentana {
 // referencia -- acá se planifican las fases de verdad, cuya suma por
 // ventana nunca puede superar el total de esa linea (el backend lo valida
 // igual, esto es feedback antes de mandar el request).
-export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVersion }> = ({ proyecto, activeVersion }) => {
+//
+// Tipo de proyecto sin cubicación (prop sinCubicacion; ej. retail): su fase única
+// la arma la API desde el documento de fabricación (ver FabricacionUnica.tsx);
+// aquí solo se muestra, con sus materiales, sin crear fases a mano.
+export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVersion; sinCubicacion?: boolean }> = ({ proyecto, activeVersion, sinCubicacion = false }) => {
   const { tiene } = usePermisos();
   const { confirmar } = useConfirmar();
   // Quien puede emitir OC genera la OC completa; si no, la solicita a Compras.
@@ -251,13 +263,15 @@ export const FasesTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVe
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h2 className="text-sm font-black text-slate-900">Fases de producción</h2>
+          <h2 className="text-sm font-black text-slate-900">{sinCubicacion ? 'Fase de fabricación' : 'Fases de producción'}</h2>
           <p className="text-xs text-slate-500">
-            Reparte las unidades de cada línea entre etapas de fabricación/entrega. La Fase Base (0) siempre representa el
-            100% del proyecto tal como llegó de HETMO — planificar acá no la modifica.
+            {sinCubicacion
+              ? 'La obra se fabrica de una vez: su documento de fabricación es la fase única, con todas las ventanas. Desde aquí se piden sus materiales.'
+              : 'Reparte las unidades de cada línea entre etapas de fabricación/entrega. La Fase Base (0) siempre representa el 100% del proyecto tal como llegó de HETMO — planificar acá no la modifica.'}
           </p>
         </div>
-        {!formAbierto && (
+        {/* Sin cubicación (retail) la fase única la arma el documento de fabricación: no se crean fases a mano. */}
+        {!formAbierto && !sinCubicacion && (
           <div className="flex items-center gap-2">
             <Button size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={abrirNueva}>
               Nueva fase
