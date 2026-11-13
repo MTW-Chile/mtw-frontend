@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { crearObraManual, getNumeroObraManual } from '../../api/client';
+import { crearObraLegacy, getNumeroObraLegacy } from '../../api/client';
 import { Button } from '../../components/ui/Button';
 import { ClientePicker } from '../clientes/ClientePicker';
 import type { Cliente, Proyecto } from '../../types';
@@ -25,7 +25,7 @@ interface Props {
 //
 // No usa <form>: el selector de cliente puede abrir el formulario de cliente
 // y sus eventos de envio no deben llegar a este modal.
-export const NuevaObraManualModal: React.FC<Props> = ({ onClose, onCreada }) => {
+export const NuevaObraLegacyModal: React.FC<Props> = ({ onClose, onCreada }) => {
   const queryClient = useQueryClient();
   const [obra, setObra] = useState('');
   // null = la persona no ha escrito: se muestra el siguiente numero libre.
@@ -35,7 +35,7 @@ export const NuevaObraManualModal: React.FC<Props> = ({ onClose, onCreada }) => 
   const [direccion, setDireccion] = useState<ValorDireccion>(DIRECCION_VACIA);
 
   // Siguiente numero libre, como sugerencia inicial (se puede cambiar).
-  const siguiente = useQuery({ queryKey: ['obraManual', 'siguienteNumero'], queryFn: () => getNumeroObraManual(), staleTime: 0 });
+  const siguiente = useQuery({ queryKey: ['obraLegacy', 'siguienteNumero'], queryFn: () => getNumeroObraLegacy(), staleTime: 0 });
   const numero = numeroEscrito ?? (siguiente.data ? String(siguiente.data.siguiente) : '');
   const numeroTocado = numeroEscrito !== null;
   const numeroValido = /^\d+$/.test(numero.trim()) && Number(numero) > 0 ? Number(numero) : null;
@@ -47,8 +47,8 @@ export const NuevaObraManualModal: React.FC<Props> = ({ onClose, onCreada }) => 
     return () => clearTimeout(t);
   }, [numeroValido]);
   const disponibilidad = useQuery({
-    queryKey: ['obraManual', 'numero', numeroAConsultar],
-    queryFn: () => getNumeroObraManual(numeroAConsultar!),
+    queryKey: ['obraLegacy', 'numero', numeroAConsultar],
+    queryFn: () => getNumeroObraLegacy(numeroAConsultar!),
     enabled: numeroAConsultar !== null,
     staleTime: 0,
   });
@@ -68,7 +68,7 @@ export const NuevaObraManualModal: React.FC<Props> = ({ onClose, onCreada }) => 
 
   const crear = useMutation({
     mutationFn: () =>
-      crearObraManual({
+      crearObraLegacy({
         obra: obra.trim(),
         clienteId: cliente!.id,
         numeroPresupuesto: numeroValido!,
@@ -94,7 +94,7 @@ export const NuevaObraManualModal: React.FC<Props> = ({ onClose, onCreada }) => 
 
   return (
     <Modal
-      titulo="Nueva obra manual"
+      titulo="Nueva obra anterior al ERP"
       ancho="md"
       onClose={onClose}
       pie={
@@ -109,15 +109,15 @@ export const NuevaObraManualModal: React.FC<Props> = ({ onClose, onCreada }) => 
       }
     >
       <p className="text-xs text-slate-500">
-        Para una obra que ya está en curso y nunca se cotizó. Nace aceptada y sin presupuesto: después le vinculas sus
-        documentos de fabricación desde Taller › Fabricación.
+        Para una obra que ya estaba en ejecución cuando partió el ERP y no se cotizó aquí. Queda en curso, sin presupuesto,
+        compras ni cobros en el sistema: después le vinculas sus documentos de fabricación desde Taller › Fabricación.
       </p>
       <div className="space-y-3">
         <div className="grid grid-cols-3 gap-3">
           <div className="col-span-1">
             <Input
               label="N° de proyecto"
-              id="obra-manual-numero"
+              id="obra-legacy-numero"
               inputMode="numeric"
               value={numero}
               onChange={(e) => setNumeroEscrito(e.target.value.replace(/[^\d]/g, ''))}
@@ -129,7 +129,7 @@ export const NuevaObraManualModal: React.FC<Props> = ({ onClose, onCreada }) => 
             />
           </div>
           <div className="col-span-2">
-            <Input label="Obra" id="obra-manual-nombre" autoFocus value={obra} onChange={(e) => setObra(e.target.value)} onKeyDown={alEnter} placeholder="Nombre de la obra" maxLength={200} />
+            <Input label="Obra" id="obra-legacy-nombre" autoFocus value={obra} onChange={(e) => setObra(e.target.value)} onKeyDown={alEnter} placeholder="Nombre de la obra" maxLength={200} />
           </div>
         </div>
         {!errorNumero && <p className="text-[11px] text-slate-500 -mt-1">{ayudaNumero}</p>}

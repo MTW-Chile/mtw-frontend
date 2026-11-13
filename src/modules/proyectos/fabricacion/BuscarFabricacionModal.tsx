@@ -19,10 +19,10 @@ interface Props {
   onClose: () => void;
 }
 
-// Busca documentos de fabricacion de HETMO (los sueltos de una obra manual,
+// Busca documentos de fabricacion de HETMO (los sueltos de una obra legacy,
 // por ejemplo "EX_P21") y los vincula a esta obra. Sin texto, lista los mas
 // recientes. Un documento ya vinculado a otra obra no se puede vincular.
-// Una obra manual tiene varios documentos (uno por piso): se marcan los que
+// Una obra legacy tiene varios documentos (uno por piso): se marcan los que
 // correspondan y se vinculan de una vez; cada uno se lee de HETMO por su
 // cuenta, asi que uno que falle no frena a los demas.
 export const BuscarFabricacionModal: React.FC<Props> = ({ proyectoId, onClose }) => {
@@ -72,8 +72,8 @@ export const BuscarFabricacionModal: React.FC<Props> = ({ proyectoId, onClose })
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['fabricaciones', proyectoId] });
       queryClient.invalidateQueries({ queryKey: ['hetmoFabricaciones'] });
+      queryClient.invalidateQueries({ queryKey: ['cubicacion', proyectoId, 'estructura'] });
       queryClient.invalidateQueries({ queryKey: ['cubicacion', proyectoId] });
-      queryClient.invalidateQueries({ queryKey: ['cubicacionEstructura', proyectoId] });
     },
     onSuccess: ({ resultados, fallidos }) => {
       if (resultados.length === 1 && fallidos.length === 0) {

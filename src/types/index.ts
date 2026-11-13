@@ -145,6 +145,7 @@ export interface PendientesObraPorRecibir {
   area: 'FABRICA' | 'COMPRAS';
   proyectoId: string;
   obra: string;
+  origen?: Proyecto['origen'];
   codigoInterno: string | null;
   cantidad: number;
   /** Cuándo se ingresó el más antiguo. */
@@ -714,7 +715,9 @@ export interface Proyecto {
 }
 
 export interface ResumenObra {
-  ventanas: { contratadas: number; cubicadas: number; fabricadas: number; despachadas: number; instaladas: number };
+  // fabricadas / despachadas / instaladas = ventanas con marco Y hoja; los marcos y las hojas (o vidrios) van aparte.
+  // Fabricado: lo dice el documento de HETMO (que no separa partes) o que la parte ya se despachó.
+  ventanas: { contratadas: number; cubicadas: number; fabricadas: number; fabricadasMarco: number; fabricadasHoja: number; despachadas: number; despachadasMarco: number; despachadasHoja: number; instaladas: number; instaladasMarco: number; instaladasHoja: number };
   pendientesAbiertos: number;
   // Estados de pago vigentes (sin borradores ni anulados): cuántos y neto en UF; pagado aparte.
   /** null: sin permiso estados_pago.ver (la API no manda los montos cobrados). */
@@ -723,12 +726,12 @@ export interface ResumenObra {
 
 // GET /api/proyectos/:id/resumen-obra: el ResumenObra de la lista más lo que
 // dicen los documentos de fabricación de HETMO vinculados (Información General
-// de una obra manual).
+// de una obra legacy).
 export interface ResumenObraDetalle extends ResumenObra {
   fabricacion: { documentos: number; ventanas: number; enFabricacion: number; fabricadas: number };
 }
 
-// GET /api/obras/manual/numero: número de proyecto para una obra manual nueva.
+// GET /api/obras/manual/numero: número de proyecto para una obra legacy nueva.
 export interface DisponibilidadNumeroProyecto {
   numero: number | null;
   disponible: boolean | null;
@@ -1716,8 +1719,10 @@ export type EstadoPendiente = 'INGRESADO' | 'EN_CURSO' | 'RESUELTO';
 // Area a la que va el pendiente; la asigna el servidor segun tipo y motivo.
 // Hoy: marco, hoja y ventana completa van a FABRICA (taller); vidrio y material, a COMPRAS. TECNICA queda en los antiguos.
 export type DestinoPendiente = 'TECNICA' | 'FABRICA' | 'COMPRAS';
-// Pasos de un pendiente de obra legacy (obra manual). null en los de obras cotizadas (su gestión está en construcción).
-export type PasoPendiente = 'INGRESADO' | 'RECIBIDO' | 'EN_PROCESO_COMPRA' | 'EN_PRODUCCION' | 'LISTO_DESPACHO' | 'DESPACHADO';
+// Pasos de un pendiente de obra legacy. null en los de obras cotizadas (su gestión está en construcción).
+// RECIBIDO = el área ya lo vio (en pantalla «Visto por el área»: «recibido» se reserva para la recepción en obra de un despacho).
+// DESCARTADO = ya no corresponde (mal ingresado, duplicado); lo deja quien tiene pendientes.descartar, con su motivo.
+export type PasoPendiente = 'INGRESADO' | 'RECIBIDO' | 'EN_PROCESO_COMPRA' | 'EN_PRODUCCION' | 'LISTO_DESPACHO' | 'DESPACHADO' | 'DESCARTADO';
 export type OrigenPendiente = 'FABRICACION' | 'OBRA';
 // OTRO existe solo en pendientes antiguos: ya no se ingresa.
 export type TipoElementoPendiente = 'VENTANA' | 'MARCO' | 'HOJA' | 'MATERIAL' | 'VIDRIO' | 'OTRO';
@@ -1877,6 +1882,7 @@ export interface OneDriveObra {
 export interface ObraConPendientes {
   id: string;
   obra: string;
+  origen?: Proyecto['origen'];
   codigoInterno: string | null;
   numeroPresupuesto: number;
   cliente: string | null;
@@ -2037,7 +2043,7 @@ export interface EstructuraCubicacion {
   torres: NodoTorreCubicacion[];
   // Ventanas que aun no tienen unidad asignada.
   sinPosicion: number;
-  // Cubicacion unica (o, en una obra manual, las ventanas con su nombre de fabricación aún sin lugar).
+  // Cubicacion unica (o, en una obra legacy, las ventanas con su nombre de fabricación aún sin lugar).
   unica: UnidadCubicacion[];
   // Ventanas por ubicar, por tipo y documento de fabricación de origen (legacy; null = sin documento).
   libres: { tipoId: string; fabricacionId: string | null; cantidad: number }[];
@@ -2373,6 +2379,10 @@ export interface VentanaObra extends UnidadCubicacion {
   estado: EstadoVentanaObra;
   separada: boolean;
   partes: { parte: ParteVentana; estado: EstadoVentanaObra }[];
+  /** Estado del marco y de la hoja (o el vidrio, en una fija), siempre los dos: lo que muestran el plano y la ficha. */
+  estadoPartes: { marco: EstadoVentanaObra; hoja: EstadoVentanaObra };
+  /** Ventana fija (sin hojas): su segunda parte es el vidrio. */
+  esFija: boolean;
   admiteSeparacion: boolean;
   disponible: Record<ParteVentana, boolean>;
   pendientesAbiertos: number;
@@ -2524,7 +2534,10 @@ export interface ObraInstalacion {
   origen: Proyecto['origen'];
   tipoProyecto: { nombre: string; modoCubicacion: ModoCubicacion };
   ventanas: number;
+  /** Ventanas con marco Y hoja instalados; los marcos y las hojas (o vidrios) van aparte. */
   instaladas: number;
+  instaladasMarco: number;
+  instaladasHoja: number;
   despachosPorRecibir: number;
   /** Despachos ya recibidos completos. */
   despachosRecibidos: number;
@@ -2547,8 +2560,10 @@ export interface ObraDespachos {
   origen: Proyecto['origen'];
   /** Ventanas con posicion en la cubicacion. */
   ventanas: number;
-  /** Ventanas distintas en algun despacho emitido o recibido. */
+  /** Ventanas con marco Y hoja en algun despacho emitido o recibido; los marcos y las hojas van aparte. */
   despachadas: number;
+  despachadasMarco: number;
+  despachadasHoja: number;
   /** Pendientes listos para despacho que aún no van en un despacho. */
   pendientesPorDespachar: number;
   borradores: number;

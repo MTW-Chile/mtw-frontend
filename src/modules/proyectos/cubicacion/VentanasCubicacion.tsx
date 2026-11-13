@@ -98,7 +98,7 @@ const FilaVentana: React.FC<{ unidad: UnidadCubicacion; onEditar: () => void; on
           <span className="font-mono font-bold text-xs text-slate-800">{unidad.nomenclatura}</span>
         ) : (
           <span className="font-mono text-xs text-slate-500" title="Aún sin unidad asignada ni cubicación única">
-            {unidad.codigo} <Badge size="sm" variant="outline">sin nomenclatura</Badge>
+            {unidad.codigo} {!legacy && <Badge size="sm" variant="outline">sin nomenclatura</Badge>}
           </span>
         )}
       </Td>
@@ -208,7 +208,7 @@ export const VentanasCubicacion: React.FC<Props> = ({ proyectoId, cubicacion, mo
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Buscador className="flex-1 min-w-[12rem]" valor={texto} onChange={setTexto} placeholder="Buscar por nomenclatura, código o ubicación…" etiqueta="Buscar ventanas" />
+        <Buscador className="flex-1 min-w-[12rem]" valor={texto} onChange={setTexto} placeholder={legacy ? 'Buscar por ventana, documento o ubicación…' : 'Buscar por nomenclatura, código o ubicación…'} etiqueta="Buscar ventanas" />
         <SelectCompacto value={filtro.torreId} onChange={(e) => onFiltro({ torreId: e.target.value, pisoId: '' })} aria-label={`Filtrar por ${voc.contenedor}`}>
           <option value="">{voc.modo === 'CASA' ? 'Todas las casas' : 'Todas las torres'}</option>
           {(ubicaciones.data ?? []).map((t) => (

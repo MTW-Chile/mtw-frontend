@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { User } from 'lucide-react';
-import { updateClienteObraManual } from '../../api/client';
+import { updateClienteObraLegacy } from '../../api/client';
 import { Button } from '../../components/ui/Button';
 import { usePermisos } from '../../lib/permisos';
 import { avisarError } from '../configuracion/catalogo/comun';
@@ -9,11 +9,11 @@ import { ClientePicker } from '../clientes/ClientePicker';
 import type { Cliente, Proyecto } from '../../types';
 
 /**
- * Cliente de una obra manual. Se elige al crearla (NuevaObraManualModal) y
+ * Cliente de una obra legacy. Se elige al crearla (NuevaObraLegacyModal) y
  * aquí se puede corregir si se eligió mal. Las obras cotizadas cambian su
  * cliente en el paso 1 de la cotización, no aquí.
  */
-export const ClienteObraManualCard: React.FC<{ proyecto: Proyecto }> = ({ proyecto }) => {
+export const ClienteObraLegacyCard: React.FC<{ proyecto: Proyecto }> = ({ proyecto }) => {
   const queryClient = useQueryClient();
   const { tiene } = usePermisos();
   const editable = tiene('obras.editar');
@@ -21,7 +21,7 @@ export const ClienteObraManualCard: React.FC<{ proyecto: Proyecto }> = ({ proyec
   const [nuevo, setNuevo] = useState<Cliente | null>(null);
 
   const guardar = useMutation({
-    mutationFn: (c: Cliente) => updateClienteObraManual(proyecto.id, c.id),
+    mutationFn: (c: Cliente) => updateClienteObraLegacy(proyecto.id, c.id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyecto.id] });
       queryClient.invalidateQueries({ queryKey: ['proyectos'] });

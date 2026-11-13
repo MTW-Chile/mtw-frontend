@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Factory, FileUp, PackageCheck, Trash2, Truck } from 'lucide-react';
-import { abrirPendiente, avanzarPendiente, eliminarPendiente, getFichaVentana, getPendiente, subirAdjuntoPendiente } from '../../../api/client';
+import { Ban, Check, Factory, FileUp, PackageCheck, Trash2, Truck } from 'lucide-react';
+import { abrirPendiente, avanzarPendiente, descartarPendiente, eliminarPendiente, getFichaVentana, getPendiente, subirAdjuntoPendiente } from '../../../api/client';
 import { Modal } from '../../../components/ui/Modal';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
@@ -30,7 +30,7 @@ import { ETIQUETA_DESTINO, ETIQUETA_MOTIVO, ETIQUETA_PASO, ETIQUETA_TIPO, VARIAN
 interface Props {
   proyectoId: string;
   pendienteId: string;
-  /** Abierto desde el visor de un área (Taller o Abastecimiento): si es de esa área y sigue Ingresado, queda Recibido. */
+  /** Abierto desde el visor de un área (Taller o Abastecimiento): si es de esa área y sigue Ingresado, queda Visto por el área. */
   desdeArea?: AreaPendiente;
   onClose: () => void;
 }
@@ -101,6 +101,8 @@ const QueComprar: React.FC<{ c: DetalleCompraPendiente; titulo: string }> = ({ c
 const Pasos: React.FC<{ p: ObraPendienteDetalle }> = ({ p }) => {
   const pasos = pasosDeArea(p.destino);
   const actual = pasos.indexOf(p.paso as PasoPendiente);
+  // Descartado: salió del flujo; no hay paso actual que marcar.
+  if (p.paso === 'DESCARTADO') return <Badge variant={VARIANTE_PASO.DESCARTADO}>{ETIQUETA_PASO.DESCARTADO}</Badge>;
   // Fábrica puede saltarse «En producción»: si nunca pasó por ahí, se muestra como omitido.
   const omitido = (paso: PasoPendiente) => paso === 'EN_PRODUCCION' && actual > pasos.indexOf(paso) && !p.fechaEstimada;
   return (
@@ -130,8 +132,8 @@ const Pasos: React.FC<{ p: ObraPendienteDetalle }> = ({ p }) => {
 /**
  * Pendiente de una obra legacy: su detalle y la gestión por pasos fijos. Las compras de estas obras no se hicieron en el
  * ERP, así que el pendiente no usa las etapas configurables ni las OC del sistema:
- *   Ingresado → Recibido (lo abre alguien del área) →
- *     Compras (vidrio, material): En proceso de compra (subiendo la OC) → Listo para despacho (al marcarlo recibido; no pasa por bodega)
+ *   Ingresado → Visto por el área (lo abre alguien del área) →
+ *     Compras (vidrio, material): En proceso de compra (subiendo la OC) → Listo para despacho (al marcar que llegó la compra; no pasa por bodega)
  *     Fábrica (marco, hoja, ventana): En producción (con fecha estimada; se salta si ya está en fábrica) → Listo para despacho
  *   → Despachado (al emitir el despacho que lo lleva, en Despachos).
  * Solo el área del pendiente lo avanza (lo valida la API); el resto lo ve.
@@ -167,7 +169,7 @@ export const PendienteLegacyModal: React.FC<Props> = ({ proyectoId, pendienteId,
     mostrarToast(mensaje, { detalle });
   };
 
-  // Abrirlo desde el visor de su área lo deja «Recibido» (una sola vez por apertura).
+  // Abrirlo desde el visor de su área lo deja «Visto por el área» (una sola vez por apertura).
   const intentado = useRef(false);
   const esDeEstaArea = !!p && !!desdeArea && areaDe(p.destino) === desdeArea;
   useEffect(() => {
@@ -205,6 +207,19 @@ export const PendienteLegacyModal: React.FC<Props> = ({ proyectoId, pendienteId,
       avisar(e);
     },
   });
+  // Descartar: para quien tiene el permiso, en cualquier paso antes del despacho, con su motivo.
+  const [descartando, setDescartando] = useState(false);
+  const [motivoDescarte, setMotivoDescarte] = useState('');
+  const descartar = useMutation({
+    mutationFn: () => descartarPendiente(pendienteId, motivoDescarte.trim()),
+    onSuccess: () => {
+      setDescartando(false);
+      setMotivoDescarte('');
+      mostrarToast('Pendiente descartado.', { tipo: 'info' });
+      refrescar();
+    },
+    onError: avisar,
+  });
   const eliminar = useMutation({
     mutationFn: () => eliminarPendiente(pendienteId),
     onSuccess: () => {
@@ -219,10 +234,17 @@ export const PendienteLegacyModal: React.FC<Props> = ({ proyectoId, pendienteId,
   const ocs = (p?.adjuntos ?? []).filter((a) => a.categoria === 'OC');
   const fotos = (p?.adjuntos ?? []).filter((a) => a.categoria !== 'OC');
   const area = p ? areaDe(p.destino) : null;
-  const ocupado = avanzar.isPending || eliminar.isPending;
+  const ocupado = avanzar.isPending || eliminar.isPending || descartar.isPending;
 
   const acciones = () => {
     if (!p || !p.paso) return null;
+    if (p.paso === 'DESCARTADO') {
+      return (
+        <Aviso tono="neutro" titulo="Descartado: ya no se gestiona">
+          {p.resueltoPor?.nombre || 'Alguien'} lo descartó{p.fechaResolucion ? ` el ${fecha(p.fechaResolucion)}` : ''}. {(p.notasResolucion ?? '').replace(/^Descartado:\s*/, 'Motivo: ')}
+        </Aviso>
+      );
+    }
     if (p.paso === 'DESPACHADO') {
       return (
         <Aviso tono="exito" titulo={`Despachado${p.despacho ? ` en ${p.despacho.codigo}` : ''}`}>
@@ -252,7 +274,7 @@ export const PendienteLegacyModal: React.FC<Props> = ({ proyectoId, pendienteId,
       return <Aviso tono="neutro">Lo gestiona {ETIQUETA_DESTINO[p.destino]}{p.paso === 'INGRESADO' ? ': todavía no lo abren.' : '.'}</Aviso>;
     }
     if (p.paso === 'INGRESADO') {
-      return <Aviso tono="neutro">Para recibirlo, ábrelo desde {area === 'FABRICA' ? 'Taller › Pendientes' : 'Abastecimiento › Pendientes'}: queda registrado quién lo recibió.</Aviso>;
+      return <Aviso tono="neutro">Para gestionarlo, ábrelo desde {area === 'FABRICA' ? 'Taller › Pendientes' : 'Abastecimiento › Pendientes'}: queda registrado quién lo vio.</Aviso>;
     }
 
     if (area === 'COMPRAS') {
@@ -282,17 +304,17 @@ export const PendienteLegacyModal: React.FC<Props> = ({ proyectoId, pendienteId,
       return (
         <div className="space-y-3">
           <p className="text-xs text-slate-600">
-            Cuando llegue, márcalo recibido: queda en espera de despacho, para enviarlo desde Despachos. No entra a ninguna bodega ni mueve el stock.
+            Cuando llegue la compra, márcalo aquí: queda en espera de despacho, para enviarlo desde Despachos. No entra a ninguna bodega ni mueve el stock.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-xs font-bold text-slate-700">Llegaron</span>
-            <ContadorTactil valor={cantidad} onChange={setLlegaron} min={1} enteros aria-label="Cantidad recibida" />
+            <ContadorTactil valor={cantidad} onChange={setLlegaron} min={1} enteros aria-label="Cantidad que llegó" />
             <span className="text-xs text-slate-500">un{p.cantidad ? ` · se pidieron ${p.cantidad}` : ''}</span>
           </div>
           <Textarea label="Comentario (opcional)" value={comentario} onChange={(e) => setComentario(e.target.value)} rows={2} maxLength={500} placeholder="Proveedor, guía, observaciones…" />
           <div className="flex justify-end">
             <Button variant="primary" leftIcon={<PackageCheck className="w-3.5 h-3.5" />} isLoading={avanzar.isPending} onClick={() => avanzar.mutate({ paso: 'LISTO_DESPACHO' })}>
-              Marcar recibido: listo para despacho
+              Llegó la compra: listo para despacho
             </Button>
           </div>
         </div>
@@ -401,9 +423,9 @@ export const PendienteLegacyModal: React.FC<Props> = ({ proyectoId, pendienteId,
             <Dato etiqueta="Ingresado por">
               {p.reportadoPor?.nombre || '—'} · {formatoFechaHora(p.fechaReporte)}
             </Dato>
-            {vista === 'COMERCIAL' && <Dato etiqueta="Recibido por">{p.fechaRecibido ? `${p.recibidoPor?.nombre || '—'} · ${formatoFechaHora(p.fechaRecibido)}` : 'Aún no lo abre el área'}</Dato>}
+            {vista === 'COMERCIAL' && <Dato etiqueta="Visto por">{p.fechaRecibido ? `${p.recibidoPor?.nombre || '—'} · ${formatoFechaHora(p.fechaRecibido)}` : 'Aún no lo abre el área'}</Dato>}
             {p.fechaEstimada && <Dato etiqueta="Fecha estimada">{fecha(p.fechaEstimada)}</Dato>}
-            {p.cantidadRecibida != null && <Dato etiqueta="Recibido">{p.cantidadRecibida} un</Dato>}
+            {p.cantidadRecibida != null && <Dato etiqueta="Llegaron">{p.cantidadRecibida} un</Dato>}
           </dl>
 
           {textoRectificacion(p) && !muestraFabricar && !(p.compra && vista !== 'FABRICA') && <p className="rounded-xl border border-brand-200 bg-brand-50/50 px-3 py-2 text-xs font-bold text-brand-700">{textoRectificacion(p)}</p>}
@@ -416,13 +438,37 @@ export const PendienteLegacyModal: React.FC<Props> = ({ proyectoId, pendienteId,
 
           {/* Fotos y documentos los agrega quien ingresa el pendiente (Instaladores). Taller y Abastecimiento solo los ven:
               Compras sube la orden de compra en «Qué sigue» (subida aquí como documento no dejaba avanzar el pendiente). */}
-          <AdjuntosDetalle proyectoId={proyectoId} pendienteId={pendienteId} adjuntos={fotos} puedeAgregar={!desdeArea && tiene('pendientes.crear') && p.paso !== 'DESPACHADO'} />
+          <AdjuntosDetalle proyectoId={proyectoId} pendienteId={pendienteId} adjuntos={fotos} puedeAgregar={!desdeArea && tiene('pendientes.crear') && p.paso !== 'DESPACHADO' && p.paso !== 'DESCARTADO'} />
           {ocs.length > 0 && <AdjuntosDetalle proyectoId={proyectoId} pendienteId={pendienteId} adjuntos={ocs} puedeAgregar={false} titulo="Orden de compra" />}
 
           <div className="rounded-xl border border-slate-200 p-3 space-y-3">
             <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Qué sigue</h4>
             {acciones()}
           </div>
+
+          {/* Descartar: lo que ya no corresponde (mal ingresado, duplicado), aunque el área ya lo haya visto. */}
+          {tiene('pendientes.descartar') && p.paso !== 'DESPACHADO' && p.paso !== 'DESCARTADO' && (
+            descartando ? (
+              <div className="rounded-xl border border-rose-200 bg-rose-50/40 p-3 space-y-3">
+                <Textarea label="Motivo del descarte" value={motivoDescarte} onChange={(e) => setMotivoDescarte(e.target.value)} rows={2} maxLength={500} autoFocus placeholder="Ej.: ingresado dos veces, se resolvió en obra, no era de esta ventana…" />
+                <p className="text-xs text-slate-600">Queda en el historial como «Descartado» y sale de la lista de {ETIQUETA_DESTINO[p.destino]}. No se puede deshacer.</p>
+                <div className="flex justify-end gap-2">
+                  <Button size="sm" variant="outline" disabled={descartar.isPending} onClick={() => setDescartando(false)}>
+                    Cancelar
+                  </Button>
+                  <Button size="sm" variant="danger" leftIcon={<Ban className="w-3.5 h-3.5" />} disabled={motivoDescarte.trim().length < 3} isLoading={descartar.isPending} onClick={() => descartar.mutate()}>
+                    Descartar pendiente
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-end">
+                <Button size="sm" variant="ghost" leftIcon={<Ban className="w-3.5 h-3.5" />} disabled={ocupado} onClick={() => setDescartando(true)}>
+                  Descartar pendiente…
+                </Button>
+              </div>
+            )
+          )}
 
           {p.puedeResolver && p.paso === 'INGRESADO' && (
             <div className="flex justify-end">
@@ -432,7 +478,7 @@ export const PendienteLegacyModal: React.FC<Props> = ({ proyectoId, pendienteId,
                 leftIcon={<Trash2 className="w-3.5 h-3.5" />}
                 disabled={ocupado}
                 onClick={async () => {
-                  if (await confirmar({ titulo: `¿Eliminar el pendiente ${codigoPendiente(p.numero)}?`, mensaje: 'Nadie lo ha recibido todavía. No se puede deshacer.', confirmar: 'Eliminar', peligro: true })) eliminar.mutate();
+                  if (await confirmar({ titulo: `¿Eliminar el pendiente ${codigoPendiente(p.numero)}?`, mensaje: 'Nadie del área lo ha visto todavía. No se puede deshacer.', confirmar: 'Eliminar', peligro: true })) eliminar.mutate();
                 }}
               >
                 Eliminar pendiente

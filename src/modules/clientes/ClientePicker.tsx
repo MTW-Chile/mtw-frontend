@@ -16,7 +16,7 @@ interface Props {
 
 // Selector de cliente del maestro: buscar uno existente o crear uno nuevo
 // (reutiliza el mismo formulario del maestro de Clientes). Lo usan las dos
-// creaciones manuales -- presupuesto manual en Cotizaciones y obra manual en
+// creaciones manuales -- presupuesto manual en Cotizaciones y obra legacy en
 // Obras -- para que ambas pidan el cliente de la misma forma.
 export const ClientePicker: React.FC<Props> = ({ value, onChange }) => {
   const [texto, setTexto] = useState('');

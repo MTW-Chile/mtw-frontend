@@ -30,7 +30,7 @@ import {
 import { useConfirmar } from '../../../components/ui/Confirmar';
 import { SelectCompacto, Textarea } from '../../../components/ui/Campos';
 import { Modal } from '../../../components/ui/Modal';
-import { Cargando } from '../../../components/ui/Estados';
+import { Cargando, ErrorCarga } from '../../../components/ui/Estados';
 
 interface Props {
   proyectoId: string;
@@ -60,11 +60,11 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
   const [cotizandoAdicional, setCotizandoAdicional] = useState(false);
   const { tiene } = usePermisos();
 
-  const { data: p, isLoading } = useQuery({
+  const { data: p, isLoading, isError, refetch } = useQuery({
     queryKey: ['pendiente', pendienteId],
     queryFn: () => getPendiente(pendienteId),
   });
-  // Dibujo de la ventana: la ficha lo arma con la geometría del documento de fabricación (obras manuales y cotizadas).
+  // Dibujo de la ventana: la ficha lo arma con la geometría del documento de fabricación (obras legacy y cotizadas).
   // Si la ficha no lo trae, queda el de la línea cotizada de la obra (ver DibujoVentana).
   const ventanaDelPendienteId = p?.ventanaIndividualizadaId ?? null;
   const { data: fichaVentana } = useQuery({
@@ -121,8 +121,10 @@ export const PendienteDetalleModal: React.FC<Props> = ({ proyectoId, pendienteId
       subtitulo={p?.descripcion}
       onClose={onClose}
     >
-        {isLoading || !p ? (
+        {isLoading ? (
           <Cargando />
+        ) : isError || !p ? (
+          <ErrorCarga que="el pendiente" onReintentar={() => refetch()} />
         ) : (
           <>
             <Aviso tono="info" sinIcono>

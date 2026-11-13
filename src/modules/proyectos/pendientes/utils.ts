@@ -65,11 +65,13 @@ export function areaDelPendiente(tipo: TipoElementoPendiente, _motivo?: MotivoPe
 
 export const ETIQUETA_PASO: Record<PasoPendiente, string> = {
   INGRESADO: 'Ingresado',
-  RECIBIDO: 'Recibido',
+  // «Recibido» se reserva para la recepción en obra de un despacho: este paso es que el área ya lo vio.
+  RECIBIDO: 'Visto por el área',
   EN_PROCESO_COMPRA: 'En proceso de compra',
   EN_PRODUCCION: 'En producción',
   LISTO_DESPACHO: 'Listo para despacho',
   DESPACHADO: 'Despachado',
+  DESCARTADO: 'Descartado',
 };
 
 export const VARIANTE_PASO: Record<PasoPendiente, BadgeVariant> = {
@@ -79,6 +81,7 @@ export const VARIANTE_PASO: Record<PasoPendiente, BadgeVariant> = {
   EN_PRODUCCION: 'warning',
   LISTO_DESPACHO: 'violet',
   DESPACHADO: 'success',
+  DESCARTADO: 'default',
 };
 
 /** Los pasos de un área, en orden (Fábrica puede saltarse «En producción» si el producto ya está en la fábrica). */

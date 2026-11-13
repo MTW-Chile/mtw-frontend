@@ -99,7 +99,6 @@ export const DespachosTab: React.FC<{ proyecto: Proyecto }> = ({ proyecto }) => 
                   {x.descripcion}
                   {x.ventanaRef ? ` · ventana ${x.ventanaRef}` : ''}
                   {x.cantidadRecibida && x.cantidadRecibida > 1 ? ` · ${x.cantidadRecibida} un` : ''}
-                  {x.cantidadRecibida && x.cantidadRecibida > 1 ? ` · ${x.cantidadRecibida} un` : ''}
                   {x.fechaRequerida ? ` · se necesita para el ${fecha(x.fechaRequerida)}` : ''}
                 </p>
               </FilaLista>

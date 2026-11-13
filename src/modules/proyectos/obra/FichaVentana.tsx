@@ -11,7 +11,7 @@ import { esImagen } from '../pendientes/adjuntos/utils';
 import { ETIQUETA_MOTIVO, ETIQUETA_TIPO, codigoPendiente } from '../pendientes/utils';
 import { DibujoVentana, ventanaDeProyecto } from './DibujoVentana';
 import { describirVentana, describirVidrios } from './descripcionVentana';
-import { ETIQUETA_ESTADO_VENTANA, ETIQUETA_PARTE_CORTA, VARIANTE_ESTADO_VENTANA } from './estadoVentana';
+import { ETIQUETA_ESTADO_VENTANA, VARIANTE_ESTADO_VENTANA, nombreParteHoja, parteDe, partesEnDistintoEstado } from './estadoVentana';
 
 const aDataUrl = (blob: Blob) =>
   new Promise<string>((resolve, reject) => {
@@ -61,7 +61,7 @@ const HistorialVentana: React.FC<{ ventanaId: string }> = ({ ventanaId }) => {
               <li key={i.id} className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-2.5 space-y-2">
                 <p className="text-emerald-900">
                   <CheckCircle2 className="w-3.5 h-3.5 inline mr-1" />
-                  {i.parte === 'COMPLETA' ? 'Ventana completa' : i.parte === 'MARCO' ? 'Marco' : 'Hoja'} · {fechaHora(i.fechaInstalacion)}
+                  {i.parte === 'COMPLETA' ? 'Ventana completa' : i.parte === 'MARCO' ? 'Marco' : data.ventana.esFija ? 'Vidrio' : 'Hoja'} · {fechaHora(i.fechaInstalacion)}
                   {i.instaladoPor ? ` · ${i.instaladoPor.nombre}` : ''}
                 </p>
                 {i.notas && <p className="text-[11px] text-slate-600">{i.notas}</p>}
@@ -92,7 +92,7 @@ const HistorialVentana: React.FC<{ ventanaId: string }> = ({ ventanaId }) => {
             {[...data.eventos].reverse().map((e) => (
               <li key={e.id}>
                 <span className="font-mono text-slate-500">{fechaHora(e.creadoEn)}</span> · {ETIQUETA_ESTADO_VENTANA[e.estadoNuevo]}
-                {e.parte !== 'COMPLETA' ? ` (${ETIQUETA_PARTE_CORTA[e.parte]})` : ''}
+                {e.parte !== 'COMPLETA' ? ` (${parteDe(data.ventana, e.parte)})` : ''}
                 {e.usuario ? ` · ${e.usuario.nombre}` : ''}
                 {e.comentario ? ` — ${e.comentario}` : ''}
               </li>
@@ -110,7 +110,7 @@ const HistorialVentana: React.FC<{ ventanaId: string }> = ({ ventanaId }) => {
  * de dibujo desde la geometría («Corredera 1 hoja derecha + fijo»), no el texto del documento de fabricación. No lleva
  * materiales, marcos ni hojas (se eligen en el formulario del pendiente) ni la referencia al documento.
  *
- * El dibujo y la descripción salen de la ficha (geometría del documento de venta del lote: obras manuales y cotizadas
+ * El dibujo y la descripción salen de la ficha (geometría del documento de venta del lote: obras legacy y cotizadas
  * por igual) y, si la ficha no la trae, de la línea cotizada de la obra.
  */
 export const FichaVentana: React.FC<{ proyectoId: string; ficha: FichaVentanaObra; conHistorial?: boolean; /** Nombre de la ventana, como primera línea. */ titulo?: React.ReactNode; /** Dentro del detalle de un pendiente: sin la lista de pendientes abiertos de la ventana. */ sinPendientes?: boolean }> = ({ proyectoId, ficha, conHistorial, titulo, sinPendientes }) => {
@@ -132,10 +132,11 @@ export const FichaVentana: React.FC<{ proyectoId: string; ficha: FichaVentanaObr
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             {titulo && <h3 className="text-sm font-black font-mono text-slate-900">{titulo}</h3>}
-            {v.separada ? (
-              v.partes.map((p) => (
-                <Badge key={p.parte} size="sm" variant={VARIANTE_ESTADO_VENTANA[p.estado]}>
-                  {ETIQUETA_PARTE_CORTA[p.parte]}: {ETIQUETA_ESTADO_VENTANA[p.estado]}
+            {/* Marco y hoja (o vidrio) van siempre por separado cuando no están en el mismo estado. */}
+            {partesEnDistintoEstado(v) ? (
+              ([['marco', v.estadoPartes.marco], [nombreParteHoja(v), v.estadoPartes.hoja]] as const).map(([nombre, estado]) => (
+                <Badge key={nombre} size="sm" variant={VARIANTE_ESTADO_VENTANA[estado]}>
+                  {nombre}: {ETIQUETA_ESTADO_VENTANA[estado]}
                 </Badge>
               ))
             ) : (

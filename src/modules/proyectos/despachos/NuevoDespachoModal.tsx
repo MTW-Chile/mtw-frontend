@@ -11,10 +11,10 @@ import { Badge } from '../../../components/ui/Badge';
 import { Aviso } from '../../../components/ui/Aviso';
 import { Buscador } from '../../../components/ui/Buscador';
 import { Casilla, SelectCompacto, Textarea } from '../../../components/ui/Campos';
-import { Cargando, EstadoVacio } from '../../../components/ui/Estados';
+import { Cargando, ErrorCarga, EstadoVacio } from '../../../components/ui/Estados';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import type { ParteVentana, Proyecto, VentanaObra } from '../../../types';
-import { ETIQUETA_ESTADO_VENTANA, VARIANTE_ESTADO_VENTANA, hoyIso, nivelEstado, nombreVentana, textoMedida } from '../obra/estadoVentana';
+import { ETIQUETA_ESTADO_VENTANA, VARIANTE_ESTADO_VENTANA, hoyIso, nivelEstado, nombreVentana, parteDe, textoMedida } from '../obra/estadoVentana';
 
 interface Props {
   proyecto: Proyecto;
@@ -49,7 +49,7 @@ export const NuevoDespachoModal: React.FC<Props> = ({ proyecto, faseInicial, onC
     notas: '',
   });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['despachosDisponibles', proyecto.id, faseId],
     queryFn: () => getVentanasParaDespacho(proyecto.id, faseId || null),
   });
@@ -149,9 +149,11 @@ export const NuevoDespachoModal: React.FC<Props> = ({ proyecto, faseInicial, onC
               Marcar todas ({ventanas.length})
             </Button>
           </div>
-          <Buscador compacto valor={filtro} onChange={setFiltro} placeholder="Buscar por nomenclatura, recinto o depto…" etiqueta="Buscar ventanas" />
+          <Buscador compacto valor={filtro} onChange={setFiltro} placeholder="Buscar por ventana, recinto o depto…" etiqueta="Buscar ventanas" />
           {isLoading ? (
             <Cargando texto="Leyendo la cubicación…" />
+          ) : isError ? (
+            <ErrorCarga que="las ventanas por despachar" onReintentar={() => refetch()} />
           ) : ventanas.length === 0 ? (
             <EstadoVacio enTarjeta={false} titulo="Nada por despachar" descripcion={soloFabricadas ? 'No hay ventanas fabricadas disponibles en esta selección. Quita el filtro para ver las demás.' : 'Todas las ventanas de esta selección ya están en un despacho.'} />
           ) : (
@@ -184,7 +186,7 @@ export const NuevoDespachoModal: React.FC<Props> = ({ proyecto, faseInicial, onC
                       <SelectCompacto aria-label={`Parte de ${nombreVentana(v)}`} value={seleccion[v.id]} onChange={(e) => setSeleccion((s) => ({ ...s, [v.id]: e.target.value as ParteVentana }))} className="w-28">
                         {partes.map((p) => (
                           <option key={p} value={p}>
-                            {p === 'COMPLETA' ? 'Completa' : p === 'MARCO' ? 'Solo marco' : 'Solo hoja'}
+                            {p === 'COMPLETA' ? 'Completa' : `Solo ${parteDe(v, p)}`}
                           </option>
                         ))}
                       </SelectCompacto>

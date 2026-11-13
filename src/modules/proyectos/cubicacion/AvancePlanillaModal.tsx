@@ -67,7 +67,7 @@ export const AvancePlanillaModal: React.FC<Props> = ({ proyectoId, onClose, onAv
   const aplicar = useMutation({
     mutationFn: () => avanzarEstadoConPlanilla(proyectoId, archivo!, { aplicar: true, fecha }),
     onSuccess: ({ reporte }) => {
-      for (const clave of ['cubicacion', 'cubicacionEstructura', 'cubicacionUnidades', 'instalacion', 'despachos', 'proyectoDetail', 'resumenObra']) {
+      for (const clave of ['cubicacion', 'cubicacionUnidades', 'instalacion', 'despachos', 'proyectoDetail', 'resumenObra']) {
         queryClient.invalidateQueries({ queryKey: [clave, proyectoId] });
       }
       queryClient.invalidateQueries({ queryKey: ['despachos'] });

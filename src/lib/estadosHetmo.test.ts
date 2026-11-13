@@ -62,7 +62,7 @@ describe('esPresupuestoPrincipal (filtro por defecto y insignia)', () => {
     expect(esPresupuestoPrincipal(proy(105))).toBe(false);
     expect(esPresupuestoPrincipal(proy(1))).toBe(false);
   });
-  it('nunca incluye una obra manual (no es un presupuesto)', () => {
+  it('nunca incluye una obra legacy (no es un presupuesto)', () => {
     expect(esPresupuestoPrincipal(proy(2, 'MANUAL_OBRA'))).toBe(false);
   });
 });

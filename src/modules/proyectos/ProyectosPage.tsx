@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, ChevronRight, AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { eliminarProyecto, getProyectos } from '../../api/client';
 import { usePermisos } from '../../lib/permisos';
 import { useConfirmar } from '../../components/ui/Confirmar';
@@ -8,7 +8,7 @@ import { IconButton } from '../../components/ui/IconButton';
 import { extraerErrorParaToast, mostrarToast } from '../../lib/toast';
 import { ProyectoWorkspace } from './ProyectoWorkspace';
 import { CarpetaObraBoton } from './pendientes/adjuntos/CarpetaObraBoton';
-import { NuevaObraManualModal } from './NuevaObraManualModal';
+import { NuevaObraLegacyModal } from './NuevaObraLegacyModal';
 import { Button } from '../../components/ui/Button';
 import { useUrlParam, actualizarParams } from '../../lib/navigation';
 import { useAnchoContenedor } from '../../lib/useAnchoContenedor';
@@ -20,6 +20,11 @@ import { HeaderSeccion } from '../../components/layout/HeaderSeccion';
 import { Tabla, Tbody, Td, Th, Thead, Tr } from '../../components/ui/Tabla';
 import { BotonFila } from '../../components/ui/Lista';
 import { clp, uf } from '../../lib/formato';
+import { CodigoObra } from '../../components/ui/CodigoObra';
+import { esObraLegacy } from '../../lib/obraLegacy';
+import { Buscador } from '../../components/ui/Buscador';
+import { Cargando, ErrorCarga, EstadoVacio } from '../../components/ui/Estados';
+import { AvancePartes, textoAvancePartes } from './obra/AvancePartes';
 
 
 // Barra de avance compacta para la columna Fases (antes un texto largo
@@ -41,7 +46,7 @@ const AvanceFases: React.FC<{ resumen?: { total: number; enProduccionOCompletada
 
 // Venta contratada: el precio real en UF fijado al aceptar el presupuesto
 // (ventaTotalUFCongelada). importeTotal es el peso crudo de HETMO y en una
-// obra manual vale 0, por eso no se muestra.
+// obra legacy vale 0, por eso no se muestra.
 const ventaContratada = (p: Proyecto) => {
   const v = p.versiones[0]?.ventaTotalUFCongelada;
   return v != null && Number(v) > 0 ? uf(Number(v)) : '—';
@@ -70,7 +75,7 @@ const Avance: React.FC<{ valor: number; total: number; color?: string; titulo?: 
 // aparte para lo que todavia se esta negociando.
 // modo 'fabricacion' (seccion Fabricacion del menu): la misma lista, pero la
 // obra se abre con las pestañas del taller (ver seccionesObra.ts) y sin crear
-// obras manuales.
+// obras legacy.
 export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ modo = 'obra' }) => {
   const esFabricacion = modo === 'fabricacion';
   // Proyecto abierto y su seccion viven en la URL (?proyecto=<id>&seccion=...)
@@ -78,7 +83,7 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
   const [proyectoId] = useUrlParam('proyecto');
   const [seccionUrl] = useUrlParam('seccion');
   const setProyectoId = (id: string | null) => actualizarParams({ proyecto: id, seccion: null });
-  const [creandoObraManual, setCreandoObraManual] = useState(false);
+  const [creandoObraLegacy, setCreandoObraLegacy] = useState(false);
   // Tabla solo si cabe de verdad en el espacio disponible (con el menú abierto en una tablet no cabe): si no, tarjetas.
   const [refPagina, anchoPagina] = useAnchoContenedor();
   // Mínimo medido: si la tabla igual no cabe (columnas anchas, nombres largos), se recuerda el ancho que necesita y por
@@ -91,7 +96,7 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
     if (sc && sc.scrollWidth > sc.clientWidth + 1) setMinTabla(Math.ceil(anchoPagina + (sc.scrollWidth - sc.clientWidth) + 2));
   });
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['proyectos', 'en-curso'],
     queryFn: () => getProyectos({ limit: 200, incluir: 'obra' }),
   });
@@ -110,7 +115,7 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
   );
   const { valores, setValor, datosFiltrados: filtrados } = useColumnFilters(proyectosEnCurso, columnas);
 
-  // Eliminar una obra manual (borrado físico, solo superadministrador): una obra cargada mal o de prueba.
+  // Eliminar una obra legacy (borrado físico, solo superadministrador): una obra cargada mal o de prueba.
   // Las obras cotizadas se eliminan desde Presupuestos, con el mismo permiso.
   const queryClient = useQueryClient();
   const { confirmar } = useConfirmar();
@@ -128,14 +133,14 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
     },
   });
   const pedirEliminar = async (p: Proyecto) => {
-    if (await confirmar({ titulo: `¿Eliminar la obra manual "${p.obra}"?`, mensaje: 'Se borran su cubicación, sus documentos de fabricación vinculados, despachos, instalaciones y pendientes. No se puede deshacer.', confirmar: 'Eliminar', peligro: true })) eliminar.mutate(p.id);
+    if (await confirmar({ titulo: `¿Eliminar la obra "${p.obra}"?`, mensaje: 'Se borran su cubicación, sus documentos de fabricación vinculados, despachos, instalaciones y pendientes. No se puede deshacer.', confirmar: 'Eliminar', peligro: true })) eliminar.mutate(p.id);
   };
   const botonEliminar = (p: Proyecto) =>
-    puedeEliminar && p.origen === 'MANUAL_OBRA' ? (
+    puedeEliminar && esObraLegacy(p) ? (
       <IconButton
         icono={Trash2}
         tono="peligro"
-        etiqueta={`Eliminar la obra manual ${p.obra} (solo superadministrador)`}
+        etiqueta={`Eliminar la obra ${p.obra}, anterior al ERP (solo superadministrador)`}
         cargando={eliminar.isPending && eliminar.variables === p.id}
         onClick={(e) => {
           e.stopPropagation();
@@ -155,7 +160,7 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
     );
   }
 
-  // Toda obra parte en Información General, también la obra legacy (manual) en el taller.
+  // Toda obra parte en Información General, también la obra legacy en el taller.
   const abrir = (p: Proyecto) => actualizarParams({ proyecto: p.id, seccion: null });
 
 
@@ -178,30 +183,26 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
         titulo={esFabricacion ? 'Fabricación' : 'Obras en curso'}
         acciones={
           esFabricacion ? undefined : (
-            <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setCreandoObraManual(true)}>
-              Nueva obra manual
+            <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setCreandoObraLegacy(true)}>
+              Nueva obra anterior al ERP
             </Button>
           )
         }
       />
 
+      {/* En tarjetas (tablet, celular) el filtro de la tabla no existe: se busca aquí. */}
+      {!isDesktop && proyectosEnCurso.length > 0 && (
+        <Buscador valor={valores.obra || ''} onChange={(v) => setValor('obra', v)} placeholder="Buscar por obra o código…" etiqueta="Buscar obras" />
+      )}
+
       {isLoading ? (
-        <div className="p-12 flex items-center justify-center text-slate-500">
-          <Loader2 className="w-5 h-5 animate-spin" />
-        </div>
+        <Cargando />
       ) : isError ? (
-        <div className="p-12 text-center rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex flex-col items-center gap-2">
-          <AlertCircle className="w-5 h-5" />
-          {(error as any)?.response?.data?.error || 'No se pudo cargar la lista de obras. Intenta de nuevo en unos minutos.'}
-        </div>
+        <ErrorCarga que="la lista de obras" onReintentar={() => refetch()} />
       ) : proyectosEnCurso.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">
-          Todavía no hay obras en curso. Una obra pasa a "en curso" cuando su versión llega a estado ACEPTADO_CLIENTE en Presupuestos, o la creas a mano con "Nueva obra manual".
-        </div>
-      ) : filtrados.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">
-          Ninguna obra coincide con los filtros.
-        </div>
+        <EstadoVacio titulo="Todavía no hay obras en curso" descripcion="Una obra aparece aquí cuando el cliente acepta su presupuesto, o cuando se carga una obra anterior al ERP." />
+      ) : !isDesktop && filtrados.length === 0 ? (
+        <EstadoVacio titulo="Ninguna obra coincide con la búsqueda" />
       ) : isDesktop ? (
         <div ref={cajaTabla} className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
           <Tabla>
@@ -214,9 +215,9 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
                   <>
                     <Th className="font-bold">Cubicadas</Th>
                     <Th className="font-bold">Fases en producción</Th>
-                    <Th className="font-bold">Fabricadas</Th>
-                    <Th className="font-bold">Despachadas</Th>
-                    <Th className="font-bold">Instaladas</Th>
+                    <Th className="font-bold" title="Marcos (M) y hojas o vidrios (H) fabricados: lo dice su documento de HETMO, o que ya se despacharon">Fabricado</Th>
+                    <Th className="font-bold" title="Marcos (M) y hojas o vidrios (H) en un despacho emitido">Despachado</Th>
+                    <Th className="font-bold" title="Marcos (M) y hojas o vidrios (H) certificados como instalados">Instalado</Th>
                     <Th className="font-bold">Pendientes</Th>
                     <Th className="font-bold" title="Carpeta de producción de la obra en OneDrive">Carpeta</Th>
                   </>
@@ -242,6 +243,13 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
               </Tr>
             </Thead>
             <Tbody>
+              {filtrados.length === 0 && (
+                <Tr>
+                  <Td colSpan={esFabricacion ? 10 : 8} className="py-10 text-center text-xs text-slate-500">
+                    Ninguna obra coincide con los filtros.
+                  </Td>
+                </Tr>
+              )}
               {filtrados.map((p) => (
                 <Tr
                   key={p.id}
@@ -252,9 +260,9 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
                     <div className="text-xs font-bold text-slate-900 line-clamp-2 leading-snug" title={p.obra}>
                       {p.obra}
                     </div>
-                    <span className="inline-block mt-1 text-[11px] px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono font-semibold">
-                      {p.codigoInterno || `PRJ-${p.numeroPresupuesto}`}
-                    </span>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <CodigoObra obra={p} />
+                    </div>
                   </Td>
                   <Td className="text-xs text-slate-600 min-w-[8rem] max-w-[16rem]" title={p.clienteNombreRaw}>
                     <div className="line-clamp-2 leading-snug">{p.clienteNombreRaw}</div>
@@ -268,13 +276,13 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
                         <AvanceFases resumen={p.fasesResumen} />
                       </Td>
                       <Td className="text-[11px] whitespace-nowrap">
-                        <Avance valor={ro(p)?.ventanas.fabricadas ?? 0} total={ro(p)?.ventanas.cubicadas ?? 0} color="bg-sky-500" titulo="Ventanas cuyo lote de HETMO está fabricado, de las cubicadas" />
+                        <AvancePartes compacto marcos={ro(p)?.ventanas.fabricadasMarco ?? 0} hojas={ro(p)?.ventanas.fabricadasHoja ?? 0} total={ro(p)?.ventanas.cubicadas ?? 0} tono="fabricacion" />
                       </Td>
                       <Td className="text-[11px] whitespace-nowrap">
-                        <Avance valor={ro(p)?.ventanas.despachadas ?? 0} total={ro(p)?.ventanas.cubicadas ?? 0} color="bg-violet-500" titulo="Ventanas en un despacho emitido, de las cubicadas" />
+                        <AvancePartes compacto marcos={ro(p)?.ventanas.despachadasMarco ?? 0} hojas={ro(p)?.ventanas.despachadasHoja ?? 0} total={ro(p)?.ventanas.cubicadas ?? 0} tono="despacho" />
                       </Td>
                       <Td className="text-[11px] whitespace-nowrap">
-                        <Avance valor={ro(p)?.ventanas.instaladas ?? 0} total={ro(p)?.ventanas.cubicadas ?? 0} color="bg-emerald-500" titulo="Ventanas certificadas como instaladas, de las cubicadas" />
+                        <AvancePartes compacto marcos={ro(p)?.ventanas.instaladasMarco ?? 0} hojas={ro(p)?.ventanas.instaladasHoja ?? 0} total={ro(p)?.ventanas.cubicadas ?? 0} tono="instalacion" />
                       </Td>
                       <Td>{pendientes(p)}</Td>
                       <Td className="whitespace-nowrap">
@@ -323,19 +331,17 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
             <div key={p.id} className="px-5 py-4 space-y-2 hover:bg-slate-50/70 transition-colors">
             <BotonFila sinRelleno onClick={() => abrir(p)} className="flex items-center justify-between gap-3">
               <div className="min-w-0 space-y-1">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-sm font-bold text-slate-900 truncate">{p.obra}</h3>
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 font-mono font-bold shrink-0">
-                    {p.codigoInterno || `PRJ-${p.numeroPresupuesto}`}
-                  </span>
+                  <CodigoObra obra={p} />
                 </div>
                 <p className="text-xs text-slate-500 truncate">{p.clienteNombreRaw}</p>
                 {esFabricacion ? (
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
                     <span>Cubicadas <b className="font-mono text-slate-700">{ro(p)?.ventanas.cubicadas ?? 0}/{ro(p)?.ventanas.contratadas ?? 0}</b></span>
-                    <span>Fabricadas <b className="font-mono text-slate-700">{ro(p)?.ventanas.fabricadas ?? 0}</b></span>
-                    <span>Despachadas <b className="font-mono text-slate-700">{ro(p)?.ventanas.despachadas ?? 0}</b></span>
-                    <span>Instaladas <b className="font-mono text-slate-700">{ro(p)?.ventanas.instaladas ?? 0}</b></span>
+                    <span>Fabricado <b className="font-mono text-slate-700">{textoAvancePartes(ro(p)?.ventanas.fabricadasMarco ?? 0, ro(p)?.ventanas.fabricadasHoja ?? 0)}</b></span>
+                    <span>Despachado <b className="font-mono text-slate-700">{textoAvancePartes(ro(p)?.ventanas.despachadasMarco ?? 0, ro(p)?.ventanas.despachadasHoja ?? 0)}</b></span>
+                    <span>Instalado <b className="font-mono text-slate-700">{textoAvancePartes(ro(p)?.ventanas.instaladasMarco ?? 0, ro(p)?.ventanas.instaladasHoja ?? 0)}</b></span>
                     {pendientes(p)}
                   </div>
                 ) : (
@@ -359,11 +365,11 @@ export const ProyectosPage: React.FC<{ modo?: 'obra' | 'fabricacion' }> = ({ mod
         </div>
       )}
 
-      {creandoObraManual && (
-        <NuevaObraManualModal
-          onClose={() => setCreandoObraManual(false)}
+      {creandoObraLegacy && (
+        <NuevaObraLegacyModal
+          onClose={() => setCreandoObraLegacy(false)}
           onCreada={(proyecto) => {
-            setCreandoObraManual(false);
+            setCreandoObraLegacy(false);
             abrir(proyecto);
           }}
         />

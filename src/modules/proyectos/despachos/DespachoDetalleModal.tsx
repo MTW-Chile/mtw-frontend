@@ -16,7 +16,7 @@ import { usePermisos } from '../../../lib/permisos';
 import { fecha, fechaHora } from '../../../lib/formato';
 import { extraerErrorParaToast, mostrarToast } from '../../../lib/toast';
 import type { DespachoObraDetalle, TipoGuiaDespacho } from '../../../types';
-import { ETIQUETA_ESTADO_DESPACHO, ETIQUETA_ESTADO_VENTANA, ETIQUETA_PARTE_CORTA, ETIQUETA_TIPO_GUIA, VARIANTE_ESTADO_DESPACHO, VARIANTE_ESTADO_VENTANA, hoyIso } from '../obra/estadoVentana';
+import { ETIQUETA_ESTADO_DESPACHO, ETIQUETA_ESTADO_VENTANA, ETIQUETA_TIPO_GUIA, parteDe, VARIANTE_ESTADO_DESPACHO, VARIANTE_ESTADO_VENTANA, hoyIso } from '../obra/estadoVentana';
 
 interface Props {
   despachoId: string;
@@ -282,7 +282,7 @@ export const DespachoDetalleModal: React.FC<Props> = ({ despachoId, proyectoId, 
                 <li key={i.id} className="flex items-center gap-3 px-3 py-2 text-xs">
                   <div className="min-w-0 flex-1">
                     <span className="font-mono font-bold text-slate-900">{i.ventana ? (i.ventana.nomenclatura ?? i.ventana.codigo) : i.pendiente?.codigo}</span>
-                    {i.parte !== 'COMPLETA' && <span className="ml-1.5 text-slate-500">({ETIQUETA_PARTE_CORTA[i.parte]})</span>}
+                    {i.parte !== 'COMPLETA' && <span className="ml-1.5 text-slate-500">({parteDe(i.ventana, i.parte)})</span>}
                     <p className="text-[11px] text-slate-500 truncate">{i.descripcion}</p>
                   </div>
                   {i.cantidad > 1 && <span className="font-mono text-slate-600 tabular-nums">{i.cantidadRecibida}/{i.cantidad}</span>}

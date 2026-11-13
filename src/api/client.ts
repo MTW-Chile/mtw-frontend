@@ -176,7 +176,7 @@ export async function getProyectos(params?: {
   limit?: number;
   estado?: number;
   // Origenes a dejar fuera (coma-separado), ej. 'MANUAL_OBRA': Presupuestos
-  // no cuenta las obras manuales porque nunca se cotizaron.
+  // no cuenta las obras legacy porque nunca se cotizaron.
   excluirOrigen?: string;
   // 'obra': agrega resumenObra a cada proyecto (listas de Obras en curso y Fabricación).
   incluir?: 'obra';
@@ -199,7 +199,7 @@ export async function createProyectoManual(payload: {
 // Obra en seguimiento creada a mano (Control de Obras): sin presupuesto de
 // HETMO detras. No es lo mismo que createProyectoManual (presupuesto manual
 // de Cotizaciones).
-export async function crearObraManual(payload: {
+export async function crearObraLegacy(payload: {
   obra: string;
   clienteId: string;
   // Número de proyecto elegido: queda como numeroPresupuesto y código PRJ-año-número.
@@ -210,7 +210,7 @@ export async function crearObraManual(payload: {
   comuna?: string;
   ciudad?: string;
 }): Promise<{ proyecto: Proyecto }> {
-  const response = await apiClient.post<{ proyecto: Proyecto }>('/obras/manual', payload);
+  const response = await apiClient.post<{ proyecto: Proyecto }>('/obras/legacy', payload);
   return response.data;
 }
 
@@ -222,14 +222,14 @@ export async function updateDireccionObra(
   await apiClient.patch(`/proyectos/${proyectoId}/direccion-obra`, payload);
 }
 
-/** Cambia el cliente (del maestro) de una obra manual. */
-export async function updateClienteObraManual(proyectoId: string, clienteId: string): Promise<void> {
+/** Cambia el cliente (del maestro) de una obra legacy. */
+export async function updateClienteObraLegacy(proyectoId: string, clienteId: string): Promise<void> {
   await apiClient.patch(`/obras/${proyectoId}/cliente`, { clienteId });
 }
 
 // Sin número: solo el siguiente libre. Con número: si está libre y quién lo usa si no.
-export async function getNumeroObraManual(numero?: number): Promise<DisponibilidadNumeroProyecto> {
-  const response = await apiClient.get<DisponibilidadNumeroProyecto>('/obras/manual/numero', { params: numero ? { numero } : undefined });
+export async function getNumeroObraLegacy(numero?: number): Promise<DisponibilidadNumeroProyecto> {
+  const response = await apiClient.get<DisponibilidadNumeroProyecto>('/obras/legacy/numero', { params: numero ? { numero } : undefined });
   return response.data;
 }
 
@@ -1622,6 +1622,12 @@ export async function getObrasPendientes(area: 'FABRICA' | 'COMPRAS'): Promise<O
 /** Alguien del área abrió el pendiente: si estaba Ingresado, queda Recibido con su nombre. */
 export async function abrirPendiente(id: string): Promise<{ paso: PasoPendiente; cambio: boolean }> {
   const response = await apiClient.post(`/pendientes/${id}/abrir`);
+  return response.data;
+}
+
+/** Descarta un pendiente que ya no corresponde (permiso pendientes.descartar). Queda en el historial con su motivo. */
+export async function descartarPendiente(id: string, motivo: string): Promise<{ paso: PasoPendiente }> {
+  const response = await apiClient.post(`/pendientes/${id}/descartar`, { motivo });
   return response.data;
 }
 

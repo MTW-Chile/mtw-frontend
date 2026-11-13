@@ -27,6 +27,7 @@ import { Aviso } from '../../components/ui/Aviso';
 import { useConfirmar } from '../../components/ui/Confirmar';
 import { extraerErrorParaToast, mostrarToast } from '../../lib/toast';
 import { usePermisos } from '../../lib/permisos';
+import { esObraLegacy } from '../../lib/obraLegacy';
 
 // PRINCIPAL = presupuestos cerrados en HETMO (estado 2) + presupuestos
 // manuales; TODOS = cualquier estado de HETMO. Ver esPresupuestoPrincipal.
@@ -63,7 +64,7 @@ export const CotizacionesPage: React.FC<{
   const [isSyncing, setIsSyncing] = useState(false);
   const [mostrarModalManual, setMostrarModalManual] = useState(false);
   const [obraManual, setObraManual] = useState('');
-  // Igual que la obra manual (Obras): pide un cliente del maestro (adjuntar o
+  // Igual que la obra legacy (Obras): pide un cliente del maestro (adjuntar o
   // crear) y una direccion opcional -- misma estructura, distinto origen.
   const [clienteManual, setClienteManual] = useState<Cliente | null>(null);
   const [direccionManual, setDireccionManual] = useState('');
@@ -134,11 +135,11 @@ export const CotizacionesPage: React.FC<{
     queryFn: () => getSyncLogs(1),
   });
 
-  // Las obras manuales (creadas desde Obras, nunca cotizadas) no son
+  // Las obras legacy (creadas desde Obras, nunca cotizadas) no son
   // presupuestos: viven solo en Obras (el servidor ya las excluye; el filtro
   // es una segunda guarda). Un presupuesto manual, aunque despues se acepte,
   // se queda aca como cualquier otro.
-  const proyectos = (data?.data || []).filter((p) => p.origen !== 'MANUAL_OBRA');
+  const proyectos = (data?.data || []).filter((p) => !esObraLegacy(p));
   const lastSync = syncLogs?.[0];
 
   const handleManualSync = async () => {

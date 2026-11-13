@@ -58,7 +58,7 @@ const VisorDeArea: React.FC<{ area: AreaPendiente }> = ({ area }) => {
 /**
  * Pendientes de las obras, en tres secciones del menú. Comercial ve todos los de todas las obras en una sola lista.
  * Taller (`area="FABRICA"`: marcos, hojas y ventanas) y Abastecimiento (`area="COMPRAS"`: vidrios y materiales)
- * parten eligiendo la obra; en su visor, abrir un pendiente lo deja «Recibido». Se ingresan desde Instaladores › Pendientes.
+ * parten eligiendo la obra; en su visor, abrir un pendiente lo deja «Visto por el área». Se ingresan desde Instaladores › Pendientes.
  */
 export const PendientesPage: React.FC<{ area?: AreaPendiente }> = ({ area }) => (
   <div className={PAGE_CONTAINER_CLASS}>

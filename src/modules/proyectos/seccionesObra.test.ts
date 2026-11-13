@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { PERMISO_SECCION, seccionDisponible, seccionEfectiva, seccionesDelModo, SECCIONES_FABRICACION, SECCIONES_OBRA, SECCIONES_QUE_REQUIEREN_PRESUPUESTO, usaCubicacion, usaReservaMateriales } from './seccionesObra';
 
 describe('seccionDisponible', () => {
-  it('una obra manual solo tiene disponible lo que no requiere presupuesto', () => {
+  it('una obra legacy solo tiene disponible lo que no requiere presupuesto', () => {
     expect(seccionDisponible('general', 'MANUAL_OBRA')).toBe(true);
     expect(seccionDisponible('fabricacion', 'MANUAL_OBRA')).toBe(true);
     expect(seccionDisponible('pendientes', 'MANUAL_OBRA')).toBe(true);
@@ -28,7 +28,7 @@ describe('pestañas por modo', () => {
     expect(seccionesDelModo('obra')).toEqual(['general', 'abastecimiento', 'adicionales', 'estados-pago']);
     expect(seccionesDelModo('obra', 'HETMO')).toEqual(seccionesDelModo('obra'));
   });
-  it('una obra manual en Comercial solo tiene Información General; en el taller, todo', () => {
+  it('una obra legacy en Comercial solo tiene Información General; en el taller, todo', () => {
     expect(seccionesDelModo('obra', 'MANUAL_OBRA')).toEqual(['general']);
     expect(seccionesDelModo('fabricacion', 'MANUAL_OBRA')).toEqual(seccionesDelModo('fabricacion'));
     expect(seccionEfectiva('adicionales', 'MANUAL_OBRA')).toBe('general');

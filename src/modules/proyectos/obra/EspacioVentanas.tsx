@@ -22,14 +22,15 @@ import { fecha } from '../../../lib/formato';
 import { borrarBorrador, guardarBorrador, leerBorrador } from '../../../lib/borradorLocal';
 import { useSession } from '../../../lib/useCloudflareAccessSession';
 import type { EstadoVentanaObra, InstalacionObra, NodoUnidadInstalacion, ParteVentana, Proyecto, VentanaObra } from '../../../types';
-import { CLASE_BARRA_ESTADO, CLASE_CHIP_ESTADO, ETIQUETA_ESTADO_VENTANA, ICONO_ESTADO_VENTANA, ORDEN_ESTADO_VENTANA, VARIANTE_ESTADO_VENTANA, nombreVentana } from './estadoVentana';
+import { CLASE_BARRA_ESTADO, CLASE_CHIP_ESTADO, CLASE_MEDIA_ESTADO, ETIQUETA_ESTADO_VENTANA, ETIQUETA_PARTE_EN, ICONO_ESTADO_VENTANA, ORDEN_ESTADO_VENTANA, algunaParteEn, nombreParteHoja, nombreVentana, partesEnDistintoEstado, textoEstadoPartes } from './estadoVentana';
 import { vocabulario } from '../cubicacion/vocabulario';
 import { ETIQUETA_MOTIVO, ETIQUETA_TIPO } from '../pendientes/utils';
 import { subirArchivos } from '../pendientes/adjuntos/subirArchivos';
 import { prepararArchivo } from '../pendientes/adjuntos/prepararArchivo';
 import { FormularioPendiente, type PendientePreparado } from '../pendientes/FormularioPendiente';
-import { FormularioInstalacion, TEXTO_PARTE, partesPorInstalar, type InstalacionPreparada } from '../../instalacion/FormularioInstalacion';
+import { FormularioInstalacion, partesPorInstalar, textoParteDe, type InstalacionPreparada } from '../../instalacion/FormularioInstalacion';
 import { FichaVentana } from './FichaVentana';
+import { esObraLegacy } from '../../../lib/obraLegacy';
 
 /**
  * Espacio de trabajo sobre las ventanas de una obra, para tablet en terreno. Lo usan dos secciones de Instaladores:
@@ -53,10 +54,11 @@ type ItemCarrito =
 type FiltroEstado = 'TODAS' | 'POR_RECIBIR' | 'POR_INSTALAR' | 'INSTALADAS' | 'CON_PENDIENTE';
 const pasaFiltro = (v: VentanaObra, f: FiltroEstado): boolean => {
   switch (f) {
+    // Por parte: una ventana con el marco recibido y la hoja aún en fábrica SÍ tiene algo por instalar.
     case 'POR_RECIBIR':
-      return v.estado === 'DESPACHADA';
+      return algunaParteEn(v, 'DESPACHADA');
     case 'POR_INSTALAR':
-      return v.estado === 'RECIBIDA';
+      return algunaParteEn(v, 'RECIBIDA');
     case 'INSTALADAS':
       return v.estado === 'INSTALADA';
     case 'CON_PENDIENTE':
@@ -77,23 +79,36 @@ const textoBusqueda = (v: VentanaObra) =>
     .toLowerCase();
 
 const ChipVentana: React.FC<{ v: VentanaObra; activa: boolean; enCarrito: number; onClick: () => void; conMarca?: boolean }> = ({ v, activa, enCarrito, onClick, conMarca }) => {
-  const IconoEstado = ICONO_ESTADO_VENTANA[v.estado];
+  // Marco y hoja en estados distintos: el chip va partido en dos, mitad izquierda el marco, mitad derecha la hoja
+  // (o el vidrio), cada una con el color y el ícono de su estado.
+  const partido = partesEnDistintoEstado(v);
+  const IconoMarco = ICONO_ESTADO_VENTANA[partido ? v.estadoPartes.marco : v.estado];
+  const IconoHoja = ICONO_ESTADO_VENTANA[v.estadoPartes.hoja];
+  const estado = textoEstadoPartes(v);
   return (
     // eslint-disable-next-line react/forbid-elements -- chip táctil del plano (48 px con el dedo)
     <button
       type="button"
       onClick={onClick}
       aria-pressed={activa}
-      title={`${nombreVentana(v)} · ${v.sistema} · ${ETIQUETA_ESTADO_VENTANA[v.estado]}`}
-      className={`relative inline-flex min-h-9 pointer-coarse:min-h-12 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-mono font-bold leading-tight transition-colors hover:brightness-95 cursor-pointer ${CLASE_CHIP_ESTADO[v.estado]} ${
-        activa ? 'ring-2 ring-brand-600 ring-offset-1' : ''
-      }`}
+      title={`${nombreVentana(v)} · ${v.sistema} · ${estado}`}
+      className={`relative overflow-hidden inline-flex min-h-9 pointer-coarse:min-h-12 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-mono font-bold leading-tight transition-colors hover:brightness-95 cursor-pointer ${
+        partido ? 'border-slate-300 text-slate-800' : CLASE_CHIP_ESTADO[v.estado]
+      } ${activa ? 'ring-2 ring-brand-600 ring-offset-1' : ''}`}
     >
-      {conMarca && activa ? <Check className="w-3.5 h-3.5 shrink-0 text-brand-700" aria-label="Elegida" /> : <IconoEstado className="w-3.5 h-3.5 shrink-0" aria-label={ETIQUETA_ESTADO_VENTANA[v.estado]} />}
-      {nombreVentana(v)}
-      {v.separada && <span className="font-sans font-normal text-[11px] opacity-80">½</span>}
-      {enCarrito > 0 && <span className="rounded-full bg-brand-600 text-white px-1.5 text-[11px] font-sans">{enCarrito}</span>}
-      {v.pendientesAbiertos > 0 && <AlertTriangle className="w-3.5 h-3.5 text-amber-600" aria-label="Con pendiente abierto" />}
+      {partido && (
+        <>
+          <span className={`absolute inset-y-0 left-0 w-1/2 ${CLASE_MEDIA_ESTADO[v.estadoPartes.marco]}`} aria-hidden />
+          <span className={`absolute inset-y-0 right-0 w-1/2 border-l border-slate-300 ${CLASE_MEDIA_ESTADO[v.estadoPartes.hoja]}`} aria-hidden />
+        </>
+      )}
+      <span className="relative inline-flex items-center gap-1.5">
+        {conMarca && activa ? <Check className="w-3.5 h-3.5 shrink-0 text-brand-700" aria-label="Elegida" /> : <IconoMarco className="w-3.5 h-3.5 shrink-0" aria-label={partido ? `Marco: ${ETIQUETA_ESTADO_VENTANA[v.estadoPartes.marco]}` : estado} />}
+        {nombreVentana(v)}
+        {partido && <IconoHoja className="w-3.5 h-3.5 shrink-0" aria-label={`${nombreParteHoja(v) === 'vidrio' ? 'Vidrio' : 'Hoja'}: ${ETIQUETA_ESTADO_VENTANA[v.estadoPartes.hoja]}`} />}
+        {enCarrito > 0 && <span className="rounded-full bg-brand-600 text-white px-1.5 text-[11px] font-sans">{enCarrito}</span>}
+        {v.pendientesAbiertos > 0 && <AlertTriangle className="w-3.5 h-3.5 text-amber-600" aria-label="Con pendiente abierto" />}
+      </span>
     </button>
   );
 };
@@ -249,6 +264,21 @@ export const EspacioVentanas: React.FC<Props> = ({ proyecto, modo, onCerrar }) =
     return m;
   }, [data]);
   const seleccion = useMemo(() => elegidas.map((id) => ventanaPorId.get(id)).filter((v): v is VentanaObra => !!v), [elegidas, ventanaPorId]);
+  // Resumen por parte: cuántos marcos y cuántas hojas (o vidrios) hay en cada estado, y los contadores de los
+  // filtros con la misma regla con que se filtra (pasaFiltro).
+  const porParte = useMemo(() => {
+    const vacio = () => Object.fromEntries(ORDEN_ESTADO_VENTANA.map((e) => [e, 0])) as Record<EstadoVentanaObra, number>;
+    const r = { marcos: vacio(), hojas: vacio(), total: 0, porInstalar: 0, porRecibir: 0 };
+    for (const v of ventanaPorId.values()) {
+      if (v.estado === 'SIN_POSICION') continue;
+      r.total++;
+      r.marcos[v.estadoPartes.marco]++;
+      r.hojas[v.estadoPartes.hoja]++;
+      if (pasaFiltro(v, 'POR_INSTALAR')) r.porInstalar++;
+      if (pasaFiltro(v, 'POR_RECIBIR')) r.porRecibir++;
+    }
+    return r;
+  }, [ventanaPorId]);
   const activas = useMemo(() => new Set(elegidas), [elegidas]);
   const unica = seleccion.length === 1 ? seleccion[0] : null;
   const ficha = useQuery({ queryKey: ['fichaVentana', proyecto.id, unica?.id], queryFn: () => getFichaVentana(proyecto.id, unica!.id), enabled: !!unica, staleTime: 60_000 });
@@ -381,9 +411,9 @@ export const EspacioVentanas: React.FC<Props> = ({ proyecto, modo, onCerrar }) =
   const filtros: { value: FiltroEstado; label: string; contador: number }[] = resumen
     ? [
         { value: 'TODAS', label: 'Todas', contador: resumen.total },
-        { value: 'POR_INSTALAR', label: 'Por instalar', contador: resumen.RECIBIDA },
-        { value: 'POR_RECIBIR', label: 'Por recibir', contador: resumen.DESPACHADA },
-        { value: 'INSTALADAS', label: 'Instaladas', contador: resumen.INSTALADA },
+        { value: 'POR_INSTALAR', label: 'Por instalar', contador: porParte.porInstalar },
+        { value: 'POR_RECIBIR', label: 'Por recibir', contador: porParte.porRecibir },
+        { value: 'INSTALADAS', label: 'Instaladas completas', contador: resumen.INSTALADA },
         { value: 'CON_PENDIENTE', label: 'Con pendiente', contador: resumen.conPendiente },
       ]
     : [];
@@ -420,7 +450,7 @@ export const EspacioVentanas: React.FC<Props> = ({ proyecto, modo, onCerrar }) =
               </>
             ) : (
               <>
-                <span className="text-xs text-slate-700">{TEXTO_PARTE[c.parte]}</span>
+                <span className="text-xs text-slate-700">{textoParteDe(c.ventana, c.parte)}</span>
                 <span className="block">
                   {c.fotos.length} foto(s){c.forzar ? ' · certificada sin figurar recibida' : ''}
                 </span>
@@ -499,8 +529,8 @@ export const EspacioVentanas: React.FC<Props> = ({ proyecto, modo, onCerrar }) =
       })}
       {data.unica.filter(pasa).length > 0 && (
         <Seccion
-          titulo={proyecto.origen === 'MANUAL_OBRA' ? 'Ventanas sin ubicar' : 'Cubicación única'}
-          descripcion={proyecto.origen === 'MANUAL_OBRA' ? 'Aún sin torre, piso ni departamento; se pueden usar igual.' : 'Ventanas con nomenclatura sin torre ni piso.'}
+          titulo={esObraLegacy(proyecto) ? 'Ventanas sin ubicar' : 'Cubicación única'}
+          descripcion={esObraLegacy(proyecto) ? 'Aún sin torre, piso ni departamento; se pueden usar igual.' : 'Ventanas con nomenclatura sin torre ni piso.'}
           sinRelleno
         >
           <div className="p-3 flex flex-wrap gap-2">
@@ -549,7 +579,7 @@ export const EspacioVentanas: React.FC<Props> = ({ proyecto, modo, onCerrar }) =
           <Seccion
             icono={CheckCheck}
             titulo={`${seleccion.length} ventanas elegidas`}
-            descripcion="Se certifican juntas, como ventana completa, cada una con su foto. Toca una para sacarla."
+            descripcion="Se certifican juntas (completas, solo los marcos o solo las hojas o vidrios), cada una con su foto. Toca una para sacarla."
             acciones={
               <Button size="sm" variant="ghost" onClick={soltarSeleccion}>
                 Quitar selección
@@ -624,27 +654,33 @@ export const EspacioVentanas: React.FC<Props> = ({ proyecto, modo, onCerrar }) =
             <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-4 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs text-slate-600">
-                  <b className="text-slate-900 text-base tabular-nums">{resumen.INSTALADA}</b> de {resumen.total} ventanas instaladas
+                  <b className="text-slate-900 text-base tabular-nums">{resumen.INSTALADA}</b> de {resumen.total} ventanas instaladas completas
                 </p>
                 <span className="text-sm font-black text-emerald-700 tabular-nums">{pct}%</span>
               </div>
-              <div className="h-2 rounded-full bg-slate-100 overflow-hidden flex" aria-label="Avance de instalación">
-                {ORDEN_ESTADO_VENTANA.filter((e: EstadoVentanaObra) => resumen[e] > 0 && e !== 'SIN_POSICION')
-                  .reverse()
-                  .map((e) => (
-                    <span key={e} className={`h-full ${CLASE_BARRA_ESTADO[e]}`} style={{ width: `${(resumen[e] / resumen.total) * 100}%` }} title={`${ETIQUETA_ESTADO_VENTANA[e]}: ${resumen[e]}`} />
-                  ))}
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {ORDEN_ESTADO_VENTANA.filter((e) => resumen[e] > 0).map((e) => (
-                  <Badge key={e} size="sm" variant={VARIANTE_ESTADO_VENTANA[e]}>
-                    <span className="inline-flex items-center gap-1">
-                      {React.createElement(ICONO_ESTADO_VENTANA[e], { className: 'w-3 h-3', 'aria-hidden': true })}
-                      {ETIQUETA_ESTADO_VENTANA[e]} {resumen[e]}
+              {/* Un renglón por parte: el marco y la hoja (o el vidrio) avanzan por separado. */}
+              {([['Marcos', porParte.marcos], ['Hojas y vidrios', porParte.hojas]] as const).map(([nombre, cuenta]) => (
+                <div key={nombre} className="space-y-1">
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs">
+                    <span className="font-bold text-slate-800">{nombre}</span>
+                    <span className="text-slate-600">
+                      {[...ORDEN_ESTADO_VENTANA]
+                        .reverse()
+                        .filter((e) => cuenta[e] > 0 && e !== 'SIN_POSICION')
+                        .map((e) => `${cuenta[e]} ${ETIQUETA_PARTE_EN[e]}`)
+                        .join(' · ')}
                     </span>
-                  </Badge>
-                ))}
-              </div>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden flex" aria-hidden>
+                    {[...ORDEN_ESTADO_VENTANA]
+                      .reverse()
+                      .filter((e) => cuenta[e] > 0 && e !== 'SIN_POSICION')
+                      .map((e) => (
+                        <span key={e} className={`h-full ${CLASE_BARRA_ESTADO[e]}`} style={{ width: `${(cuenta[e] / Math.max(1, porParte.total)) * 100}%` }} title={`${cuenta[e]} ${ETIQUETA_PARTE_EN[e]}`} />
+                      ))}
+                  </div>
+                </div>
+              ))}
               <Segmentado etiqueta="Filtrar ventanas por estado" opciones={filtros} valor={filtro} onChange={setFiltro} />
             </div>
           )}

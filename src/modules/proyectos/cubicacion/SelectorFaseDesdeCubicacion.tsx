@@ -10,7 +10,7 @@ import { Casilla } from '../../../components/ui/Campos';
 interface Props {
   proyectoId: string;
   onChange: (seleccion: SeleccionFaseCubicacion, resumen: string) => void;
-  /** Obra manual: las ventanas sin lugar no son una «cubicación única», son ventanas por ubicar. */
+  /** Obra legacy: las ventanas sin lugar no son una «cubicación única», son ventanas por ubicar. */
   legacy?: boolean;
 }
 
@@ -22,7 +22,7 @@ interface Props {
 // superponerse sin problema (el backend las une sin duplicar).
 export const SelectorFaseDesdeCubicacion: React.FC<Props> = ({ proyectoId, onChange, legacy }) => {
   const voc = useVocabulario(proyectoId);
-  const { data, isLoading, isError } = useQuery({ queryKey: ['cubicacionEstructura', proyectoId], queryFn: () => getEstructuraCubicacion(proyectoId) });
+  const { data, isLoading, isError } = useQuery({ queryKey: ['cubicacion', proyectoId, 'estructura'], queryFn: () => getEstructuraCubicacion(proyectoId) });
   const [torreIds, setTorreIds] = useState<Set<string>>(new Set());
   const [pisoIds, setPisoIds] = useState<Set<string>>(new Set());
   const [unidadIds, setUnidadIds] = useState<Set<string>>(new Set());

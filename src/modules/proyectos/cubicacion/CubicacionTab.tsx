@@ -17,6 +17,7 @@ import { InputArchivo } from '../../../components/ui/InputArchivo';
 import { useMigas } from '../../../lib/migas';
 import { usePermisos } from '../../../lib/permisos';
 import { AvancePlanillaModal } from './AvancePlanillaModal';
+import { esObraLegacy } from '../../../lib/obraLegacy';
 
 interface Props {
   proyecto: Proyecto;
@@ -97,9 +98,9 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
   const [panel, setPanel] = useState<ResultadoPanel | null>(null);
   const [avanzando, setAvanzando] = useState(false);
   const { tiene } = usePermisos();
-  // Obra legacy (manual, nunca cotizada): sus ventanas llegan solas de los documentos de fabricación, con las
+  // Obra legacy (nunca cotizada): sus ventanas llegan solas de los documentos de fabricación, con las
   // medidas finales que traen, y la cubicación completa sale de su planilla de control. Sin rectificación ni holgura.
-  const legacy = proyecto.origen === 'MANUAL_OBRA';
+  const legacy = esObraLegacy(proyecto);
 
   const { data, isLoading, isError } = useQuery({ queryKey: ['cubicacion', proyecto.id], queryFn: () => getCubicacion(proyecto.id) });
   const cubicacion = data?.cubicacion;
@@ -110,7 +111,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
   useEffect(() => {
     if (alAbrir && (alAbrir.creadas > 0 || alAbrir.vinculadas > 0)) {
       setPanel(panelAlAbrir(alAbrir));
-      queryClient.invalidateQueries({ queryKey: ['cubicacionEstructura', proyecto.id] });
+      queryClient.invalidateQueries({ queryKey: ['cubicacion', proyecto.id, 'estructura'] });
     }
   }, [alAbrir, proyecto.id, queryClient]);
   const documentos = useQuery({ queryKey: ['fabricaciones', proyecto.id], queryFn: () => getFabricacionesProyecto(proyecto.id), enabled: legacy });
@@ -148,7 +149,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
         advertencias: [],
       });
       refrescar();
-      queryClient.invalidateQueries({ queryKey: ['cubicacionEstructura', proyecto.id] });
+      queryClient.invalidateQueries({ queryKey: ['cubicacion', proyecto.id, 'estructura'] });
       setVista('ventanas');
     },
     onError: aviso,
@@ -162,7 +163,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
         advertencias: [],
       });
       refrescar();
-      queryClient.invalidateQueries({ queryKey: ['cubicacionEstructura', proyecto.id] });
+      queryClient.invalidateQueries({ queryKey: ['cubicacion', proyecto.id, 'estructura'] });
     },
     onError: aviso,
   });
@@ -171,7 +172,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
     onSuccess: (r) => {
       setPanel(panelDeImportacion(r.reporte));
       refrescar();
-      queryClient.invalidateQueries({ queryKey: ['cubicacionEstructura', proyecto.id] });
+      queryClient.invalidateQueries({ queryKey: ['cubicacion', proyecto.id, 'estructura'] });
     },
     onError: aviso,
   });
@@ -226,7 +227,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
           <h2 className="text-sm font-black text-slate-900">Cubicación</h2>
           <p className="text-xs text-slate-500 max-w-2xl">
             {legacy
-              ? 'Obra en ejecución que no se cotizó: las ventanas de sus documentos de fabricación aparecen solas, por ubicar, con la medida con que se fabricaron (son las medidas finales). La planilla de control de la obra las ubica y deja en su lugar, «sin fabricar», lo que todavía no trae ningún documento; lo que la planilla no pide se ubica arrastrando. El detalle queda en Conciliación.'
+              ? 'Obra anterior al ERP: las ventanas de sus documentos de fabricación aparecen solas, por ubicar, con la medida con que se fabricaron (son las medidas finales). La planilla de control de la obra las ubica y deja en su lugar, «sin fabricar», lo que todavía no trae ningún documento; lo que la planilla no pide se ubica arrastrando. El detalle queda en Conciliación.'
               : 'Paso previo de las fases: cada ventana necesita su nomenclatura y su medida rectificada. Lo que ya sabemos del presupuesto de HETMO (tipos, descripción, medidas, cantidades y precios) ya está cargado: aquí solo se completa dónde va cada ventana y su rasgo medido en obra, en pantalla o con la planilla para completar. Si la obra no se reparte por torres y pisos, usa la cubicación única.'}
           </p>
         </div>
@@ -234,7 +235,7 @@ export const CubicacionTab: React.FC<Props> = ({ proyecto, activeVersion }) => {
           <div className="flex flex-wrap items-center gap-2">
             {botonPlanillaControl('outline')}
             {legacy && tiene('obras.regularizar') && resumen.posicionadas > 0 && (
-              <Button variant="outline" size="sm" leftIcon={<FastForward className="w-3.5 h-3.5" />} onClick={() => setAvanzando(true)} title="Obra que ya estaba en ejecución: deja despachado, recibido e instalado lo que su planilla de control ya anota, por marco y hoja">
+              <Button variant="outline" size="sm" leftIcon={<FastForward className="w-3.5 h-3.5" />} onClick={() => setAvanzando(true)} title="Obra anterior al ERP: deja despachado, recibido e instalado lo que su planilla de control ya anota, por marco y hoja">
                 Avanzar estado con la planilla
               </Button>
             )}

@@ -8,6 +8,7 @@ import { Cargando, ErrorCarga, EstadoVacio } from '../../../components/ui/Estado
 import { BotonFila } from '../../../components/ui/Lista';
 import type { ObraConPendientes } from '../../../types';
 import type { AreaPendiente } from './utils';
+import { CodigoObra } from '../../../components/ui/CodigoObra';
 
 /** Las obras en curso con lo que el área tiene por gestionar en cada una (misma consulta para la lista y la obra elegida). */
 export function useObrasPendientes(area: AreaPendiente) {
@@ -45,23 +46,25 @@ export const ObrasPendientesArea: React.FC<{ area: AreaPendiente; onElegir: (obr
         (data ?? []).length > 0 ? (
           <EstadoVacio icono={HardHat} titulo="Ninguna obra coincide" descripcion="Revisa lo escrito en el buscador." />
         ) : (
-          <EstadoVacio icono={HardHat} titulo="No hay obras en curso" descripcion="Una obra aparece aquí cuando su presupuesto está aceptado por el cliente." />
+          <EstadoVacio icono={HardHat} titulo="No hay obras en curso" descripcion="Una obra aparece aquí cuando el cliente acepta su presupuesto, o cuando se carga una obra anterior al ERP." />
         )
       ) : (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm divide-y divide-slate-100 overflow-hidden">
           {obras.map((o) => (
             <BotonFila key={o.id} onClick={() => onElegir(o)} className={`flex items-center gap-3 min-h-14 ${o.abiertos === 0 ? 'opacity-70' : ''}`}>
+              {/* En celular los contadores van debajo del nombre (al lado no caben); desde sm, a la derecha. */}
+              <div className="min-w-0 flex-1 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-sm font-bold text-slate-900 truncate">{o.obra}</h3>
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 font-mono font-bold shrink-0">{o.codigoInterno || `PRJ-${o.numeroPresupuesto}`}</span>
+                  <CodigoObra obra={o} />
                 </div>
                 <p className="text-xs text-slate-500 truncate">{[o.cliente, o.direccion].filter(Boolean).join(' · ')}</p>
               </div>
-              <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0 max-w-[55%]">
+              <div className="flex flex-wrap items-center gap-1.5 sm:justify-end sm:shrink-0 sm:max-w-[45%]">
                 {o.porRecibir > 0 && (
                   <Badge size="sm" variant="info">
-                    {o.porRecibir} por recibir
+                    {o.porRecibir} {o.porRecibir === 1 ? 'nuevo' : 'nuevos'}
                   </Badge>
                 )}
                 {o.enGestion > 0 && (
@@ -75,6 +78,7 @@ export const ObrasPendientesArea: React.FC<{ area: AreaPendiente; onElegir: (obr
                   </Badge>
                 )}
                 {o.abiertos === 0 && <span className="text-xs text-slate-500">{o.cerrados > 0 ? `Sin pendientes abiertos · ${o.cerrados} despachado(s)` : 'Sin pendientes'}</span>}
+              </div>
               </div>
               <ChevronRight className="w-5 h-5 text-slate-300 shrink-0" />
             </BotonFila>

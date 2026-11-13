@@ -13,19 +13,21 @@ import { DocumentosObraTab } from './documentos/DocumentosObraTab';
 import { DireccionObraCard } from '../cotizaciones/steps/Step1DatosCliente/DireccionObraCard';
 import type { ModoWorkspace } from './seccionesObra';
 import { ClayCentroCostoEditor } from './ClayCentroCostoEditor';
-import { ClienteObraManualCard } from './ClienteObraManualCard';
+import { ClienteObraLegacyCard } from './ClienteObraLegacyCard';
+import { esObraLegacy } from '../../lib/obraLegacy';
+import { textoAvancePartes } from './obra/AvancePartes';
 
 const clp = (v: number) => v.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
 /**
  * Primera pestaña de la obra: métricas, Control de presupuesto por partida
  * (detalle plegado) y la carpeta de documentos de OneDrive.
- * Una obra manual (nunca cotizada) no tiene presupuesto ni analítica: sus
+ * Una obra legacy (nunca cotizada) no tiene presupuesto ni analítica: sus
  * métricas salen de las ventanas de los documentos de fabricación que se le
  * vincularon y de su avance en obra (cubicadas, despachadas, instaladas).
  */
 export const InformacionGeneralTab: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVersion; modo?: ModoWorkspace }> = ({ proyecto, activeVersion, modo = 'obra' }) => {
-  const cotizada = proyecto.origen !== 'MANUAL_OBRA';
+  const cotizada = !esObraLegacy(proyecto);
   // Fabricación trabaja con la carpeta de producción de la obra; Comercial, con la comercial.
   const produccion = modo === 'fabricacion';
   return (
@@ -34,11 +36,11 @@ export const InformacionGeneralTab: React.FC<{ proyecto: Proyecto; activeVersion
       <div className="flex xl:hidden justify-end">
         <ClayCentroCostoEditor proyectoId={proyecto.id} valor={proyecto.clayCentroCosto} />
       </div>
-      {cotizada ? <MetricasObra proyecto={proyecto} activeVersion={activeVersion} cotizada /> : <MetricasObraManual proyecto={proyecto} />}
+      {cotizada ? <MetricasObra proyecto={proyecto} activeVersion={activeVersion} cotizada /> : <MetricasObraLegacy proyecto={proyecto} />}
       {cotizada && <ControlPresupuestoTab proyecto={proyecto} activeVersion={activeVersion} />}
-      {/* La misma tarjeta del paso 1 de la cotización: una obra manual no pasa por ahí. */}
-      {/* Una obra manual elige su cliente al crearla; aquí se corrige si se eligió mal. */}
-      {!cotizada && !produccion && <ClienteObraManualCard proyecto={proyecto} />}
+      {/* La misma tarjeta del paso 1 de la cotización: una obra legacy no pasa por ahí. */}
+      {/* Una obra legacy elige su cliente al crearla; aquí se corrige si se eligió mal. */}
+      {!cotizada && !produccion && <ClienteObraLegacyCard proyecto={proyecto} />}
       {!produccion && <DireccionObraCard proyecto={proyecto} />}
       <Seccion icono={FolderOpen} titulo={produccion ? 'Documentos de producción' : 'Documentos'} descripcion={produccion ? 'Carpeta de producción de la obra en OneDrive.' : 'Carpeta comercial de la obra en OneDrive.'}>
         <DocumentosObraTab proyecto={proyecto} ambito={produccion ? 'produccion' : 'comercial'} />
@@ -105,11 +107,11 @@ const MetricasObra: React.FC<{ proyecto: Proyecto; activeVersion?: ProyectoVersi
   );
 };
 
-// Métricas de una obra manual: lo que HETMO fabrica para ella (documentos
+// Métricas de una obra legacy: lo que HETMO fabrica para ella (documentos
 // vinculados y sus ventanas) y el avance físico de las ventanas cubicadas.
 // Los documentos se vinculan en Taller › Fabricación; la cubicación es la
 // que habilita despachos e instalación (ver GET /api/proyectos/:id/resumen-obra).
-const MetricasObraManual: React.FC<{ proyecto: Proyecto }> = ({ proyecto }) => {
+const MetricasObraLegacy: React.FC<{ proyecto: Proyecto }> = ({ proyecto }) => {
   const { tiene } = usePermisos();
   const { data: r } = useQuery({ queryKey: ['resumenObra', proyecto.id], queryFn: () => getResumenObra(proyecto.id) });
   const f = r?.fabricacion;
@@ -142,17 +144,17 @@ const MetricasObraManual: React.FC<{ proyecto: Proyecto }> = ({ proyecto }) => {
         iconBgColor="bg-sky-50 border-sky-200"
       />
       <StatCard
-        title="Despachadas"
+        title="Despachadas completas"
         value={v ? v.despachadas : '—'}
-        subtitle={v ? deTotal(v.despachadas, v.cubicadas, 'cubicadas') : undefined}
+        subtitle={v ? `${deTotal(v.despachadas, v.cubicadas, 'cubicadas')} · ${textoAvancePartes(v.despachadasMarco, v.despachadasHoja)}` : undefined}
         icon={Truck}
         iconColor="text-violet-600"
         iconBgColor="bg-violet-50 border-violet-200"
       />
       <StatCard
-        title="Instaladas"
+        title="Instaladas completas"
         value={v ? v.instaladas : '—'}
-        subtitle={v ? deTotal(v.instaladas, v.cubicadas, 'cubicadas') : undefined}
+        subtitle={v ? `${deTotal(v.instaladas, v.cubicadas, 'cubicadas')} · ${textoAvancePartes(v.instaladasMarco, v.instaladasHoja)}` : undefined}
         icon={HardHat}
         iconColor="text-emerald-600"
         iconBgColor="bg-emerald-50 border-emerald-200"

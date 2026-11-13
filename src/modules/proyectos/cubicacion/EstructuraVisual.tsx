@@ -164,7 +164,7 @@ const TarjetaUnidad: React.FC<{
           {!!seleccion?.size && titulo !== null && onUbicarActiva && (
             <Button size="sm" onClick={() => onUbicarActiva(ubicacion)} title={`Ubicar ${seleccion.size} ventana(s) en ${titulo}`}>Ubicar aquí{seleccion.size > 1 ? ` (${seleccion.size})` : ''}</Button>
           )}
-          {titulo !== null && <IconButton icono={Plus} etiqueta={`Agregar ventanas a ${titulo} (${nodo.nombre})`} tono="marca" onClick={() => onAbrirAsignar(ubicacion)} />}
+          {titulo !== null && !legacy && <IconButton icono={Plus} etiqueta={`Agregar ventanas a ${titulo} (${nodo.nombre})`} tono="marca" onClick={() => onAbrirAsignar(ubicacion)} />}
           {renombrar && <IconButton icono={Pencil} etiqueta={`Cambiar nombre de la ubicación ${titulo} de ${nodo.nombre}`} tono="marca" onClick={renombrar} />}
           {quitar && <IconButton icono={X} etiqueta={`Quitar la ubicación ${titulo} de ${nodo.nombre}`} tono="peligro" onClick={quitar} />}
         </div>
@@ -198,7 +198,7 @@ const TarjetaUnidad: React.FC<{
           {!!seleccion?.size && !conUbicaciones && onUbicarActiva && (
             <Button size="sm" onClick={() => onUbicarActiva()} title={`Ubicar ${seleccion.size} ventana(s) en ${nodo.nombre}`}>Ubicar aquí{seleccion.size > 1 ? ` (${seleccion.size})` : ''}</Button>
           )}
-          {!conUbicaciones && <IconButton icono={Plus} etiqueta={`Agregar ventanas a ${nodo.nombre} (${voc.textoTorre(torre)})`} tono="marca" onClick={() => onAbrirAsignar()} />}
+          {!conUbicaciones && !legacy && <IconButton icono={Plus} etiqueta={`Agregar ventanas a ${nodo.nombre} (${voc.textoTorre(torre)})`} tono="marca" onClick={() => onAbrirAsignar()} />}
           <IconButton icono={Pencil} etiqueta={`Cambiar nombre de ${nodo.nombre} (${voc.textoTorre(torre)})`} tono="marca" onClick={onRenombrar} />
           <IconButton icono={X} etiqueta={`Quitar ${nodo.nombre} (${voc.textoTorre(torre)})`} tono="peligro" onClick={onQuitar} />
         </div>
@@ -449,7 +449,10 @@ export const EstructuraVisual: React.FC<Props> = ({ proyectoId, cubicacion, tipo
     <div ref={raiz} className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-slate-500 max-w-3xl">
-          {voc.ayuda}
+          {/* Obra anterior al ERP: no hay tipos, se ubican ventanas ya fabricadas. */}
+          {legacy
+            ? `Ubica cada ventana en su ${voc.unidad}: márcala a la izquierda y usa «Ubicar aquí», o arrástrala. Arrastra una ventana a otro ${voc.unidad} para moverla, o de vuelta a la izquierda para sacarla.`
+            : voc.ayuda}
         </p>
         <div className="flex flex-wrap gap-2">
           <Button variant="primary" size="sm" leftIcon={<IconoEstructura className="w-3.5 h-3.5" />} onClick={() => setModal({ tipo: 'armar' })}>

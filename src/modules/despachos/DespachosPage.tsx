@@ -14,6 +14,8 @@ import { actualizarParams, useUrlParam } from '../../lib/navigation';
 import { useMigas } from '../../lib/migas';
 import type { ObraDespachos } from '../../types';
 import { DespachosTab } from '../proyectos/despachos/DespachosTab';
+import { CodigoObra } from '../../components/ui/CodigoObra';
+import { AvancePartes } from '../proyectos/obra/AvancePartes';
 
 type Filtro = 'TODAS' | 'BORRADORES' | 'POR_RECIBIR';
 const pasa = (o: ObraDespachos, f: Filtro) => (f === 'BORRADORES' ? o.borradores > 0 : f === 'POR_RECIBIR' ? o.porRecibir > 0 : true);
@@ -72,7 +74,7 @@ export const DespachosPage: React.FC = () => {
         <EstadoVacio
           icono={Truck}
           titulo={total.length === 0 ? 'No hay obras en curso' : 'Ninguna obra con ese filtro'}
-          descripcion={total.length === 0 ? 'Una obra aparece aquí cuando su presupuesto está aceptado por el cliente.' : 'Prueba con Todas o cambia la búsqueda.'}
+          descripcion={total.length === 0 ? 'Una obra aparece aquí cuando el cliente acepta su presupuesto, o cuando se carga una obra anterior al ERP.' : 'Prueba con Todas o cambia la búsqueda.'}
         />
       ) : (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm divide-y divide-slate-100">
@@ -83,7 +85,7 @@ export const DespachosPage: React.FC = () => {
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-sm font-bold text-slate-900 truncate">{o.obra}</h3>
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 font-mono font-bold shrink-0">{o.codigoInterno || `PRJ-${o.numeroPresupuesto}`}</span>
+                    <CodigoObra obra={o} />
                     {o.pendientesPorDespachar > 0 && (
                       <Badge size="sm" variant="info">
                         {o.pendientesPorDespachar} pendiente(s) listo(s)
@@ -104,12 +106,11 @@ export const DespachosPage: React.FC = () => {
                     {o.clienteNombreRaw}
                     {direccionDeObra(o) ? ` · ${direccionDeObra(o)}` : ''}
                   </p>
-                  <div className="flex items-center gap-2">
-                    <span className="flex-1 max-w-xs h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                      <span className="block h-full rounded-full bg-violet-500" style={{ width: `${pct}%` }} />
-                    </span>
-                    <span className="text-[11px] font-mono tabular-nums text-slate-600">
-                      {o.despachadas}/{o.ventanas} despachadas · {o.despachos} despacho(s)
+                  <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
+                    {/* Despachado por parte: marcos y hojas salen en despachos distintos. */}
+                    <AvancePartes marcos={o.despachadasMarco} hojas={o.despachadasHoja} total={o.ventanas} tono="despacho" className="flex-1 min-w-[12rem] max-w-xs" />
+                    <span className="text-xs text-slate-600">
+                      <b className="tabular-nums">{o.despachadas}</b> completas ({pct}%) · {o.despachos} despacho(s)
                     </span>
                   </div>
                 </div>

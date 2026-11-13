@@ -1,9 +1,11 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Bell, ClipboardList, Landmark, ShoppingCart, Loader2, ChevronRight } from 'lucide-react';
+import { Bell, ClipboardList, Landmark, ShoppingCart, ChevronRight } from 'lucide-react';
 import { getMisAprobacionesPendientes } from '../../api/client';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { BotonFila } from '../../components/ui/Lista';
+import { EtiquetaObraLegacy } from '../../components/ui/CodigoObra';
+import { Cargando, ErrorCarga, EstadoVacio } from '../../components/ui/Estados';
 
 const formatoMoneda = (valor: number) => valor.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
@@ -37,7 +39,7 @@ export const CentroNotificacionesPage: React.FC<CentroNotificacionesPageProps> =
   onAbrirAdicional,
   onAbrirPendientesObra,
 }) => {
-  const { data: pendientes, isLoading } = useQuery({
+  const { data: pendientes, isLoading, isError, refetch } = useQuery({
     queryKey: ['misAprobacionesPendientes'],
     queryFn: getMisAprobacionesPendientes,
   });
@@ -54,13 +56,11 @@ export const CentroNotificacionesPage: React.FC<CentroNotificacionesPageProps> =
       />
 
       {isLoading ? (
-        <div className="p-12 flex items-center justify-center text-slate-500">
-          <Loader2 className="w-5 h-5 animate-spin" />
-        </div>
+        <Cargando />
+      ) : isError ? (
+        <ErrorCarga que="tus notificaciones" onReintentar={() => refetch()} />
       ) : gerencial.length === 0 && pendientesObra.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs">
-          Sin pendientes por ahora.
-        </div>
+        <EstadoVacio icono={Bell} titulo="Sin pendientes por ahora" descripcion="Aquí aparece lo que espera una aprobación tuya o que tu área debe recibir." />
       ) : (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm divide-y divide-slate-50">
           {pendientesObra.map((item) => (
@@ -70,9 +70,12 @@ export const CentroNotificacionesPage: React.FC<CentroNotificacionesPageProps> =
                   <ClipboardList className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-sm font-bold text-slate-900 truncate">
-                    {item.cantidad === 1 ? '1 pendiente de obra por recibir' : `${item.cantidad} pendientes de obra por recibir`}
-                  </h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-sm font-bold text-slate-900 truncate">
+                      {item.cantidad === 1 ? '1 pendiente de obra nuevo' : `${item.cantidad} pendientes de obra nuevos`}
+                    </h3>
+                    <EtiquetaObraLegacy obra={item} />
+                  </div>
                   <p className="text-xs text-slate-500 truncate">
                     {item.obra} · {item.area === 'FABRICA' ? 'Fábrica' : 'Compras'} · {item.cantidad === 1 ? 'ingresado' : 'desde'} el {fechaCorta(item.desde)}
                   </p>

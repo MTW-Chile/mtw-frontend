@@ -18,7 +18,7 @@ import { ETIQUETA_PASO, accionesDeLote, codigoPendiente, type AccionLote, type A
 
 const TEXTO_ACCION: Record<AccionLote, { boton: (n: number) => string; titulo: string }> = {
   OC: { boton: (n) => `Subir una OC para ${n === 1 ? 'el pendiente' : `los ${n}`}`, titulo: 'Subir la orden de compra' },
-  RECIBIR: { boton: (n) => `Marcar ${n === 1 ? 'recibido' : `recibidos los ${n}`}`, titulo: 'Marcar recibidos' },
+  RECIBIR: { boton: (n) => (n === 1 ? 'Marcar que llegó' : `Marcar que llegaron los ${n}`), titulo: 'Llegó la compra' },
   PRODUCCION: { boton: () => 'Pasar a producción', titulo: 'Pasar a producción' },
   LISTO: { boton: () => 'Listos para despacho', titulo: 'Dejar listos para despacho' },
 };

@@ -22,6 +22,7 @@ import { useConfirmar } from '../../../components/ui/Confirmar';
 import { BotonColapsar } from '../../../components/ui/BotonColapsar';
 import { IconButton } from '../../../components/ui/IconButton';
 import { useMigas } from '../../../lib/migas';
+import { esObraLegacy } from '../../../lib/obraLegacy';
 
 interface Props {
   proyecto: Proyecto;
@@ -35,16 +36,16 @@ type SubTab = 'fases' | 'documentos';
 // Seccion "Fabricacion" de una obra: fusiona Fases (planificar y conectar
 // con el documento real de fabricacion) y los documentos de fabricacion de
 // HETMO en si, con sub-pestañas -- Fases primero (es el flujo principal).
-// Una obra manual no tiene presupuesto ni Fase posibles: carga directo los
+// Una obra legacy no tiene presupuesto ni Fase posibles: carga directo los
 // documentos, sin el switcher de sub-pestañas.
 export const FabricacionTab: React.FC<Props> = ({ proyecto, activeVersion, sinCubicacion = false }) => {
   const [subTab, setSubTab] = useState<SubTab>('fases');
-  const conSubpestanas = proyecto.origen !== 'MANUAL_OBRA' && !!activeVersion;
+  const conSubpestanas = !esObraLegacy(proyecto) && !!activeVersion;
   // Sin cubicación (retail) el documento de fabricación es la fase única: la sub-pestaña principal es "Fabricación".
   const etiquetaPrincipal = sinCubicacion ? 'Fabricación' : 'Fases de Producción';
   useMigas(2, [conSubpestanas && { label: subTab === 'fases' ? etiquetaPrincipal : 'Documentos de fabricación' }]);
 
-  if (proyecto.origen === 'MANUAL_OBRA' || !activeVersion) {
+  if (esObraLegacy(proyecto) || !activeVersion) {
     return <DocumentosFabricacionSubTab proyecto={proyecto} />;
   }
 
@@ -86,8 +87,8 @@ const DocumentosFabricacionSubTab: React.FC<{ proyecto: Proyecto }> = ({ proyect
     queryClient.invalidateQueries({ queryKey: ['fabricaciones', proyecto.id] });
     queryClient.invalidateQueries({ queryKey: ['hetmoFabricaciones'] });
     // En una obra legacy, vincular o releer un documento lleva sus ventanas a la cubicación.
+    queryClient.invalidateQueries({ queryKey: ['cubicacion', proyecto.id, 'estructura'] });
     queryClient.invalidateQueries({ queryKey: ['cubicacion', proyecto.id] });
-    queryClient.invalidateQueries({ queryKey: ['cubicacionEstructura', proyecto.id] });
     if (fabId) {
       queryClient.invalidateQueries({ queryKey: ['fabricacionDetalle', proyecto.id, fabId] });
       queryClient.invalidateQueries({ queryKey: ['fabricacionMateriales', proyecto.id, fabId] });

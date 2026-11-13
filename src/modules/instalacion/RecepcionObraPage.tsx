@@ -18,7 +18,7 @@ import { actualizarParams, useUrlParam } from '../../lib/navigation';
 import { usePermisos } from '../../lib/permisos';
 import { extraerErrorParaToast, mostrarToast } from '../../lib/toast';
 import type { DespachoObra, DespachoObraDetalle, ObraInstalacion, VentanaObra } from '../../types';
-import { ETIQUETA_ESTADO_DESPACHO, ETIQUETA_PARTE_CORTA, ETIQUETA_TIPO_GUIA, VARIANTE_ESTADO_DESPACHO } from '../proyectos/obra/estadoVentana';
+import { ETIQUETA_ESTADO_DESPACHO, ETIQUETA_TIPO_GUIA, parteDe, VARIANTE_ESTADO_DESPACHO } from '../proyectos/obra/estadoVentana';
 import { FilaRecepcion } from '../abastecimiento/recepcion/FilaRecepcion';
 import { estadoInicialRecepcion, itemsRecepcion, marcarTodas, resumenRecepcion, type EstadoRecepcion, type FilaRecepcion as Fila } from '../abastecimiento/recepcion/recepcion';
 import { ObraNoDisponible, ObrasInstaladores, useObraInstaladores } from './ObrasInstaladores';
@@ -140,7 +140,7 @@ const FormularioRecepcion: React.FC<{ obra: ObraInstalacion; despacho: DespachoO
       despacho.items.map((i) => ({
         id: i.id,
         descripcion: i.descripcion,
-        detalle: [i.parte !== 'COMPLETA' ? `Solo ${ETIQUETA_PARTE_CORTA[i.parte]}` : null, lugarVentana(i.ventana)].filter(Boolean).join(' · ') || null,
+        detalle: [i.parte !== 'COMPLETA' ? `Solo ${parteDe(i.ventana, i.parte)}` : null, lugarVentana(i.ventana)].filter(Boolean).join(' · ') || null,
         unidad: 'un',
         pedido: i.cantidad,
         yaRecibido: i.cantidadRecibida,
@@ -242,7 +242,7 @@ const FormularioRecepcion: React.FC<{ obra: ObraInstalacion; despacho: DespachoO
               <li key={i.id} className="px-4 py-3 flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-900">{i.descripcion}</p>
-                  <p className="text-xs text-slate-500">{[i.parte !== 'COMPLETA' ? `Solo ${ETIQUETA_PARTE_CORTA[i.parte]}` : null, lugarVentana(i.ventana)].filter(Boolean).join(' · ')}</p>
+                  <p className="text-xs text-slate-500">{[i.parte !== 'COMPLETA' ? `Solo ${parteDe(i.ventana, i.parte)}` : null, lugarVentana(i.ventana)].filter(Boolean).join(' · ')}</p>
                 </div>
                 <Badge size="sm" variant={i.cantidadRecibida >= i.cantidad ? 'success' : 'warning'}>
                   {i.cantidadRecibida >= i.cantidad ? 'Recibida' : 'Por recibir'}

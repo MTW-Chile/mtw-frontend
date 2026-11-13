@@ -36,6 +36,7 @@ import { PendientesLote } from './PendientesLote';
 import { Buscador } from '../../../components/ui/Buscador';
 import { Segmentado } from '../../../components/ui/Segmentado';
 import { BotonFila } from '../../../components/ui/Lista';
+import { codigoDeObra } from '../../../lib/obraLegacy';
 
 interface Props {
   // Sin obra: visor central con los pendientes de todas las obras.
@@ -46,7 +47,7 @@ interface Props {
   obraFija?: { id: string; obra: string };
 }
 
-const PASOS_FILTRO: PasoPendiente[] = ['INGRESADO', 'RECIBIDO', 'EN_PROCESO_COMPRA', 'EN_PRODUCCION', 'LISTO_DESPACHO', 'DESPACHADO'];
+const PASOS_FILTRO: PasoPendiente[] = ['INGRESADO', 'RECIBIDO', 'EN_PROCESO_COMPRA', 'EN_PRODUCCION', 'LISTO_DESPACHO', 'DESPACHADO', 'DESCARTADO'];
 
 // Vista agrupada de los visores de área: los pendientes que se resuelven juntos (una OC por proveedor,
 // una partida) quedan uno bajo el otro y se marcan de una vez. No hay «por obra»: el visor ya está dentro de una.
@@ -133,7 +134,7 @@ export const PendientesTab: React.FC<Props> = ({ proyecto, area, obraFija }) => 
   }, [visibles, agrupar]);
   // Solo se marcan los que el área todavía puede mover; la selección sigue a lo que se ve.
   const marcable = (p: ObraPendiente) => !!area && esGestionableEnLote(area, p);
-  const seleccion = useMemo(() => (isDesktop ? visibles.filter((p) => seleccionIds.has(p.id) && !!area && esGestionableEnLote(area, p)) : []), [visibles, seleccionIds, area, isDesktop]);
+  const seleccion = useMemo(() => visibles.filter((p) => seleccionIds.has(p.id) && !!area && esGestionableEnLote(area, p)), [visibles, seleccionIds, area]);
   const marcar = (ps: ObraPendiente[], si: boolean) =>
     setSeleccionIds((actual) => {
       const nueva = new Set(actual);
@@ -143,7 +144,7 @@ export const PendientesTab: React.FC<Props> = ({ proyecto, area, obraFija }) => 
     });
   // N°, pendiente, motivo, estado y solicitante; más la obra (visor central) y la casilla o el área.
   const columnas = 5 + (central ? 1 : 0) + 1;
-  const codigoObra = (p: ObraPendiente) => (p.proyecto ? p.proyecto.codigoInterno || `PRJ-${p.proyecto.numeroPresupuesto}` : '');
+  const codigoObra = (p: ObraPendiente) => (p.proyecto ? codigoDeObra(p.proyecto) : '');
 
   const filas = (p: ObraPendiente) => ({
     codigo: codigoPendiente(p.numero),
@@ -159,9 +160,9 @@ export const PendientesTab: React.FC<Props> = ({ proyecto, area, obraFija }) => 
           <h2 className="text-sm font-black text-slate-900">{obraFija ? `Pendientes de ${obraFija.obra}` : 'Pendientes'}</h2>
           <p className="text-xs text-slate-500 max-w-xl">
             {area === 'FABRICA'
-              ? 'Marcos, hojas y ventanas completas por reponer en las obras. Al abrir uno queda recibido por ti; déjalo en producción con su fecha estimada o listo para despacho.'
+              ? 'Marcos, hojas y ventanas completas por reponer en las obras. Al abrir uno queda como visto por ti; déjalo en producción con su fecha estimada o listo para despacho.'
               : area === 'COMPRAS'
-                ? 'Vidrios y materiales por comprar para las obras. Al abrir uno queda recibido por ti; sube la orden de compra y márcalo recibido cuando llegue.'
+                ? 'Vidrios y materiales por comprar para las obras. Al abrir uno queda como visto por ti; sube la orden de compra y marca que llegó cuando llegue.'
                 : central
                   ? 'Todos los pendientes de todas las obras: lo que falta o falló, su área y en qué paso va. Fábrica y Compras gestionan los suyos desde su menú.'
                   : 'Lo que falta o falló en esta obra. Cada pendiente va solo al área que corresponde: marcos, hojas y ventanas a Fábrica; vidrios y materiales a Compras.'}
@@ -210,8 +211,8 @@ export const PendientesTab: React.FC<Props> = ({ proyecto, area, obraFija }) => 
             ))}
           </SelectCompacto>
         )}
-        {/* Agrupar y marcar varios es de la tabla (escritorio); las tarjetas de celular van de a uno. */}
-        {area && isDesktop && (
+        {/* Agrupar y marcar varios vale igual en la tabla y en las tarjetas de celular o tablet. */}
+        {area && (
           <SelectCompacto value={agrupar} onChange={(e) => cambiarAgrupar(e.target.value as Agrupar)} aria-label="Agrupar la lista">
             <option value="">Sin agrupar</option>
             {AGRUPAR_DE_AREA[area].map((g) => (
@@ -351,11 +352,31 @@ export const PendientesTab: React.FC<Props> = ({ proyecto, area, obraFija }) => 
           </Tabla>
         </div>
       ) : (
-        <div className="rounded-2xl bg-white border border-slate-200 shadow-sm divide-y divide-slate-100">
-          {visibles.map((p) => {
-            const f = filas(p);
+        <div className="rounded-2xl bg-white border border-slate-200 shadow-sm divide-y divide-slate-100 overflow-hidden">
+          {grupos.map((g) => {
+            const marcables = g.items.filter(marcable);
             return (
-              <BotonFila key={p.id} onClick={() => setAbiertoId(p.id)} className="px-4! py-3.5! space-y-1.5">
+              <React.Fragment key={g.titulo || 'todos'}>
+                {agrupar && (
+                  <div className="flex items-center gap-2.5 px-4 py-2 bg-slate-50/80">
+                    {marcables.length > 0 && <Casilla aria-label={`Marcar los de ${g.titulo}`} checked={marcables.every((p) => seleccionIds.has(p.id))} onChange={(si) => marcar(marcables, si)} />}
+                    <span className="min-w-0 text-xs font-black text-slate-800 truncate">{g.titulo}</span>
+                    <span className="shrink-0 text-[11px] text-slate-500">
+                      {g.items.length} {g.items.length === 1 ? 'pendiente' : 'pendientes'}
+                    </span>
+                  </div>
+                )}
+                {g.items.map((p) => {
+                  const f = filas(p);
+                  return (
+                    // La casilla va fuera del botón de la fila: se marca sin abrir el pendiente.
+                    <div key={p.id} className="flex items-stretch">
+                      {area && marcable(p) && (
+                        <div className="flex items-center pl-4">
+                          <Casilla aria-label={`Marcar ${f.codigo}`} checked={seleccionIds.has(p.id)} onChange={(si) => marcar([p], si)} />
+                        </div>
+                      )}
+                      <BotonFila onClick={() => setAbiertoId(p.id)} className="min-w-0 flex-1 px-4! py-3.5! space-y-1.5">
                 {central && <p className="text-[11px] font-semibold text-slate-500 truncate">{p.proyecto?.obra} · {codigoObra(p)}</p>}
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-mono font-bold text-xs text-slate-600">{f.codigo}</span>
@@ -378,7 +399,11 @@ export const PendientesTab: React.FC<Props> = ({ proyecto, area, obraFija }) => 
                 <p className="text-[11px] text-slate-500">
                   {ETIQUETA_TIPO[p.tipo]} · {ETIQUETA_MOTIVO[p.motivo]} · {ETIQUETA_DESTINO[p.destino]}
                 </p>
-              </BotonFila>
+                      </BotonFila>
+                    </div>
+                  );
+                })}
+              </React.Fragment>
             );
           })}
         </div>

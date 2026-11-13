@@ -16,6 +16,7 @@ import { useIndicadoresChile } from '../../lib/useIndicadoresChile';
 import { formatNumber } from '../../lib/utils';
 import { clp, uf } from '../../lib/formato';
 import type { InicioData } from '../../types';
+import { CodigoObra } from '../../components/ui/CodigoObra';
 
 interface InicioPageProps {
   onNavigate: (tabId: string, search?: string) => void;
@@ -141,7 +142,7 @@ const ObrasEnCurso: React.FC<{ obras: InicioData['obras'] }> = ({ obras }) => {
   // Comercial ve la obra desde Obras en curso; el taller, desde Fabricación.
   const seccion = tieneAlguno('estados_pago.ver', 'compras.ver', 'adicionales.ver') ? '/proyectos' : '/fabricacion';
   return (
-    <Seccion icono={LayoutDashboard} titulo="Obras en curso" descripcion={obras.length ? `${n(obras.length)} obra(s) con presupuesto aceptado.` : 'Una obra aparece aquí cuando su presupuesto está aceptado por el cliente.'} acciones={<Button size="sm" variant="ghost" rightIcon={<ArrowRight className="w-3.5 h-3.5" />} onClick={() => navegar(seccion, {})}>Ver todas</Button>}>
+    <Seccion icono={LayoutDashboard} titulo="Obras en curso" descripcion={obras.length ? `${n(obras.length)} obra(s) en curso.` : 'Una obra aparece aquí cuando el cliente acepta su presupuesto, o cuando se carga una obra anterior al ERP.'} acciones={<Button size="sm" variant="ghost" rightIcon={<ArrowRight className="w-3.5 h-3.5" />} onClick={() => navegar(seccion, {})}>Ver todas</Button>}>
       {obras.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {obras.map((o) => {
@@ -154,7 +155,9 @@ const ObrasEnCurso: React.FC<{ obras: InicioData['obras'] }> = ({ obras }) => {
                     <span className="block text-sm font-bold text-slate-900 truncate">{o.obra}</span>
                     <span className="block text-xs text-slate-500 truncate">{o.clienteNombreRaw}</span>
                   </span>
-                  <span className="shrink-0 text-[11px] px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono font-semibold">{o.codigoInterno || `PRJ-${o.numeroPresupuesto}`}</span>
+                  <span className="shrink-0 flex flex-col items-end gap-1">
+                    <CodigoObra obra={o} />
+                  </span>
                 </span>
                 {/* Comercial: venta, OC, cobro. */}
                 <dl className="grid grid-cols-3 gap-2 text-[11px]">

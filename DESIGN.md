@@ -104,6 +104,9 @@ Montos, fechas y unidades se formatean **siempre** con `src/lib/formato.ts`
 | Estado de carga / vacío / error | `Cargando`, `EstadoVacio`, `ErrorCarga` | spinners y textos sueltos |
 | Lista de registros con pocos campos | `Lista`, `FilaLista` (dentro de `Seccion sinRelleno`) | tarjetas por fila a mano |
 | Estado de un registro | `Badge`; si se cambia con un clic, `BadgeBoton` | spans con color |
+| Código de una obra en una lista | `CodigoObra` (píldora con el código + indicador «Anterior al ERP» si corresponde) | el `span` del código escrito a mano |
+| Indicador de obra anterior al ERP sin el código | `EtiquetaObraLegacy` | badges o textos propios |
+| Cuánto se ha despachado o instalado de una obra | `AvancePartes` (marcos y hojas por separado) | un solo «x/y instaladas»: esconde que el marco va antes que la hoja |
 | Grupo que se abre y cierra | `BotonColapsar` | |
 | Herramienta activable (Espejar) | `BotonAlternar` | |
 | Texto que se edita en el lugar | `ActivadorEdicion` + su campo | |
@@ -171,6 +174,18 @@ toda pantalla que se use de pie, con el dedo, en la obra o en bodega:
 Español de Chile, tuteo, frases cortas. Los botones dicen la acción
 ("Guardar", "Generar OC"), no "Aceptar". Los errores dicen qué pasó y qué
 hacer. Sin mayúsculas sostenidas salvo encabezados de tabla.
+
+**Obras anteriores al ERP.** La obra que ya estaba en ejecución cuando partió el
+ERP y no se cotizó aquí se llama siempre **«Anterior al ERP»**: nunca «legacy»,
+«manual», «en ejecución» ni «sin cotizar» (todas las obras en curso están en
+ejecución). En sus pantallas no aparecen las palabras «tipo» de ventana ni
+«nomenclatura»: solo ventanas, con el nombre de su documento. Si una pantalla se
+comporta distinto en ellas, pregunta con `esObraLegacy()` (`src/lib/obraLegacy.ts`),
+no compara `origen`.
+
+**«Recibido» es solo la recepción en obra de un despacho.** En un pendiente, que
+el área lo abrió es «Visto por el área»; que llegó lo comprado es «Llegó la
+compra». No se usa «recibido» para ninguna de las dos.
 
 ## 7. Al construir algo nuevo
 

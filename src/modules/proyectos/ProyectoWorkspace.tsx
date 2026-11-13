@@ -19,6 +19,8 @@ import { PERMISO_SECCION, seccionDisponible, seccionEfectiva, seccionesDelModo, 
 import { usePermisos } from '../../lib/permisos';
 import { BarraPestanas } from '../../components/ui/PageHeader';
 import { useMigas } from '../../lib/migas';
+import { EtiquetaObraLegacy } from '../../components/ui/CodigoObra';
+import { esObraLegacy } from '../../lib/obraLegacy';
 
 // "Control de documentos" (conciliacion de OC contra facturas de Clay) se
 // saco de aca -- vive solo en Compras (ComprasPage > sub-tab
@@ -79,14 +81,14 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
     pedirActualizacion();
   }, [proyectoId, pedirActualizacion]);
 
-  // Una obra manual nunca se cotizo: las secciones que dependen del
+  // Una obra legacy nunca se cotizo: las secciones que dependen del
   // presupuesto se ven en gris (ver seccionesObra.ts) y un enlace a una de
   // ellas cae a Información General. Mientras carga la obra no se sabe su origen.
   // Lo define el tipo de proyecto (retail: ni cubicación, que se rectifica desde Fases, ni reserva).
   const conCubicacion = usaCubicacion(proyecto);
   const conReserva = usaReservaMateriales(proyecto);
   const seccion: Seccion = seccionEfectiva(seccionInicial, proyecto?.origen, modo, conCubicacion);
-  // Las pestañas dependen del modo y del origen (una obra manual en Comercial
+  // Las pestañas dependen del modo y del origen (una obra legacy en Comercial
   // solo tiene Información General); mientras carga la obra no se muestran.
   const seccionesVisibles = proyecto ? seccionesDelModo(modo, proyecto.origen, conCubicacion) : [];
   const pestanas = SECCIONES.filter((s) => seccionesVisibles.includes(s.id))
@@ -96,7 +98,7 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
       const disponible = seccionDisponible(s.id, proyecto?.origen);
       // Sin cubicación (retail) no hay fases que planificar: el documento de fabricación es la fase única.
       const label = s.id === 'fabricacion' && !conCubicacion ? 'Fabricación' : s.label;
-      return { id: s.id, label, icon: s.icon, disabled: !disponible, title: disponible ? s.hint : 'No disponible: esta obra se creó a mano y no fue cotizada' };
+      return { id: s.id, label, icon: s.icon, disabled: !disponible, title: !disponible ? 'No disponible: es una obra anterior al ERP, sin presupuesto en el sistema' : s.id === 'cubicacion' && esObraLegacy(proyecto) ? 'Ventanas de la obra por piso y departamento' : s.hint };
     });
   // Volver a la sección cierra lo abierto dentro de ella (ej. un adicional).
   useMigas(1, [{ label: pestanas.find((x) => x.id === seccion)?.label ?? SECCIONES.find((x) => x.id === seccion)?.label ?? '', alHacerClic: () => actualizarParams({ seccion, adicional: null }) }]);
@@ -127,6 +129,7 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
       <HeaderSlot>
         {proyecto && (
           <>
+            <EtiquetaObraLegacy obra={proyecto} />
             {proyecto.clienteNombreRaw && proyecto.clienteNombreRaw.trim().toLowerCase() !== proyecto.obra.trim().toLowerCase() && (
               <span className="hidden @6xl:inline text-xs text-slate-500 truncate max-w-[220px]" title="Cliente">
                 {proyecto.clienteNombreRaw}
@@ -149,7 +152,7 @@ export const ProyectoWorkspace: React.FC<{ proyectoId: string; seccionInicial?: 
             mobile; reemplazado por pedido explicito). overflow-x-auto
             cubre el caso de que no entren todos los tabs en una pantalla
             angosta. */}
-        {/* Con una sola pestaña (obra manual en Comercial) la barra no aporta nada. */}
+        {/* Con una sola pestaña (obra legacy en Comercial) la barra no aporta nada. */}
         {faltaReservar && (
           <AnuncioBanner
             urgencia="ADVERTENCIA"

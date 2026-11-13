@@ -1,5 +1,6 @@
 import type { BadgeVariant } from '../components/ui/Badge';
 import type { Proyecto } from '../types';
+import { esObraLegacy } from './obraLegacy';
 
 // Estados REALES de un presupuesto en HETMO: catalogo HT_TEXTOS_ESTADO_DOCUMENTOS,
 // plantilla 1 (Presupuesto), verificado contra la base el 2026-10-05. Antes la
@@ -55,7 +56,7 @@ export function varianteEstadoProyecto(p: ProyectoMinimo): BadgeVariant {
 // Los aceptados por el cliente ya son obras en curso y no aparecen aca.
 // La insignia numerica del menu cuenta exactamente esto.
 export function esPresupuestoPrincipal(p: ProyectoMinimo): boolean {
-  if (p.origen === 'MANUAL_OBRA') return false;
+  if (esObraLegacy(p)) return false;
   if (p.versiones[0]?.estadoAprobacion === 'ACEPTADO_CLIENTE') return false;
   if (p.origen === 'MANUAL_PRESUPUESTO') return true;
   return p.versiones[0]?.estadoHetmo === 2;

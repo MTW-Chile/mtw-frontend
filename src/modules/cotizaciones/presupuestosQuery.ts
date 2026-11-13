@@ -10,7 +10,7 @@ export const clavePresupuestos = (filtro: FiltroPresupuestos) => ['proyectos', '
 
 // El filtro por estado va en el SERVIDOR (ver comentario en
 // CotizacionesPage): la lista pagina por actualizadoEn y un resync amplio
-// puede llenar la pagina con otros estados. Las obras manuales (nunca
+// puede llenar la pagina con otros estados. Las obras legacy (nunca
 // cotizadas) se excluyen aca tambien, para que ni la lista ni la insignia
 // las cuenten.
 export const consultarPresupuestos = (filtro: FiltroPresupuestos) =>

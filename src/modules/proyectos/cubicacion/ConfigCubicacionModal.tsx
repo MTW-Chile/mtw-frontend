@@ -12,7 +12,7 @@ import { Input } from '../../../components/ui/Input';
 interface Props {
   proyectoId: string;
   cubicacion: ConfigCubicacion;
-  /** Obra legacy (manual): las medidas vienen finales de fabricación, no hay holgura. */
+  /** Obra legacy: las medidas vienen finales de fabricación, no hay holgura. */
   legacy?: boolean;
   onClose: () => void;
 }

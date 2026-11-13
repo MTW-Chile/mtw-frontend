@@ -20,7 +20,7 @@ export const RectificarMedidas: React.FC<{ proyectoId: string; onCerrar: () => v
       const actual = await getCubicacion(proyectoId);
       if (actual.resumen.sinPosicion === 0) return actual;
       await crearCubicacionUnica(proyectoId);
-      for (const key of ['cubicacionEstructura', 'cubicacionUnidades']) queryClient.invalidateQueries({ queryKey: [key, proyectoId] });
+      for (const key of ['cubicacion', 'cubicacionUnidades']) queryClient.invalidateQueries({ queryKey: [key, proyectoId] });
       return getCubicacion(proyectoId);
     },
   });

@@ -22,6 +22,13 @@ export interface InstalacionPreparada {
 }
 
 export const TEXTO_PARTE: Record<ParteVentana, string> = { COMPLETA: 'Ventana completa', MARCO: 'Solo el marco', HOJA: 'Solo la hoja' };
+/** Lo mismo para UNA ventana: en una fija la segunda parte es su vidrio. */
+export const textoParteDe = (v: Pick<VentanaObra, 'esFija'>, p: ParteVentana): string => (p === 'HOJA' && v.esFija ? 'Solo el vidrio' : TEXTO_PARTE[p]);
+/** Al certificar varias a la vez. */
+const TEXTO_PARTE_LOTE: Record<ParteVentana, string> = { COMPLETA: 'Ventanas completas', MARCO: 'Solo los marcos', HOJA: 'Solo las hojas o vidrios' };
+const PARTES: ParteVentana[] = ['COMPLETA', 'MARCO', 'HOJA'];
+/** Estado de una parte de la ventana (el marco, la hoja o vidrio, o la ventana entera). */
+export const estadoDeParte = (v: VentanaObra, p: ParteVentana) => (p === 'MARCO' ? v.estadoPartes.marco : p === 'HOJA' ? v.estadoPartes.hoja : v.estado);
 
 /** Partes que todavía se pueden certificar (las ya certificadas o las que ya están en el listado quedan fuera). */
 export function partesPorInstalar(ventana: VentanaObra, enListado: ParteVentana[] = []): ParteVentana[] {
@@ -35,7 +42,8 @@ export function partesPorInstalar(ventana: VentanaObra, enListado: ParteVentana[
 
 /**
  * Certificar la instalación de las ventanas elegidas, en la misma página. Con una sola se elige qué quedó instalado
- * (completa, marco u hoja); con varias se certifican completas, de una vez y con las mismas notas, pero cada ventana
+ * (completa, marco u hoja); con varias se elige lo mismo para todas (completas, solo los marcos o solo las hojas o
+ * vidrios: en obra se instalan los marcos de un piso y después sus hojas), con las mismas notas, pero cada ventana
  * lleva su propia foto (la foto es lo que certifica ESA ventana). Al agregar quedan en el listado; se certifican todas al enviarlo.
  */
 export const FormularioInstalacion: React.FC<{
@@ -47,12 +55,19 @@ export const FormularioInstalacion: React.FC<{
 }> = ({ proyectoId, ventanas, enListado, onAgregar }) => {
   const unica = ventanas.length === 1 ? ventanas[0] : null;
   const partes = unica ? partesPorInstalar(unica, enListado(unica.id)) : [];
-  // En lote solo van las que se pueden certificar completas; las que ya tienen una parte se hacen de a una.
-  const aptas = unica ? (partes.length > 0 ? [unica] : []) : ventanas.filter((v) => partesPorInstalar(v, enListado(v.id)).includes('COMPLETA'));
-  const fuera = ventanas.length - aptas.length;
-  const estadoDe = (v: VentanaObra, p: ParteVentana) => v.partes.find((x) => x.parte === p)?.estado ?? v.estado;
+  const estadoDe = estadoDeParte;
   const [parte, setParte] = useState<ParteVentana | null>(null);
-  const parteActual: ParteVentana = unica ? (parte && partes.includes(parte) ? parte : (unica.separada ? partes.find((p) => p !== 'COMPLETA') ?? partes[0] : partes[0]) ?? 'COMPLETA') : 'COMPLETA';
+  // En lote se elige la parte para todas; entran las que todavía pueden certificar ESA parte.
+  const aptasPor = (p: ParteVentana) => ventanas.filter((v) => partesPorInstalar(v, enListado(v.id)).includes(p));
+  const recibidasPor = (p: ParteVentana) => aptasPor(p).filter((v) => estadoDe(v, p) === 'RECIBIDA').length;
+  const partesLote = unica ? [] : PARTES.filter((p) => aptasPor(p).length > 0);
+  // Por defecto, lo que está recibido en obra y espera instalación: primero la ventana entera, si no el marco o la hoja.
+  const sugerida = (opciones: ParteVentana[], recibida: (p: ParteVentana) => boolean) => opciones.find((p) => p === 'COMPLETA' && recibida(p)) ?? opciones.find((p) => p !== 'COMPLETA' && recibida(p)) ?? opciones[0];
+  const parteActual: ParteVentana = unica
+    ? (parte && partes.includes(parte) ? parte : sugerida(partes, (p) => estadoDe(unica, p) === 'RECIBIDA')) ?? 'COMPLETA'
+    : (parte && partesLote.includes(parte) ? parte : sugerida(partesLote, (p) => recibidasPor(p) > 0)) ?? 'COMPLETA';
+  const aptas = unica ? (partes.length > 0 ? [unica] : []) : aptasPor(parteActual);
+  const fuera = ventanas.length - aptas.length;
   const [notas, setNotas] = useState('');
   // Fotos por ventana (id): cada una certifica la suya.
   const [fotos, setFotos] = useState<Record<string, File[]>>({});
@@ -70,12 +85,12 @@ export const FormularioInstalacion: React.FC<{
   const puedeAgregar = aptas.length > 0 && !faltaFoto && (sinRecepcion.length === 0 || forzar);
 
   if (aptas.length === 0) {
-    if (!unica) return <Aviso tono="advertencia">Ninguna de las ventanas elegidas se puede certificar completa: ya están instaladas, en el listado o tienen una parte certificada. Elígelas de a una.</Aviso>;
+    if (!unica) return <Aviso tono="advertencia">Ninguna de las ventanas elegidas tiene algo por certificar: ya están instaladas o en el listado.</Aviso>;
     return <Aviso tono="exito">{enListado(unica.id).length > 0 ? 'Esta ventana ya está en el listado para certificar.' : 'Esta ventana ya está certificada como instalada.'}</Aviso>;
   }
 
   const agregar = () => {
-    onAgregar(aptas.map((ventana) => ({ ventana, parte: parteActual, notas: notas.trim() || null, forzar: forzar && estadoDe(ventana, parteActual) !== 'RECIBIDA', fotos: fotosDe(ventana.id), resumen: `${nombreVentana(ventana)} · ${TEXTO_PARTE[parteActual]}` })));
+    onAgregar(aptas.map((ventana) => ({ ventana, parte: parteActual, notas: notas.trim() || null, forzar: forzar && estadoDe(ventana, parteActual) !== 'RECIBIDA', fotos: fotosDe(ventana.id), resumen: `${nombreVentana(ventana)} · ${textoParteDe(ventana, parteActual)}` })));
     setNotas('');
     setFotos({});
     setForzar(false);
@@ -90,13 +105,22 @@ export const FormularioInstalacion: React.FC<{
           columnas={partes.length === 3 ? 3 : 2}
           valor={parteActual}
           onChange={setParte}
-          opciones={partes.map((p) => ({ value: p, label: TEXTO_PARTE[p], ayuda: ETIQUETA_ESTADO_VENTANA[estadoDe(unica, p)] }))}
+          opciones={partes.map((p) => ({ value: p, label: textoParteDe(unica, p), ayuda: ETIQUETA_ESTADO_VENTANA[estadoDe(unica, p)] }))}
+        />
+      )}
+      {!unica && partesLote.length > 1 && (
+        <OpcionesTarjeta
+          legend="Qué quedó instalado en todas"
+          columnas={partesLote.length === 3 ? 3 : 2}
+          valor={parteActual}
+          onChange={setParte}
+          opciones={partesLote.map((p) => ({ value: p, label: TEXTO_PARTE_LOTE[p], ayuda: `${aptasPor(p).length} de ${ventanas.length} · ${recibidasPor(p)} recibidas en obra` }))}
         />
       )}
 
       {fuera > 0 && (
         <Aviso tono="info" sinIcono>
-          {fuera} de las elegidas no entran en este lote (ya instaladas, en el listado o con una parte certificada). Se certifican las otras {aptas.length}.
+          {fuera} de las elegidas no entran en este lote: ya tienen {parteActual === 'COMPLETA' ? 'algo certificado' : parteActual === 'MARCO' ? 'el marco certificado' : 'la hoja o el vidrio certificado'} o están en el listado. Se certifican las otras {aptas.length}.
         </Aviso>
       )}
 

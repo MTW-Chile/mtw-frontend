@@ -27,8 +27,8 @@ export const CrearFaseDesdeCubicacionModal: React.FC<Props> = ({ proyectoId, ver
     mutationFn: () => createFase(versionId, { nombre: nombre.trim(), seleccionCubicacion: seleccion }),
     onSuccess: ({ avisos }) => {
       queryClient.invalidateQueries({ queryKey: ['proyectoDetail', proyectoId] });
+      queryClient.invalidateQueries({ queryKey: ['cubicacion', proyectoId, 'estructura'] });
       queryClient.invalidateQueries({ queryKey: ['cubicacion', proyectoId] });
-      queryClient.invalidateQueries({ queryKey: ['cubicacionEstructura', proyectoId] });
       if (avisos.length) {
         mostrarToast(`Fase creada. ${avisos.length} exclusión(es): algo ya pertenecía a otra fase.`, { tipo: 'info' });
       }

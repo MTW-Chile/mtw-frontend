@@ -65,6 +65,49 @@ export const CLASE_BARRA_ESTADO: Record<EstadoVentanaObra, string> = {
 
 export const nivelEstado = (e: EstadoVentanaObra) => ORDEN_ESTADO_VENTANA.indexOf(e);
 
+// ---- Marco y hoja: los dos estados de la ventana ----
+// Una ventana tiene SIEMPRE dos estados, el del marco y el de la hoja (o el vidrio, en una fija): el marco puede
+// estar instalado semanas antes de que salga su hoja. `v.estado` (el menor de los dos) sirve para ordenar y para
+// decir "completa"; lo que se muestra y lo que se filtra sale de aquí.
+
+/** Mitad del chip del plano cuando marco y hoja van en estados distintos (solo fondo; el texto es neutro). */
+export const CLASE_MEDIA_ESTADO: Record<EstadoVentanaObra, string> = {
+  SIN_POSICION: 'bg-slate-50',
+  CUBICADA: 'bg-white',
+  EN_FABRICACION: 'bg-amber-100',
+  FABRICADA: 'bg-sky-100',
+  DESPACHADA: 'bg-violet-100',
+  RECIBIDA: 'bg-brand-100',
+  INSTALADA: 'bg-emerald-100',
+};
+
+/** Cómo se llama la segunda parte de ESTA ventana. */
+export const nombreParteHoja = (v: { esFija?: boolean }): 'hoja' | 'vidrio' => (v.esFija ? 'vidrio' : 'hoja');
+
+/** Nombre de una parte de ESTA ventana: "marco", "hoja" o "vidrio" (vacío si es la ventana completa). Es la forma única de nombrarla. */
+export const parteDe = (v: { esFija?: boolean } | null | undefined, parte: ParteVentana): string => (parte === 'HOJA' ? nombreParteHoja(v ?? {}) : ETIQUETA_PARTE_CORTA[parte]);
+
+/** Marco y hoja van en estados distintos. */
+export const partesEnDistintoEstado = (v: { estadoPartes: { marco: EstadoVentanaObra; hoja: EstadoVentanaObra } }): boolean => v.estadoPartes.marco !== v.estadoPartes.hoja;
+
+/** El marco o la hoja están en ese estado. */
+export const algunaParteEn = (v: { estadoPartes: { marco: EstadoVentanaObra; hoja: EstadoVentanaObra } }, e: EstadoVentanaObra): boolean => v.estadoPartes.marco === e || v.estadoPartes.hoja === e;
+
+/** "marco instalada · hoja en fabricación": los dos estados en una línea. */
+export const textoEstadoPartes = (v: { esFija?: boolean; estadoPartes: { marco: EstadoVentanaObra; hoja: EstadoVentanaObra } }): string =>
+  partesEnDistintoEstado(v) ? `marco: ${ETIQUETA_ESTADO_VENTANA[v.estadoPartes.marco].toLowerCase()} · ${nombreParteHoja(v)}: ${ETIQUETA_ESTADO_VENTANA[v.estadoPartes.hoja].toLowerCase()}` : ETIQUETA_ESTADO_VENTANA[v.estadoPartes.marco];
+
+/** Una parte, dicha como lo que le falta: es lo que lee quien está en la obra. */
+export const ETIQUETA_PARTE_EN: Record<EstadoVentanaObra, string> = {
+  SIN_POSICION: 'sin posición',
+  CUBICADA: 'sin fabricar',
+  EN_FABRICACION: 'en fabricación',
+  FABRICADA: 'en fábrica, listos',
+  DESPACHADA: 'por recibir',
+  RECIBIDA: 'por instalar',
+  INSTALADA: 'instalados',
+};
+
 export const ETIQUETA_PARTE_CORTA: Record<ParteVentana, string> = { COMPLETA: '', MARCO: 'marco', HOJA: 'hoja' };
 
 // Hitos de cobro (la etiqueta exacta por ventana la manda la API: en una fija el segundo hito es "Vidrio").

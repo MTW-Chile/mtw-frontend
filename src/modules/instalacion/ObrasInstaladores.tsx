@@ -10,9 +10,11 @@ import { Cargando, EstadoVacio, ErrorCarga } from '../../components/ui/Estados';
 import type { ObraInstalacion } from '../../types';
 import { fecha } from '../../lib/formato';
 import { ETIQUETA_PASO, VARIANTE_PASO } from '../proyectos/pendientes/utils';
+import { CodigoObra } from '../../components/ui/CodigoObra';
+import { AvancePartes } from '../proyectos/obra/AvancePartes';
 
 // «3 ingresados», «1 listo para despacho»: el paso en minúscula y en plural cuando son varios.
-const PLURAL_PASO: Partial<Record<string, string>> = { INGRESADO: 'ingresados', RECIBIDO: 'recibidos', LISTO_DESPACHO: 'listos para despacho' };
+const PLURAL_PASO: Partial<Record<string, string>> = { INGRESADO: 'ingresados', RECIBIDO: 'vistos por el área', LISTO_DESPACHO: 'listos para despacho' };
 const textoPaso = (paso: ObraPasoPendiente, cantidad: number) => (cantidad !== 1 && PLURAL_PASO[paso]) || (paso === 'EN_CURSO' ? 'en curso' : ETIQUETA_PASO[paso].toLowerCase());
 type ObraPasoPendiente = NonNullable<ObraInstalacion['pendientesDetalle']>['pasos'][number]['paso'];
 
@@ -89,7 +91,7 @@ export const ObrasInstaladores: React.FC<{ seccion: SeccionInstaladores; onElegi
     <>
       <Buscador valor={busqueda} onChange={setBusqueda} placeholder="Buscar obra…" etiqueta="Buscar obra" />
       {obras.length === 0 ? (
-        <EstadoVacio icono={HardHat} titulo="No hay obras en curso" descripcion="Una obra aparece aquí cuando su presupuesto está aceptado por el cliente." />
+        <EstadoVacio icono={HardHat} titulo="No hay obras en curso" descripcion="Una obra aparece aquí cuando el cliente acepta su presupuesto, o cuando se carga una obra anterior al ERP." />
       ) : (
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm divide-y divide-slate-100 overflow-hidden">
           {obras.map((o) => {
@@ -99,7 +101,7 @@ export const ObrasInstaladores: React.FC<{ seccion: SeccionInstaladores; onElegi
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-sm font-bold text-slate-900 truncate">{o.obra}</h3>
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 font-mono font-bold shrink-0">{o.codigoInterno || `PRJ-${o.numeroPresupuesto}`}</span>
+                    <CodigoObra obra={o} />
                   </div>
                   <p className="text-xs text-slate-500 truncate">
                     {o.clienteNombreRaw}
@@ -122,12 +124,11 @@ export const ObrasInstaladores: React.FC<{ seccion: SeccionInstaladores; onElegi
                     </div>
                   )}
                   {seccion === 'instalacion' && (
-                    <div className="flex items-center gap-2">
-                      <span className="flex-1 max-w-xs h-2 rounded-full bg-slate-100 overflow-hidden">
-                        <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
-                      </span>
-                      <span className="text-xs font-mono tabular-nums text-slate-600">
-                        {o.instaladas}/{o.ventanas} instaladas
+                    <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
+                      {/* Instalado por parte: el marco suele ir antes que la hoja. */}
+                      <AvancePartes marcos={o.instaladasMarco} hojas={o.instaladasHoja} total={o.ventanas} tono="instalacion" className="flex-1 min-w-[12rem] max-w-xs" />
+                      <span className="text-xs text-slate-600">
+                        <b className="tabular-nums">{o.instaladas}</b> completas ({pct}%)
                       </span>
                     </div>
                   )}

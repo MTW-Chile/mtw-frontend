@@ -121,7 +121,7 @@ export const UnidadModal: React.FC<Props> = ({ proyectoId, cubicacion, tipos, un
       {deDocumento ? (
         <DibujoVentana proyectoId={proyectoId} ventana={ficha.data?.dibujo ?? null} lineaHetmo={ficha.data && !ficha.data.dibujo ? fv?.hetmoVentanaMadreId : undefined} className="h-44 md:h-full md:min-h-72" etiqueta={`Dibujo de ${unidad!.nomenclatura ?? unidad!.codigo}`} />
       ) : (
-        <DibujoVentana proyectoId={proyectoId} ventanaId={tipo?.ventanaId} lineaHetmo={tipo?.lineaHetmo} className="h-44 md:h-full md:min-h-72" etiqueta={tipo ? `Dibujo del tipo ${tipo.codigo}` : 'Dibujo de la ventana'} />
+        <DibujoVentana proyectoId={proyectoId} ventanaId={tipo?.ventanaId} lineaHetmo={tipo?.lineaHetmo} className="h-44 md:h-full md:min-h-72" etiqueta={tipo && !legacy ? `Dibujo del tipo ${tipo.codigo}` : 'Dibujo de la ventana'} />
       )}
       <div className="space-y-4 min-w-0">
       {/* Obra legacy: no hay tipos, solo ventanas; la ventana es la que vino de su documento de fabricación. */}

@@ -34,6 +34,7 @@ import { cantidad as fmtCantidad, clp } from '../../lib/formato';
 import { extraerErrorParaToast, mostrarToast } from '../../lib/toast';
 import { ETIQUETA_NATURALEZA } from '../../types';
 import type { Fase, GrupoRequerimiento, ItemRequerimiento, Material, NaturalezaCompra } from '../../types';
+import { esObraLegacy } from '../../lib/obraLegacy';
 
 // Descripcion de un item manual: con proveedor elegido busca en vivo en el
 // catalogo filtrado a ese proveedor; sin match sigue como texto libre (item
@@ -218,7 +219,8 @@ export const OrdenCompraModal: React.FC<Props> = ({ modo, solicitudId, onClose }
   });
   // Clave distinta de la lista de Obras en curso (esa pide incluir: 'obra'): misma ruta, respuesta distinta.
   const { data: proyectosData } = useQuery({ queryKey: ['proyectos', 'en-curso', 'basico'], queryFn: () => getProyectos({ limit: 200 }), enabled: modo === 'crear' });
-  const proyectosEnCurso = (proyectosData?.data || []).filter((p) => p.versiones[0]?.estadoAprobacion === 'ACEPTADO_CLIENTE');
+  // Las obras anteriores al ERP no llevan compras en el sistema: no se ofrecen (la API tampoco las acepta).
+  const proyectosEnCurso = (proyectosData?.data || []).filter((p) => p.versiones[0]?.estadoAprobacion === 'ACEPTADO_CLIENTE' && !esObraLegacy(p));
   const { data: proveedores = [] } = useQuery({ queryKey: ['proveedores'], queryFn: async () => (await getProveedores()).data });
   const { data: partidas = [] } = useQuery({ queryKey: ['partidas'], queryFn: getPartidas });
   const { data: adicionales = [] } = useQuery({ queryKey: ['adicionales', proyectoId], queryFn: () => getAdicionales(proyectoId), enabled: !!proyectoId && esAdicional });

@@ -1,4 +1,5 @@
 import type { Permiso, Proyecto } from '../../types';
+import { esObraLegacy } from '../../lib/obraLegacy';
 
 // Pestañas de la ficha de una obra. La MISMA obra se abre desde dos secciones
 // del menu, cada una con sus pestañas (ver SECCIONES_OBRA y SECCIONES_FABRICACION):
@@ -18,10 +19,10 @@ export const SECCIONES_FABRICACION: SeccionObra[] = ['general', 'cubicacion', 'f
 
 export type ModoWorkspace = 'obra' | 'fabricacion';
 
-// Una obra manual (nunca cotizada) en Comercial solo tiene Información General:
+// Una obra legacy (nunca cotizada) en Comercial solo tiene Información General:
 // las métricas de las ventanas de sus documentos de fabricación y la carpeta de
 // OneDrive. Lo que se vende y se cobra sale del presupuesto, que no tiene.
-export const SECCIONES_OBRA_MANUAL: SeccionObra[] = ['general'];
+export const SECCIONES_OBRA_LEGACY: SeccionObra[] = ['general'];
 
 // Tipo de proyecto sin cubicación (TipoProyecto.usaCubicacion = false; retail,
 // que se fabrica de una "tirada"): Fabricación no tiene pestaña Cubicación. Lo
@@ -40,7 +41,7 @@ export function usaReservaMateriales(proyecto?: Pick<Proyecto, 'tipoProyecto'> |
 
 export function seccionesDelModo(modo: ModoWorkspace, origen?: Proyecto['origen'], conCubicacion = true): SeccionObra[] {
   if (modo === 'fabricacion') return conCubicacion ? SECCIONES_FABRICACION : SECCIONES_FABRICACION_SIN_CUBICACION;
-  return origen === 'MANUAL_OBRA' ? SECCIONES_OBRA_MANUAL : SECCIONES_OBRA;
+  return esObraLegacy({ origen }) ? SECCIONES_OBRA_LEGACY : SECCIONES_OBRA;
 }
 
 // Permiso que habilita cada pestaña, ademas de obras.ver (que abre la ficha).
@@ -58,13 +59,13 @@ export const PERMISO_SECCION: Partial<Record<SeccionObra, Permiso>> = {
 const ALIAS: Record<string, SeccionObra> = { presupuesto: 'general', documentos: 'general', bodega: 'requisiciones' };
 
 // Secciones que dependen de haber cotizado la obra (presupuesto, fases...).
-// Una obra manual (origen MANUAL_OBRA) nunca se cotizo, asi que esas secciones
+// Una obra legacy (origen MANUAL_OBRA) nunca se cotizo, asi que esas secciones
 // se muestran en gris. Es una decision POR AHORA: si se habilita alguna para
-// obras manuales, basta quitarla de esta lista y el menu se activa.
+// obras legacy, basta quitarla de esta lista y el menu se activa.
 export const SECCIONES_QUE_REQUIEREN_PRESUPUESTO: SeccionObra[] = ['abastecimiento', 'requisiciones'];
 
 export function seccionDisponible(seccion: SeccionObra, origen: Proyecto['origen']): boolean {
-  return !(origen === 'MANUAL_OBRA' && SECCIONES_QUE_REQUIEREN_PRESUPUESTO.includes(seccion));
+  return !(esObraLegacy({ origen }) && SECCIONES_QUE_REQUIEREN_PRESUPUESTO.includes(seccion));
 }
 
 // Seccion a mostrar: la pedida (ej. desde la URL) si existe en este modo y esta
