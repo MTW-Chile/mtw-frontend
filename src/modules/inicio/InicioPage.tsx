@@ -17,6 +17,7 @@ import { formatNumber } from '../../lib/utils';
 import { clp, uf } from '../../lib/formato';
 import type { InicioData } from '../../types';
 import { CodigoObra } from '../../components/ui/CodigoObra';
+import { esObraLegacy } from '../../lib/obraLegacy';
 
 interface InicioPageProps {
   onNavigate: (tabId: string, search?: string) => void;
@@ -123,16 +124,56 @@ const Dato: React.FC<{ etiqueta: string; valor: string; detalle?: string }> = ({
   </div>
 );
 
-const Barra: React.FC<{ etiqueta: string; valor: number; total: number; color: string }> = ({ etiqueta, valor, total, color }) => {
-  const pct = total > 0 ? Math.min(100, Math.round((valor / total) * 100)) : 0;
+/** Barra fina de avance. */
+const Tramo: React.FC<{ valor: number; total: number; color: string }> = ({ valor, total, color }) => (
+  <span className="block h-1.5 rounded-full bg-slate-100 overflow-hidden">
+    <span className={`block h-full rounded-full ${color}`} style={{ width: `${total > 0 ? Math.min(100, Math.round((valor / total) * 100)) : 0}%` }} />
+  </span>
+);
+
+/**
+ * Avance físico de una obra: cuántas ventanas están cubicadas y, de ahí en adelante, por parte: marcos y hojas (o
+ * vidrios) fabricados, despachados e instalados, sobre las cubicadas. Es una grilla para que los números, también los
+ * de cuatro cifras, queden alineados y completos (antes iban en una columna de ancho fijo y se salían de la tarjeta).
+ */
+const AvanceObra: React.FC<{ v?: NonNullable<InicioData['obras'][number]['resumen']>['ventanas'] }> = ({ v }) => {
+  const cub = v?.cubicadas ?? 0;
+  if (!v || (cub === 0 && v.contratadas === 0)) return <span className="block text-[11px] text-slate-500">Sin ventanas todavía.</span>;
+  const etapas = [
+    { nombre: 'Fabricado', marcos: v.fabricadasMarco, hojas: v.fabricadasHoja, color: 'bg-sky-500' },
+    { nombre: 'Despachado', marcos: v.despachadasMarco, hojas: v.despachadasHoja, color: 'bg-violet-500' },
+    { nombre: 'Instalado', marcos: v.instaladasMarco, hojas: v.instaladasHoja, color: 'bg-emerald-500' },
+  ];
   return (
-    <div className="flex items-center gap-2 text-[11px]">
-      <span className="w-20 text-slate-500 shrink-0">{etiqueta}</span>
-      <span className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-        <span className={`block h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+    <span className="block space-y-2 text-[11px]">
+      <span className="flex flex-wrap items-baseline justify-between gap-x-2">
+        <span className="text-slate-500">Ventanas cubicadas</span>
+        <span className="font-mono tabular-nums font-semibold text-slate-800 whitespace-nowrap">
+          {n(cub)}
+          {v.contratadas > 0 && <span className="font-normal text-slate-500"> de {n(v.contratadas)}</span>}
+        </span>
       </span>
-      <span className="w-14 text-right font-mono tabular-nums text-slate-700">{total > 0 ? `${n(valor)}/${n(total)}` : '—'}</span>
-    </div>
+      {cub > 0 && (
+        <span className="grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5" role="table" aria-label="Avance por marcos y hojas">
+          <span />
+          <span className="text-slate-500 font-bold uppercase tracking-wider">Marcos</span>
+          <span className="text-slate-500 font-bold uppercase tracking-wider" title="Hojas; en una ventana fija, su vidrio">
+            Hojas
+          </span>
+          {etapas.map((e) => (
+            <React.Fragment key={e.nombre}>
+              <span className="text-slate-500">{e.nombre}</span>
+              {[e.marcos, e.hojas].map((valor, k) => (
+                <span key={k} className="min-w-0 space-y-0.5" title={`${n(valor)} de ${n(cub)}`}>
+                  <span className="block font-mono tabular-nums font-semibold text-slate-800 whitespace-nowrap">{n(valor)}</span>
+                  <Tramo valor={valor} total={cub} color={e.color} />
+                </span>
+              ))}
+            </React.Fragment>
+          ))}
+        </span>
+      )}
+    </span>
   );
 };
 
@@ -147,36 +188,33 @@ const ObrasEnCurso: React.FC<{ obras: InicioData['obras'] }> = ({ obras }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {obras.map((o) => {
             const r = o.resumen;
-            const cub = r?.ventanas.cubicadas ?? 0;
             return (
-              <BotonFila key={o.id} sinRelleno onClick={() => navegar(seccion, { proyecto: o.id })} className="p-4 rounded-2xl border border-slate-200 bg-white hover:border-brand-600/40 hover:shadow-md transition-all text-left space-y-2.5">
-                <span className="flex items-start justify-between gap-2">
-                  <span className="min-w-0">
-                    <span className="block text-sm font-bold text-slate-900 truncate">{o.obra}</span>
-                    <span className="block text-xs text-slate-500 truncate">{o.clienteNombreRaw}</span>
-                  </span>
-                  <span className="shrink-0 flex flex-col items-end gap-1">
+              <BotonFila key={o.id} sinRelleno onClick={() => navegar(seccion, { proyecto: o.id })} className="flex flex-col items-stretch justify-start gap-2.5 p-4 rounded-2xl border border-slate-200 bg-white hover:border-brand-600/40 hover:shadow-md transition-all text-left">
+                {/* Nombre de la obra y cliente completos (en varias líneas si hace falta); el código va debajo, no al lado. */}
+                <span className="block space-y-1">
+                  <span className="block text-sm font-bold text-slate-900 break-words">{o.obra}</span>
+                  <span className="block text-xs text-slate-500 break-words">{o.clienteNombreRaw}</span>
+                  <span className="flex flex-wrap items-center gap-1.5 pt-0.5">
                     <CodigoObra obra={o} />
                   </span>
                 </span>
-                {/* Comercial: venta, OC, cobro. */}
-                <dl className="grid grid-cols-3 gap-2 text-[11px]">
-                  <Dato etiqueta="Venta" valor={o.ventaTotalUF != null ? uf(o.ventaTotalUF) : '—'} />
-                  <Dato etiqueta="En OC" valor={o.montoComprometidoOC ? clp(o.montoComprometidoOC) : '—'} />
-                  {/* Solo con permiso de estados de pago (si no, la API manda estadosPago null). */}
-                  {r?.estadosPago && <Dato etiqueta="Cobrado" valor={r.estadosPago.vigentes ? uf(r.estadosPago.netoUF) : '—'} detalle={r.estadosPago.vigentes ? `${n(r.estadosPago.vigentes)} EP · pagado ${uf(r.estadosPago.pagadoUF)}` : undefined} />}
-                </dl>
-                <span className="flex flex-wrap gap-1.5">
-                  {o.fases.total > 0 && <Badge size="sm" variant={o.fases.enProduccion > 0 ? 'warning' : 'subtle'}>{o.fases.enProduccion}/{o.fases.total} fases en producción</Badge>}
-                  {!!r?.pendientesAbiertos && <Badge size="sm" variant="warning">{n(r.pendientesAbiertos)} pend.</Badge>}
-                </span>
-                {/* Fabricacion: avance fisico sobre las ventanas cubicadas. */}
-                <span className="block space-y-1">
-                  <Barra etiqueta="Cubicadas" valor={cub} total={r?.ventanas.contratadas ?? 0} color="bg-slate-400" />
-                  <Barra etiqueta="Fabricadas" valor={r?.ventanas.fabricadas ?? 0} total={cub} color="bg-sky-500" />
-                  <Barra etiqueta="Despachadas" valor={r?.ventanas.despachadas ?? 0} total={cub} color="bg-violet-500" />
-                  <Barra etiqueta="Instaladas" valor={r?.ventanas.instaladas ?? 0} total={cub} color="bg-emerald-500" />
-                </span>
+                {/* Comercial: venta, OC, cobro. Una obra anterior al ERP no los lleva en el sistema: no se muestran vacíos. */}
+                {!esObraLegacy(o) && (
+                  <dl className="grid grid-cols-3 gap-2 text-[11px]">
+                    <Dato etiqueta="Venta" valor={o.ventaTotalUF != null ? uf(o.ventaTotalUF) : '—'} />
+                    <Dato etiqueta="En OC" valor={o.montoComprometidoOC ? clp(o.montoComprometidoOC) : '—'} />
+                    {/* Solo con permiso de estados de pago (si no, la API manda estadosPago null). */}
+                    {r?.estadosPago && <Dato etiqueta="Cobrado" valor={r.estadosPago.vigentes ? uf(r.estadosPago.netoUF) : '—'} detalle={r.estadosPago.vigentes ? `${n(r.estadosPago.vigentes)} EP · pagado ${uf(r.estadosPago.pagadoUF)}` : undefined} />}
+                  </dl>
+                )}
+                {(o.fases.total > 0 || !!r?.pendientesAbiertos) && (
+                  <span className="flex flex-wrap gap-1.5">
+                    {o.fases.total > 0 && <Badge size="sm" variant={o.fases.enProduccion > 0 ? 'warning' : 'subtle'}>{o.fases.enProduccion}/{o.fases.total} fases en producción</Badge>}
+                    {!!r?.pendientesAbiertos && <Badge size="sm" variant="warning">{n(r.pendientesAbiertos)} pend.</Badge>}
+                  </span>
+                )}
+                {/* Avance físico, por marcos y hojas, sobre las ventanas cubicadas. */}
+                <AvanceObra v={r?.ventanas} />
               </BotonFila>
             );
           })}

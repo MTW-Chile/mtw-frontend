@@ -1,4 +1,5 @@
 import React from 'react';
+import { cantidad } from '../../../lib/formato';
 
 const TONO = {
   fabricacion: 'bg-sky-500',
@@ -21,7 +22,7 @@ const AYUDA_HOJAS = 'Hojas; en una ventana fija, su vidrio';
 export const AvancePartes: React.FC<{ marcos: number; hojas: number; total: number; tono: keyof typeof TONO; compacto?: boolean; className?: string }> = ({ marcos, hojas, total, tono, compacto, className = '' }) => {
   if (total === 0) return <span className="text-slate-500">—</span>;
   const fila = (etiqueta: string, corta: string, valor: number, ayuda: string) => (
-    <span className="flex items-center gap-2" title={`${ayuda}: ${valor} de ${total}`}>
+    <span className="flex items-center gap-2" title={`${ayuda}: ${cantidad(valor, 0)} de ${cantidad(total, 0)}`}>
       <span className={`shrink-0 text-slate-500 ${compacto ? 'w-3 font-bold' : 'w-12'}`} aria-hidden={compacto || undefined}>
         {compacto ? corta : etiqueta}
       </span>
@@ -30,7 +31,7 @@ export const AvancePartes: React.FC<{ marcos: number; hojas: number; total: numb
         <span className={`block h-full rounded-full ${TONO[tono]}`} style={{ width: `${Math.min(100, Math.round((valor / total) * 100))}%` }} />
       </span>
       <span className="font-mono font-semibold tabular-nums text-slate-600">
-        {valor}/{total}
+        {cantidad(valor, 0)}/{cantidad(total, 0)}
       </span>
     </span>
   );
@@ -43,4 +44,4 @@ export const AvancePartes: React.FC<{ marcos: number; hojas: number; total: numb
 };
 
 /** El mismo dato en una línea de texto: «marcos 341 · hojas 186». */
-export const textoAvancePartes = (marcos: number, hojas: number): string => `marcos ${marcos} · hojas ${hojas}`;
+export const textoAvancePartes = (marcos: number, hojas: number): string => `marcos ${cantidad(marcos, 0)} · hojas ${cantidad(hojas, 0)}`;

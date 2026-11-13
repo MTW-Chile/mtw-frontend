@@ -16,6 +16,7 @@ import type { ObraDespachos } from '../../types';
 import { DespachosTab } from '../proyectos/despachos/DespachosTab';
 import { CodigoObra } from '../../components/ui/CodigoObra';
 import { AvancePartes } from '../proyectos/obra/AvancePartes';
+import { cantidad } from '../../lib/formato';
 
 type Filtro = 'TODAS' | 'BORRADORES' | 'POR_RECIBIR';
 const pasa = (o: ObraDespachos, f: Filtro) => (f === 'BORRADORES' ? o.borradores > 0 : f === 'POR_RECIBIR' ? o.porRecibir > 0 : true);
@@ -110,7 +111,7 @@ export const DespachosPage: React.FC = () => {
                     {/* Despachado por parte: marcos y hojas salen en despachos distintos. */}
                     <AvancePartes marcos={o.despachadasMarco} hojas={o.despachadasHoja} total={o.ventanas} tono="despacho" className="flex-1 min-w-[12rem] max-w-xs" />
                     <span className="text-xs text-slate-600">
-                      <b className="tabular-nums">{o.despachadas}</b> completas ({pct}%) · {o.despachos} despacho(s)
+                      <b className="tabular-nums">{cantidad(o.despachadas, 0)}</b> completas ({pct}%) · {o.despachos} despacho(s)
                     </span>
                   </div>
                 </div>

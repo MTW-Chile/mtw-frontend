@@ -12,6 +12,7 @@ import { fecha } from '../../lib/formato';
 import { ETIQUETA_PASO, VARIANTE_PASO } from '../proyectos/pendientes/utils';
 import { CodigoObra } from '../../components/ui/CodigoObra';
 import { AvancePartes } from '../proyectos/obra/AvancePartes';
+import { cantidad } from '../../lib/formato';
 
 // «3 ingresados», «1 listo para despacho»: el paso en minúscula y en plural cuando son varios.
 const PLURAL_PASO: Partial<Record<string, string>> = { INGRESADO: 'ingresados', RECIBIDO: 'vistos por el área', LISTO_DESPACHO: 'listos para despacho' };
@@ -128,7 +129,7 @@ export const ObrasInstaladores: React.FC<{ seccion: SeccionInstaladores; onElegi
                       {/* Instalado por parte: el marco suele ir antes que la hoja. */}
                       <AvancePartes marcos={o.instaladasMarco} hojas={o.instaladasHoja} total={o.ventanas} tono="instalacion" className="flex-1 min-w-[12rem] max-w-xs" />
                       <span className="text-xs text-slate-600">
-                        <b className="tabular-nums">{o.instaladas}</b> completas ({pct}%)
+                        <b className="tabular-nums">{cantidad(o.instaladas, 0)}</b> completas ({pct}%)
                       </span>
                     </div>
                   )}

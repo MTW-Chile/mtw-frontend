@@ -9,6 +9,13 @@ su `package.json`). Se muestra en el menú lateral como canal + versión, ej.
 - **Parche** (2.0.0 → 2.0.1): ajustes y mejoras acotadas, cada despliegue.
 - **Corrección urgente** sobre un parche (2.0.4 → 2.0.4.1; en package.json, 2.0.4-1): la decide Alfredo.
 
+## Sin publicar — Inicio: tarjetas de obras en curso
+
+- **Inicio › Obras en curso**: el nombre de la obra y el del cliente se ven completos (antes se cortaban con «…» porque compartían la línea con el código); el código y el indicador van debajo.
+- Los números de cuatro cifras ya no se salen de la tarjeta ni quedan desalineados: el avance va en una grilla, con separador de miles.
+- El avance se muestra por **marcos y hojas** (fabricado, despachado, instalado), igual que en el resto del sitio.
+- Las obras anteriores al ERP ya no muestran los recuadros vacíos de Venta, En OC y Cobrado.
+
 ## Sin publicar — revisión de obras anteriores al ERP
 
 - **«Anterior al ERP»**: las obras que ya estaban en ejecución cuando partió el ERP (las que se cargaron sin cotizar) llevan ese indicador junto a su código en todas las listas de obras: Obras en curso, Fabricación, Instaladores, Pendientes de Taller y de Abastecimiento, Despachos, Inicio, Notificaciones y en la ficha de la obra. Antes tenían cuatro nombres distintos en pantalla y ninguna lista las distinguía.
